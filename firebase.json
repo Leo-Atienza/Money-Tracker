@@ -1,0 +1,59 @@
+{
+  "hosting": {
+    "public": "landing",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=31536000"
+          }
+        ]
+      },
+      {
+        "source": "index.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      }
+    ]
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "money-tracker-app-e7f37",
+          "appId": "1:187756842537:android:12d1b532591e64d5779638",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "money-tracker-app-e7f37",
+          "configurations": {
+            "android": "1:187756842537:android:12d1b532591e64d5779638",
+            "ios": "1:187756842537:ios:02f61831148828be779638",
+            "macos": "1:187756842537:ios:02f61831148828be779638",
+            "web": "1:187756842537:web:70c0bcd4519706c9779638",
+            "windows": "1:187756842537:web:cdac8d0a23876164779638"
+          }
+        }
+      }
+    }
+  }
+}

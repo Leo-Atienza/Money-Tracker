@@ -1,0 +1,51 @@
+{
+    "name": "Money Tracker - Expense & Budget Manager",
+    "short_name": "Money Tracker",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#1E88E5",
+    "theme_color": "#1E88E5",
+    "description": "A minimalistic money tracking app with charts, budgets, and export features. Track expenses, manage budgets, and analyze your spending habits.",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "categories": ["finance", "productivity"],
+    "lang": "en-US",
+    "dir": "ltr",
+    "screenshots": [],
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ],
+    "share_target": {
+        "action": "/",
+        "method": "GET",
+        "enctype": "application/x-www-form-urlencoded",
+        "params": {
+            "title": "title",
+            "text": "text"
+        }
+    }
+}

@@ -1,0 +1,64 @@
+import 'package:local_auth/local_auth.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+class BiometricService {
+  final LocalAuthentication _localAuth = LocalAuthentication();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+
+  static const String _biometricEnabledKey = 'biometric_enabled';
+
+  /// Check if device supports biometric authentication
+  Future<bool> isDeviceSupported() async {
+    try {
+      return await _localAuth.canCheckBiometrics && await _localAuth.isDeviceSupported();
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Check if biometric authentication is enabled in app settings
+  Future<bool> isBiometricEnabled() async {
+    try {
+      final enabled = await _secureStorage.read(key: _biometricEnabledKey);
+      return enabled == 'true';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Enable biometric authentication
+  Future<void> enableBiometric() async {
+    await _secureStorage.write(key: _biometricEnabledKey, value: 'true');
+  }
+
+  /// Disable biometric authentication
+  Future<void> disableBiometric() async {
+    await _secureStorage.write(key: _biometricEnabledKey, value: 'false');
+  }
+
+  /// Authenticate user with biometric
+  Future<bool> authenticate({String reason = 'Authenticate to access your financial data'}) async {
+    try {
+      final isSupported = await isDeviceSupported();
+      if (!isSupported) return false;
+
+      final isEnabled = await isBiometricEnabled();
+      if (!isEnabled) return true; // Not enabled, so allow access
+
+      return await _localAuth.authenticate(
+        localizedReason: reason,
+      );
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Get available biometric types
+  Future<List<BiometricType>> getAvailableBiometrics() async {
+    try {
+      return await _localAuth.getAvailableBiometrics();
+    } catch (e) {
+      return [];
+    }
+  }
+}

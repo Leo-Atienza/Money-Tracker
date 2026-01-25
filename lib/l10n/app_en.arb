@@ -1,0 +1,180 @@
+{
+  "@@locale": "en",
+  "appTitle": "Money Tracker",
+  "homeTitle": "Home",
+  "historyTitle": "History",
+  "budgetTitle": "Budgets",
+  "analyticsTitle": "Analytics",
+  "settingsTitle": "Settings",
+
+  "addExpense": "Add Expense",
+  "editExpense": "Edit Expense",
+  "addIncome": "Add Income",
+  "editIncome": "Edit Income",
+  "delete": "Delete",
+  "cancel": "Cancel",
+  "save": "Save",
+  "update": "Update",
+  "ok": "OK",
+  "continue_": "Continue",
+  "undo": "Undo",
+
+  "amount": "Amount",
+  "category": "Category",
+  "description": "Description",
+  "date": "Date",
+  "paymentMethod": "Payment Method",
+  "amountPaid": "Amount Paid",
+  "tags": "Tags",
+
+  "cash": "Cash",
+  "credit": "Credit",
+  "debit": "Debit",
+  "other": "Other",
+
+  "all": "All",
+  "expenses": "Expenses",
+  "income": "Income",
+
+  "searchPlaceholder": "Search by name, category, or amount...",
+  "noTransactionsFound": "No transactions found",
+  "tryAdjustingFilters": "Try adjusting your search or filters",
+  "transactionsAppearHere": "Your transactions will appear here",
+  "tapPlusToAddFirst": "Tap the + button below to add your first expense or income",
+
+  "deleteExpenseTitle": "Delete Expense?",
+  "deleteIncomeTitle": "Delete Income?",
+  "deleteBudgetTitle": "Delete Budget?",
+  "deleteConfirmMessage": "Delete \"{name}\"? It will be moved to trash.",
+  "@deleteConfirmMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+
+  "expenseMovedToTrash": "Expense moved to trash",
+  "incomeMovedToTrash": "Income moved to trash",
+  "budgetDeleted": "Budget deleted",
+
+  "budgetExceededTitle": "Budget Exceeded",
+  "budgetWarningTitle": "Budget Warning",
+  "budgetExceededMessage": "This expense will exceed your {category} budget by {amount}",
+  "@budgetExceededMessage": {
+    "placeholders": {
+      "category": {"type": "String"},
+      "amount": {"type": "String"}
+    }
+  },
+  "budgetWarningMessage": "This expense will use {percentage}% of your {category} budget.",
+  "@budgetWarningMessage": {
+    "placeholders": {
+      "percentage": {"type": "int"},
+      "category": {"type": "String"}
+    }
+  },
+  "addAnyway": "Add Anyway",
+
+  "futureDateWarning": "This is a future date. The expense will appear in that month's transactions.",
+  "savedToDifferentMonth": "Expense saved to {month} (not visible in current month)",
+  "@savedToDifferentMonth": {
+    "placeholders": {
+      "month": {"type": "String"}
+    }
+  },
+  "switchToMonth": "Switch to {month}",
+  "@switchToMonth": {
+    "placeholders": {
+      "month": {"type": "String"}
+    }
+  },
+
+  "validationRequired": "This field is required",
+  "validationInvalidNumber": "Please enter a valid number",
+  "validationMustBePositive": "Amount must be greater than 0",
+  "validationExceedsTotal": "Amount paid cannot exceed total amount",
+  "validationNegative": "Amount cannot be negative",
+  "validationTooLarge": "Amount is too large (max 999,999,999.99)",
+  "validationCategoryNameTooLong": "Category name is too long (max 50 characters)",
+  "validationDuplicateCategory": "A category with this name already exists",
+
+  "markAsFullyPaid": "Mark as Fully Paid",
+  "markedAsFullyPaid": "Marked as fully paid",
+  "recordPayment": "Pay Bill",
+  "recordMorePayment": "Pay More",
+
+  "discardChangesTitle": "Discard changes?",
+  "discardChangesMessage": "You have unsaved changes. Are you sure you want to discard them?",
+  "discard": "Discard",
+
+  "allTime": "All time",
+  "dateRange": "Date range",
+  "today": "Today",
+  "yesterday": "Yesterday",
+
+  "unpaid": "Unpaid",
+  "partial": "Partial",
+  "paid": "Paid",
+  "remaining": "remaining",
+
+  "createTag": "Create Tag",
+  "tagName": "Tag name",
+  "tagCreated": "Tag \"{name}\" created",
+  "@tagCreated": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "newTag": "+ New Tag",
+
+  "archivedCategory": "{name} (Archived)",
+  "@archivedCategory": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "archivedCategoryTooltip": "This category was deleted but is preserved for historical data. You can reassign this expense to an active category.",
+
+  "welcomeTitle": "Welcome to Money Tracker!",
+  "welcomeMessage": "Let's get you started with tracking your finances",
+  "onboardingStep1Title": "Track Your Spending",
+  "onboardingStep1Description": "Easily add and categorize your expenses and income",
+  "onboardingStep2Title": "Set Budgets",
+  "onboardingStep2Description": "Create monthly budgets and get warnings when you're close to the limit",
+  "onboardingStep3Title": "View Analytics",
+  "onboardingStep3Description": "See insights and trends about your spending habits",
+  "getStarted": "Get Started",
+  "skip": "Skip",
+  "next": "Next",
+  "loadSampleData": "Load Sample Data",
+  "loadSampleDataDescription": "See what the app looks like with example transactions",
+
+  "showingFirstResults": "Showing first {count} results. Refine your search to see more specific results.",
+  "@showingFirstResults": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+
+  "accessibilityBudgetStatus": "Budget status: {status}",
+  "@accessibilityBudgetStatus": {
+    "placeholders": {
+      "status": {"type": "String"}
+    }
+  },
+  "accessibilityUnderBudget": "Under budget",
+  "accessibilityApproachingLimit": "Approaching limit",
+  "accessibilityOverBudget": "Over budget",
+
+  "errorSavingExpense": "Error saving expense: {error}",
+  "@errorSavingExpense": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+
+  "previousMonth": "Previous month",
+  "nextMonth": "Next month",
+  "selectMonth": "Select month"
+}
