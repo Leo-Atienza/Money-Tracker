@@ -1576,13 +1576,9 @@ class AppState extends ChangeNotifier {
             continue;
           }
           final expensesToCreate = _processMonthlyRecurring<Expense>(lastCreated: lastCreated, dayOfMonth: recurring.dayOfMonth, now: today, createTransaction: (date) => Expense(amount: recurring.amountDecimal, category: recurring.category, description: recurring.description, date: date, accountId: recurring.accountId, amountPaid: Decimal.zero, paymentMethod: recurring.paymentMethod));
-          if (expensesToCreate.isNotEmpty || lastCreated == null || !_isSameMonth(lastCreated, today)) {
+          if (expensesToCreate.isNotEmpty) {
             final updatedRecurring = recurring.copyWith(lastCreated: today, occurrenceCount: recurring.occurrenceCount + expensesToCreate.length);
-            if (expensesToCreate.isNotEmpty) {
-              await _db.createRecurringExpensesBatch(expenses: expensesToCreate, recurringToUpdate: updatedRecurring);
-            } else {
-              await _db.updateRecurringExpense(updatedRecurring);
-            }
+            await _db.createRecurringExpensesBatch(expenses: expensesToCreate, recurringToUpdate: updatedRecurring);
             totalCreated += expensesToCreate.length;
           }
         } catch (e) {
@@ -1615,13 +1611,9 @@ class AppState extends ChangeNotifier {
             continue;
           }
           final incomesToCreate = _processMonthlyRecurring<Income>(lastCreated: recurring.lastCreated, dayOfMonth: recurring.dayOfMonth, now: today, createTransaction: (date) => Income(amount: recurring.amountDecimal, category: recurring.category, description: recurring.description, date: date, accountId: recurring.accountId));
-          if (incomesToCreate.isNotEmpty || recurring.lastCreated == null || !_isSameMonth(recurring.lastCreated!, today)) {
+          if (incomesToCreate.isNotEmpty) {
             final updatedRecurring = recurring.copyWith(lastCreated: today, occurrenceCount: recurring.occurrenceCount + incomesToCreate.length);
-            if (incomesToCreate.isNotEmpty) {
-              await _db.createRecurringIncomeBatch(incomes: incomesToCreate, recurringToUpdate: updatedRecurring);
-            } else {
-              await _db.updateRecurringIncome(updatedRecurring);
-            }
+            await _db.createRecurringIncomeBatch(incomes: incomesToCreate, recurringToUpdate: updatedRecurring);
             totalCreated += incomesToCreate.length;
           }
         } catch (e) {
