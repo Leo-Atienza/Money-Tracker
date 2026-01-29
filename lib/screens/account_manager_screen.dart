@@ -405,7 +405,9 @@ class _AccountList extends StatelessWidget {
     final appState = context.read<AppState>();
 
     // FIX #1: Get transaction count before showing dialog
-    final account = appState.accounts.firstWhere((a) => a.id == id);
+    final accountIndex = appState.accounts.indexWhere((a) => a.id == id);
+    if (accountIndex == -1) return;
+    final account = appState.accounts[accountIndex];
 
     showDialog(
       context: context,

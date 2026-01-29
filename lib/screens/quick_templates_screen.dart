@@ -283,9 +283,9 @@ class _AddTemplateDialogState extends State<_AddTemplateDialog> {
     final appState = context.read<AppState>(); // For method calls
 
     // Ensure selected category is valid for current type
-    final validCategory = categories.any((c) => c.name == _selectedCategory)
+    final validCategory = categories.isNotEmpty && categories.any((c) => c.name == _selectedCategory)
         ? _selectedCategory
-        : categories.first.name;
+        : (categories.isNotEmpty ? categories.first.name : _selectedCategory);
 
     return AlertDialog(
       backgroundColor: theme.colorScheme.surface,

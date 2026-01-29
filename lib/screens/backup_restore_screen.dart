@@ -105,7 +105,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       return 'Failed to write backup file. Check storage permissions and available space.';
     } else {
       // Include partial error details for debugging
-      return 'Error: ${error.toString().split('\n').first.substring(0, 100.clamp(0, error.toString().length))}';
+      final firstLine = error.toString().split('\n').first;
+      return 'Error: ${firstLine.substring(0, 100.clamp(0, firstLine.length))}';
     }
   }
 
