@@ -19,13 +19,21 @@ class BudgetWidgetProvider : HomeWidgetProvider() {
     ) {
         appWidgetIds.forEach { widgetId ->
             try {
+                // Read data from the SharedPreferences provided by HomeWidgetProvider.
+                // If that has no data, fall back to reading directly from the known
+                // SharedPreferences file used by the home_widget plugin.
+                val data = if (widgetData.getString("month_name", null) != null) {
+                    widgetData
+                } else {
+                    context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
+                }
+
                 val views = RemoteViews(context.packageName, R.layout.budget_widget).apply {
-                    // Get data from widget storage
-                    val monthName = widgetData.getString("month_name", null) ?: getCurrentMonthName()
-                    val expenses = widgetData.getString("expenses", "\$0.00") ?: "\$0.00"
-                    val income = widgetData.getString("income", "\$0.00") ?: "\$0.00"
-                    val balance = widgetData.getString("balance", "\$0.00") ?: "\$0.00"
-                    val isPositive = widgetData.getBoolean("is_positive", true)
+                    val monthName = data.getString("month_name", null) ?: getCurrentMonthName()
+                    val expenses = data.getString("expenses", null) ?: "\$0.00"
+                    val income = data.getString("income", null) ?: "\$0.00"
+                    val balance = data.getString("balance", null) ?: "\$0.00"
+                    val isPositive = data.getBoolean("is_positive", true)
 
                     // Update text views
                     setTextViewText(R.id.widget_month, monthName)
@@ -53,8 +61,20 @@ class BudgetWidgetProvider : HomeWidgetProvider() {
 
                 appWidgetManager.updateAppWidget(widgetId, views)
             } catch (e: Exception) {
-                // Log error but don't crash the widget
-                android.util.Log.e("BudgetWidgetProvider", "Error updating widget: ${e.message}")
+                // On error, still try to show a basic widget with defaults
+                android.util.Log.e("BudgetWidgetProvider", "Error updating widget: ${e.message}", e)
+                try {
+                    val fallbackViews = RemoteViews(context.packageName, R.layout.budget_widget).apply {
+                        setTextViewText(R.id.widget_month, getCurrentMonthName())
+                        setTextViewText(R.id.widget_expenses, "\$0.00")
+                        setTextViewText(R.id.widget_income, "\$0.00")
+                        setTextViewText(R.id.widget_balance, "\$0.00")
+                        setTextColor(R.id.widget_balance, 0xFF4CAF50.toInt())
+                    }
+                    appWidgetManager.updateAppWidget(widgetId, fallbackViews)
+                } catch (fallbackError: Exception) {
+                    android.util.Log.e("BudgetWidgetProvider", "Fallback update also failed: ${fallbackError.message}")
+                }
             }
         }
     }

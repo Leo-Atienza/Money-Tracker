@@ -11,4 +11,5 @@
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:previewImage="@drawable/widget_background"
+    android:previewLayout="@layout/budget_widget"
     android:description="@string/widget_description" />

@@ -1825,6 +1825,11 @@ class AppState extends ChangeNotifier {
   double get totalIncomeThisMonth => _decimalToDouble(_incomes.where((i) => _isSameMonth(i.date, _selectedMonth)).map((i) => i.amountDecimal).fold(Decimal.zero, (sum, amount) => sum + amount));
   double get balanceThisMonth => totalIncomeThisMonth - totalExpensesThisMonth;
 
+  /// Get total expenses for a specific month (used by widget to always show current month)
+  double getExpensesForMonth(DateTime month) => _decimalToDouble(_expenses.where((e) => _isSameMonth(e.date, month)).map((e) => e.amountDecimal).fold(Decimal.zero, (sum, amount) => sum + amount));
+  /// Get total income for a specific month (used by widget to always show current month)
+  double getIncomeForMonth(DateTime month) => _decimalToDouble(_incomes.where((i) => _isSameMonth(i.date, month)).map((i) => i.amountDecimal).fold(Decimal.zero, (sum, amount) => sum + amount));
+
   double get totalPaid => _decimalToDouble(getExpensesForSelectedMonth().map((e) => e.amountPaidDecimal).fold(Decimal.zero, (sum, amount) => sum + amount));
   double get totalRemaining => _decimalToDouble(getExpensesForSelectedMonth().map((e) => e.amountDecimal - e.amountPaidDecimal).fold(Decimal.zero, (sum, amount) => sum + amount));
   double get availableIncomeBalance => totalIncomeThisMonth - totalPaid;

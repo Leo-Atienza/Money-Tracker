@@ -24,11 +24,15 @@ class HomeWidgetHelper {
   }
 
   /// Update widget with current data from AppState
+  /// Always uses the actual current month data, not the user's selected month
   static Future<void> updateWidget(AppState appState) async {
     try {
-      // Get the summary data for the current month
-      final totalExpenses = appState.totalExpensesThisMonth;
-      final totalIncome = appState.totalIncomeThisMonth;
+      // Get the current month data specifically for the widget
+      // Use getCurrentMonthExpenses/Income instead of totalExpensesThisMonth
+      // which is based on _selectedMonth and may not be the current month
+      final now = DateTime.now();
+      final totalExpenses = appState.getExpensesForMonth(now);
+      final totalIncome = appState.getIncomeForMonth(now);
       final balance = totalIncome - totalExpenses;
       final currency = appState.currency;
 
@@ -39,7 +43,6 @@ class HomeWidgetHelper {
       final isPositiveBalance = balance >= 0;
 
       // Get current month name
-      final now = DateTime.now();
       final monthNames = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
@@ -47,7 +50,6 @@ class HomeWidgetHelper {
       final monthName = monthNames[now.month - 1];
 
       // Save data to widget storage
-      // FIX: Use actual currency symbol instead of hardcoded format
       await HomeWidget.saveWidgetData<String>('month_name', monthName);
       await HomeWidget.saveWidgetData<String>('expenses', expensesFormatted);
       await HomeWidget.saveWidgetData<String>('income', incomeFormatted);
@@ -55,9 +57,9 @@ class HomeWidgetHelper {
       await HomeWidget.saveWidgetData<bool>('is_positive', isPositiveBalance);
       await HomeWidget.saveWidgetData<String>('currency', currency);
 
-      // Update the widget
+      // Update the widget using qualifiedAndroidName for reliable class resolution
       await HomeWidget.updateWidget(
-        androidName: _androidWidgetName,
+        qualifiedAndroidName: 'com.moneytracker.app.$_androidWidgetName',
         iOSName: _iOSWidgetName,
       );
 
@@ -79,7 +81,7 @@ class HomeWidgetHelper {
       await HomeWidget.saveWidgetData<String>('currency', currency);
 
       await HomeWidget.updateWidget(
-        androidName: _androidWidgetName,
+        qualifiedAndroidName: 'com.moneytracker.app.$_androidWidgetName',
         iOSName: _iOSWidgetName,
       );
     } catch (e) {
