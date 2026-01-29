@@ -15,6 +15,7 @@ import '../models/income_model.dart';
 import '../models/quick_template_model.dart';
 import '../models/monthly_balance_model.dart';
 import '../utils/decimal_helper.dart';
+import '../utils/date_helper.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -953,7 +954,7 @@ class DatabaseHelper {
     await db.delete('budgets', where: 'account_id = ?', whereArgs: [id]);
     await db.delete('recurring_expenses', where: 'account_id = ?', whereArgs: [id]);
     await db.delete('recurring_income', where: 'account_id = ?', whereArgs: [id]);
-    await db.delete('categories', where: 'account_id = ? AND isDefault = 0', whereArgs: [id]);
+    await db.delete('categories', where: 'account_id = ?', whereArgs: [id]);
     await db.delete('quick_templates', where: 'account_id = ?', whereArgs: [id]);
     await db.delete('deleted_expenses', where: 'account_id = ?', whereArgs: [id]);
     await db.delete('deleted_income', where: 'account_id = ?', whereArgs: [id]);
@@ -1415,7 +1416,7 @@ class DatabaseHelper {
       amount: DecimalHelper.fromDoubleSafe(map['amount'] as double?),
       category: map['category'] as String,
       description: map['description'] as String? ?? '',
-      date: DateTime.parse(map['date'] as String),
+      date: DateHelper.parseDate(map['date'] as String) ?? DateHelper.today(),
       accountId: map['account_id'] as int,
       amountPaid: DecimalHelper.fromDoubleSafe(map['amountPaid'] as double?),
       paymentMethod: map['paymentMethod'] as String? ?? 'Cash',
