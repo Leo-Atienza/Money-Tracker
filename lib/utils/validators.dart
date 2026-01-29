@@ -53,11 +53,10 @@ class Validators {
       return 'Amount paid cannot be negative';
     }
 
-    // FIX: Convert totalAmount to Decimal with 2 decimal places for precise comparison
-    // This avoids issues like amountPaid=99.999999 passing when totalAmount=100.00
-    final totalDecimal = (totalAmount * 100).roundToDouble() / 100;
-    if (amountPaid > totalDecimal + 0.005) {
-      // Allow tiny tolerance for rounding
+    // Compare in integer cents to avoid floating-point precision issues
+    final totalCents = (totalAmount * 100).round();
+    final paidCents = (amountPaid * 100).round();
+    if (paidCents > totalCents) {
       return 'Amount paid cannot exceed total amount';
     }
 

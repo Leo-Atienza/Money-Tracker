@@ -411,7 +411,10 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
     // Load existing color and icon if editing
     if (widget.categoryId != null) {
       final appState = context.read<AppState>();
-      final category = appState.categories.firstWhere((c) => c.id == widget.categoryId);
+      final category = appState.categories.firstWhere(
+        (c) => c.id == widget.categoryId,
+        orElse: () => Category(name: widget.initialName ?? '', type: widget.categoryType ?? 'expense', accountId: 0),
+      );
       _selectedColor = category.color;
       _selectedIcon = category.icon;
     }
@@ -701,8 +704,12 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
 
       if (widget.categoryId != null) {
         // FIX #2: Pass old name to cascade rename
-        final category = appState.categories
-            .firstWhere((c) => c.id == widget.categoryId);
+        final categoryIndex = appState.categories.indexWhere((c) => c.id == widget.categoryId);
+        if (categoryIndex == -1) {
+          if (mounted) _showError('Category no longer exists');
+          return;
+        }
+        final category = appState.categories[categoryIndex];
         final oldName = category.name;
         final updated = category.copyWith(name: newName, color: _selectedColor, icon: _selectedIcon);
         await appState.updateCategory(updated, oldName: oldName);
