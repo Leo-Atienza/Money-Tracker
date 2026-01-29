@@ -697,7 +697,16 @@ class AppState extends ChangeNotifier {
       final newAmountPaidDecimal = expense.amountPaidDecimal + paymentDecimal;
       final remainingDecimal = expense.amountDecimal - newAmountPaidDecimal;
       final tenCents = Decimal.parse('0.10');
-      final finalAmountPaid = (remainingDecimal > Decimal.zero && remainingDecimal < tenCents) ? expense.amountDecimal : newAmountPaidDecimal;
+      final Decimal finalAmountPaid;
+      if (newAmountPaidDecimal >= expense.amountDecimal) {
+        // Cap at expense amount to prevent overpayment
+        finalAmountPaid = expense.amountDecimal;
+      } else if (remainingDecimal > Decimal.zero && remainingDecimal < tenCents) {
+        // Auto-round up if less than 10 cents remaining
+        finalAmountPaid = expense.amountDecimal;
+      } else {
+        finalAmountPaid = newAmountPaidDecimal;
+      }
       final updated = expense.copyWithDecimal(amountPaid: finalAmountPaid);
       await _db.updateExpense(updated);
       await _loadExpensesInternal();
