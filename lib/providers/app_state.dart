@@ -910,28 +910,36 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> restoreDeletedExpense(int deletedId) async {
-    await _db.restoreDeletedExpense(deletedId);
-    await _loadExpenses();
-    _invalidateExpenseCache(); // FIX: Invalidate cache after restore
-    notifyListeners();
-    _updateHomeWidget(); // FIX: Update home widget after restore
+    await _writeMutex.synchronized(() async {
+      await _db.restoreDeletedExpense(deletedId);
+      await _loadExpenses();
+      _invalidateExpenseCache();
+      notifyListeners();
+    });
+    _updateHomeWidget();
   }
 
   Future<void> restoreDeletedIncome(int deletedId) async {
-    await _db.restoreDeletedIncome(deletedId);
-    await _loadIncomes();
-    notifyListeners();
-    _updateHomeWidget(); // FIX: Update home widget after restore
+    await _writeMutex.synchronized(() async {
+      await _db.restoreDeletedIncome(deletedId);
+      await _loadIncomes();
+      notifyListeners();
+    });
+    _updateHomeWidget();
   }
 
   Future<void> permanentlyDeleteExpense(int deletedId) async {
-    await _db.permanentlyDeleteExpense(deletedId);
-    notifyListeners();
+    await _writeMutex.synchronized(() async {
+      await _db.permanentlyDeleteExpense(deletedId);
+      notifyListeners();
+    });
   }
 
   Future<void> permanentlyDeleteIncome(int deletedId) async {
-    await _db.permanentlyDeleteIncome(deletedId);
-    notifyListeners();
+    await _writeMutex.synchronized(() async {
+      await _db.permanentlyDeleteIncome(deletedId);
+      notifyListeners();
+    });
   }
 
   Future<void> emptyTrash() async {
@@ -1485,10 +1493,17 @@ class AppState extends ChangeNotifier {
       await _db.getDeletedAccounts();
 
   Future<void> restoreDeletedAccount(int deletedId) async {
-    final newAccountId = await _db.restoreDeletedAccount(deletedId);
-    await _loadAccounts();
-    final restoredAccount = _accounts.firstWhere((a) => a.id == newAccountId);
-    await switchAccount(restoredAccount);
+    await _writeMutex.synchronized(() async {
+      final newAccountId = await _db.restoreDeletedAccount(deletedId);
+      await _loadAccounts();
+      final restoredAccount = _accounts.cast<Account?>().firstWhere(
+            (a) => a?.id == newAccountId,
+            orElse: () => null,
+          );
+      if (restoredAccount != null) {
+        await switchAccount(restoredAccount);
+      }
+    });
   }
 
   Future<void> permanentlyDeleteAccount(int deletedId) async =>

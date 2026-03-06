@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 /// Helper for ensuring WCAG AA color contrast compliance.
@@ -27,7 +28,7 @@ class ColorContrastHelper {
     if (value <= 0.03928) {
       return value / 12.92;
     } else {
-      return ((value + 0.055) / 1.055).pow(2.4);
+      return math.pow((value + 0.055) / 1.055, 2.4).toDouble();
     }
   }
 
@@ -166,14 +167,4 @@ class StatusColors {
     required this.error,
     required this.info,
   });
-}
-
-extension on double {
-  double pow(double exponent) {
-    double result = 1.0;
-    for (int i = 0; i < exponent.abs(); i++) {
-      result *= this;
-    }
-    return exponent < 0 ? 1.0 / result : result;
-  }
 }

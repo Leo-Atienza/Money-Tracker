@@ -144,8 +144,10 @@ class BackupHelper {
         allowedExtensions: ['json'],
       );
 
-      if (result != null && result.files.single.path != null) {
-        final file = File(result.files.single.path!);
+      if (result != null &&
+          result.files.isNotEmpty &&
+          result.files.first.path != null) {
+        final file = File(result.files.first.path!);
         final content = await file.readAsString();
         final data = jsonDecode(content);
 

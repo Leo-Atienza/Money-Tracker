@@ -97,7 +97,7 @@ class MonthlyBalance {
         (map['carryover_from_previous'] as num?)?.toDouble(),
       ),
       overallBudget: overallBudget,
-      accountId: map['account_id'] ?? map['accountId'],
+      accountId: map['account_id'] ?? map['accountId'] ?? 0,
       month: parsedMonth ?? DateHelper.startOfMonth(DateHelper.today()),
     );
   }
