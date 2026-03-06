@@ -30,9 +30,10 @@ class _LoadingSkeletonState extends State<LoadingSkeleton>
       duration: const Duration(milliseconds: 1500),
     )..repeat();
 
-    _animation = Tween<double>(begin: -1, end: 2).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: -1,
+      end: 2,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -58,11 +59,7 @@ class _LoadingSkeletonState extends State<LoadingSkeleton>
             gradient: LinearGradient(
               begin: Alignment(_animation.value - 1, 0),
               end: Alignment(_animation.value, 0),
-              colors: [
-                baseColor,
-                highlightColor,
-                baseColor,
-              ],
+              colors: [baseColor, highlightColor, baseColor],
               stops: const [0.0, 0.5, 1.0],
             ),
           ),
@@ -76,10 +73,7 @@ class _LoadingSkeletonState extends State<LoadingSkeleton>
 class TransactionListSkeleton extends StatelessWidget {
   final int itemCount;
 
-  const TransactionListSkeleton({
-    super.key,
-    this.itemCount = 5,
-  });
+  const TransactionListSkeleton({super.key, this.itemCount = 5});
 
   @override
   Widget build(BuildContext context) {

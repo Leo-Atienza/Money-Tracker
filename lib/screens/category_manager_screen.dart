@@ -66,15 +66,19 @@ class _CategoryList extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // Optimize: Only watch categories
-    final categories = context.select<AppState, List<Category>>((s) => s.categories);
+    final categories = context.select<AppState, List<Category>>(
+      (s) => s.categories,
+    );
 
     if (categories.isEmpty) {
       return _buildEmptyState(theme, context);
     }
 
     // Separate by type first, then by default/custom
-    final expenseCategories = categories.where((c) => c.type == 'expense').toList();
-    final incomeCategories = categories.where((c) => c.type == 'income').toList();
+    final expenseCategories =
+        categories.where((c) => c.type == 'expense').toList();
+    final incomeCategories =
+        categories.where((c) => c.type == 'income').toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -118,11 +122,13 @@ class _CategoryList extends StatelessWidget {
                     category.name,
                     category.type,
                   ),
-                  onDelete: category.isDefault ? null : () => _confirmDelete(
-                    context,
-                    category.id!,
-                    category.name,
-                  ),
+                  onDelete: category.isDefault
+                      ? null
+                      : () => _confirmDelete(
+                            context,
+                            category.id!,
+                            category.name,
+                          ),
                 );
               }).toList(),
             ),
@@ -169,11 +175,13 @@ class _CategoryList extends StatelessWidget {
                     category.name,
                     category.type,
                   ),
-                  onDelete: category.isDefault ? null : () => _confirmDelete(
-                    context,
-                    category.id!,
-                    category.name,
-                  ),
+                  onDelete: category.isDefault
+                      ? null
+                      : () => _confirmDelete(
+                            context,
+                            category.id!,
+                            category.name,
+                          ),
                 );
               }).toList(),
             ),
@@ -224,7 +232,12 @@ class _CategoryList extends StatelessWidget {
   }
 
   // FIX #2: Pass type to edit dialog
-  void _showEditCategory(BuildContext context, int id, String name, String type) {
+  void _showEditCategory(
+    BuildContext context,
+    int id,
+    String name,
+    String type,
+  ) {
     showDialog(
       context: context,
       builder: (context) => _AddCategoryDialog(
@@ -244,7 +257,8 @@ class _CategoryList extends StatelessWidget {
     final category = appState.categories[categoryIndex];
 
     // CRITICAL FIX: Prevent deleting the last category of its type
-    final categoriesOfSameType = appState.categories.where((c) => c.type == category.type).toList();
+    final categoriesOfSameType =
+        appState.categories.where((c) => c.type == category.type).toList();
     if (categoriesOfSameType.length <= 1) {
       if (!context.mounted) return;
       showDialog(
@@ -269,10 +283,14 @@ class _CategoryList extends StatelessWidget {
     final usage = appState.getCategoryUsageInRecurring(name);
     final recurringExpenseCount = usage['recurringExpenses'] ?? 0;
     final recurringIncomeCount = usage['recurringIncome'] ?? 0;
-    final hasRecurringUsage = recurringExpenseCount > 0 || recurringIncomeCount > 0;
+    final hasRecurringUsage =
+        recurringExpenseCount > 0 || recurringIncomeCount > 0;
 
     // FIX: Use efficient database count instead of loading all transactions into memory
-    final existingTransactionCount = await appState.countTransactionsByCategory(name, category.type);
+    final existingTransactionCount = await appState.countTransactionsByCategory(
+      name,
+      category.type,
+    );
 
     if (!context.mounted) return;
 
@@ -323,10 +341,10 @@ class _CategoryTileRow extends StatelessWidget {
         border: isLast
             ? null
             : Border(
-          bottom: BorderSide(
-            color: theme.colorScheme.outlineVariant.withAlpha(100),
-          ),
-        ),
+                bottom: BorderSide(
+                  color: theme.colorScheme.outlineVariant.withAlpha(100),
+                ),
+              ),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
@@ -346,12 +364,12 @@ class _CategoryTileRow extends StatelessWidget {
         ),
         subtitle: isDefault
             ? Text(
-          'Default',
-          style: TextStyle(
-            fontSize: 12,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        )
+                'Default',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              )
             : null,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -413,7 +431,11 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
       final appState = context.read<AppState>();
       final category = appState.categories.firstWhere(
         (c) => c.id == widget.categoryId,
-        orElse: () => Category(name: widget.initialName ?? '', type: widget.categoryType ?? 'expense', accountId: 0),
+        orElse: () => Category(
+          name: widget.initialName ?? '',
+          type: widget.categoryType ?? 'expense',
+          accountId: 0,
+        ),
       );
       _selectedColor = category.color;
       _selectedIcon = category.icon;
@@ -578,7 +600,11 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
-                      CategoryIcons.getIcon(_selectedIcon, widget.initialName ?? '', _selectedType),
+                      CategoryIcons.getIcon(
+                        _selectedIcon,
+                        widget.initialName ?? '',
+                        _selectedType,
+                      ),
                       color: _selectedColor != null
                           ? ColorPicker.parseColor(_selectedColor)
                           : theme.colorScheme.onSurfaceVariant,
@@ -640,10 +666,10 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
           onPressed: _isSaving ? null : _save,
           child: _isSaving
               ? const SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          )
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Save'),
         ),
       ],
@@ -693,7 +719,9 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
 
     // Validate category name doesn't contain problematic characters
     if (newName.contains(RegExp(r'[<>"\\/]'))) {
-      _showError('Category name cannot contain special characters like < > " \\ /');
+      _showError(
+        'Category name cannot contain special characters like < > " \\ /',
+      );
       return;
     }
 
@@ -704,17 +732,28 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
 
       if (widget.categoryId != null) {
         // FIX #2: Pass old name to cascade rename
-        final categoryIndex = appState.categories.indexWhere((c) => c.id == widget.categoryId);
+        final categoryIndex = appState.categories.indexWhere(
+          (c) => c.id == widget.categoryId,
+        );
         if (categoryIndex == -1) {
           if (mounted) _showError('Category no longer exists');
           return;
         }
         final category = appState.categories[categoryIndex];
         final oldName = category.name;
-        final updated = category.copyWith(name: newName, color: _selectedColor, icon: _selectedIcon);
+        final updated = category.copyWith(
+          name: newName,
+          color: _selectedColor,
+          icon: _selectedIcon,
+        );
         await appState.updateCategory(updated, oldName: oldName);
       } else {
-        await appState.addCategory(newName, type: _selectedType, color: _selectedColor, icon: _selectedIcon);
+        await appState.addCategory(
+          newName,
+          type: _selectedType,
+          color: _selectedColor,
+          icon: _selectedIcon,
+        );
       }
 
       if (mounted) Navigator.pop(context);
@@ -955,7 +994,10 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
       final categories = widget.categoryType == 'expense'
           ? s.expenseCategories
           : s.incomeCategories;
-      return categories.where((c) => c.name != widget.categoryName).map((c) => c.name).toList();
+      return categories
+          .where((c) => c.name != widget.categoryName)
+          .map((c) => c.name)
+          .toList();
     });
 
     return AlertDialog(
@@ -994,7 +1036,11 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.orange,
+                          size: 24,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
@@ -1047,7 +1093,8 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                 theme,
                 value: 'delete',
                 title: 'Delete transactions',
-                subtitle: 'All ${widget.existingTransactionCount} transaction${widget.existingTransactionCount > 1 ? 's' : ''} will be moved to trash',
+                subtitle:
+                    'All ${widget.existingTransactionCount} transaction${widget.existingTransactionCount > 1 ? 's' : ''} will be moved to trash',
                 icon: Icons.delete_outline,
                 color: Colors.red,
               ),
@@ -1071,7 +1118,10 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
               if (_selectedAction == 'move') ...[
                 const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
@@ -1082,10 +1132,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                       hint: const Text('Select category'),
                       isExpanded: true,
                       items: availableCategories.map((cat) {
-                        return DropdownMenuItem(
-                          value: cat,
-                          child: Text(cat),
-                        );
+                        return DropdownMenuItem(value: cat, child: Text(cat));
                       }).toList(),
                       onChanged: (value) {
                         setState(() => _selectedMoveToCategory = value);
@@ -1111,7 +1158,11 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.warning_amber, color: Colors.red, size: 20),
+                        const Icon(
+                          Icons.warning_amber,
+                          color: Colors.red,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'Used by Recurring Transactions',
@@ -1164,9 +1215,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
         TextButton(
           // FIX: Allow deletion even without category selection if no categories exist
           // (will create "Uncategorized" automatically)
-          onPressed: _isDeleting
-              ? null
-              : _handleDelete,
+          onPressed: _isDeleting ? null : _handleDelete,
           style: TextButton.styleFrom(foregroundColor: Colors.red),
           child: _isDeleting
               ? const SizedBox(
@@ -1192,7 +1241,11 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
     final isSelected = _selectedAction == value;
 
     return InkWell(
-      onTap: isDisabled ? null : () => setState(() => _selectedAction = value), // FIX: Disable if no categories
+      onTap: isDisabled
+          ? null
+          : () => setState(
+                () => _selectedAction = value,
+              ), // FIX: Disable if no categories
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -1235,12 +1288,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                 ],
               ),
             ),
-            if (isSelected)
-              Icon(
-                Icons.check_circle,
-                color: color,
-                size: 20,
-              ),
+            if (isSelected) Icon(Icons.check_circle, color: color, size: 20),
           ],
         ),
       ),
@@ -1282,7 +1330,10 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
 
             if (availableCategories.isEmpty) {
               // Create "Uncategorized" category
-              await appState.addCategory('Uncategorized', type: widget.categoryType);
+              await appState.addCategory(
+                'Uncategorized',
+                type: widget.categoryType,
+              );
               targetCategory = 'Uncategorized';
             } else {
               // This shouldn't happen, but safety fallback

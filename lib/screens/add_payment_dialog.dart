@@ -28,12 +28,15 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
   Future<void> _addPayment() async {
     if (_formKey.currentState!.validate()) {
       // FIX: Use parseDecimal to support both comma and dot as decimal separator
-      final paymentAmount = CurrencyHelper.parseDecimal(_paymentController.text) ?? 0.0;
+      final paymentAmount =
+          CurrencyHelper.parseDecimal(_paymentController.text) ?? 0.0;
       final appState = context.read<AppState>();
 
       // Check if user wants to use income and has sufficient balance
       if (_useIncomeBalance) {
-        final availableIncome = appState.getAvailableIncomeForMonth(widget.expense.date);
+        final availableIncome = appState.getAvailableIncomeForMonth(
+          widget.expense.date,
+        );
         if (paymentAmount > availableIncome) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -84,7 +87,9 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
   }
 
   Widget _buildIncomePaymentOption(AppState appState, ThemeData theme) {
-    final availableIncome = appState.getAvailableIncomeForMonth(widget.expense.date);
+    final availableIncome = appState.getAvailableIncomeForMonth(
+      widget.expense.date,
+    );
     final hasIncome = availableIncome > 0;
 
     return Container(
@@ -107,7 +112,9 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
               Icon(
                 Icons.account_balance_wallet,
                 size: 20,
-                color: hasIncome ? Colors.green : theme.colorScheme.onSurfaceVariant,
+                color: hasIncome
+                    ? Colors.green
+                    : theme.colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -185,16 +192,20 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
     final appState = context.watch<AppState>();
 
     // FIX: Check if payment amount exceeds available balance
-    final paymentAmount = CurrencyHelper.parseDecimal(_paymentController.text) ?? 0.0;
-    final availableIncome = appState.getAvailableIncomeForMonth(widget.expense.date);
-    final hasInsufficientBalance = _useIncomeBalance && paymentAmount > availableIncome;
-    final isPaymentValid = paymentAmount > 0 && paymentAmount <= remaining && !hasInsufficientBalance;
+    final paymentAmount =
+        CurrencyHelper.parseDecimal(_paymentController.text) ?? 0.0;
+    final availableIncome = appState.getAvailableIncomeForMonth(
+      widget.expense.date,
+    );
+    final hasInsufficientBalance =
+        _useIncomeBalance && paymentAmount > availableIncome;
+    final isPaymentValid = paymentAmount > 0 &&
+        paymentAmount <= remaining &&
+        !hasInsufficientBalance;
 
     return Dialog(
       backgroundColor: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: SingleChildScrollView(
         child: Container(
@@ -348,7 +359,8 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                                 prefixText: '${appState.currency} ',
                                 hintText: '0.00',
                                 hintStyle: TextStyle(
-                                  color: theme.colorScheme.onSurfaceVariant.withAlpha(128),
+                                  color: theme.colorScheme.onSurfaceVariant
+                                      .withAlpha(128),
                                 ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
@@ -363,7 +375,10 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                                   ),
                                 ),
                               ),
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
                               inputFormatters: [
                                 CurrencyHelper.decimalInputFormatter(),
                               ],
@@ -372,7 +387,9 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                                   return 'Enter amount';
                                 }
                                 // FIX: Use parseDecimal to support both comma and dot as decimal separator
-                                final amount = CurrencyHelper.parseDecimal(value);
+                                final amount = CurrencyHelper.parseDecimal(
+                                  value,
+                                );
                                 if (amount == null || amount <= 0) {
                                   return 'Enter valid amount';
                                 }
@@ -387,7 +404,8 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                           const SizedBox(width: 8),
                           TextButton(
                             onPressed: () {
-                              _paymentController.text = remaining.toStringAsFixed(2);
+                              _paymentController.text =
+                                  remaining.toStringAsFixed(2);
                             },
                             child: const Text('Pay All'),
                           ),
@@ -449,13 +467,16 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                       flex: 2,
                       child: FilledButton(
                         // FIX: Disable button when payment is invalid instead of showing error after tap
-                        onPressed: (isPaymentValid && !_isSaving) ? _addPayment : null,
+                        onPressed:
+                            (isPaymentValid && !_isSaving) ? _addPayment : null,
                         style: FilledButton.styleFrom(
                           backgroundColor: theme.colorScheme.onSurface,
                           foregroundColor: theme.colorScheme.surface,
                           // FIX: Show visual feedback when disabled
-                          disabledBackgroundColor: theme.colorScheme.surfaceContainerHighest,
-                          disabledForegroundColor: theme.colorScheme.onSurfaceVariant,
+                          disabledBackgroundColor:
+                              theme.colorScheme.surfaceContainerHighest,
+                          disabledForegroundColor:
+                              theme.colorScheme.onSurfaceVariant,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -463,24 +484,26 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                         ),
                         child: _isSaving
                             ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
                             : Text(
-                          // FIX: Show reason why button is disabled
-                          hasInsufficientBalance
-                              ? 'Insufficient Balance'
-                              : paymentAmount > remaining
-                                  ? 'Amount Too High'
-                                  : 'Add Payment',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                                // FIX: Show reason why button is disabled
+                                hasInsufficientBalance
+                                    ? 'Insufficient Balance'
+                                    : paymentAmount > remaining
+                                        ? 'Amount Too High'
+                                        : 'Add Payment',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                       ),
                     ),
                   ],

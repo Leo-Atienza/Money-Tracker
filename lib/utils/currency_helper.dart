@@ -5,14 +5,14 @@ class CurrencyHelper {
   // Currency to locale mapping for proper number formatting
   static const Map<String, String> currencyLocales = {
     'USD': 'en_US',
-    'EUR': 'de_DE',  // European format (1.234,56)
+    'EUR': 'de_DE', // European format (1.234,56)
     'GBP': 'en_GB',
     'JPY': 'ja_JP',
     'CNY': 'zh_CN',
     'AUD': 'en_AU',
     'CAD': 'en_CA',
-    'CHF': 'de_CH',  // Swiss format (1'234.56)
-    'INR': 'en_IN',  // Indian format (1,23,456.78)
+    'CHF': 'de_CH', // Swiss format (1'234.56)
+    'INR': 'en_IN', // Indian format (1,23,456.78)
     'RUB': 'ru_RU',
     'BRL': 'pt_BR',
     'KRW': 'ko_KR',
@@ -34,7 +34,11 @@ class CurrencyHelper {
   /// Format a number according to the currency's locale
   /// e.g., formatAmount(1234.56, 'EUR') -> "1.234,56"
   /// e.g., formatAmount(1234.56, 'USD') -> "1,234.56"
-  static String formatAmount(double amount, String currencyCode, {int decimalDigits = 2}) {
+  static String formatAmount(
+    double amount,
+    String currencyCode, {
+    int decimalDigits = 2,
+  }) {
     final locale = currencyLocales[currencyCode] ?? 'en_US';
     try {
       final formatter = NumberFormat.decimalPatternDigits(
@@ -51,7 +55,12 @@ class CurrencyHelper {
   /// Format amount with currency symbol (localized)
   /// e.g., formatWithSymbol(1234.56, '\$', 'USD') -> "\$1,234.56"
   /// e.g., formatWithSymbol(1234.56, '€', 'EUR') -> "€1.234,56"
-  static String formatWithSymbol(double amount, String symbol, String currencyCode, {int decimalDigits = 2}) {
+  static String formatWithSymbol(
+    double amount,
+    String symbol,
+    String currencyCode, {
+    int decimalDigits = 2,
+  }) {
     return '$symbol${formatAmount(amount, currencyCode, decimalDigits: decimalDigits)}';
   }
 
@@ -72,6 +81,7 @@ class CurrencyHelper {
       return amount.toStringAsFixed(2);
     }
   }
+
   static const Map<String, String> currencies = {
     'USD': '\$',
     'EUR': '€',
@@ -139,20 +149,20 @@ class CurrencyHelper {
 
   // Common Unicode characters that some keyboards use for decimal separators
   static const _decimalSeparators = [
-    ',',      // Standard comma (European)
-    '.',      // Standard dot (US/UK)
-    '٫',      // Arabic decimal separator U+066B
-    '،',      // Arabic comma U+060C
-    '、',     // Japanese comma
+    ',', // Standard comma (European)
+    '.', // Standard dot (US/UK)
+    '٫', // Arabic decimal separator U+066B
+    '،', // Arabic comma U+060C
+    '、', // Japanese comma
   ];
 
   // Common thousands separators used globally
   static const _thousandsSeparators = [
-    ' ',      // Space (European, e.g., 1 234,56)
+    ' ', // Space (European, e.g., 1 234,56)
     '\u00A0', // Non-breaking space
     '\u202F', // Narrow no-break space (French)
-    "'",      // Apostrophe (Swiss, e.g., 1'234.56)
-    '˙',      // Dot above (some locales)
+    "'", // Apostrophe (Swiss, e.g., 1'234.56)
+    '˙', // Dot above (some locales)
   ];
 
   /// Strips thousands separators from input.
@@ -195,7 +205,8 @@ class CurrencyHelper {
       // Only dots - check if it looks like thousands separator
       final dotCount = '.'.allMatches(result).length;
       final afterLastDot = result.substring(lastDot + 1);
-      if (dotCount > 1 || (dotCount == 1 && afterLastDot.length == 3 && result.length > 4)) {
+      if (dotCount > 1 ||
+          (dotCount == 1 && afterLastDot.length == 3 && result.length > 4)) {
         // Multiple dots or exactly 3 digits after in a longer number = thousands separator
         result = result.replaceAll('.', '');
       }

@@ -32,7 +32,9 @@ class QuickTemplate {
     return {
       'id': id,
       'name': name,
-      'amount': DecimalHelper.toDouble(_amount),  // Convert to double for database
+      'amount': DecimalHelper.toDouble(
+        _amount,
+      ), // Convert to double for database
       'category': category,
       'paymentMethod': paymentMethod,
       'type': type,
@@ -63,7 +65,9 @@ class QuickTemplate {
     return QuickTemplate(
       id: map['id'],
       name: name as String,
-      amount: DecimalHelper.fromDoubleSafe(map['amount'] as double?),  // Convert from database double
+      amount: DecimalHelper.fromDoubleSafe(
+        map['amount'] as double?,
+      ), // Convert from database double
       category: category as String,
       paymentMethod: map['paymentMethod'] ?? 'Cash',
       type: map['type'] ?? 'expense',

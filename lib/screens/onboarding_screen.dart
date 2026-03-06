@@ -212,7 +212,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _buildPage(ThemeData theme, IconData icon, String title, String description) {
+  Widget _buildPage(
+    ThemeData theme,
+    IconData icon,
+    String title,
+    String description,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(40),
       child: Column(
@@ -225,11 +230,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               color: theme.colorScheme.primaryContainer,
               borderRadius: BorderRadius.circular(30),
             ),
-            child: Icon(
-              icon,
-              size: 60,
-              color: theme.colorScheme.primary,
-            ),
+            child: Icon(icon, size: 60, color: theme.colorScheme.primary),
           ),
           const SizedBox(height: 40),
           Text(

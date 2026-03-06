@@ -33,16 +33,35 @@ class HomeWidgetHelper {
       final currency = appState.currency;
 
       // Format the values
-      final expensesFormatted = CurrencyHelper.formatAmount(totalExpenses, currency);
-      final incomeFormatted = CurrencyHelper.formatAmount(totalIncome, currency);
-      final balanceFormatted = CurrencyHelper.formatAmount(balance.abs(), currency);
+      final expensesFormatted = CurrencyHelper.formatAmount(
+        totalExpenses,
+        currency,
+      );
+      final incomeFormatted = CurrencyHelper.formatAmount(
+        totalIncome,
+        currency,
+      );
+      final balanceFormatted = CurrencyHelper.formatAmount(
+        balance.abs(),
+        currency,
+      );
       final isPositiveBalance = balance >= 0;
 
       // Get current month name
       final now = DateTime.now();
       final monthNames = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
       ];
       final monthName = monthNames[now.month - 1];
 
@@ -51,7 +70,10 @@ class HomeWidgetHelper {
       await HomeWidget.saveWidgetData<String>('month_name', monthName);
       await HomeWidget.saveWidgetData<String>('expenses', expensesFormatted);
       await HomeWidget.saveWidgetData<String>('income', incomeFormatted);
-      await HomeWidget.saveWidgetData<String>('balance', '${isPositiveBalance ? '+' : '-'}$balanceFormatted');
+      await HomeWidget.saveWidgetData<String>(
+        'balance',
+        '${isPositiveBalance ? '+' : '-'}$balanceFormatted',
+      );
       await HomeWidget.saveWidgetData<bool>('is_positive', isPositiveBalance);
       await HomeWidget.saveWidgetData<String>('currency', currency);
 
@@ -61,7 +83,10 @@ class HomeWidgetHelper {
         iOSName: _iOSWidgetName,
       );
 
-      if (kDebugMode) debugPrint('HomeWidget updated: Expenses=$expensesFormatted, Income=$incomeFormatted, Balance=$balanceFormatted');
+      if (kDebugMode)
+        debugPrint(
+          'HomeWidget updated: Expenses=$expensesFormatted, Income=$incomeFormatted, Balance=$balanceFormatted',
+        );
     } catch (e) {
       if (kDebugMode) debugPrint('HomeWidget update error: $e');
     }
@@ -89,7 +114,9 @@ class HomeWidgetHelper {
 
   /// Register callback for widget clicks (opens the app)
   /// Returns a subscription that should be cancelled when no longer needed
-  static Future<void> registerInteractivityCallback(Function(Uri?) callback) async {
+  static Future<void> registerInteractivityCallback(
+    Function(Uri?) callback,
+  ) async {
     try {
       // Cancel any existing subscription to prevent memory leaks
       await _widgetClickSubscription?.cancel();

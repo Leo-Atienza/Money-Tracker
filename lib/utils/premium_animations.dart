@@ -63,15 +63,11 @@ class _AnimatedCounterState extends State<AnimatedCounter>
   void initState() {
     super.initState();
     _oldValue = widget.value;
-    _controller = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-    );
-    _animation = Tween<double>(begin: widget.value, end: widget.value)
-        .animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    ));
+    _controller = AnimationController(vsync: this, duration: widget.duration);
+    _animation = Tween<double>(
+      begin: widget.value,
+      end: widget.value,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
   }
 
   @override
@@ -79,11 +75,9 @@ class _AnimatedCounterState extends State<AnimatedCounter>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.value != widget.value) {
       _oldValue = oldWidget.value;
-      _animation = Tween<double>(begin: _oldValue, end: widget.value)
-          .animate(CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOutCubic,
-      ));
+      _animation = Tween<double>(begin: _oldValue, end: widget.value).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+      );
       _controller.forward(from: 0);
     }
   }
@@ -126,6 +120,7 @@ class StaggeredListItem extends StatefulWidget {
   final Duration delay;
   final Duration duration;
   final Offset beginOffset;
+
   /// Maximum total delay before animation starts (prevents long waits for large lists)
   final Duration maxTotalDelay;
 
@@ -152,21 +147,17 @@ class _StaggeredListItemState extends State<StaggeredListItem>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-    );
+    _controller = AnimationController(vsync: this, duration: widget.duration);
 
-    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     _slideAnimation = Tween<Offset>(
       begin: widget.beginOffset,
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-    );
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     // FIX: Cap the total delay to prevent long waits for large lists
     // Items beyond the cap threshold animate immediately
@@ -202,10 +193,7 @@ class _StaggeredListItemState extends State<StaggeredListItem>
   Widget build(BuildContext context) {
     return FadeTransition(
       opacity: _fadeAnimation,
-      child: SlideTransition(
-        position: _slideAnimation,
-        child: widget.child,
-      ),
+      child: SlideTransition(position: _slideAnimation, child: widget.child),
     );
   }
 }
@@ -243,9 +231,10 @@ class _ScaleTapAnimationState extends State<ScaleTapAnimation>
       vsync: this,
       duration: const Duration(milliseconds: 100),
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: widget.scaleDown).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: widget.scaleDown,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -284,10 +273,7 @@ class _ScaleTapAnimationState extends State<ScaleTapAnimation>
         }
         widget.onLongPress?.call();
       },
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: widget.child,
-      ),
+      child: ScaleTransition(scale: _scaleAnimation, child: widget.child),
     );
   }
 }
@@ -297,10 +283,8 @@ class PremiumPageRoute<T> extends PageRouteBuilder<T> {
   final Widget page;
   final SlideDirection direction;
 
-  PremiumPageRoute({
-    required this.page,
-    this.direction = SlideDirection.right,
-  }) : super(
+  PremiumPageRoute({required this.page, this.direction = SlideDirection.right})
+      : super(
           pageBuilder: (context, animation, secondaryAnimation) => page,
           transitionDuration: const Duration(milliseconds: 300),
           reverseTransitionDuration: const Duration(milliseconds: 250),
@@ -318,18 +302,12 @@ class PremiumPageRoute<T> extends PageRouteBuilder<T> {
             );
 
             final slideAnimation = offsetTween.animate(
-              CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-              ),
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
             );
 
             return FadeTransition(
               opacity: fadeAnimation,
-              child: SlideTransition(
-                position: slideAnimation,
-                child: child,
-              ),
+              child: SlideTransition(position: slideAnimation, child: child),
             );
           },
         );
@@ -394,18 +372,12 @@ class _AnimatedPressCardState extends State<AnimatedPressCard>
     _elevationAnimation = Tween<double>(
       begin: widget.elevation,
       end: widget.pressedElevation,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     _scaleAnimation = Tween<double>(
       begin: 1.0,
       end: 0.98,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
   }
 
   @override
@@ -444,17 +416,18 @@ class _AnimatedPressCardState extends State<AnimatedPressCard>
                 boxShadow: [
                   BoxShadow(
                     color: theme.brightness == Brightness.dark
-                        ? Colors.black.withAlpha((40 + _elevationAnimation.value * 10).round())
-                        : Colors.black.withAlpha((8 + _elevationAnimation.value * 4).round()),
+                        ? Colors.black.withAlpha(
+                            (40 + _elevationAnimation.value * 10).round(),
+                          )
+                        : Colors.black.withAlpha(
+                            (8 + _elevationAnimation.value * 4).round(),
+                          ),
                     blurRadius: 12 + _elevationAnimation.value * 2,
                     offset: Offset(0, 4 + _elevationAnimation.value),
                   ),
                 ],
               ),
-              child: ClipRRect(
-                borderRadius: radius,
-                child: widget.child,
-              ),
+              child: ClipRRect(borderRadius: radius, child: widget.child),
             ),
           );
         },
@@ -490,13 +463,11 @@ class _FadeInOnLoadState extends State<FadeInOnLoad>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-    );
-    _animation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: widget.curve),
-    );
+    _controller = AnimationController(vsync: this, duration: widget.duration);
+    _animation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _controller, curve: widget.curve));
 
     if (widget.delay == Duration.zero) {
       _controller.forward();
@@ -515,10 +486,7 @@ class _FadeInOnLoadState extends State<FadeInOnLoad>
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _animation,
-      child: widget.child,
-    );
+    return FadeTransition(opacity: _animation, child: widget.child);
   }
 }
 
@@ -554,9 +522,10 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
       duration: const Duration(milliseconds: 1500),
     )..repeat();
 
-    _animation = Tween<double>(begin: -1, end: 2).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: -1,
+      end: 2,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -572,8 +541,10 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = widget.baseColor ?? (isDark ? Colors.grey[800]! : Colors.grey[300]!);
-    final highlightColor = widget.highlightColor ?? (isDark ? Colors.grey[700]! : Colors.grey[100]!);
+    final baseColor =
+        widget.baseColor ?? (isDark ? Colors.grey[800]! : Colors.grey[300]!);
+    final highlightColor = widget.highlightColor ??
+        (isDark ? Colors.grey[700]! : Colors.grey[100]!);
 
     return AnimatedBuilder(
       animation: _animation,
@@ -584,11 +555,7 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
             return LinearGradient(
               begin: Alignment(_animation.value - 1, 0),
               end: Alignment(_animation.value, 0),
-              colors: [
-                baseColor,
-                highlightColor,
-                baseColor,
-              ],
+              colors: [baseColor, highlightColor, baseColor],
               stops: const [0.0, 0.5, 1.0],
             ).createShader(bounds);
           },
@@ -624,14 +591,12 @@ class _BounceAnimationState extends State<BounceAnimation>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-    );
+    _controller = AnimationController(vsync: this, duration: widget.duration);
 
-    _animation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
-    );
+    _animation = Tween<double>(
+      begin: 0.8,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.elasticOut));
 
     if (widget.animate) {
       _controller.forward();
@@ -654,10 +619,7 @@ class _BounceAnimationState extends State<BounceAnimation>
 
   @override
   Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: _animation,
-      child: widget.child,
-    );
+    return ScaleTransition(scale: _animation, child: widget.child);
   }
 }
 
@@ -718,11 +680,7 @@ class PulsingDot extends StatefulWidget {
   final Color? color;
   final double size;
 
-  const PulsingDot({
-    super.key,
-    this.color,
-    this.size = 8,
-  });
+  const PulsingDot({super.key, this.color, this.size = 8});
 
   @override
   State<PulsingDot> createState() => _PulsingDotState();
@@ -741,9 +699,10 @@ class _PulsingDotState extends State<PulsingDot>
       duration: const Duration(milliseconds: 1000),
     )..repeat(reverse: true);
 
-    _animation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: 0.5,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -792,14 +751,22 @@ class AnimatedThemeWrapper extends StatelessWidget {
 
 /// Extension methods for easy navigation with transitions
 extension NavigatorExtensions on NavigatorState {
-  Future<T?> pushPremium<T>(Widget page, {SlideDirection direction = SlideDirection.right}) {
+  Future<T?> pushPremium<T>(
+    Widget page, {
+    SlideDirection direction = SlideDirection.right,
+  }) {
     return push<T>(PremiumPageRoute<T>(page: page, direction: direction));
   }
 }
 
 /// Extension for BuildContext to easily navigate
 extension ContextNavigatorExtensions on BuildContext {
-  Future<T?> pushPremium<T>(Widget page, {SlideDirection direction = SlideDirection.right}) {
-    return Navigator.of(this).push<T>(PremiumPageRoute<T>(page: page, direction: direction));
+  Future<T?> pushPremium<T>(
+    Widget page, {
+    SlideDirection direction = SlideDirection.right,
+  }) {
+    return Navigator.of(
+      this,
+    ).push<T>(PremiumPageRoute<T>(page: page, direction: direction));
   }
 }

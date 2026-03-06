@@ -25,7 +25,10 @@ void notificationTapBackground(NotificationResponse notificationResponse) {
   // FIX: Handle notification taps when app is in background
   // Store the payload so we can navigate when the app resumes
   NotificationPayloadStore.storePendingPayload(notificationResponse.payload);
-  if (kDebugMode) debugPrint('Notification tapped in background: ${notificationResponse.payload}');
+  if (kDebugMode)
+    debugPrint(
+      'Notification tapped in background: ${notificationResponse.payload}',
+    );
 }
 
 void main() async {
@@ -66,10 +69,7 @@ void main() async {
   await initializeDateFormatting();
 
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => AppState(),
-      child: const MyApp(),
-    ),
+    ChangeNotifierProvider(create: (_) => AppState(), child: const MyApp()),
   );
 }
 
@@ -200,9 +200,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // Show loading while checking onboarding status
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
+              body: Center(child: CircularProgressIndicator()),
             );
           }
 
@@ -232,7 +230,8 @@ class MainNavigationScreen extends StatefulWidget {
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
-class _MainNavigationScreenState extends State<MainNavigationScreen> with WidgetsBindingObserver, TickerProviderStateMixin {
+class _MainNavigationScreenState extends State<MainNavigationScreen>
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   int _currentIndex = 0;
   bool _hasShownRecurringSnackbar = false;
   bool _hasCheckedNotificationPayload = false;
@@ -258,9 +257,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Widget
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeOut));
     _fadeController.value = 1.0; // Start fully visible
 
     // Check for pending notification payload after first frame
@@ -383,66 +383,65 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Widget
         onPanUpdate: (_) => _onUserInteraction(),
         behavior: HitTestBehavior.translucent,
         child: Scaffold(
-        body: FadeTransition(
-          opacity: _fadeAnimation,
-          child: IndexedStack(
-            index: _currentIndex,
-            children: _screens,
+          body: FadeTransition(
+            opacity: _fadeAnimation,
+            child: IndexedStack(index: _currentIndex, children: _screens),
           ),
-        ),
-        bottomNavigationBar: Container(
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(
-                color: theme.colorScheme.outline.withAlpha(isDark ? 50 : 30),
-                width: 1,
+          bottomNavigationBar: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: theme.colorScheme.outline.withAlpha(isDark ? 50 : 30),
+                  width: 1,
+                ),
               ),
+              color: theme.colorScheme.surface,
             ),
-            color: theme.colorScheme.surface,
-          ),
-          child: NavigationBar(
-            selectedIndex: _currentIndex,
-            onDestinationSelected: (index) {
-              if (index == _currentIndex) {
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              } else {
-                // Animate tab transition
-                _fadeController.reverse().then((_) {
-                  setState(() => _currentIndex = index);
-                  _fadeController.forward();
-                });
-                HapticFeedback.selectionClick();
-              }
-            },
-            backgroundColor: Colors.transparent,
-            indicatorColor: theme.colorScheme.onSurface.withAlpha(isDark ? 50 : 30),
-            height: 65,
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home),
-                label: 'Home',
+            child: NavigationBar(
+              selectedIndex: _currentIndex,
+              onDestinationSelected: (index) {
+                if (index == _currentIndex) {
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                } else {
+                  // Animate tab transition
+                  _fadeController.reverse().then((_) {
+                    setState(() => _currentIndex = index);
+                    _fadeController.forward();
+                  });
+                  HapticFeedback.selectionClick();
+                }
+              },
+              backgroundColor: Colors.transparent,
+              indicatorColor: theme.colorScheme.onSurface.withAlpha(
+                isDark ? 50 : 30,
               ),
-              NavigationDestination(
-                icon: Icon(Icons.history_outlined),
-                selectedIcon: Icon(Icons.history),
-                label: 'History',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.repeat),
-                selectedIcon: Icon(Icons.repeat_on_outlined),
-                label: 'Recurring',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings),
-                label: 'Settings',
-              ),
-            ],
+              height: 65,
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home),
+                  label: 'Home',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.history_outlined),
+                  selectedIcon: Icon(Icons.history),
+                  label: 'History',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.repeat),
+                  selectedIcon: Icon(Icons.repeat_on_outlined),
+                  label: 'Recurring',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.settings_outlined),
+                  selectedIcon: Icon(Icons.settings),
+                  label: 'Settings',
+                ),
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }

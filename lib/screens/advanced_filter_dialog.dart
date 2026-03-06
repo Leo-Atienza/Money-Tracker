@@ -158,10 +158,10 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
               Expanded(
                 child: TextField(
                   controller: _minController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    CurrencyHelper.decimalInputFormatter(),
-                  ],
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: [CurrencyHelper.decimalInputFormatter()],
                   decoration: InputDecoration(
                     labelText: 'Min',
                     prefixText: '${appState.currency} ',
@@ -179,10 +179,10 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
               Expanded(
                 child: TextField(
                   controller: _maxController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    CurrencyHelper.decimalInputFormatter(),
-                  ],
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: [CurrencyHelper.decimalInputFormatter()],
                   decoration: InputDecoration(
                     labelText: 'Max',
                     prefixText: '${appState.currency} ',

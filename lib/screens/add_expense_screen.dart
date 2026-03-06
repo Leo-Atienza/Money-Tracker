@@ -23,7 +23,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _amountPaidController = TextEditingController();
-  final _categoryNameController = TextEditingController(); // FIX #34: For inline category creation
+  final _categoryNameController =
+      TextEditingController(); // FIX #34: For inline category creation
 
   // FIX: Don't hardcode category - will be set in initState from available categories
   String? _selectedCategory;
@@ -91,7 +92,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       final appState = context.read<AppState>();
       final selectedMonth = appState.selectedMonth;
       // Default to first day of selected month at noon for consistent sorting
-      _selectedDate = DateTime(selectedMonth.year, selectedMonth.month, 1, 12, 0, 0);
+      _selectedDate = DateTime(
+        selectedMonth.year,
+        selectedMonth.month,
+        1,
+        12,
+        0,
+        0,
+      );
       _initialDate = _selectedDate;
       _dateInitialized = true;
     }
@@ -101,7 +109,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   Future<void> _loadExistingTags() async {
     if (widget.expense?.id != null) {
       final appState = context.read<AppState>();
-      final tags = await appState.getTagsForTransaction(widget.expense!.id!, 'expense');
+      final tags = await appState.getTagsForTransaction(
+        widget.expense!.id!,
+        'expense',
+      );
       setState(() {
         _selectedTagIds = tags.map((tag) => tag.id!).toSet();
       });
@@ -158,16 +169,23 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
     try {
       final amountPaidText = _amountPaidController.text.trim();
-      final amountPaid = amountPaidText.isEmpty ? 0.0 : (CurrencyHelper.parseDecimal(amountPaidText) ?? 0.0);
+      final amountPaid = amountPaidText.isEmpty
+          ? 0.0
+          : (CurrencyHelper.parseDecimal(amountPaidText) ?? 0.0);
 
       // CRITICAL FIX: Validate category exists before saving
       // If all categories were deleted while form was open, offer to navigate to category manager
-      if (_selectedCategory == null || !appState.expenseCategories.any((cat) => cat.name == _selectedCategory)) {
+      if (_selectedCategory == null ||
+          !appState.expenseCategories.any(
+            (cat) => cat.name == _selectedCategory,
+          )) {
         setState(() => _isSaving = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Please select a valid category. The selected category may have been deleted.'),
+              content: const Text(
+                'Please select a valid category. The selected category may have been deleted.',
+              ),
               backgroundColor: Colors.red,
               action: SnackBarAction(
                 label: 'Add Category',
@@ -214,7 +232,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       // FIX: Save tags for this expense
       if (expenseId != null) {
         // Get existing tags to compare
-        final existingTags = await appState.getTagsForTransaction(expenseId, 'expense');
+        final existingTags = await appState.getTagsForTransaction(
+          expenseId,
+          'expense',
+        );
         final existingTagIds = existingTags.map((t) => t.id!).toSet();
 
         // Add new tags
@@ -227,7 +248,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         // Remove unselected tags
         for (final tagId in existingTagIds) {
           if (!_selectedTagIds.contains(tagId)) {
-            await appState.removeTagFromTransaction(expenseId, 'expense', tagId);
+            await appState.removeTagFromTransaction(
+              expenseId,
+              'expense',
+              tagId,
+            );
           }
         }
       }
@@ -240,7 +265,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               children: [
                 const Icon(Icons.check_circle, color: Colors.white),
                 const SizedBox(width: 12),
-                Text(widget.expense == null ? 'Expense added successfully' : 'Expense updated successfully'),
+                Text(
+                  widget.expense == null
+                      ? 'Expense added successfully'
+                      : 'Expense updated successfully',
+                ),
               ],
             ),
             backgroundColor: Colors.green,
@@ -252,15 +281,18 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
       // FIX: Show feedback if saved to different month than currently viewed
       final currentViewedMonth = appState.selectedMonth;
-      final isDifferentMonth = _selectedDate.month != currentViewedMonth.month ||
-          _selectedDate.year != currentViewedMonth.year;
+      final isDifferentMonth =
+          _selectedDate.month != currentViewedMonth.month ||
+              _selectedDate.year != currentViewedMonth.year;
 
       if (mounted && isDifferentMonth) {
         final monthName = DateFormat.MMMM().format(_selectedDate);
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Expense saved to $monthName (not visible in current month)'),
+            content: Text(
+              'Expense saved to $monthName (not visible in current month)',
+            ),
             action: SnackBarAction(
               label: 'Switch to $monthName',
               onPressed: () {
@@ -295,10 +327,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     if (_selectedCategory == null) return null;
 
     // FIX #47: Find budget for selected category in the EXPENSE's month (not current month)
-    final budgets = appState.budgets.where((b) =>
-        b.category == _selectedCategory &&
-        b.month.year == _selectedDate.year &&
-        b.month.month == _selectedDate.month).toList();
+    final budgets = appState.budgets
+        .where(
+          (b) =>
+              b.category == _selectedCategory &&
+              b.month.year == _selectedDate.year &&
+              b.month.month == _selectedDate.month,
+        )
+        .toList();
 
     if (budgets.isEmpty) return null;
 
@@ -306,11 +342,18 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
     // CRITICAL FIX: Calculate budget spent without changing app state to avoid race conditions
     // Query expenses directly for the expense's month instead of temporarily switching months
-    final expensesInMonth = appState.expenses.where((e) =>
-        e.category == _selectedCategory &&
-        e.date.year == _selectedDate.year &&
-        e.date.month == _selectedDate.month).toList();
-    var currentSpent = expensesInMonth.fold<double>(0.0, (sum, e) => sum + e.amount);
+    final expensesInMonth = appState.expenses
+        .where(
+          (e) =>
+              e.category == _selectedCategory &&
+              e.date.year == _selectedDate.year &&
+              e.date.month == _selectedDate.month,
+        )
+        .toList();
+    var currentSpent = expensesInMonth.fold<double>(
+      0.0,
+      (sum, e) => sum + e.amount,
+    );
 
     // When editing, subtract the original expense amount if it was in the same category and month
     if (widget.expense != null &&
@@ -371,7 +414,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 const SizedBox(width: 12),
                 Text(
                   isExceed ? 'Budget Exceeded' : 'Budget Warning',
-                  style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 20),
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface,
+                    fontSize: 20,
+                  ),
                 ),
               ],
             ),
@@ -382,7 +428,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 color: (isExceed ? Colors.orange : Colors.blue).withAlpha(30),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: (isExceed ? Colors.orange : Colors.blue).withAlpha(100),
+                  color: (isExceed ? Colors.orange : Colors.blue).withAlpha(
+                    100,
+                  ),
                 ),
               ),
               child: Text(
@@ -436,7 +484,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
-              foregroundColor: isExceed ? Colors.orange : theme.colorScheme.primary,
+              foregroundColor:
+                  isExceed ? Colors.orange : theme.colorScheme.primary,
             ),
             child: Text(isExceed ? 'Add Anyway' : 'Continue'),
           ),
@@ -447,7 +496,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     return result ?? false;
   }
 
-  Widget _buildBudgetProgressBar(Map<String, dynamic> warning, ThemeData theme, AppState appState) {
+  Widget _buildBudgetProgressBar(
+    Map<String, dynamic> warning,
+    ThemeData theme,
+    AppState appState,
+  ) {
     final budgetAmount = warning['budgetAmount'] as double;
     final newTotal = warning['newTotal'] as double;
     final progress = (newTotal / budgetAmount).clamp(0.0, 1.5);
@@ -461,7 +514,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           children: [
             Text(
               'After this expense:',
-              style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: 12,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             Text(
               '${appState.currency}${newTotal.toStringAsFixed(2)} / ${appState.currency}${budgetAmount.toStringAsFixed(2)}',
@@ -540,7 +596,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   // FIX: Show dialog to create a new tag
-  Future<void> _showCreateTagDialog(BuildContext context, AppState appState) async {
+  Future<void> _showCreateTagDialog(
+    BuildContext context,
+    AppState appState,
+  ) async {
     final tagNameController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
@@ -564,9 +623,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 border: const OutlineInputBorder(),
                 counterText: '${tagNameController.text.length}/50',
                 counterStyle: TextStyle(
-                  color: tagNameController.text.length > 45
-                      ? Colors.orange
-                      : null,
+                  color:
+                      tagNameController.text.length > 45 ? Colors.orange : null,
                 ),
                 helperText: 'Max 50 characters',
                 helperStyle: const TextStyle(fontSize: 11),
@@ -621,7 +679,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   // FIX #34: Show dialog to create a new category with name length validation
-  Future<void> _showCreateCategoryDialog(BuildContext context, AppState appState) async {
+  Future<void> _showCreateCategoryDialog(
+    BuildContext context,
+    AppState appState,
+  ) async {
     final formKey = GlobalKey<FormState>();
 
     final result = await showDialog<bool>(
@@ -652,7 +713,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 return 'Category name cannot exceed 50 characters';
               }
               // Check for duplicate category
-              if (appState.expenseCategories.any((cat) => cat.name.toLowerCase() == value.trim().toLowerCase())) {
+              if (appState.expenseCategories.any(
+                (cat) => cat.name.toLowerCase() == value.trim().toLowerCase(),
+              )) {
                 return 'This category already exists';
               }
               return null;
@@ -701,7 +764,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     final theme = Theme.of(context);
 
     // CRITICAL FIX: Optimize rebuilds - only watch specific fields needed
-    final expenseCategories = context.select<AppState, List<dynamic>>((s) => s.expenseCategories);
+    final expenseCategories = context.select<AppState, List<dynamic>>(
+      (s) => s.expenseCategories,
+    );
     // Use read() for one-time access in callbacks to avoid unnecessary rebuilds
     final appState = context.read<AppState>();
 
@@ -723,7 +788,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Discard changes?'),
-            content: const Text('You have unsaved changes. Are you sure you want to discard them?'),
+            content: const Text(
+              'You have unsaved changes. Are you sure you want to discard them?',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
@@ -760,664 +827,820 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               ),
               actions: widget.expense != null
                   ? [
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: _deleteExpense,
-            tooltip: 'Delete expense',
-          ),
-        ]
-            : null,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.expense == null ? 'Add Expense' : 'Edit Expense',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w300,
-                color: theme.colorScheme.onSurface,
-              ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: _deleteExpense,
+                        tooltip: 'Delete expense',
+                      ),
+                    ]
+                  : null,
             ),
-            const SizedBox(height: 40),
-
-            Form(
-              key: _formKey,
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Amount
                   Text(
-                    'AMOUNT',
+                    widget.expense == null ? 'Add Expense' : 'Edit Expense',
                     style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                      color: theme.colorScheme.onSurfaceVariant,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w300,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _amountController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [CurrencyHelper.decimalInputFormatter()],
-                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w300),
-                    decoration: InputDecoration(
-                      prefixText: appState.currency,
-                      prefixStyle: const TextStyle(fontSize: 32, fontWeight: FontWeight.w300),
-                      hintText: '0.00',
-                      border: InputBorder.none,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter an amount';
-                      }
-                      final parsed = CurrencyHelper.parseDecimal(value);
-                      if (parsed == null) {
-                        return 'Please enter a valid number';
-                      }
-                      if (parsed <= 0) {
-                        return 'Amount must be greater than 0';
-                      }
-                      // FIX #4: Add max amount validation
-                      if (parsed > 999999999.99) {
-                        return 'Amount cannot exceed 999,999,999.99';
-                      }
-                      return null;
-                    },
-                  ),
-
-                  Divider(color: theme.colorScheme.outline),
-                  const SizedBox(height: 32),
-
-                  // Category
-                  Text(
-                    'CATEGORY',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  // FIX: Improved scrollable category selection for better UX with many categories
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 220),
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          // FIX: Show deleted/archived category if editing expense with deleted category
-                          // FIX #9: Add tooltip explaining what "Archived" means
-                          if (widget.expense != null &&
-                              _selectedCategory != null &&
-                              !appState.expenseCategories.any((cat) => cat.name == _selectedCategory))
-                            Tooltip(
-                              message: 'This category was deleted but is preserved for historical data. You can reassign this expense to an active category.',
-                              child: Chip(
-                                label: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.archive_outlined, size: 16, color: theme.colorScheme.error),
-                                    const SizedBox(width: 4),
-                                    Text('$_selectedCategory (Archived)'),
-                                    const SizedBox(width: 4),
-                                    Icon(Icons.info_outline, size: 14, color: theme.colorScheme.error),
-                                  ],
-                                ),
-                                backgroundColor: theme.colorScheme.errorContainer.withValues(alpha: 0.3),
-                                labelStyle: TextStyle(
-                                  color: theme.colorScheme.error,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                side: BorderSide(color: theme.colorScheme.error),
-                              ),
+                  const SizedBox(height: 40),
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Amount
+                        Text(
+                          'AMOUNT',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _amountController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          inputFormatters: [
+                            CurrencyHelper.decimalInputFormatter(),
+                          ],
+                          style: const TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w300,
+                          ),
+                          decoration: InputDecoration(
+                            prefixText: appState.currency,
+                            prefixStyle: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w300,
                             ),
-                          // Regular category chips
-                          ...appState.expenseCategories.map((cat) {
-                            final isSelected = _selectedCategory == cat.name;
+                            hintText: '0.00',
+                            border: InputBorder.none,
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter an amount';
+                            }
+                            final parsed = CurrencyHelper.parseDecimal(value);
+                            if (parsed == null) {
+                              return 'Please enter a valid number';
+                            }
+                            if (parsed <= 0) {
+                              return 'Amount must be greater than 0';
+                            }
+                            // FIX #4: Add max amount validation
+                            if (parsed > 999999999.99) {
+                              return 'Amount cannot exceed 999,999,999.99';
+                            }
+                            return null;
+                          },
+                        ),
+
+                        Divider(color: theme.colorScheme.outline),
+                        const SizedBox(height: 32),
+
+                        // Category
+                        Text(
+                          'CATEGORY',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // FIX: Improved scrollable category selection for better UX with many categories
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 220),
+                          child: SingleChildScrollView(
+                            physics: const BouncingScrollPhysics(),
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                // FIX: Show deleted/archived category if editing expense with deleted category
+                                // FIX #9: Add tooltip explaining what "Archived" means
+                                if (widget.expense != null &&
+                                    _selectedCategory != null &&
+                                    !appState.expenseCategories.any(
+                                      (cat) => cat.name == _selectedCategory,
+                                    ))
+                                  Tooltip(
+                                    message:
+                                        'This category was deleted but is preserved for historical data. You can reassign this expense to an active category.',
+                                    child: Chip(
+                                      label: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.archive_outlined,
+                                            size: 16,
+                                            color: theme.colorScheme.error,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text('$_selectedCategory (Archived)'),
+                                          const SizedBox(width: 4),
+                                          Icon(
+                                            Icons.info_outline,
+                                            size: 14,
+                                            color: theme.colorScheme.error,
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: theme
+                                          .colorScheme.errorContainer
+                                          .withValues(alpha: 0.3),
+                                      labelStyle: TextStyle(
+                                        color: theme.colorScheme.error,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      side: BorderSide(
+                                        color: theme.colorScheme.error,
+                                      ),
+                                    ),
+                                  ),
+                                // Regular category chips
+                                ...appState.expenseCategories.map((cat) {
+                                  final isSelected =
+                                      _selectedCategory == cat.name;
+                                  return ChoiceChip(
+                                    label: Text(cat.name),
+                                    selected: isSelected,
+                                    onSelected: (selected) {
+                                      setState(
+                                        () => _selectedCategory = cat.name,
+                                      );
+                                    },
+                                    backgroundColor: theme
+                                        .colorScheme.surfaceContainerHighest,
+                                    selectedColor:
+                                        theme.colorScheme.primaryContainer,
+                                    labelStyle: TextStyle(
+                                      color: isSelected
+                                          ? theme.colorScheme.onPrimaryContainer
+                                          : theme.colorScheme.onSurface,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                    ),
+                                    side: BorderSide(
+                                      color: isSelected
+                                          ? theme.colorScheme.primary
+                                          : theme.colorScheme.outline,
+                                    ),
+                                  );
+                                }),
+                                // FIX #34: Add button to create new category with visual distinction
+                                ActionChip(
+                                  label: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.add_circle_outline,
+                                        size: 16,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const Text('New Category'),
+                                    ],
+                                  ),
+                                  onPressed: () => _showCreateCategoryDialog(
+                                    context,
+                                    appState,
+                                  ),
+                                  backgroundColor: theme
+                                      .colorScheme.primaryContainer
+                                      .withAlpha(100),
+                                  labelStyle: TextStyle(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  side: BorderSide(
+                                    color: theme.colorScheme.primary,
+                                    width: 1.5,
+                                    style: BorderStyle.solid,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // Payment Method
+                        Text(
+                          'PAYMENT METHOD',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: ['Cash', 'Credit', 'Debit', 'Other'].map((
+                            method,
+                          ) {
+                            final isSelected = _paymentMethod == method;
                             return ChoiceChip(
-                              label: Text(cat.name),
+                              label: Text(method),
                               selected: isSelected,
                               onSelected: (selected) {
-                                setState(() => _selectedCategory = cat.name);
+                                setState(() {
+                                  _paymentMethod = method;
+                                });
                               },
-                              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                              backgroundColor:
+                                  theme.colorScheme.surfaceContainerHighest,
                               selectedColor: theme.colorScheme.primaryContainer,
                               labelStyle: TextStyle(
                                 color: isSelected
                                     ? theme.colorScheme.onPrimaryContainer
                                     : theme.colorScheme.onSurface,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
                               ),
                               side: BorderSide(
-                                color: isSelected ? theme.colorScheme.primary : theme.colorScheme.outline,
+                                color: isSelected
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.outline,
                               ),
                             );
-                          }),
-                          // FIX #34: Add button to create new category with visual distinction
-                          ActionChip(
-                            label: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.add_circle_outline, size: 16, color: theme.colorScheme.primary),
-                                const SizedBox(width: 4),
-                                const Text('New Category'),
-                              ],
-                            ),
-                            onPressed: () => _showCreateCategoryDialog(context, appState),
-                            backgroundColor: theme.colorScheme.primaryContainer.withAlpha(100),
-                            labelStyle: TextStyle(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            side: BorderSide(color: theme.colorScheme.primary, width: 1.5, style: BorderStyle.solid),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Payment Method
-                  Text(
-                    'PAYMENT METHOD',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: ['Cash', 'Credit', 'Debit', 'Other'].map((method) {
-                      final isSelected = _paymentMethod == method;
-                      return ChoiceChip(
-                        label: Text(method),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          setState(() {
-                            _paymentMethod = method;
-                          });
-                        },
-                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                        selectedColor: theme.colorScheme.primaryContainer,
-                        labelStyle: TextStyle(
-                          color: isSelected
-                              ? theme.colorScheme.onPrimaryContainer
-                              : theme.colorScheme.onSurface,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          }).toList(),
                         ),
-                        side: BorderSide(
-                          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.outline,
-                        ),
-                      );
-                    }).toList(),
-                  ),
 
-                  const SizedBox(height: 32),
+                        const SizedBox(height: 32),
 
-                  // Description
-                  Text(
-                    'DESCRIPTION (OPTIONAL)',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  // FIX #29: Add character counter, FIX #30: Show truncation warning
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextFormField(
-                        controller: _descriptionController,
-                        textCapitalization: TextCapitalization.sentences,
-                        maxLength: 200,
-                        onChanged: (value) {
-                          // Trigger rebuild to update counter
-                          setState(() {});
-                        },
-                        decoration: InputDecoration(
-                          hintText: 'Add notes (optional)',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: theme.colorScheme.outline),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: theme.colorScheme.outline),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
-                          ),
-                          // FIX #29: Character counter
-                          counterText: '${_descriptionController.text.length}/200',
-                          counterStyle: TextStyle(
-                            color: _descriptionController.text.length > 180
-                                ? Colors.orange
-                                : theme.colorScheme.onSurfaceVariant,
+                        // Description
+                        Text(
+                          'DESCRIPTION (OPTIONAL)',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
-                        maxLines: 3,
-                      ),
-                      // FIX #30: Show warning when approaching limit
-                      if (_descriptionController.text.length > 180)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8, left: 12),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.warning_amber_rounded,
-                                size: 16,
-                                color: Colors.orange,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  'Approaching character limit (${200 - _descriptionController.text.length} remaining)',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.orange,
+                        const SizedBox(height: 12),
+                        // FIX #29: Add character counter, FIX #30: Show truncation warning
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextFormField(
+                              controller: _descriptionController,
+                              textCapitalization: TextCapitalization.sentences,
+                              maxLength: 200,
+                              onChanged: (value) {
+                                // Trigger rebuild to update counter
+                                setState(() {});
+                              },
+                              decoration: InputDecoration(
+                                hintText: 'Add notes (optional)',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: theme.colorScheme.outline,
                                   ),
                                 ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: theme.colorScheme.outline,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: theme.colorScheme.primary,
+                                    width: 2,
+                                  ),
+                                ),
+                                // FIX #29: Character counter
+                                counterText:
+                                    '${_descriptionController.text.length}/200',
+                                counterStyle: TextStyle(
+                                  color:
+                                      _descriptionController.text.length > 180
+                                          ? Colors.orange
+                                          : theme.colorScheme.onSurfaceVariant,
+                                ),
                               ),
-                            ],
+                              maxLines: 3,
+                            ),
+                            // FIX #30: Show warning when approaching limit
+                            if (_descriptionController.text.length > 180)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 8,
+                                  left: 12,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.warning_amber_rounded,
+                                      size: 16,
+                                      color: Colors.orange,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        'Approaching character limit (${200 - _descriptionController.text.length} remaining)',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.orange,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // Date
+                        Text(
+                          'DATE',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
-                    ],
-                  ),
+                        const SizedBox(height: 12),
+                        InkWell(
+                          onTap: () async {
+                            // CRITICAL FIX: Use centralized date range helpers for consistency
+                            final now = DateTime.now();
+                            final minDate = Validators.getTransactionMinDate();
+                            final maxDate = Validators.getTransactionMaxDate();
 
-                  const SizedBox(height: 32),
-
-                  // Date
-                  Text(
-                    'DATE',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  InkWell(
-                    onTap: () async {
-                      // CRITICAL FIX: Use centralized date range helpers for consistency
-                      final now = DateTime.now();
-                      final minDate = Validators.getTransactionMinDate();
-                      final maxDate = Validators.getTransactionMaxDate();
-
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: _selectedDate.isAfter(maxDate)
-                            ? now
-                            : (_selectedDate.isBefore(minDate) ? now : _selectedDate),
-                        firstDate: minDate,
-                        lastDate: maxDate,
-                        helpText: 'Select Transaction Date',
-                      );
-                      if (date != null) {
-                        // FIX #6: Make future date picker PREVENTIVE with confirmation dialog
-                        final now = DateTime.now();
-                        final today = DateTime(now.year, now.month, now.day);
-                        if (date.isAfter(today)) {
-                          if (!mounted) return;
-                          // Show confirmation dialog for future dates
-                          if (!context.mounted) return;
-                          final confirmed = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              backgroundColor: theme.colorScheme.surface,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                              title: Row(
-                                children: [
-                                  Icon(
-                                    Icons.event_available,
-                                    color: Colors.orange,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  const Text('Future Date Selected'),
-                                ],
-                              ),
-                              content: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'You selected ${DateFormat.yMMMMd().format(date)}, which is in the future.',
-                                    style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.withAlpha(30),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: Colors.orange.withAlpha(100)),
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: _selectedDate.isAfter(maxDate)
+                                  ? now
+                                  : (_selectedDate.isBefore(minDate)
+                                      ? now
+                                      : _selectedDate),
+                              firstDate: minDate,
+                              lastDate: maxDate,
+                              helpText: 'Select Transaction Date',
+                            );
+                            if (date != null) {
+                              // FIX #6: Make future date picker PREVENTIVE with confirmation dialog
+                              final now = DateTime.now();
+                              final today = DateTime(
+                                now.year,
+                                now.month,
+                                now.day,
+                              );
+                              if (date.isAfter(today)) {
+                                if (!mounted) return;
+                                // Show confirmation dialog for future dates
+                                if (!context.mounted) return;
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    backgroundColor: theme.colorScheme.surface,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
                                     ),
-                                    child: Row(
+                                    title: Row(
                                       children: [
-                                        Icon(Icons.info_outline, color: Colors.orange, size: 20),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            'This expense will appear in ${DateFormat.MMMM().format(date)}\'s transactions, not in the current month.',
-                                            style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface),
+                                        Icon(
+                                          Icons.event_available,
+                                          color: Colors.orange,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        const Text('Future Date Selected'),
+                                      ],
+                                    ),
+                                    content: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'You selected ${DateFormat.yMMMMd().format(date)}, which is in the future.',
+                                          style: TextStyle(
+                                            color: theme
+                                                .colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.orange.withAlpha(30),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.orange.withAlpha(
+                                                100,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.info_outline,
+                                                color: Colors.orange,
+                                                size: 20,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  'This expense will appear in ${DateFormat.MMMM().format(date)}\'s transactions, not in the current month.',
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: theme
+                                                        .colorScheme.onSurface,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          'Do you want to continue?',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: theme.colorScheme.onSurface,
                                           ),
                                         ),
                                       ],
                                     ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: Colors.orange,
+                                        ),
+                                        child: const Text('Continue'),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    'Do you want to continue?',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: theme.colorScheme.onSurface,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
-                                  child: const Text('Cancel'),
+                                );
+
+                                if (confirmed != true) {
+                                  return; // Don't update the date if user cancelled
+                                }
+                              }
+
+                              // FIX: Preserve time precision to maintain sort order
+                              // Without this, edited dates default to midnight causing sorting issues
+                              setState(
+                                () => _selectedDate = DateTime(
+                                  date.year,
+                                  date.month,
+                                  date.day,
+                                  _selectedDate.hour,
+                                  _selectedDate.minute,
+                                  _selectedDate.second,
                                 ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: Colors.orange,
+                              );
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: theme.colorScheme.outline,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  DateFormat.yMMMMEEEEd().format(
+                                    _selectedDate,
+                                  ), // FIX: Locale-aware long date
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: theme.colorScheme.onSurface,
                                   ),
-                                  child: const Text('Continue'),
                                 ),
                               ],
                             ),
-                          );
+                          ),
+                        ),
 
-                          if (confirmed != true) {
-                            return; // Don't update the date if user cancelled
-                          }
-                        }
+                        const SizedBox(height: 32),
 
-                        // FIX: Preserve time precision to maintain sort order
-                        // Without this, edited dates default to midnight causing sorting issues
-                        setState(() => _selectedDate = DateTime(
-                          date.year,
-                          date.month,
-                          date.day,
-                          _selectedDate.hour,
-                          _selectedDate.minute,
-                          _selectedDate.second,
-                        ));
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: theme.colorScheme.outline),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.calendar_today, color: theme.colorScheme.onSurfaceVariant),
-                          const SizedBox(width: 12),
-                          Text(
-                            DateFormat.yMMMMEEEEd().format(_selectedDate), // FIX: Locale-aware long date
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: theme.colorScheme.onSurface,
+                        // FIX: Tags Section
+                        Text(
+                          'TAGS (OPTIONAL)',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ...appState.allTags.map((tag) {
+                              final isSelected = _selectedTagIds.contains(
+                                tag.id,
+                              );
+                              return FilterChip(
+                                label: Text(tag.name),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  setState(() {
+                                    if (selected) {
+                                      _selectedTagIds.add(tag.id!);
+                                    } else {
+                                      _selectedTagIds.remove(tag.id);
+                                    }
+                                  });
+                                },
+                                backgroundColor:
+                                    theme.colorScheme.surfaceContainerHighest,
+                                selectedColor: theme.colorScheme.primary
+                                    .withAlpha((255 * 0.2).round()),
+                                labelStyle: TextStyle(
+                                  color: isSelected
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.onSurface,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                                side: BorderSide(
+                                  color: isSelected
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.outline,
+                                ),
+                              );
+                            }),
+                            // Add tag button
+                            ActionChip(
+                              label: const Text('+ New Tag'),
+                              onPressed: () =>
+                                  _showCreateTagDialog(context, appState),
+                              backgroundColor:
+                                  theme.colorScheme.surfaceContainerHighest,
+                              side: BorderSide(
+                                color: theme.colorScheme.outline,
+                                style: BorderStyle.solid,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // Quick "Mark as Paid" button for editing unpaid expenses
+                        // FIX #5: Auto-save when Mark as Fully Paid is clicked
+                        if (widget.expense != null && !widget.expense!.isPaid)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 24),
+                            child: OutlinedButton.icon(
+                              onPressed: _isSaving
+                                  ? null
+                                  : () async {
+                                      // Set amount paid to full amount and immediately save
+                                      setState(() => _isSaving = true);
+                                      try {
+                                        final amount =
+                                            CurrencyHelper.parseDecimal(
+                                                  _amountController.text,
+                                                ) ??
+                                                widget.expense!.amount;
+                                        final appState =
+                                            context.read<AppState>();
+
+                                        final updatedExpense = widget.expense!
+                                            .copyWith(amountPaid: amount);
+
+                                        final navigator = Navigator.of(context);
+                                        final messenger = ScaffoldMessenger.of(
+                                          context,
+                                        );
+
+                                        await appState.updateExpense(
+                                          updatedExpense,
+                                        );
+
+                                        if (!mounted) return;
+                                        navigator.pop();
+                                        messenger.showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Marked as fully paid',
+                                            ),
+                                            backgroundColor: Colors.green,
+                                            duration: Duration(seconds: 2),
+                                            behavior: SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                      } catch (e) {
+                                        if (!mounted) return;
+                                        // ignore: use_build_context_synchronously
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Error: $e'),
+                                            backgroundColor: Colors.red,
+                                            behavior: SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                      } finally {
+                                        if (mounted) {
+                                          setState(() => _isSaving = false);
+                                        }
+                                      }
+                                    },
+                              icon: Icon(
+                                Icons.check_circle_outline,
+                                color: Colors.green.shade600,
+                              ),
+                              label: Text(
+                                'Mark as Fully Paid',
+                                style: TextStyle(color: Colors.green.shade600),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: Colors.green.shade400),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                  horizontal: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
 
-                  const SizedBox(height: 32),
-
-                  // FIX: Tags Section
-                  Text(
-                    'TAGS (OPTIONAL)',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      ...appState.allTags.map((tag) {
-                        final isSelected = _selectedTagIds.contains(tag.id);
-                        return FilterChip(
-                          label: Text(tag.name),
-                          selected: isSelected,
-                          onSelected: (selected) {
-                            setState(() {
-                              if (selected) {
-                                _selectedTagIds.add(tag.id!);
-                              } else {
-                                _selectedTagIds.remove(tag.id);
-                              }
-                            });
-                          },
-                          backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                          selectedColor: theme.colorScheme.primary.withAlpha((255 * 0.2).round()),
-                          labelStyle: TextStyle(
-                            color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        // Amount Paid (Optional)
+                        Text(
+                          'AMOUNT PAID (OPTIONAL)',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
-                          side: BorderSide(
-                            color: isSelected ? theme.colorScheme.primary : theme.colorScheme.outline,
+                        ),
+                        const SizedBox(height: 4),
+                        // CRITICAL FIX: Clarify the difference between empty and 0
+                        Text(
+                          'Track partial payments (e.g., credit card). Leave at 0 if unpaid.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurfaceVariant.withAlpha(
+                              150,
+                            ),
                           ),
-                        );
-                      }),
-                      // Add tag button
-                      ActionChip(
-                        label: const Text('+ New Tag'),
-                        onPressed: () => _showCreateTagDialog(context, appState),
-                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                        side: BorderSide(color: theme.colorScheme.outline, style: BorderStyle.solid),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Quick "Mark as Paid" button for editing unpaid expenses
-                  // FIX #5: Auto-save when Mark as Fully Paid is clicked
-                  if (widget.expense != null && !widget.expense!.isPaid)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: OutlinedButton.icon(
-                        onPressed: _isSaving ? null : () async {
-                          // Set amount paid to full amount and immediately save
-                          setState(() => _isSaving = true);
-                          try {
-                            final amount = CurrencyHelper.parseDecimal(_amountController.text) ?? widget.expense!.amount;
-                            final appState = context.read<AppState>();
-
-                            final updatedExpense = widget.expense!.copyWith(
-                              amountPaid: amount,
-                            );
-
-                            final navigator = Navigator.of(context);
-                            final messenger = ScaffoldMessenger.of(context);
-
-                            await appState.updateExpense(updatedExpense);
-
-                            if (!mounted) return;
-                            navigator.pop();
-                            messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text('Marked as fully paid'),
-                                backgroundColor: Colors.green,
-                                duration: Duration(seconds: 2),
-                                behavior: SnackBarBehavior.floating,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _amountPaidController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          inputFormatters: [
+                            CurrencyHelper.decimalInputFormatter(),
+                          ],
+                          style: const TextStyle(fontSize: 20),
+                          decoration: InputDecoration(
+                            prefixText: appState.currency,
+                            hintText: '0.00',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: theme.colorScheme.outline,
                               ),
-                            );
-                          } catch (e) {
-                            if (!mounted) return;
-                            // ignore: use_build_context_synchronously
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error: $e'),
-                                backgroundColor: Colors.red,
-                                behavior: SnackBarBehavior.floating,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: theme.colorScheme.outline,
                               ),
-                            );
-                          } finally {
-                            if (mounted) {
-                              setState(() => _isSaving = false);
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: theme.colorScheme.primary,
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return null; // Optional field
                             }
-                          }
-                        },
-                        icon: Icon(
-                          Icons.check_circle_outline,
-                          color: Colors.green.shade600,
+                            final amountPaid = CurrencyHelper.parseDecimal(
+                              value,
+                            );
+                            if (amountPaid == null) {
+                              return 'Please enter a valid number';
+                            }
+                            final totalAmount = CurrencyHelper.parseDecimal(
+                                  _amountController.text,
+                                ) ??
+                                0;
+                            if (amountPaid < 0) {
+                              return 'Amount paid cannot be negative';
+                            }
+                            if (amountPaid > totalAmount) {
+                              return 'Amount paid cannot exceed total amount';
+                            }
+                            return null;
+                          },
                         ),
-                        label: Text(
-                          'Mark as Fully Paid',
-                          style: TextStyle(color: Colors.green.shade600),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: Colors.green.shade400),
-                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
 
-                  // Amount Paid (Optional)
-                  Text(
-                    'AMOUNT PAID (OPTIONAL)',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                      color: theme.colorScheme.onSurfaceVariant,
+                        // Extra padding at bottom for keyboard
+                        const SizedBox(height: 24),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  // CRITICAL FIX: Clarify the difference between empty and 0
-                  Text(
-                    'Track partial payments (e.g., credit card). Leave at 0 if unpaid.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: theme.colorScheme.onSurfaceVariant.withAlpha(150),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _amountPaidController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [CurrencyHelper.decimalInputFormatter()],
-                    style: const TextStyle(fontSize: 20),
-                    decoration: InputDecoration(
-                      prefixText: appState.currency,
-                      hintText: '0.00',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: theme.colorScheme.outline),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: theme.colorScheme.outline),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return null; // Optional field
-                      }
-                      final amountPaid = CurrencyHelper.parseDecimal(value);
-                      if (amountPaid == null) {
-                        return 'Please enter a valid number';
-                      }
-                      final totalAmount = CurrencyHelper.parseDecimal(_amountController.text) ?? 0;
-                      if (amountPaid < 0) {
-                        return 'Amount paid cannot be negative';
-                      }
-                      if (amountPaid > totalAmount) {
-                        return 'Amount paid cannot exceed total amount';
-                      }
-                      return null;
-                    },
-                  ),
-
-                  // Extra padding at bottom for keyboard
-                  const SizedBox(height: 24),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-      // FIX #4: Use bottomNavigationBar instead of Positioned widget
-      // This properly handles keyboard appearance and safe area
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          border: Border(
-            top: BorderSide(color: theme.colorScheme.outline),
-          ),
-        ),
-        child: SafeArea(
-          top: false,
-          child: ElevatedButton(
-            onPressed: _isSaving ? null : _saveExpense,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: theme.colorScheme.onSurface,
-              foregroundColor: theme.colorScheme.surface,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+            // FIX #4: Use bottomNavigationBar instead of Positioned widget
+            // This properly handles keyboard appearance and safe area
+            bottomNavigationBar: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                border: Border(
+                  top: BorderSide(color: theme.colorScheme.outline),
+                ),
               ),
-              elevation: 0,
+              child: SafeArea(
+                top: false,
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _saveExpense,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.onSurface,
+                    foregroundColor: theme.colorScheme.surface,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                      : Text(
+                          widget.expense == null
+                              ? 'Add Expense'
+                              : 'Update Expense',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
             ),
-            child: _isSaving
-                ? const SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-            )
-                : Text(
-              widget.expense == null ? 'Add Expense' : 'Update Expense',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-      ),
-            ), // Close Scaffold
+          ), // Close Scaffold
           // FIX #12: Show success animation overlay when saving completes
           // REMOVED: Success overlay - replaced with non-blocking SnackBar
         ], // Close Stack children
