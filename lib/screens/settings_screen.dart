@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
+import '../models/account_model.dart';
 import '../utils/currency_helper.dart';
 import '../utils/dialog_helpers.dart';
 import '../utils/progress_indicator_helper.dart';
@@ -706,9 +707,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ) async {
     final appState = context.read<AppState>();
 
-    // Show comprehensive warning with clear data option
+    // FIX M8: Use allExpenses (not just current month) for accurate total count
     final transactionCount =
-        appState.getExpensesForSelectedMonth().length + appState.incomes.length;
+        appState.allExpenses.length + appState.incomes.length;
 
     final action = await DialogHelpers.showCurrencyChangeWarning(
       context,
@@ -848,18 +849,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 child: CircularProgressIndicator(),
                               ),
                             );
-                            await appState.switchAccount(account);
-                            if (context.mounted) {
-                              Navigator.pop(context); // Close loading dialog
-                              Navigator.pop(context); // Close account selector
-                              // FIX #15: Show confirmation feedback
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Switched to ${account.name}'),
-                                  behavior: SnackBarBehavior.floating,
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
+                            try {
+                              await appState.switchAccount(account);
+                              if (context.mounted) {
+                                Navigator.pop(context); // Close loading dialog
+                                Navigator.pop(
+                                    context); // Close account selector
+                                // FIX #15: Show confirmation feedback
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content:
+                                        Text('Switched to ${account.name}'),
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                Navigator.pop(context); // Close loading dialog
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content:
+                                        Text('Failed to switch account: $e'),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
                             }
                           },
                   );
@@ -927,7 +943,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  void _showAccountOptionsMenu(BuildContext context, account) {
+  void _showAccountOptionsMenu(BuildContext context, Account account) {
     final theme = Theme.of(context);
 
     showModalBottomSheet(
@@ -1014,7 +1030,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showResetAccountDialog(BuildContext context, account) async {
+  void _showResetAccountDialog(BuildContext context, Account account) async {
     final theme = Theme.of(context);
     final appState = context.read<AppState>();
 
@@ -1096,11 +1112,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     if (confirmed == true) {
-      if (!context.mounted) return;
+      final id = account.id;
+      if (id == null || !context.mounted) return;
       ProgressIndicatorHelper.show(context, message: 'Resetting account...');
 
       try {
-        await appState.resetAccount(account.id);
+        await appState.resetAccount(id);
         if (!context.mounted) return;
         ProgressIndicatorHelper.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1124,7 +1141,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  void _showDeleteAccountDialog(BuildContext context, account) async {
+  void _showDeleteAccountDialog(BuildContext context, Account account) async {
     final theme = Theme.of(context);
     final appState = context.read<AppState>();
 
@@ -1201,11 +1218,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     if (confirmed == true) {
-      if (!context.mounted) return;
+      final id = account.id;
+      if (id == null || !context.mounted) return;
       ProgressIndicatorHelper.show(context, message: 'Deleting account...');
 
       try {
-        await appState.deleteAccount(account.id);
+        await appState.deleteAccount(id);
         if (!context.mounted) return;
         ProgressIndicatorHelper.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(

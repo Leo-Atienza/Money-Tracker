@@ -266,175 +266,170 @@ class HomeScreen extends StatelessWidget {
     final appState = context.read<AppState>();
     final theme = Theme.of(context);
 
+    var displayYear = appState.selectedMonth.year;
+
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => Container(
-        height: 350,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Year navigation - left arrow
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left),
-                    onPressed: () {
-                      appState.goToMonth(
-                        DateTime(
-                          appState.selectedMonth.year - 1,
-                          appState.selectedMonth.month,
-                        ),
-                      );
-                    },
-                    tooltip: 'Previous year',
-                  ),
-                  // Year display
-                  Text(
-                    '${appState.selectedMonth.year}',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: 350,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Year navigation - left arrow
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: () {
+                        setModalState(() => displayYear--);
+                      },
+                      tooltip: 'Previous year',
                     ),
-                  ),
-                  Row(
-                    children: [
-                      // Year navigation - right arrow
-                      IconButton(
-                        icon: const Icon(Icons.chevron_right),
-                        onPressed: () {
-                          appState.goToMonth(
-                            DateTime(
-                              appState.selectedMonth.year + 1,
-                              appState.selectedMonth.month,
-                            ),
-                          );
-                        },
-                        tooltip: 'Next year',
+                    // Year display
+                    Text(
+                      '$displayYear',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
                       ),
-                      TextButton(
-                        onPressed: () {
-                          appState.goToToday();
+                    ),
+                    Row(
+                      children: [
+                        // Year navigation - right arrow
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          onPressed: () {
+                            setModalState(() => displayYear++);
+                          },
+                          tooltip: 'Next year',
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            appState.goToToday();
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Today'),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: GridView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    childAspectRatio: 2,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
+                  itemCount: 12,
+                  itemBuilder: (context, index) {
+                    final month = DateTime(
+                      displayYear,
+                      index + 1,
+                    );
+                    final isSelected =
+                        month.year == appState.selectedMonth.year &&
+                            month.month == appState.selectedMonth.month;
+                    // FIX #13: Indicate current month
+                    final now = DateTime.now();
+                    final isCurrentMonth =
+                        month.year == now.year && month.month == now.month;
+                    const months = [
+                      'Jan',
+                      'Feb',
+                      'Mar',
+                      'Apr',
+                      'May',
+                      'Jun',
+                      'Jul',
+                      'Aug',
+                      'Sep',
+                      'Oct',
+                      'Nov',
+                      'Dec',
+                    ];
+
+                    return Semantics(
+                      label:
+                          '${months[index]}, ${isSelected ? 'selected' : 'not selected'}${isCurrentMonth ? ', current month' : ''}',
+                      button: true,
+                      selected: isSelected,
+                      child: InkWell(
+                        onTap: () {
+                          appState.goToMonth(month);
                           Navigator.pop(context);
                         },
-                        child: const Text('Today'),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  childAspectRatio: 2,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                itemCount: 12,
-                itemBuilder: (context, index) {
-                  final month = DateTime(
-                    appState.selectedMonth.year,
-                    index + 1,
-                  );
-                  final isSelected =
-                      month.month == appState.selectedMonth.month;
-                  // FIX #13: Indicate current month
-                  final now = DateTime.now();
-                  final isCurrentMonth =
-                      month.year == now.year && month.month == now.month;
-                  const months = [
-                    'Jan',
-                    'Feb',
-                    'Mar',
-                    'Apr',
-                    'May',
-                    'Jun',
-                    'Jul',
-                    'Aug',
-                    'Sep',
-                    'Oct',
-                    'Nov',
-                    'Dec',
-                  ];
-
-                  return Semantics(
-                    label:
-                        '${months[index]}, ${isSelected ? 'selected' : 'not selected'}${isCurrentMonth ? ', current month' : ''}',
-                    button: true,
-                    selected: isSelected,
-                    child: InkWell(
-                      onTap: () {
-                        appState.goToMonth(month);
-                        Navigator.pop(context);
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(12),
-                          // FIX #13: Add border for current month
-                          border: isCurrentMonth && !isSelected
-                              ? Border.all(
-                                  color: theme.colorScheme.primary,
-                                  width: 2,
-                                )
-                              : null,
-                        ),
-                        child: Center(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // FIX #13: Show dot indicator for current month
-                              if (isCurrentMonth && !isSelected) ...[
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(12),
+                            // FIX #13: Add border for current month
+                            border: isCurrentMonth && !isSelected
+                                ? Border.all(
                                     color: theme.colorScheme.primary,
-                                    shape: BoxShape.circle,
+                                    width: 2,
+                                  )
+                                : null,
+                          ),
+                          child: Center(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // FIX #13: Show dot indicator for current month
+                                if (isCurrentMonth && !isSelected) ...[
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                ],
+                                Text(
+                                  months[index],
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? theme.colorScheme.onPrimary
+                                        : isCurrentMonth
+                                            ? theme.colorScheme.primary
+                                            : theme.colorScheme.onSurface,
+                                    fontWeight: isSelected || isCurrentMonth
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
                                   ),
                                 ),
-                                const SizedBox(width: 4),
                               ],
-                              Text(
-                                months[index],
-                                style: TextStyle(
-                                  color: isSelected
-                                      ? theme.colorScheme.onPrimary
-                                      : isCurrentMonth
-                                          ? theme.colorScheme.primary
-                                          : theme.colorScheme.onSurface,
-                                  fontWeight: isSelected || isCurrentMonth
-                                      ? FontWeight.w600
-                                      : FontWeight.normal,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

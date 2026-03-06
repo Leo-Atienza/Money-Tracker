@@ -225,8 +225,9 @@ class CurrencyHelper {
     for (final symbol in currencies.values) {
       result = result.replaceAll(symbol, '');
     }
-    // Also strip common currency codes that might appear
-    result = result.replaceAll(RegExp(r'[A-Z]{3}'), ''); // e.g., "USD", "EUR"
+    // Strip known currency codes (specific list to avoid stripping unrelated text)
+    final knownCodes = currencies.keys.join('|');
+    result = result.replaceAll(RegExp('(?:$knownCodes)'), '');
     result = result.trim();
 
     // Then strip thousands separators

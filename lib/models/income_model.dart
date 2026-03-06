@@ -57,7 +57,7 @@ class Income {
     return Income(
       id: map['id'],
       amount: DecimalHelper.fromDoubleSafe(
-        map['amount'] as double?,
+        (map['amount'] as num?)?.toDouble(),
       ), // Convert from database double
       category: category as String,
       description: map['description'] ?? '',

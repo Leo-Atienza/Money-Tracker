@@ -35,6 +35,7 @@ class ProgressIndicatorHelper {
   }) async {
     double progress = 0.0;
     String status = 'Starting...';
+    StateSetter? dialogSetState;
 
     // Show dialog
     showDialog(
@@ -42,6 +43,7 @@ class ProgressIndicatorHelper {
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) {
+          dialogSetState = setState;
           return PopScope(
             canPop: false,
             child: AlertDialog(
@@ -74,15 +76,9 @@ class ProgressIndicatorHelper {
     // Run operation with progress callback
     try {
       await operation((newProgress, newStatus) {
-        // Find the dialog and update its state
-        final dialogContext = context;
-        if (dialogContext.mounted) {
-          // Update using the StatefulBuilder's setState
-          progress = newProgress.clamp(0.0, 1.0);
-          status = newStatus;
-          // Force rebuild - we need to find a way to call setState from here
-          // This is a limitation - we'll keep the simple version for now
-        }
+        progress = newProgress.clamp(0.0, 1.0);
+        status = newStatus;
+        dialogSetState?.call(() {});
       });
     } finally {
       // Close dialog

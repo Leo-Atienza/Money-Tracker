@@ -66,7 +66,7 @@ class QuickTemplate {
       id: map['id'],
       name: name as String,
       amount: DecimalHelper.fromDoubleSafe(
-        map['amount'] as double?,
+        (map['amount'] as num?)?.toDouble(),
       ), // Convert from database double
       category: category as String,
       paymentMethod: map['paymentMethod'] ?? 'Cash',

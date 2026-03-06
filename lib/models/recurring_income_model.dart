@@ -127,7 +127,7 @@ class RecurringIncome {
       id: map['id'],
       description: map['description'],
       amount: DecimalHelper.fromDoubleSafe(
-        map['amount'] as double?,
+        (map['amount'] as num?)?.toDouble(),
       ), // Convert from database double
       category: map['category'],
       dayOfMonth: map['dayOfMonth'],

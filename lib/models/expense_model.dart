@@ -37,14 +37,7 @@ class Expense {
   // Decimal package handles precision correctly, but we normalize to 2 decimal places
   // to match currency display (prevents 99.999999 vs 100.00 edge cases)
   bool get isPaid {
-    // Round both values to 2 decimal places for comparison (currency precision)
-    final amountRounded = DecimalHelper.fromDouble(
-      DecimalHelper.toDouble(_amount),
-    );
-    final paidRounded = DecimalHelper.fromDouble(
-      DecimalHelper.toDouble(_amountPaid),
-    );
-    return paidRounded >= amountRounded;
+    return _amountPaid >= _amount;
   }
 
   // Get remaining amount to pay
@@ -56,7 +49,7 @@ class Expense {
   // Get payment progress (0.0 to 1.0)
   double get paymentProgress {
     // Check if amount is zero or very close to zero to prevent division by zero
-    if (_amount <= Decimal.parse('0.01')) return 0.0;
+    if (_amount < Decimal.parse('0.01')) return 0.0;
     final progress = (_amountPaid / _amount).toDecimal();
     final one = Decimal.one;
     final clamped = progress < Decimal.zero
@@ -88,15 +81,15 @@ class Expense {
     return Expense(
       id: map['id'],
       amount: DecimalHelper.fromDoubleSafe(
-        map['amount'] as double?,
+        (map['amount'] as num?)?.toDouble(),
       ), // Convert from database double
-      category: map['category'],
+      category: map['category'] ?? 'Uncategorized',
       description: map['description'] ?? '',
       date: DateHelper.parseDate(map['date']) ??
           DateHelper.today(), // Normalize date from database
-      accountId: map['account_id'],
+      accountId: (map['account_id'] as int?) ?? 0,
       amountPaid: DecimalHelper.fromDoubleSafe(
-        map['amountPaid'] as double?,
+        (map['amountPaid'] as num?)?.toDouble(),
       ), // Convert from database double
       paymentMethod: map['paymentMethod'] ?? 'Cash',
     );

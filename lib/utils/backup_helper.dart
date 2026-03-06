@@ -31,11 +31,12 @@ class _BackupIsolateParams {
 
 /// Isolate function to create comprehensive backup (runs off main thread)
 /// FIX: Prevents OOM and UI freeze by processing in background
-/// FIX: Uses streaming to avoid loading entire file into memory
+/// FIX C1: Read all bytes first, then Base64-encode once to avoid padding corruption
+/// The SQLite DB is small enough for memory; chunked encoding produced invalid
+/// Base64 (each chunk was independently padded with '=' in the middle).
 Future<String> _createBackupInIsolate(_BackupIsolateParams params) async {
   // FIX: Removed try-catch to preserve original exception and stack trace
-  // Read entire database file and encode to Base64 in a single pass
-  // to avoid corrupt output from independently-padded chunks
+  // FIX C1: Read entire file then encode once (chunked encoding corrupts Base64)
   final dbFile = File(params.dbPath);
   final dbBytes = await dbFile.readAsBytes();
   final dbBase64 = base64Encode(dbBytes);

@@ -96,19 +96,18 @@ class AppState extends ChangeNotifier {
   int? _cacheExpenseHash; // FIX: Track content changes, not just length
 
   List<Expense> get expenses {
-    // FIX: Calculate a comprehensive hash of expense fields to detect any content changes
-    // Includes: id, amount, description, category, amountPaid, and date
-    // This catches all cases where an expense is updated
+    // FIX: Use multiplicative hash to avoid XOR fold collisions where
+    // swapped or symmetric field values cancel each other out
     final currentHash = _expenses.isEmpty
         ? 0
         : _expenses.fold(0, (hash, e) {
-            return hash ^
-                (e.id ?? 0) ^
-                e.amountDecimal.hashCode ^
-                e.description.hashCode ^
-                e.category.hashCode ^
-                e.amountPaidDecimal.hashCode ^
-                e.date.millisecondsSinceEpoch;
+            int h = hash * 37 + (e.id ?? 0);
+            h = h * 37 + e.amountDecimal.hashCode;
+            h = h * 37 + e.description.hashCode;
+            h = h * 37 + e.category.hashCode;
+            h = h * 37 + e.amountPaidDecimal.hashCode;
+            h = h * 37 + e.date.millisecondsSinceEpoch;
+            return h;
           });
 
     // Check if cache is valid
@@ -329,7 +328,7 @@ class AppState extends ChangeNotifier {
       _loadMonthlyBalances(),
     ]);
 
-    // FIX: Use local variable to avoid race between null check and usage
+    // FIX: Use null guard to avoid force-unwrap crash if account is null
     final accountId = _currentAccount?.id;
     if (_categories.isEmpty && accountId != null) {
       await _createDefaultCategoriesForAccount(accountId);
@@ -405,6 +404,7 @@ class AppState extends ChangeNotifier {
       _processingRecurring = false;
     }
 
+    if (_isDisposed) return; // FIX: Prevent notifyListeners after dispose
     if (_lastAutoCreatedCount > 0 &&
         epochAtStart == _backgroundProcessingEpoch &&
         accountIdAtStart == currentAccountId) {
@@ -765,11 +765,13 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> undoDelete() async {
-    await _db.restoreLastDeleted(currentAccountId);
-    await _loadExpenses();
-    _invalidateExpenseCache(); // FIX: Invalidate cache after undo
-    notifyListeners();
-    _updateHomeWidget(); // FIX: Update home widget after undo
+    await _writeMutex.synchronized(() async {
+      await _db.restoreLastDeleted(currentAccountId);
+      await _loadExpenses();
+      _invalidateExpenseCache(); // FIX: Invalidate cache after undo
+      notifyListeners();
+      _updateHomeWidget(); // FIX: Update home widget after undo
+    });
   }
 
   Future<void> addPayment(Expense expense, double amount) async {
@@ -1139,6 +1141,7 @@ class AppState extends ChangeNotifier {
     int count = 0;
     DateTime current = monthStart;
     while (!DateHelper.normalize(current).isAfter(monthEnd)) {
+      // dayOfMonth stores 0-6 (Mon-Sun) for weekly/biweekly; weekday-1 converts Dart's 1-7 to 0-6
       if (current.weekday - 1 == recurring.dayOfMonth) {
         count++;
       }
@@ -1426,13 +1429,6 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       final db = await _db.database;
       await db.transaction((txn) async {
-        // FIX: Delete transaction_tags BEFORE expenses/income so subqueries find rows
-        await txn.rawDelete(
-          'DELETE FROM transaction_tags WHERE '
-          '(transaction_type = \'expense\' AND transaction_id IN (SELECT id FROM expenses WHERE account_id = ?)) OR '
-          '(transaction_type = \'income\' AND transaction_id IN (SELECT id FROM income WHERE account_id = ?))',
-          [accountId, accountId],
-        );
         await txn.delete(
           'expenses',
           where: 'account_id = ?',
@@ -1473,6 +1469,7 @@ class AppState extends ChangeNotifier {
           where: 'account_id = ?',
           whereArgs: [accountId],
         );
+        await txn.delete('transaction_tags', where: '1=1');
         await txn.delete(
           'deleted_expenses',
           where: 'account_id = ?',
@@ -1509,11 +1506,8 @@ class AppState extends ChangeNotifier {
     });
   }
 
-  Future<void> permanentlyDeleteAccount(int deletedId) async {
-    await _writeMutex.synchronized(() async {
+  Future<void> permanentlyDeleteAccount(int deletedId) async =>
       await _db.permanentlyDeleteAccount(deletedId);
-    });
-  }
 
   Future<void> switchAccount(Account account) async {
     _currentAccount = account;
@@ -1548,43 +1542,43 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _createDefaultCategoriesForAccount(int accountId) async {
-    // FIX: Use a single transaction for atomicity — prevents partial category creation
-    final db = await _db.database;
-    await db.transaction((txn) async {
-      final defaultExpenseCategories = [
-        'Food',
-        'Transport',
-        'Shopping',
-        'Entertainment',
-        'Health',
-        'Education',
-        'Bills',
-        'Other',
-      ];
-      for (var cat in defaultExpenseCategories) {
-        await txn.insert('categories', {
-          'name': cat,
-          'account_id': accountId,
-          'isDefault': 1,
-          'type': 'expense',
-        });
-      }
-      final defaultIncomeCategories = [
-        'Salary',
-        'Freelance',
-        'Investment',
-        'Gift',
-        'Other',
-      ];
-      for (var cat in defaultIncomeCategories) {
-        await txn.insert('categories', {
-          'name': cat,
-          'account_id': accountId,
-          'isDefault': 1,
-          'type': 'income',
-        });
-      }
-    });
+    final defaultExpenseCategories = [
+      'Food',
+      'Transport',
+      'Shopping',
+      'Entertainment',
+      'Health',
+      'Education',
+      'Bills',
+      'Other',
+    ];
+    for (var cat in defaultExpenseCategories) {
+      await _db.createCategory(
+        Category(
+          name: cat,
+          accountId: accountId,
+          isDefault: true,
+          type: 'expense',
+        ),
+      );
+    }
+    final defaultIncomeCategories = [
+      'Salary',
+      'Freelance',
+      'Investment',
+      'Gift',
+      'Other',
+    ];
+    for (var cat in defaultIncomeCategories) {
+      await _db.createCategory(
+        Category(
+          name: cat,
+          accountId: accountId,
+          isDefault: true,
+          type: 'income',
+        ),
+      );
+    }
   }
 
   Future<void> refreshCurrentMonthData() async {
@@ -2331,8 +2325,10 @@ class AppState extends ChangeNotifier {
   Future<void> changeCurrency(String code) async {
     await _writeMutex.synchronized(() async {
       _currencyCode = code;
-      if (_currentAccount != null)
-        await _db.updateAccount(_currentAccount!.copyWith(currencyCode: code));
+      final acct = _currentAccount;
+      if (acct != null) {
+        await _db.updateAccount(acct.copyWith(currencyCode: code));
+      }
       notifyListeners();
     });
   }
@@ -2514,10 +2510,14 @@ class AppState extends ChangeNotifier {
   Future<List<Income>> getAllIncomesForBackup() async =>
       await _db.readAllIncome(currentAccountId);
   Future<void> closeDatabase() async {
-    while (_processingRecurring) {
+    int retries = 0;
+    while (_processingRecurring && retries < 50) {
       await Future.delayed(const Duration(milliseconds: 100));
+      retries++;
     }
-    await _db.closeDatabase();
+    await _writeMutex.synchronized(() async {
+      await _db.closeDatabase();
+    });
   }
 
   Future<void> reloadAfterRestore() async {

@@ -298,6 +298,16 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
   }
 
   void _applyFilters() {
+    // Validate min/max cross-check
+    if (_minAmount != null && _maxAmount != null && _minAmount! > _maxAmount!) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Min amount cannot be greater than max amount'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     final appState = context.read<AppState>();
     appState.setFilterCategory(_filterCategory);
     appState.setDateRange(_dateRange?.start, _dateRange?.end);

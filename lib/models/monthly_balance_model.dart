@@ -83,7 +83,7 @@ class MonthlyBalance {
     Decimal? overallBudget;
     if (overallBudgetValue != null) {
       overallBudget = DecimalHelper.fromDoubleSafe(
-        overallBudgetValue as double?,
+        (overallBudgetValue as num?)?.toDouble(),
       );
       // Treat zero as null (no budget set)
       if (overallBudget == Decimal.zero) {
@@ -94,7 +94,7 @@ class MonthlyBalance {
     return MonthlyBalance(
       id: map['id'],
       carryoverFromPrevious: DecimalHelper.fromDoubleSafe(
-        map['carryover_from_previous'] as double?,
+        (map['carryover_from_previous'] as num?)?.toDouble(),
       ),
       overallBudget: overallBudget,
       accountId: map['account_id'] ?? map['accountId'] ?? 0,

@@ -20,6 +20,14 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
   bool _isSaving = false;
 
   @override
+  void initState() {
+    super.initState();
+    _paymentController.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
   void dispose() {
     _paymentController.dispose();
     super.dispose();

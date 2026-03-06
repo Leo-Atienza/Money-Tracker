@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../utils/pin_security_helper.dart';
 import '../utils/haptic_helper.dart';
@@ -19,11 +21,39 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
   // to prevent inconsistency between local and global rate limiting state
   int _remainingAttempts = 5;
   int _lockoutSeconds = 0;
+  Timer? _lockoutTimer;
 
   @override
   void initState() {
     super.initState();
     _loadInitialState();
+  }
+
+  @override
+  void dispose() {
+    _lockoutTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startLockoutCountdown() {
+    _lockoutTimer?.cancel();
+    if (_lockoutSeconds <= 0) return;
+    _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        _lockoutSeconds--;
+        if (_lockoutSeconds <= 0) {
+          timer.cancel();
+          _errorMessage = null;
+        } else {
+          _errorMessage =
+              'Too many attempts. Try again in $_lockoutSeconds seconds.';
+        }
+      });
+    });
   }
 
   /// FIX: Load both PIN length and current rate limiting state from PinSecurityHelper
@@ -40,6 +70,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
       if (_lockoutSeconds > 0) {
         _errorMessage =
             'Too many attempts. Try again in $_lockoutSeconds seconds.';
+        _startLockoutCountdown();
       }
     });
   }
@@ -343,6 +374,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
           if (lockoutSecs > 0) {
             _errorMessage =
                 'Too many attempts. Try again in $lockoutSecs seconds.';
+            _startLockoutCountdown();
           } else if (remaining <= 0) {
             _errorMessage = 'Too many failed attempts. Please try again later.';
           } else {

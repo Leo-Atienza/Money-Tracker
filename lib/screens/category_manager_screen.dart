@@ -116,19 +116,27 @@ class _CategoryList extends StatelessWidget {
                   isDefault: category.isDefault,
                   isLast: isLast,
                   theme: theme,
-                  onEdit: () => _showEditCategory(
-                    context,
-                    category.id!,
-                    category.name,
-                    category.type,
-                  ),
+                  onEdit: () {
+                    final id = category.id;
+                    if (id == null) return;
+                    _showEditCategory(
+                      context,
+                      id,
+                      category.name,
+                      category.type,
+                    );
+                  },
                   onDelete: category.isDefault
                       ? null
-                      : () => _confirmDelete(
+                      : () {
+                          final id = category.id;
+                          if (id == null) return;
+                          _confirmDelete(
                             context,
-                            category.id!,
+                            id,
                             category.name,
-                          ),
+                          );
+                        },
                 );
               }).toList(),
             ),
@@ -169,19 +177,27 @@ class _CategoryList extends StatelessWidget {
                   isDefault: category.isDefault,
                   isLast: isLast,
                   theme: theme,
-                  onEdit: () => _showEditCategory(
-                    context,
-                    category.id!,
-                    category.name,
-                    category.type,
-                  ),
+                  onEdit: () {
+                    final id = category.id;
+                    if (id == null) return;
+                    _showEditCategory(
+                      context,
+                      id,
+                      category.name,
+                      category.type,
+                    );
+                  },
                   onDelete: category.isDefault
                       ? null
-                      : () => _confirmDelete(
+                      : () {
+                          final id = category.id;
+                          if (id == null) return;
+                          _confirmDelete(
                             context,
-                            category.id!,
+                            id,
                             category.name,
-                          ),
+                          );
+                        },
                 );
               }).toList(),
             ),

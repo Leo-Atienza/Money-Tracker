@@ -56,13 +56,12 @@ class Budget {
 
     return Budget(
       id: map['id'],
-      category: map['category'],
+      category: map['category'] ?? 'Uncategorized',
       amount: DecimalHelper.fromDoubleSafe(
-        map['amount'] as double?,
+        (map['amount'] as num?)?.toDouble(),
       ), // Convert from database double
       accountId: map['account_id'] ??
-          map['accountId'] ??
-          0, // FIX: Fallback to 0 if both null to prevent crash
+          map['accountId'], // Support both formats for compatibility
       month: parsedMonth ??
           DateHelper.startOfMonth(
             DateHelper.today(),

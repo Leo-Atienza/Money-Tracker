@@ -157,11 +157,6 @@ class Validators {
       return 'Please enter a valid number';
     }
 
-    // FIX #8: Explicit check for negative values
-    if (parsed < 0) {
-      return 'Budget cannot be negative';
-    }
-
     if (parsed <= 0) {
       return 'Budget must be greater than 0';
     }

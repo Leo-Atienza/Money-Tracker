@@ -812,19 +812,24 @@ class DatabaseHelper {
   }
 
   // Move income to deleted (for undo/restore)
+  // FIX M5: Wrap insert+delete in a transaction for atomicity.
+  // Without a transaction, a crash after insert but before delete would
+  // duplicate the income (present in both tables).
   Future<void> moveIncomeToDeleted(Income income) async {
     final db = await database;
-    await db.insert('deleted_income', {
-      'original_id': income.id,
-      'amount': income.amount,
-      'category': income.category,
-      'description': income.description,
-      'date': DateHelper.toDateString(income.date),
-      'account_id': income.accountId,
-      // FIX: Use UTC to avoid timezone-dependent expiration
-      'deletedAt': DateTime.now().toUtc().toIso8601String(),
+    await db.transaction((txn) async {
+      await txn.insert('deleted_income', {
+        'original_id': income.id,
+        'amount': income.amount,
+        'category': income.category,
+        'description': income.description,
+        'date': income.date.toIso8601String(),
+        'account_id': income.accountId,
+        // FIX: Use UTC to avoid timezone-dependent expiration
+        'deletedAt': DateTime.now().toUtc().toIso8601String(),
+      });
+      await txn.delete('income', where: 'id = ?', whereArgs: [income.id]);
     });
-    await db.delete('income', where: 'id = ?', whereArgs: [income.id]);
   }
 
   // Move income to deleted by ID (fetches from DB if needed)
@@ -1513,21 +1518,26 @@ class DatabaseHelper {
   }
 
   // Move expense to deleted (for 30-day restore)
+  // FIX M5: Wrap insert+delete in a transaction for atomicity.
+  // Without a transaction, a crash after insert but before delete would
+  // duplicate the expense (present in both tables).
   Future<void> moveToDeleted(Expense expense) async {
     final db = await database;
-    await db.insert('deleted_expenses', {
-      'original_id': expense.id,
-      'amount': expense.amount,
-      'category': expense.category,
-      'description': expense.description,
-      'date': DateHelper.toDateString(expense.date),
-      'account_id': expense.accountId,
-      'amountPaid': expense.amountPaid,
-      'paymentMethod': expense.paymentMethod,
-      // FIX: Use UTC to avoid timezone-dependent expiration
-      'deletedAt': DateTime.now().toUtc().toIso8601String(),
+    await db.transaction((txn) async {
+      await txn.insert('deleted_expenses', {
+        'original_id': expense.id,
+        'amount': expense.amount,
+        'category': expense.category,
+        'description': expense.description,
+        'date': expense.date.toIso8601String(),
+        'account_id': expense.accountId,
+        'amountPaid': expense.amountPaid,
+        'paymentMethod': expense.paymentMethod,
+        // FIX: Use UTC to avoid timezone-dependent expiration
+        'deletedAt': DateTime.now().toUtc().toIso8601String(),
+      });
+      await txn.delete('expenses', where: 'id = ?', whereArgs: [expense.id]);
     });
-    await db.delete('expenses', where: 'id = ?', whereArgs: [expense.id]);
   }
 
   // Move expense to deleted by ID (fetches from DB if needed)
@@ -2688,7 +2698,8 @@ class DatabaseHelper {
     final result = await _queryWithTimeout(
       () => db.query(
         'expenses',
-        where: 'account_id = ? AND (description LIKE ? OR category LIKE ?)',
+        where:
+            "account_id = ? AND (description LIKE ? ESCAPE '\\' OR category LIKE ? ESCAPE '\\')",
         whereArgs: [accountId, '%$sanitizedQuery%', '%$sanitizedQuery%'],
         orderBy: 'date DESC',
         limit: limit,
@@ -2715,7 +2726,8 @@ class DatabaseHelper {
     final result = await _queryWithTimeout(
       () => db.query(
         'income',
-        where: 'account_id = ? AND (description LIKE ? OR category LIKE ?)',
+        where:
+            "account_id = ? AND (description LIKE ? ESCAPE '\\' OR category LIKE ? ESCAPE '\\')",
         whereArgs: [accountId, '%$sanitizedQuery%', '%$sanitizedQuery%'],
         orderBy: 'date DESC',
         limit: limit,
@@ -2830,15 +2842,17 @@ class DatabaseHelper {
       final conditions = <String>[];
 
       // Search token conditions
+      // FIX H13: Add ESCAPE '\\' to all LIKE clauses so that escaped
+      // wildcards (\\%, \\_) from _sanitizeSearchQuery are treated literally.
       for (final token in tokens) {
         final isNumeric = double.tryParse(token) != null;
         if (isNumeric) {
           conditions.add(
-            '($prefix.description LIKE ? OR $prefix.category LIKE ? OR CAST($prefix.amount AS TEXT) LIKE ?)',
+            "($prefix.description LIKE ? ESCAPE '\\' OR $prefix.category LIKE ? ESCAPE '\\' OR CAST($prefix.amount AS TEXT) LIKE ? ESCAPE '\\')",
           );
         } else {
           conditions.add(
-            '($prefix.description LIKE ? OR $prefix.category LIKE ?)',
+            "($prefix.description LIKE ? ESCAPE '\\' OR $prefix.category LIKE ? ESCAPE '\\')",
           );
         }
       }

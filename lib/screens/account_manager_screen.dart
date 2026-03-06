@@ -287,7 +287,9 @@ class _AccountList extends StatelessWidget {
                               Navigator.pop(context); // Close account manager
                             }
                           } else if (value == 'setDefault') {
-                            await appState.setDefaultAccount(account.id!);
+                            final id = account.id;
+                            if (id == null) return;
+                            await appState.setDefaultAccount(id);
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
@@ -299,7 +301,9 @@ class _AccountList extends StatelessWidget {
                               );
                             }
                           } else if (value == 'delete') {
-                            _confirmDelete(context, account.id!);
+                            final id = account.id;
+                            if (id == null) return;
+                            _confirmDelete(context, id);
                           }
                         },
                       ),

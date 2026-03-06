@@ -152,7 +152,11 @@ class _RecurringList extends StatelessWidget {
               ],
             ),
             onTap: () => _showEditRecurring(context, rec),
-            onLongPress: () => _confirmDelete(context, rec.id!),
+            onLongPress: () {
+              final id = rec.id;
+              if (id == null) return;
+              _confirmDelete(context, id);
+            },
           ),
         );
       }).toList(),

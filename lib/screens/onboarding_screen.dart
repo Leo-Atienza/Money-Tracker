@@ -30,59 +30,70 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _loadSampleData() async {
-    final appState = context.read<AppState>();
+    try {
+      final appState = context.read<AppState>();
 
-    // Add sample categories
-    await appState.addCategory('Groceries', type: 'expense');
-    await appState.addCategory('Transport', type: 'expense');
-    await appState.addCategory('Entertainment', type: 'expense');
-    await appState.addCategory('Salary', type: 'income');
-    await appState.addCategory('Freelance', type: 'income');
+      // Add sample categories
+      await appState.addCategory('Groceries', type: 'expense');
+      await appState.addCategory('Transport', type: 'expense');
+      await appState.addCategory('Entertainment', type: 'expense');
+      await appState.addCategory('Salary', type: 'income');
+      await appState.addCategory('Freelance', type: 'income');
 
-    // Add sample expenses (past month)
-    final today = DateHelper.today();
-    final dates = [
-      today.subtract(const Duration(days: 1)),
-      today.subtract(const Duration(days: 2)),
-      today.subtract(const Duration(days: 5)),
-      today.subtract(const Duration(days: 10)),
-    ];
+      // Add sample expenses (past month)
+      final today = DateHelper.today();
+      final dates = [
+        today.subtract(const Duration(days: 1)),
+        today.subtract(const Duration(days: 2)),
+        today.subtract(const Duration(days: 5)),
+        today.subtract(const Duration(days: 10)),
+      ];
 
-    for (final date in dates) {
-      // Add some sample transactions
-      if (date.day % 2 == 0) {
-        await appState.addExpenseRaw(
-          amount: 45.50 + (date.day % 3) * 10,
-          category: 'Groceries',
-          description: 'Weekly groceries',
-          date: date,
-          paymentMethod: 'Debit',
-          amountPaid: 45.50 + (date.day % 3) * 10,
-        );
-      } else {
-        await appState.addExpenseRaw(
-          amount: 12.00 + (date.day % 5) * 5,
-          category: 'Transport',
-          description: 'Gas',
-          date: date,
-          paymentMethod: 'Cash',
-          amountPaid: 12.00 + (date.day % 5) * 5,
+      for (final date in dates) {
+        // Add some sample transactions
+        if (date.day % 2 == 0) {
+          await appState.addExpenseRaw(
+            amount: 45.50 + (date.day % 3) * 10,
+            category: 'Groceries',
+            description: 'Weekly groceries',
+            date: date,
+            paymentMethod: 'Debit',
+            amountPaid: 45.50 + (date.day % 3) * 10,
+          );
+        } else {
+          await appState.addExpenseRaw(
+            amount: 12.00 + (date.day % 5) * 5,
+            category: 'Transport',
+            description: 'Gas',
+            date: date,
+            paymentMethod: 'Cash',
+            amountPaid: 12.00 + (date.day % 5) * 5,
+          );
+        }
+      }
+
+      // Add sample income
+      await appState.addIncomeRaw(
+        amount: 3000.00,
+        category: 'Salary',
+        description: 'Monthly salary',
+        date: DateHelper.startOfMonth(today),
+      );
+
+      // Add a budget
+      await appState.setBudget('Groceries', 200.00);
+
+      await _completeOnboarding();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load sample data: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     }
-
-    // Add sample income
-    await appState.addIncomeRaw(
-      amount: 3000.00,
-      category: 'Salary',
-      description: 'Monthly salary',
-      date: DateHelper.startOfMonth(today),
-    );
-
-    // Add a budget
-    await appState.setBudget('Groceries', 200.00);
-
-    await _completeOnboarding();
   }
 
   @override
