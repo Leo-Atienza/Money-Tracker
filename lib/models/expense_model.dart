@@ -37,10 +37,7 @@ class Expense {
   // Decimal package handles precision correctly, but we normalize to 2 decimal places
   // to match currency display (prevents 99.999999 vs 100.00 edge cases)
   bool get isPaid {
-    // Round both values to 2 decimal places for comparison (currency precision)
-    final amountRounded = DecimalHelper.fromDouble(DecimalHelper.toDouble(_amount));
-    final paidRounded = DecimalHelper.fromDouble(DecimalHelper.toDouble(_amountPaid));
-    return paidRounded >= amountRounded;
+    return _amountPaid >= _amount;
   }
 
   // Get remaining amount to pay
@@ -52,22 +49,30 @@ class Expense {
   // Get payment progress (0.0 to 1.0)
   double get paymentProgress {
     // Check if amount is zero or very close to zero to prevent division by zero
-    if (_amount <= Decimal.parse('0.01')) return 0.0;
+    if (_amount < Decimal.parse('0.01')) return 0.0;
     final progress = (_amountPaid / _amount).toDecimal();
     final one = Decimal.one;
-    final clamped = progress < Decimal.zero ? Decimal.zero : (progress > one ? one : progress);
+    final clamped = progress < Decimal.zero
+        ? Decimal.zero
+        : (progress > one ? one : progress);
     return DecimalHelper.toDouble(clamped);
   }
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'amount': DecimalHelper.toDouble(_amount),  // Convert to double for database
+      'amount': DecimalHelper.toDouble(
+        _amount,
+      ), // Convert to double for database
       'category': category,
       'description': description,
-      'date': DateHelper.toDateString(date),  // Normalize to ISO 8601 date string
+      'date': DateHelper.toDateString(
+        date,
+      ), // Normalize to ISO 8601 date string
       'account_id': accountId,
-      'amountPaid': DecimalHelper.toDouble(_amountPaid),  // Convert to double for database
+      'amountPaid': DecimalHelper.toDouble(
+        _amountPaid,
+      ), // Convert to double for database
       'paymentMethod': paymentMethod,
     };
   }
@@ -75,12 +80,17 @@ class Expense {
   factory Expense.fromMap(Map<String, dynamic> map) {
     return Expense(
       id: map['id'],
-      amount: DecimalHelper.fromDoubleSafe(map['amount'] as double?),  // Convert from database double
-      category: map['category'],
+      amount: DecimalHelper.fromDoubleSafe(
+        (map['amount'] as num?)?.toDouble(),
+      ), // Convert from database double
+      category: map['category'] ?? 'Uncategorized',
       description: map['description'] ?? '',
-      date: DateHelper.parseDate(map['date']) ?? DateHelper.today(),  // Normalize date from database
-      accountId: map['account_id'],
-      amountPaid: DecimalHelper.fromDoubleSafe(map['amountPaid'] as double?),  // Convert from database double
+      date: DateHelper.parseDate(map['date']) ??
+          DateHelper.today(), // Normalize date from database
+      accountId: (map['account_id'] as int?) ?? 0,
+      amountPaid: DecimalHelper.fromDoubleSafe(
+        (map['amountPaid'] as num?)?.toDouble(),
+      ), // Convert from database double
       paymentMethod: map['paymentMethod'] ?? 'Cash',
     );
   }
@@ -102,7 +112,9 @@ class Expense {
       description: description ?? this.description,
       date: date ?? this.date,
       accountId: accountId ?? this.accountId,
-      amountPaid: amountPaid != null ? DecimalHelper.fromDouble(amountPaid) : _amountPaid,
+      amountPaid: amountPaid != null
+          ? DecimalHelper.fromDouble(amountPaid)
+          : _amountPaid,
       paymentMethod: paymentMethod ?? this.paymentMethod,
     );
   }

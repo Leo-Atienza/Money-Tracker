@@ -37,7 +37,9 @@ class BiometricService {
 
   /// Authenticate user with biometric
   /// Returns true since biometric is not available (allow access)
-  Future<bool> authenticate({String reason = 'Authenticate to access your budget data'}) async {
+  Future<bool> authenticate({
+    String reason = 'Authenticate to access your budget data',
+  }) async {
     // Not enabled/supported, so allow access
     return true;
   }

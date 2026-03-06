@@ -20,7 +20,8 @@ class ExportDataScreen extends StatefulWidget {
 class _ExportDataScreenState extends State<ExportDataScreen> {
   // Export options
   String _exportType = 'all'; // 'all', 'expenses', 'income'
-  String _dateRange = 'all_time'; // 'all_time', 'this_month', 'last_month', 'this_year', 'custom'
+  String _dateRange =
+      'all_time'; // 'all_time', 'this_month', 'last_month', 'this_year', 'custom'
   DateTime? _customStartDate;
   DateTime? _customEndDate;
   bool _isExporting = false;
@@ -54,14 +55,13 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               decoration: BoxDecoration(
                 color: theme.colorScheme.primaryContainer.withAlpha(50),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: theme.colorScheme.primary.withAlpha(50)),
+                border: Border.all(
+                  color: theme.colorScheme.primary.withAlpha(50),
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.info_outline,
-                    color: theme.colorScheme.primary,
-                  ),
+                  Icon(Icons.info_outline, color: theme.colorScheme.primary),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -282,7 +282,10 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               ),
               child: Icon(
                 icon,
-                color: iconColor ?? (isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface),
+                color: iconColor ??
+                    (isSelected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface),
               ),
             ),
             const SizedBox(width: 16),
@@ -294,7 +297,8 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                     title,
                     style: TextStyle(
                       fontSize: 15,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.w500,
                       color: theme.colorScheme.onSurface,
                     ),
                   ),
@@ -309,10 +313,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               ),
             ),
             if (isSelected)
-              Icon(
-                Icons.check_circle,
-                color: theme.colorScheme.primary,
-              ),
+              Icon(Icons.check_circle, color: theme.colorScheme.primary),
           ],
         ),
       ),
@@ -337,11 +338,14 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       backgroundColor: theme.colorScheme.surfaceContainerHighest,
       selectedColor: theme.colorScheme.primary.withAlpha(30),
       labelStyle: TextStyle(
-        color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+        color: isSelected
+            ? theme.colorScheme.primary
+            : theme.colorScheme.onSurface,
         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
       ),
       side: BorderSide(
-        color: isSelected ? theme.colorScheme.primary : theme.colorScheme.outline,
+        color:
+            isSelected ? theme.colorScheme.primary : theme.colorScheme.outline,
       ),
     );
   }
@@ -401,9 +405,8 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
   Future<void> _selectDate({required bool isStart}) async {
     final now = DateTime.now();
-    final initialDate = isStart
-        ? (_customStartDate ?? now)
-        : (_customEndDate ?? now);
+    final initialDate =
+        isStart ? (_customStartDate ?? now) : (_customEndDate ?? now);
 
     final date = await showDatePicker(
       context: context,
@@ -460,15 +463,23 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
       // Filter by date range if applicable
       final filteredExpenses = dateFilter != null
-          ? allExpenses.where((e) =>
-              !e.date.isBefore(dateFilter.start) &&
-              !e.date.isAfter(dateFilter.end)).toList()
+          ? allExpenses
+              .where(
+                (e) =>
+                    !e.date.isBefore(dateFilter.start) &&
+                    !e.date.isAfter(dateFilter.end),
+              )
+              .toList()
           : allExpenses;
 
       final filteredIncome = dateFilter != null
-          ? allIncome.where((i) =>
-              !i.date.isBefore(dateFilter.start) &&
-              !i.date.isAfter(dateFilter.end)).toList()
+          ? allIncome
+              .where(
+                (i) =>
+                    !i.date.isBefore(dateFilter.start) &&
+                    !i.date.isAfter(dateFilter.end),
+              )
+              .toList()
           : allIncome;
 
       // Determine separator based on locale
@@ -502,15 +513,13 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
             appState.currency,
             separator: separator,
           );
-          exportMessage = '${filteredExpenses.length + filteredIncome.length} transactions exported';
+          exportMessage =
+              '${filteredExpenses.length + filteredIncome.length} transactions exported';
       }
 
       // Share the file
       await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path)],
-          subject: 'Money Tracker Export',
-        ),
+        ShareParams(files: [XFile(file.path)], subject: 'Money Tracker Export'),
       );
 
       if (mounted) {
@@ -568,15 +577,23 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
       // Filter by date range if applicable
       final filteredExpenses = dateFilter != null
-          ? allExpenses.where((e) =>
-              !e.date.isBefore(dateFilter.start) &&
-              !e.date.isAfter(dateFilter.end)).toList()
+          ? allExpenses
+              .where(
+                (e) =>
+                    !e.date.isBefore(dateFilter.start) &&
+                    !e.date.isAfter(dateFilter.end),
+              )
+              .toList()
           : allExpenses;
 
       final filteredIncome = dateFilter != null
-          ? allIncome.where((i) =>
-              !i.date.isBefore(dateFilter.start) &&
-              !i.date.isAfter(dateFilter.end)).toList()
+          ? allIncome
+              .where(
+                (i) =>
+                    !i.date.isBefore(dateFilter.start) &&
+                    !i.date.isAfter(dateFilter.end),
+              )
+              .toList()
           : allIncome;
 
       File file;
@@ -592,7 +609,8 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
             startDate: dateFilter?.start,
             endDate: dateFilter?.end,
           );
-          exportMessage = 'PDF report created with ${filteredExpenses.length} expenses';
+          exportMessage =
+              'PDF report created with ${filteredExpenses.length} expenses';
           break;
         case 'income':
           file = await PdfExporter.exportIncomeToPdf(
@@ -603,7 +621,8 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
             startDate: dateFilter?.start,
             endDate: dateFilter?.end,
           );
-          exportMessage = 'PDF report created with ${filteredIncome.length} income records';
+          exportMessage =
+              'PDF report created with ${filteredIncome.length} income records';
           break;
         default:
           // For "all transactions", create a summary report
@@ -618,11 +637,15 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
             currencyCode: appState.currencyCode,
             monthName: monthName,
             totalIncome: filteredIncome.fold(0.0, (sum, i) => sum + i.amount),
-            totalExpenses: filteredExpenses.fold(0.0, (sum, e) => sum + e.amount),
+            totalExpenses: filteredExpenses.fold(
+              0.0,
+              (sum, e) => sum + e.amount,
+            ),
             balance: filteredIncome.fold(0.0, (sum, i) => sum + i.amount) -
-                    filteredExpenses.fold(0.0, (sum, e) => sum + e.amount),
+                filteredExpenses.fold(0.0, (sum, e) => sum + e.amount),
           );
-          exportMessage = 'PDF summary created with ${filteredExpenses.length + filteredIncome.length} transactions';
+          exportMessage =
+              'PDF summary created with ${filteredExpenses.length + filteredIncome.length} transactions';
       }
 
       // Share the file
@@ -683,7 +706,14 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
         if (_customStartDate != null && _customEndDate != null) {
           return DateTimeRange(
             start: _customStartDate!,
-            end: DateTime(_customEndDate!.year, _customEndDate!.month, _customEndDate!.day, 23, 59, 59),
+            end: DateTime(
+              _customEndDate!.year,
+              _customEndDate!.month,
+              _customEndDate!.day,
+              23,
+              59,
+              59,
+            ),
           );
         }
         return null;

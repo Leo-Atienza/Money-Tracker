@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../utils/pin_security_helper.dart';
 import '../utils/haptic_helper.dart';
@@ -19,11 +21,39 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
   // to prevent inconsistency between local and global rate limiting state
   int _remainingAttempts = 5;
   int _lockoutSeconds = 0;
+  Timer? _lockoutTimer;
 
   @override
   void initState() {
     super.initState();
     _loadInitialState();
+  }
+
+  @override
+  void dispose() {
+    _lockoutTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startLockoutCountdown() {
+    _lockoutTimer?.cancel();
+    if (_lockoutSeconds <= 0) return;
+    _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        _lockoutSeconds--;
+        if (_lockoutSeconds <= 0) {
+          timer.cancel();
+          _errorMessage = null;
+        } else {
+          _errorMessage =
+              'Too many attempts. Try again in $_lockoutSeconds seconds.';
+        }
+      });
+    });
   }
 
   /// FIX: Load both PIN length and current rate limiting state from PinSecurityHelper
@@ -38,7 +68,9 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
       _remainingAttempts = remaining;
       _lockoutSeconds = lockoutSecs;
       if (_lockoutSeconds > 0) {
-        _errorMessage = 'Too many attempts. Try again in $_lockoutSeconds seconds.';
+        _errorMessage =
+            'Too many attempts. Try again in $_lockoutSeconds seconds.';
+        _startLockoutCountdown();
       }
     });
   }
@@ -138,7 +170,11 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                      const Icon(
+                        Icons.error_outline,
+                        color: Colors.red,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
@@ -302,13 +338,15 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
       // FIX: Check for lockout before attempting verification
       final isLockedOut = await PinSecurityHelper.isLockedOut();
       if (isLockedOut) {
-        final lockoutSecs = await PinSecurityHelper.getRemainingLockoutSeconds();
+        final lockoutSecs =
+            await PinSecurityHelper.getRemainingLockoutSeconds();
         await HapticHelper.error();
         if (!mounted) return;
         setState(() {
           _enteredPin = '';
           _lockoutSeconds = lockoutSecs;
-          _errorMessage = 'Too many attempts. Try again in $lockoutSecs seconds.';
+          _errorMessage =
+              'Too many attempts. Try again in $lockoutSecs seconds.';
         });
         return;
       }
@@ -324,7 +362,8 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
         await HapticHelper.error();
         // FIX: Fetch the current remaining attempts from PinSecurityHelper
         final remaining = await PinSecurityHelper.getRemainingAttempts();
-        final lockoutSecs = await PinSecurityHelper.getRemainingLockoutSeconds();
+        final lockoutSecs =
+            await PinSecurityHelper.getRemainingLockoutSeconds();
 
         if (!mounted) return;
         setState(() {
@@ -333,11 +372,14 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
           _lockoutSeconds = lockoutSecs;
 
           if (lockoutSecs > 0) {
-            _errorMessage = 'Too many attempts. Try again in $lockoutSecs seconds.';
+            _errorMessage =
+                'Too many attempts. Try again in $lockoutSecs seconds.';
+            _startLockoutCountdown();
           } else if (remaining <= 0) {
             _errorMessage = 'Too many failed attempts. Please try again later.';
           } else {
-            _errorMessage = 'Incorrect PIN. $remaining attempt${remaining == 1 ? '' : 's'} remaining.';
+            _errorMessage =
+                'Incorrect PIN. $remaining attempt${remaining == 1 ? '' : 's'} remaining.';
           }
         });
       }

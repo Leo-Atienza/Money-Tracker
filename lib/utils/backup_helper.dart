@@ -19,13 +19,7 @@ import '../models/budget_model.dart';
 import '../providers/app_state.dart';
 
 /// Result enum for restore operations
-enum RestoreResult {
-  success,
-  cancelled,
-  fileNotFound,
-  invalidFile,
-  error,
-}
+enum RestoreResult { success, cancelled, fileNotFound, invalidFile, error }
 
 /// Data class for passing parameters to isolate
 class _BackupIsolateParams {
@@ -37,20 +31,15 @@ class _BackupIsolateParams {
 
 /// Isolate function to create comprehensive backup (runs off main thread)
 /// FIX: Prevents OOM and UI freeze by processing in background
-/// FIX: Uses streaming to avoid loading entire file into memory
+/// FIX C1: Read all bytes first, then Base64-encode once to avoid padding corruption
+/// The SQLite DB is small enough for memory; chunked encoding produced invalid
+/// Base64 (each chunk was independently padded with '=' in the middle).
 Future<String> _createBackupInIsolate(_BackupIsolateParams params) async {
   // FIX: Removed try-catch to preserve original exception and stack trace
-  // FIX: Stream-encode database file to Base64 in chunks to avoid OOM
+  // FIX C1: Read entire file then encode once (chunked encoding corrupts Base64)
   final dbFile = File(params.dbPath);
-  final base64Chunks = <String>[];
-  final inputStream = dbFile.openRead();
-
-  // Convert file stream to Base64 in chunks
-  await for (final chunk in inputStream) {
-    base64Chunks.add(base64Encode(chunk));
-  }
-
-  final dbBase64 = base64Chunks.join('');
+  final dbBytes = await dbFile.readAsBytes();
+  final dbBase64 = base64Encode(dbBytes);
 
   // Create backup data structure
   final backupData = {
@@ -109,11 +98,18 @@ class BackupHelper {
         'expenses': allExpenses.map((e) => e.toMap()).toList(),
         'incomes': allIncomes.map((e) => e.toMap()).toList(),
         'categories': appState.categories.map((e) => e.toMap()).toList(),
-        'recurring_expenses': appState.recurringExpenses.map((e) => e.toMap()).toList(),
-        'recurring_income': appState.recurringIncomes.map((e) => e.toMap()).toList(), // FIX P2-12: Added
-        'budgets': appState.budgets.map((e) => e.toMap()).toList(), // FIX P2-12: Added
-        'quick_templates': appState.quickTemplates.map((e) => e.toMap()).toList(),
-        'monthly_balances': appState.monthlyBalances.values.map((e) => e.toMap()).toList(), // FIX P2-12: Added
+        'recurring_expenses':
+            appState.recurringExpenses.map((e) => e.toMap()).toList(),
+        'recurring_income': appState.recurringIncomes
+            .map((e) => e.toMap())
+            .toList(), // FIX P2-12: Added
+        'budgets':
+            appState.budgets.map((e) => e.toMap()).toList(), // FIX P2-12: Added
+        'quick_templates':
+            appState.quickTemplates.map((e) => e.toMap()).toList(),
+        'monthly_balances': appState.monthlyBalances.values
+            .map((e) => e.toMap())
+            .toList(), // FIX P2-12: Added
         'tags': appState.tags, // FIX P2-12: Added (already Map format)
       };
 
@@ -127,10 +123,10 @@ class BackupHelper {
         ShareParams(
           files: [XFile(file.path)],
           subject: 'Money Tracker Backup',
-          text: 'Backup created on ${DateFormat.yMMMd().format(DateTime.now())}',
+          text:
+              'Backup created on ${DateFormat.yMMMd().format(DateTime.now())}',
         ),
       );
-
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -171,7 +167,10 @@ class BackupHelper {
     }
   }
 
-  void _showRestoreConfirmation(BuildContext context, Map<String, dynamic> data) {
+  void _showRestoreConfirmation(
+    BuildContext context,
+    Map<String, dynamic> data,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -196,7 +195,10 @@ class BackupHelper {
     );
   }
 
-  Future<void> _performRestore(BuildContext context, Map<String, dynamic> data) async {
+  Future<void> _performRestore(
+    BuildContext context,
+    Map<String, dynamic> data,
+  ) async {
     try {
       final appState = context.read<AppState>();
       int itemsRestored = 0;
@@ -209,8 +211,13 @@ class BackupHelper {
       if (data['categories'] != null) {
         for (var item in data['categories']) {
           // Check if category exists by name to avoid duplicates
-          if (!appState.categories.any((c) => c.name == item['name'] && c.type == item['type'])) {
-            await appState.addCategory(item['name'] as String, type: item['type'] as String? ?? 'expense');
+          if (!appState.categories.any(
+            (c) => c.name == item['name'] && c.type == item['type'],
+          )) {
+            await appState.addCategory(
+              item['name'] as String,
+              type: item['type'] as String? ?? 'expense',
+            );
             itemsRestored++;
           }
         }
@@ -289,7 +296,6 @@ class BackupHelper {
           SnackBar(content: Text('Restored $itemsRestored items successfully')),
         );
       }
-
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -307,21 +313,24 @@ class BackupHelper {
       final expenses = await appState.getAllExpensesForBackup();
 
       final csvContent = StringBuffer();
-      csvContent.writeln('Date,Description,Category,Amount,Payment Method,Is Paid');
+      csvContent.writeln(
+        'Date,Description,Category,Amount,Payment Method,Is Paid',
+      );
 
       for (var expense in expenses) {
         // FIX P2-13: Properly escape ALL text fields to handle commas and quotes
         csvContent.writeln(
-            '${DateFormat('yyyy-MM-dd').format(expense.date)},'
-                '"${_escapeCsvField(expense.description)}",'
-                '"${_escapeCsvField(expense.category)}",'  // FIX: Quote category field
-                '${expense.amount},'
-                '"${_escapeCsvField(expense.paymentMethod)}",'  // FIX: Quote payment method
-                '${expense.isPaid ? "Yes" : "No"}'
+          '${DateFormat('yyyy-MM-dd').format(expense.date)},'
+          '"${_escapeCsvField(expense.description)}",'
+          '"${_escapeCsvField(expense.category)}",' // FIX: Quote category field
+          '${expense.amount},'
+          '"${_escapeCsvField(expense.paymentMethod)}",' // FIX: Quote payment method
+          '${expense.isPaid ? "Yes" : "No"}',
         );
       }
 
-      final fileName = 'expenses_export_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv';
+      final fileName =
+          'expenses_export_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv';
       final directory = await getTemporaryDirectory();
       final file = File('${directory.path}/$fileName');
       await file.writeAsString(csvContent.toString());
@@ -332,7 +341,6 @@ class BackupHelper {
           subject: 'Money Tracker CSV Export',
         ),
       );
-
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -364,10 +372,10 @@ class BackupHelper {
       final files = await backupDir
           .list()
           .where((entity) {
-        if (entity is! File) return false;
-        final filePath = entity.path;
-        return filePath.endsWith('.db') || filePath.endsWith('.etbackup');
-      })
+            if (entity is! File) return false;
+            final filePath = entity.path;
+            return filePath.endsWith('.db') || filePath.endsWith('.etbackup');
+          })
           .map((entity) => entity as File)
           .toList();
 
@@ -400,22 +408,25 @@ class BackupHelper {
       if (kDebugMode) debugPrint('Processing started callback invoked');
 
       final dbPath = await _getDatabasePath();
-if (kDebugMode) debugPrint('Database path: $dbPath');
+      if (kDebugMode) debugPrint('Database path: $dbPath');
       final dbFile = File(dbPath);
 
       if (!await dbFile.exists()) {
-if (kDebugMode) debugPrint('ERROR: Database file not found at $dbPath');
+        if (kDebugMode) debugPrint('ERROR: Database file not found at $dbPath');
         throw Exception('Database file not found');
       }
 
-if (kDebugMode) debugPrint('Database file exists, size: ${await dbFile.length()} bytes');
+      if (kDebugMode)
+        debugPrint(
+          'Database file exists, size: ${await dbFile.length()} bytes',
+        );
 
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final fileName = 'expense_tracker_$timestamp.etbackup';
-if (kDebugMode) debugPrint('Generated filename: $fileName');
+      if (kDebugMode) debugPrint('Generated filename: $fileName');
 
       // Get settings on main thread, then offload heavy work to isolate
-if (kDebugMode) debugPrint('Loading settings...');
+      if (kDebugMode) debugPrint('Loading settings...');
       final prefs = await SharedPreferences.getInstance();
       final settings = {
         'darkMode': prefs.getBool('darkMode') ?? false,
@@ -426,31 +437,36 @@ if (kDebugMode) debugPrint('Loading settings...');
         'reminderHour': prefs.getInt('reminderHour') ?? 9,
         'reminderMinute': prefs.getInt('reminderMinute') ?? 0,
       };
-if (kDebugMode) debugPrint('Settings loaded: ${settings.keys.join(", ")}');
+      if (kDebugMode)
+        debugPrint('Settings loaded: ${settings.keys.join(", ")}');
 
       // Run backup creation in isolate to avoid OOM and UI freeze
-if (kDebugMode) debugPrint('Creating backup in isolate...');
+      if (kDebugMode) debugPrint('Creating backup in isolate...');
       final backupJson = await compute(
         _createBackupInIsolate,
         _BackupIsolateParams(dbPath, settings),
       );
-if (kDebugMode) debugPrint('Backup JSON created, size: ${backupJson.length} characters');
+      if (kDebugMode)
+        debugPrint(
+          'Backup JSON created, size: ${backupJson.length} characters',
+        );
 
       final bytes = Uint8List.fromList(utf8.encode(backupJson));
-if (kDebugMode) debugPrint('Encoded to bytes, size: ${bytes.length} bytes');
+      if (kDebugMode)
+        debugPrint('Encoded to bytes, size: ${bytes.length} bytes');
 
       // Save a local copy in app's backup directory first
-if (kDebugMode) debugPrint('Saving local backup copy...');
+      if (kDebugMode) debugPrint('Saving local backup copy...');
       final localPath = await _saveLocalBackup(bytes, fileName);
-if (kDebugMode) debugPrint('Local backup saved to: $localPath');
+      if (kDebugMode) debugPrint('Local backup saved to: $localPath');
 
       // Notify UI that processing is done (close loading dialog before file picker)
       onProcessingEnd?.call();
-if (kDebugMode) debugPrint('Processing ended callback invoked');
+      if (kDebugMode) debugPrint('Processing ended callback invoked');
 
       // FIX: On Android with SAF, pass bytes directly to saveFile()
       // The file picker will handle writing the bytes to the user-selected location
-if (kDebugMode) debugPrint('Showing file picker with bytes...');
+      if (kDebugMode) debugPrint('Showing file picker with bytes...');
       try {
         final savedPath = await FilePicker.platform.saveFile(
           dialogTitle: 'Save Backup',
@@ -461,25 +477,24 @@ if (kDebugMode) debugPrint('Showing file picker with bytes...');
         );
 
         if (savedPath != null) {
-if (kDebugMode) debugPrint('SAF save successful: $savedPath');
-if (kDebugMode) debugPrint('=== BACKUP SAVE COMPLETE ===');
+          if (kDebugMode) debugPrint('SAF save successful: $savedPath');
+          if (kDebugMode) debugPrint('=== BACKUP SAVE COMPLETE ===');
           return savedPath;
         } else {
-if (kDebugMode) debugPrint('User cancelled file picker');
+          if (kDebugMode) debugPrint('User cancelled file picker');
           return null;
         }
       } catch (e, stackTrace) {
-if (kDebugMode) debugPrint('ERROR in file picker: $e');
-if (kDebugMode) debugPrint('Stack trace: $stackTrace');
+        if (kDebugMode) debugPrint('ERROR in file picker: $e');
+        if (kDebugMode) debugPrint('Stack trace: $stackTrace');
         throw Exception('Failed to save backup file. Error: $e');
       }
     } catch (e, stackTrace) {
-if (kDebugMode) debugPrint('!!! ERROR saving backup: $e');
-if (kDebugMode) debugPrint('Stack trace: $stackTrace');
+      if (kDebugMode) debugPrint('!!! ERROR saving backup: $e');
+      if (kDebugMode) debugPrint('Stack trace: $stackTrace');
       rethrow;
     }
   }
-
 
   /// Save a local backup copy
   /// FIX: Returns the file path for reuse (avoids redundant file operations)
@@ -500,7 +515,7 @@ if (kDebugMode) debugPrint('Stack trace: $stackTrace');
 
       return localBackup.path;
     } catch (e) {
-if (kDebugMode) debugPrint('Error saving local backup: $e');
+      if (kDebugMode) debugPrint('Error saving local backup: $e');
       return null;
     }
   }
@@ -515,7 +530,7 @@ if (kDebugMode) debugPrint('Error saving local backup: $e');
         }
       }
     } catch (e) {
-if (kDebugMode) debugPrint('Error cleaning up backups: $e');
+      if (kDebugMode) debugPrint('Error cleaning up backups: $e');
     }
   }
 
@@ -567,14 +582,15 @@ if (kDebugMode) debugPrint('Error cleaning up backups: $e');
           ShareParams(
             files: [XFile(localBackupPath)],
             subject: 'Money Tracker Backup',
-            text: 'Backup created on ${DateFormat.yMMMd().format(DateTime.now())}',
+            text:
+                'Backup created on ${DateFormat.yMMMd().format(DateTime.now())}',
           ),
         );
       } else {
         throw Exception('Failed to create backup file');
       }
     } catch (e) {
-if (kDebugMode) debugPrint('Error sharing database: $e');
+      if (kDebugMode) debugPrint('Error sharing database: $e');
       rethrow;
     }
   }
@@ -634,11 +650,19 @@ if (kDebugMode) debugPrint('Error sharing database: $e');
 
       if (isComprehensiveBackup) {
         // Handle comprehensive backup with settings
-        return await _restoreComprehensiveBackup(actualSourceFile, sourceBytes, closeDatabase, onStart);
+        return await _restoreComprehensiveBackup(
+          actualSourceFile,
+          sourceBytes,
+          closeDatabase,
+          onStart,
+        );
       }
 
       // Validate SQLite header for old .db files (only read first 16 bytes)
-      final isValid = await _validateSqliteHeader(actualSourceFile, sourceBytes);
+      final isValid = await _validateSqliteHeader(
+        actualSourceFile,
+        sourceBytes,
+      );
       if (!isValid) {
         return RestoreResult.invalidFile;
       }
@@ -682,7 +706,7 @@ if (kDebugMode) debugPrint('Error sharing database: $e');
         // Create both timestamped and .bak backups of existing database
         if (await dbFile.exists()) {
           await dbFile.copy(preRestoreBackup); // Permanent safety backup
-          await dbFile.copy(backupPath);       // Temporary rollback backup
+          await dbFile.copy(backupPath); // Temporary rollback backup
         }
 
         // FIX: Atomic replacement - rename temp to target
@@ -718,11 +742,11 @@ if (kDebugMode) debugPrint('Error sharing database: $e');
           await tempFile.delete();
         }
 
-if (kDebugMode) debugPrint('Error during restore, rolled back: $e');
+        if (kDebugMode) debugPrint('Error during restore, rolled back: $e');
         return RestoreResult.error;
       }
     } catch (e) {
-if (kDebugMode) debugPrint('Error restoring database: $e');
+      if (kDebugMode) debugPrint('Error restoring database: $e');
       return RestoreResult.error;
     }
   }
@@ -746,7 +770,8 @@ if (kDebugMode) debugPrint('Error restoring database: $e');
 
     try {
       for (var i = 0; i < bytes.length; i += chunkSize) {
-        final end = (i + chunkSize < bytes.length) ? i + chunkSize : bytes.length;
+        final end =
+            (i + chunkSize < bytes.length) ? i + chunkSize : bytes.length;
         sink.add(bytes.sublist(i, end));
         // Allow other operations to proceed
         await sink.flush();
@@ -758,8 +783,24 @@ if (kDebugMode) debugPrint('Error restoring database: $e');
 
   /// Validate SQLite header without loading entire file into memory
   Future<bool> _validateSqliteHeader(File? file, Uint8List? bytes) async {
-    const sqliteMagic = [0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x20, 0x66,
-      0x6f, 0x72, 0x6d, 0x61, 0x74, 0x20, 0x33, 0x00];
+    const sqliteMagic = [
+      0x53,
+      0x51,
+      0x4c,
+      0x69,
+      0x74,
+      0x65,
+      0x20,
+      0x66,
+      0x6f,
+      0x72,
+      0x6d,
+      0x61,
+      0x74,
+      0x20,
+      0x33,
+      0x00,
+    ];
 
     if (file != null) {
       // Read only the header bytes from file
@@ -788,8 +829,24 @@ if (kDebugMode) debugPrint('Error restoring database: $e');
   /// Validate that bytes represent a valid SQLite database
   bool _isValidSqliteFile(Uint8List bytes) {
     // SQLite files start with "SQLite format 3\0"
-    const sqliteMagic = [0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x20, 0x66,
-      0x6f, 0x72, 0x6d, 0x61, 0x74, 0x20, 0x33, 0x00];
+    const sqliteMagic = [
+      0x53,
+      0x51,
+      0x4c,
+      0x69,
+      0x74,
+      0x65,
+      0x20,
+      0x66,
+      0x6f,
+      0x72,
+      0x6d,
+      0x61,
+      0x74,
+      0x20,
+      0x33,
+      0x00,
+    ];
 
     if (bytes.length < sqliteMagic.length) {
       return false;
@@ -811,7 +868,7 @@ if (kDebugMode) debugPrint('Error restoring database: $e');
         await backup.delete();
       }
     } catch (e) {
-if (kDebugMode) debugPrint('Error deleting backup: $e');
+      if (kDebugMode) debugPrint('Error deleting backup: $e');
       rethrow;
     }
   }
@@ -819,10 +876,7 @@ if (kDebugMode) debugPrint('Error deleting backup: $e');
   /// Get backup file info (date and size)
   Future<Map<String, dynamic>> getBackupInfo(File backup) async {
     final stat = await backup.stat();
-    return {
-      'date': stat.modified,
-      'size': stat.size,
-    };
+    return {'date': stat.modified, 'size': stat.size};
   }
 
   /// Format file size for display
@@ -840,11 +894,11 @@ if (kDebugMode) debugPrint('Error deleting backup: $e');
   /// Uses isolate to prevent OOM and UI freeze during decoding
   /// FIX: Uses streaming for large files to avoid memory crashes
   Future<RestoreResult> _restoreComprehensiveBackup(
-      File? sourceFile,
-      Uint8List? sourceBytes,
-      Future<void> Function() closeDatabase,
-      void Function()? onStart,
-      ) async {
+    File? sourceFile,
+    Uint8List? sourceBytes,
+    Future<void> Function() closeDatabase,
+    void Function()? onStart,
+  ) async {
     try {
       // FIX: Read backup data using streaming for large files
       String backupJson;
@@ -924,13 +978,34 @@ if (kDebugMode) debugPrint('Error deleting backup: $e');
           final settings = backupData['settings'] as Map<String, dynamic>;
           final prefs = await SharedPreferences.getInstance();
 
-          await prefs.setBool('darkMode', settings['darkMode'] as bool? ?? false);
-          await prefs.setString('currencyCode', settings['currencyCode'] as String? ?? 'USD');
-          await prefs.setBool('billReminders', settings['billReminders'] as bool? ?? true);
-          await prefs.setBool('budgetAlerts', settings['budgetAlerts'] as bool? ?? true);
-          await prefs.setBool('monthlySummary', settings['monthlySummary'] as bool? ?? true);
-          await prefs.setInt('reminderHour', settings['reminderHour'] as int? ?? 9);
-          await prefs.setInt('reminderMinute', settings['reminderMinute'] as int? ?? 0);
+          await prefs.setBool(
+            'darkMode',
+            settings['darkMode'] as bool? ?? false,
+          );
+          await prefs.setString(
+            'currencyCode',
+            settings['currencyCode'] as String? ?? 'USD',
+          );
+          await prefs.setBool(
+            'billReminders',
+            settings['billReminders'] as bool? ?? true,
+          );
+          await prefs.setBool(
+            'budgetAlerts',
+            settings['budgetAlerts'] as bool? ?? true,
+          );
+          await prefs.setBool(
+            'monthlySummary',
+            settings['monthlySummary'] as bool? ?? true,
+          );
+          await prefs.setInt(
+            'reminderHour',
+            settings['reminderHour'] as int? ?? 9,
+          );
+          await prefs.setInt(
+            'reminderMinute',
+            settings['reminderMinute'] as int? ?? 0,
+          );
         }
 
         // Clean up pre-restore backup after successful restore
@@ -959,7 +1034,7 @@ if (kDebugMode) debugPrint('Error deleting backup: $e');
         rethrow;
       }
     } catch (e) {
-if (kDebugMode) debugPrint('Error restoring comprehensive backup: $e');
+      if (kDebugMode) debugPrint('Error restoring comprehensive backup: $e');
       return RestoreResult.error;
     }
   }

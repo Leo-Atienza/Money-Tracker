@@ -34,7 +34,11 @@ class ColorPicker extends StatelessWidget {
     if (hex == null || hex.isEmpty) {
       return Colors.transparent;
     }
-    return Color(int.parse(hex.substring(1), radix: 16) + 0xFF000000);
+    try {
+      return Color(int.parse(hex.substring(1), radix: 16) + 0xFF000000);
+    } catch (_) {
+      return Colors.transparent;
+    }
   }
 
   @override
@@ -113,11 +117,8 @@ class ColorPicker extends StatelessWidget {
                             size: 24,
                           )
                         : isSelected
-                            ? const Icon(
-                                Icons.check,
-                                color: Colors.white,
-                                size: 24,
-                              )
+                            ? const Icon(Icons.check,
+                                color: Colors.white, size: 24)
                             : null,
                   ),
                 );

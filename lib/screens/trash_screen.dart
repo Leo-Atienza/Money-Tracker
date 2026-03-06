@@ -11,12 +11,14 @@ class TrashScreen extends StatefulWidget {
   State<TrashScreen> createState() => _TrashScreenState();
 }
 
-class _TrashScreenState extends State<TrashScreen> with SingleTickerProviderStateMixin {
+class _TrashScreenState extends State<TrashScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<Map<String, dynamic>> _deletedExpenses = [];
   List<Map<String, dynamic>> _deletedIncome = [];
   bool _isLoading = true;
-  bool _isDisposed = false; // FIX: Track disposal state to prevent setState after dispose
+  bool _isDisposed =
+      false; // FIX: Track disposal state to prevent setState after dispose
 
   @override
   void initState() {
@@ -40,7 +42,8 @@ class _TrashScreenState extends State<TrashScreen> with SingleTickerProviderStat
     _deletedExpenses = await appState.getDeletedExpenses();
     _deletedIncome = await appState.getDeletedIncome();
 
-    if (_isDisposed || !mounted) return; // FIX: Check again after async operation
+    if (_isDisposed || !mounted)
+      return; // FIX: Check again after async operation
     setState(() => _isLoading = false);
   }
 
@@ -103,10 +106,7 @@ class _TrashScreenState extends State<TrashScreen> with SingleTickerProviderStat
                   color: theme.colorScheme.surfaceContainerHighest,
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.info_outline,
-                        size: 20,
-                      ),
+                      const Icon(Icons.info_outline, size: 20),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -165,7 +165,11 @@ class _TrashScreenState extends State<TrashScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildExpensesList(ThemeData theme, AppState appState, String currency) {
+  Widget _buildExpensesList(
+    ThemeData theme,
+    AppState appState,
+    String currency,
+  ) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: _deletedExpenses.length,
@@ -206,7 +210,9 @@ class _TrashScreenState extends State<TrashScreen> with SingleTickerProviderStat
                         '$daysRemaining days until permanent deletion',
                         style: TextStyle(
                           fontSize: 11,
-                          color: daysRemaining <= 7 ? Colors.red : theme.colorScheme.onSurfaceVariant,
+                          color: daysRemaining <= 7
+                              ? Colors.red
+                              : theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -243,8 +249,13 @@ class _TrashScreenState extends State<TrashScreen> with SingleTickerProviderStat
                           width: 32,
                           height: 32,
                           child: IconButton(
-                            icon: const Icon(Icons.delete_forever, size: 20, color: Colors.red),
-                            onPressed: () => _permanentlyDeleteExpense(item['id'] as int),
+                            icon: const Icon(
+                              Icons.delete_forever,
+                              size: 20,
+                              color: Colors.red,
+                            ),
+                            onPressed: () =>
+                                _permanentlyDeleteExpense(item['id'] as int),
                             tooltip: 'Delete permanently',
                             padding: EdgeInsets.zero,
                           ),
@@ -302,7 +313,9 @@ class _TrashScreenState extends State<TrashScreen> with SingleTickerProviderStat
                         '$daysRemaining days until permanent deletion',
                         style: TextStyle(
                           fontSize: 11,
-                          color: daysRemaining <= 7 ? Colors.red : theme.colorScheme.onSurfaceVariant,
+                          color: daysRemaining <= 7
+                              ? Colors.red
+                              : theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -339,8 +352,13 @@ class _TrashScreenState extends State<TrashScreen> with SingleTickerProviderStat
                           width: 32,
                           height: 32,
                           child: IconButton(
-                            icon: const Icon(Icons.delete_forever, size: 20, color: Colors.red),
-                            onPressed: () => _permanentlyDeleteIncome(item['id'] as int),
+                            icon: const Icon(
+                              Icons.delete_forever,
+                              size: 20,
+                              color: Colors.red,
+                            ),
+                            onPressed: () =>
+                                _permanentlyDeleteIncome(item['id'] as int),
                             tooltip: 'Delete permanently',
                             padding: EdgeInsets.zero,
                           ),
@@ -466,7 +484,8 @@ class _TrashScreenState extends State<TrashScreen> with SingleTickerProviderStat
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => _EmptyTrashConfirmDialog(totalItems: totalItems),
+      builder: (dialogContext) =>
+          _EmptyTrashConfirmDialog(totalItems: totalItems),
     );
 
     // FIX: Check mounted state after dialog closes and before any async operations
@@ -517,7 +536,8 @@ class _EmptyTrashConfirmDialog extends StatefulWidget {
   const _EmptyTrashConfirmDialog({required this.totalItems});
 
   @override
-  State<_EmptyTrashConfirmDialog> createState() => _EmptyTrashConfirmDialogState();
+  State<_EmptyTrashConfirmDialog> createState() =>
+      _EmptyTrashConfirmDialogState();
 }
 
 class _EmptyTrashConfirmDialogState extends State<_EmptyTrashConfirmDialog> {

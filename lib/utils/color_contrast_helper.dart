@@ -92,9 +92,12 @@ class ColorContrastHelper {
       double step = 0.5;
       for (int i = 0; i < 10; i++) {
         final alpha = (color.a * 255.0).round().clamp(0, 255);
-        final red = ((color.r * 255.0).round().clamp(0, 255) * (1 - factor)).round();
-        final green = ((color.g * 255.0).round().clamp(0, 255) * (1 - factor)).round();
-        final blue = ((color.b * 255.0).round().clamp(0, 255) * (1 - factor)).round();
+        final red =
+            ((color.r * 255.0).round().clamp(0, 255) * (1 - factor)).round();
+        final green =
+            ((color.g * 255.0).round().clamp(0, 255) * (1 - factor)).round();
+        final blue =
+            ((color.b * 255.0).round().clamp(0, 255) * (1 - factor)).round();
         adjusted = Color.fromARGB(alpha, red, green, blue);
         currentRatio = contrastRatio(adjusted, background);
         if (currentRatio >= targetRatio) {
@@ -134,17 +137,17 @@ class ColorContrastHelper {
   static StatusColors getStatusColors(Brightness brightness) {
     if (brightness == Brightness.dark) {
       return StatusColors(
-        success: Colors.green.shade400,  // Sufficient contrast on dark
+        success: Colors.green.shade400, // Sufficient contrast on dark
         warning: Colors.orange.shade400, // Sufficient contrast on dark
-        error: Colors.red.shade400,      // Sufficient contrast on dark
-        info: Colors.blue.shade400,      // Sufficient contrast on dark
+        error: Colors.red.shade400, // Sufficient contrast on dark
+        info: Colors.blue.shade400, // Sufficient contrast on dark
       );
     } else {
       return StatusColors(
-        success: Colors.green.shade700,  // Sufficient contrast on light
+        success: Colors.green.shade700, // Sufficient contrast on light
         warning: Colors.orange.shade800, // Sufficient contrast on light
-        error: Colors.red.shade700,      // Sufficient contrast on light
-        info: Colors.blue.shade700,      // Sufficient contrast on light
+        error: Colors.red.shade700, // Sufficient contrast on light
+        info: Colors.blue.shade700, // Sufficient contrast on light
       );
     }
   }

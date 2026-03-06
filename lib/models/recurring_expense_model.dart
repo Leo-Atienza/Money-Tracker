@@ -5,9 +5,9 @@ import '../utils/date_helper.dart';
 
 /// Frequency types for recurring expenses (matches recurring income)
 enum RecurringExpenseFrequency {
-  monthly,   // On a specific day of the month (1-31)
-  biweekly,  // Every two weeks on a specific day of the week
-  weekly,    // Every week on a specific day of the week
+  monthly, // On a specific day of the month (1-31)
+  biweekly, // Every two weeks on a specific day of the week
+  weekly, // Every week on a specific day of the week
 }
 
 class RecurringExpense {
@@ -15,7 +15,7 @@ class RecurringExpense {
   final String description;
   final Decimal _amount;
   final String category;
-  final int dayOfMonth;  // For monthly: 1-31, For weekly/biweekly: 0-6 (Mon-Sun)
+  final int dayOfMonth; // For monthly: 1-31, For weekly/biweekly: 0-6 (Mon-Sun)
   final bool isActive;
   final DateTime? lastCreated;
   final int accountId;
@@ -23,7 +23,8 @@ class RecurringExpense {
   final DateTime? endDate; // FIX: Optional end date for recurring transactions
   final int? maxOccurrences; // FIX: Optional max number of occurrences
   final int occurrenceCount; // FIX: Track how many times it has occurred
-  final RecurringExpenseFrequency frequency; // FIX: Support weekly/biweekly frequencies
+  final RecurringExpenseFrequency
+      frequency; // FIX: Support weekly/biweekly frequencies
   final DateTime? startDate; // FIX: Reference date for bi-weekly calculations
 
   RecurringExpense({
@@ -51,7 +52,15 @@ class RecurringExpense {
 
   /// Get the day name for weekly/biweekly frequencies
   String get dayName {
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const days = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
     if (frequency == RecurringExpenseFrequency.monthly) {
       return 'Day $dayOfMonth';
     }
@@ -74,18 +83,22 @@ class RecurringExpense {
     return {
       'id': id,
       'description': description,
-      'amount': DecimalHelper.toDouble(_amount),  // Convert to double for database
+      'amount': DecimalHelper.toDouble(
+        _amount,
+      ), // Convert to double for database
       'category': category,
       'dayOfMonth': dayOfMonth,
       'isActive': isActive ? 1 : 0,
-      'lastCreated': lastCreated != null ? DateHelper.toDateString(lastCreated!) : null,
+      'lastCreated':
+          lastCreated != null ? DateHelper.toDateString(lastCreated!) : null,
       'account_id': accountId,
       'paymentMethod': paymentMethod,
       'endDate': endDate != null ? DateHelper.toDateString(endDate!) : null,
       'maxOccurrences': maxOccurrences,
       'occurrenceCount': occurrenceCount,
       'frequency': frequency.index,
-      'startDate': startDate != null ? DateHelper.toDateString(startDate!) : null,
+      'startDate':
+          startDate != null ? DateHelper.toDateString(startDate!) : null,
     };
   }
 
@@ -95,22 +108,31 @@ class RecurringExpense {
       if (value == null) return null;
       final parsed = DateHelper.parseDate(value.toString());
       if (parsed == null && kDebugMode) {
-        debugPrint('RecurringExpense ID ${map['id']}: Invalid $fieldName date "$value"');
+        debugPrint(
+          'RecurringExpense ID ${map['id']}: Invalid $fieldName date "$value"',
+        );
       }
       return parsed;
     }
 
     // FIX P0-3: Validate frequency index to prevent RangeError on corrupted data
     final frequencyIndex = map['frequency'] as int? ?? 0;
-    final safeFrequencyIndex = frequencyIndex.clamp(0, RecurringExpenseFrequency.values.length - 1);
+    final safeFrequencyIndex = frequencyIndex.clamp(
+      0,
+      RecurringExpenseFrequency.values.length - 1,
+    );
     if (frequencyIndex != safeFrequencyIndex && kDebugMode) {
-      debugPrint('RecurringExpense ID ${map['id']}: Invalid frequency index $frequencyIndex, using $safeFrequencyIndex');
+      debugPrint(
+        'RecurringExpense ID ${map['id']}: Invalid frequency index $frequencyIndex, using $safeFrequencyIndex',
+      );
     }
 
     return RecurringExpense(
       id: map['id'],
       description: map['description'],
-      amount: DecimalHelper.fromDoubleSafe(map['amount'] as double?),  // Convert from database double
+      amount: DecimalHelper.fromDoubleSafe(
+        (map['amount'] as num?)?.toDouble(),
+      ), // Convert from database double
       category: map['category'],
       dayOfMonth: map['dayOfMonth'],
       isActive: map['isActive'] == 1,
@@ -158,7 +180,8 @@ class RecurringExpense {
       accountId: accountId ?? this.accountId,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       endDate: clearEndDate ? null : (endDate ?? this.endDate),
-      maxOccurrences: clearMaxOccurrences ? null : (maxOccurrences ?? this.maxOccurrences),
+      maxOccurrences:
+          clearMaxOccurrences ? null : (maxOccurrences ?? this.maxOccurrences),
       occurrenceCount: occurrenceCount ?? this.occurrenceCount,
       frequency: frequency ?? this.frequency,
       startDate: clearStartDate ? null : (startDate ?? this.startDate),
@@ -198,7 +221,8 @@ class RecurringExpense {
       accountId: accountId ?? this.accountId,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       endDate: clearEndDate ? null : (endDate ?? this.endDate),
-      maxOccurrences: clearMaxOccurrences ? null : (maxOccurrences ?? this.maxOccurrences),
+      maxOccurrences:
+          clearMaxOccurrences ? null : (maxOccurrences ?? this.maxOccurrences),
       occurrenceCount: occurrenceCount ?? this.occurrenceCount,
       frequency: frequency ?? this.frequency,
       startDate: clearStartDate ? null : (startDate ?? this.startDate),

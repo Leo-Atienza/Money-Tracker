@@ -5,10 +5,7 @@ import '../services/biometric_service.dart';
 class BiometricLockScreen extends StatefulWidget {
   final VoidCallback onAuthenticated;
 
-  const BiometricLockScreen({
-    super.key,
-    required this.onAuthenticated,
-  });
+  const BiometricLockScreen({super.key, required this.onAuthenticated});
 
   @override
   State<BiometricLockScreen> createState() => _BiometricLockScreenState();
@@ -175,7 +172,11 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, color: Colors.red, size: 24),
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 24,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
@@ -199,7 +200,10 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                     icon: const Icon(Icons.refresh),
                     label: const Text('Try Again'),
                     style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 16,
+                      ),
                     ),
                   ),
 

@@ -36,7 +36,8 @@ class DatabaseHelper {
 
     // FIX: If initialization in progress, wait for it to complete
     if (_initCompleter != null && !_initCompleter!.isCompleted) {
-      if (kDebugMode) debugPrint('Database initialization already in progress, waiting...');
+      if (kDebugMode)
+        debugPrint('Database initialization already in progress, waiting...');
       return await _initCompleter!.future;
     }
 
@@ -272,15 +273,18 @@ class DatabaseHelper {
     ''');
 
     // Insert default account
-    await db.insert('accounts', {
-      'name': 'Main Account',
-      'isDefault': 1,
-    });
+    await db.insert('accounts', {'name': 'Main Account', 'isDefault': 1});
 
     // Insert default expense categories
     final defaultExpenseCategories = [
-      'Food', 'Transport', 'Shopping', 'Entertainment',
-      'Health', 'Education', 'Bills', 'Other'
+      'Food',
+      'Transport',
+      'Shopping',
+      'Entertainment',
+      'Health',
+      'Education',
+      'Bills',
+      'Other',
     ];
     for (var cat in defaultExpenseCategories) {
       await db.insert('categories', {
@@ -293,7 +297,11 @@ class DatabaseHelper {
 
     // Insert default income categories
     final defaultIncomeCategories = [
-      'Salary', 'Freelance', 'Investment', 'Gift', 'Other'
+      'Salary',
+      'Freelance',
+      'Investment',
+      'Gift',
+      'Other',
     ];
     for (var cat in defaultIncomeCategories) {
       await db.insert('categories', {
@@ -306,29 +314,63 @@ class DatabaseHelper {
 
     // CRITICAL FIX: Create all indexes for new databases
     // Performance indexes for expenses and income
-    await db.execute('CREATE INDEX idx_expenses_account_date ON expenses(account_id, date DESC)');
-    await db.execute('CREATE INDEX idx_expenses_category ON expenses(account_id, category)');
-    await db.execute('CREATE INDEX idx_expenses_description ON expenses(account_id, description)');
-    await db.execute('CREATE INDEX idx_income_account_date ON income(account_id, date DESC)');
-    await db.execute('CREATE INDEX idx_income_category ON income(account_id, category)');
-    await db.execute('CREATE INDEX idx_income_description ON income(account_id, description)');
-    await db.execute('CREATE INDEX idx_expenses_account_date_category ON expenses(account_id, date DESC, category)');
-    await db.execute('CREATE INDEX idx_income_account_date_category ON income(account_id, date DESC, category)');
+    await db.execute(
+      'CREATE INDEX idx_expenses_account_date ON expenses(account_id, date DESC)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_expenses_category ON expenses(account_id, category)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_expenses_description ON expenses(account_id, description)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_income_account_date ON income(account_id, date DESC)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_income_category ON income(account_id, category)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_income_description ON income(account_id, description)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_expenses_account_date_category ON expenses(account_id, date DESC, category)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_income_account_date_category ON income(account_id, date DESC, category)',
+    );
 
     // Indexes for deleted tables (trash cleanup queries)
-    await db.execute('CREATE INDEX idx_deleted_expenses_deletedAt ON deleted_expenses(deletedAt)');
-    await db.execute('CREATE INDEX idx_deleted_income_deletedAt ON deleted_income(deletedAt)');
-    await db.execute('CREATE INDEX idx_deleted_accounts_deletedAt ON deleted_accounts(deletedAt)');
-    await db.execute('CREATE INDEX idx_deleted_expenses_account ON deleted_expenses(account_id, deletedAt)');
-    await db.execute('CREATE INDEX idx_deleted_income_account ON deleted_income(account_id, deletedAt)');
+    await db.execute(
+      'CREATE INDEX idx_deleted_expenses_deletedAt ON deleted_expenses(deletedAt)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_deleted_income_deletedAt ON deleted_income(deletedAt)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_deleted_accounts_deletedAt ON deleted_accounts(deletedAt)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_deleted_expenses_account ON deleted_expenses(account_id, deletedAt)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_deleted_income_account ON deleted_income(account_id, deletedAt)',
+    );
 
     // Performance indexes for budgets (month/category queries)
-    await db.execute('CREATE INDEX idx_budgets_account_month ON budgets(account_id, month)');
-    await db.execute('CREATE INDEX idx_budgets_category ON budgets(account_id, category)');
+    await db.execute(
+      'CREATE INDEX idx_budgets_account_month ON budgets(account_id, month)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_budgets_category ON budgets(account_id, category)',
+    );
 
     // Performance indexes for recurring transactions (active status queries)
-    await db.execute('CREATE INDEX idx_recurring_expenses_active ON recurring_expenses(account_id, isActive)');
-    await db.execute('CREATE INDEX idx_recurring_income_active ON recurring_income(account_id, isActive)');
+    await db.execute(
+      'CREATE INDEX idx_recurring_expenses_active ON recurring_expenses(account_id, isActive)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_recurring_income_active ON recurring_income(account_id, isActive)',
+    );
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -362,15 +404,34 @@ class DatabaseHelper {
       ''');
 
       // Add columns safely using helper method (no more try-catch guessing)
-      await _addColumnIfNotExists(db, 'expenses', 'paymentMethod', 'TEXT DEFAULT "Cash"');
-      await _addColumnIfNotExists(db, 'recurring_expenses', 'paymentMethod', 'TEXT DEFAULT "Cash"');
-      await _addColumnIfNotExists(db, 'categories', 'type', 'TEXT DEFAULT "expense"');
+      await _addColumnIfNotExists(
+        db,
+        'expenses',
+        'paymentMethod',
+        'TEXT DEFAULT "Cash"',
+      );
+      await _addColumnIfNotExists(
+        db,
+        'recurring_expenses',
+        'paymentMethod',
+        'TEXT DEFAULT "Cash"',
+      );
+      await _addColumnIfNotExists(
+        db,
+        'categories',
+        'type',
+        'TEXT DEFAULT "expense"',
+      );
       await _addColumnIfNotExists(db, 'accounts', 'icon', 'TEXT');
       await _addColumnIfNotExists(db, 'accounts', 'color', 'TEXT');
 
       // Insert default income categories if they don't exist
       final defaultIncomeCategories = [
-        'Salary', 'Freelance', 'Investment', 'Gift', 'Other'
+        'Salary',
+        'Freelance',
+        'Investment',
+        'Gift',
+        'Other',
       ];
       for (var cat in defaultIncomeCategories) {
         final existing = await db.query(
@@ -405,7 +466,12 @@ class DatabaseHelper {
       ''');
 
       // Add original_id to deleted_expenses if not exists
-      await _addColumnIfNotExists(db, 'deleted_expenses', 'original_id', 'INTEGER');
+      await _addColumnIfNotExists(
+        db,
+        'deleted_expenses',
+        'original_id',
+        'INTEGER',
+      );
     }
 
     if (oldVersion < 6) {
@@ -449,7 +515,12 @@ class DatabaseHelper {
 
     if (oldVersion < 7) {
       // Add frequency and startDate columns for recurring income
-      await _addColumnIfNotExists(db, 'recurring_income', 'frequency', 'INTEGER DEFAULT 0');
+      await _addColumnIfNotExists(
+        db,
+        'recurring_income',
+        'frequency',
+        'INTEGER DEFAULT 0',
+      );
       await _addColumnIfNotExists(db, 'recurring_income', 'startDate', 'TEXT');
     }
 
@@ -468,53 +539,122 @@ class DatabaseHelper {
 
     if (oldVersion < 9) {
       // FIX: Add currency column to accounts table to prevent backup desynchronization
-      await _addColumnIfNotExists(db, 'accounts', 'currencyCode', 'TEXT DEFAULT "USD"');
+      await _addColumnIfNotExists(
+        db,
+        'accounts',
+        'currencyCode',
+        'TEXT DEFAULT "USD"',
+      );
     }
 
     if (oldVersion < 10) {
       // FIX: Add end date and max occurrences to recurring transactions
       await _addColumnIfNotExists(db, 'recurring_expenses', 'endDate', 'TEXT');
-      await _addColumnIfNotExists(db, 'recurring_expenses', 'maxOccurrences', 'INTEGER');
-      await _addColumnIfNotExists(db, 'recurring_expenses', 'occurrenceCount', 'INTEGER DEFAULT 0');
+      await _addColumnIfNotExists(
+        db,
+        'recurring_expenses',
+        'maxOccurrences',
+        'INTEGER',
+      );
+      await _addColumnIfNotExists(
+        db,
+        'recurring_expenses',
+        'occurrenceCount',
+        'INTEGER DEFAULT 0',
+      );
       await _addColumnIfNotExists(db, 'recurring_income', 'endDate', 'TEXT');
-      await _addColumnIfNotExists(db, 'recurring_income', 'maxOccurrences', 'INTEGER');
-      await _addColumnIfNotExists(db, 'recurring_income', 'occurrenceCount', 'INTEGER DEFAULT 0');
+      await _addColumnIfNotExists(
+        db,
+        'recurring_income',
+        'maxOccurrences',
+        'INTEGER',
+      );
+      await _addColumnIfNotExists(
+        db,
+        'recurring_income',
+        'occurrenceCount',
+        'INTEGER DEFAULT 0',
+      );
     }
 
     if (oldVersion < 11) {
       // FIX: Add frequency support to recurring expenses (parity with recurring income)
-      await _addColumnIfNotExists(db, 'recurring_expenses', 'frequency', 'INTEGER DEFAULT 0');
-      await _addColumnIfNotExists(db, 'recurring_expenses', 'startDate', 'TEXT');
+      await _addColumnIfNotExists(
+        db,
+        'recurring_expenses',
+        'frequency',
+        'INTEGER DEFAULT 0',
+      );
+      await _addColumnIfNotExists(
+        db,
+        'recurring_expenses',
+        'startDate',
+        'TEXT',
+      );
     }
 
     if (oldVersion < 12) {
       // FIX: Add indexes to improve search performance and prevent full table scans
       // These indexes significantly speed up queries with WHERE clauses on these columns
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_expenses_account_date ON expenses(account_id, date DESC)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(account_id, category)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_expenses_description ON expenses(account_id, description)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_income_account_date ON income(account_id, date DESC)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_income_category ON income(account_id, category)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_income_description ON income(account_id, description)');
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_expenses_account_date ON expenses(account_id, date DESC)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(account_id, category)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_expenses_description ON expenses(account_id, description)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_income_account_date ON income(account_id, date DESC)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_income_category ON income(account_id, category)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_income_description ON income(account_id, description)',
+      );
       // Composite index for common date range queries
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_expenses_account_date_category ON expenses(account_id, date DESC, category)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_income_account_date_category ON income(account_id, date DESC, category)');
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_expenses_account_date_category ON expenses(account_id, date DESC, category)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_income_account_date_category ON income(account_id, date DESC, category)',
+      );
     }
 
     if (oldVersion < 13) {
       // CRITICAL FIX: Add indexes on deleted tables for faster trash cleanup and queries
       // These prevent full table scans when cleaning up 30-day old items
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_deleted_expenses_deletedAt ON deleted_expenses(deletedAt)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_deleted_income_deletedAt ON deleted_income(deletedAt)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_deleted_accounts_deletedAt ON deleted_accounts(deletedAt)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_deleted_expenses_account ON deleted_expenses(account_id, deletedAt)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_deleted_income_account ON deleted_income(account_id, deletedAt)');
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_deleted_expenses_deletedAt ON deleted_expenses(deletedAt)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_deleted_income_deletedAt ON deleted_income(deletedAt)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_deleted_accounts_deletedAt ON deleted_accounts(deletedAt)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_deleted_expenses_account ON deleted_expenses(account_id, deletedAt)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_deleted_income_account ON deleted_income(account_id, deletedAt)',
+      );
 
       // Performance indexes for budgets and recurring transactions
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_budgets_account_month ON budgets(account_id, month)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_budgets_category ON budgets(account_id, category)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_recurring_expenses_active ON recurring_expenses(account_id, isActive)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_recurring_income_active ON recurring_income(account_id, isActive)');
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_budgets_account_month ON budgets(account_id, month)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_budgets_category ON budgets(account_id, category)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_recurring_expenses_active ON recurring_expenses(account_id, isActive)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_recurring_income_active ON recurring_income(account_id, isActive)',
+      );
     }
 
     if (oldVersion < 14) {
@@ -543,7 +683,12 @@ class DatabaseHelper {
 
     if (oldVersion < 17) {
       // Add overall_budget column to monthly_balances table
-      await _addColumnIfNotExists(db, 'monthly_balances', 'overall_budget', 'REAL');
+      await _addColumnIfNotExists(
+        db,
+        'monthly_balances',
+        'overall_budget',
+        'REAL',
+      );
     }
   }
 
@@ -563,7 +708,9 @@ class DatabaseHelper {
     final columnExists = tableInfo.any((row) => row['name'] == columnName);
 
     if (!columnExists) {
-      await db.execute('ALTER TABLE $tableName ADD COLUMN $columnName $columnDefinition');
+      await db.execute(
+        'ALTER TABLE $tableName ADD COLUMN $columnName $columnDefinition',
+      );
     }
   }
 
@@ -587,11 +734,17 @@ class DatabaseHelper {
   /// - Bulk data exports
   /// - Complex aggregate queries
   /// - Operations on large datasets (1000+ records)
-  Future<T?> _queryWithTimeout<T>(Future<T> Function() query, {Duration? timeout}) async {
+  Future<T?> _queryWithTimeout<T>(
+    Future<T> Function() query, {
+    Duration? timeout,
+  }) async {
     try {
       return await query().timeout(timeout ?? _queryTimeout);
     } on TimeoutException {
-      if (kDebugMode) debugPrint('Database query timed out after ${timeout ?? _queryTimeout}');
+      if (kDebugMode)
+        debugPrint(
+          'Database query timed out after ${timeout ?? _queryTimeout}',
+        );
       return null;
     } catch (e) {
       if (kDebugMode) debugPrint('Database query error: $e');
@@ -617,7 +770,11 @@ class DatabaseHelper {
     return result.map((map) => Income.fromMap(map)).toList();
   }
 
-  Future<List<Income>> getIncomeByMonth(int accountId, int year, int month) async {
+  Future<List<Income>> getIncomeByMonth(
+    int accountId,
+    int year,
+    int month,
+  ) async {
     final db = await database;
     final startDate = DateTime(year, month, 1).toIso8601String();
     final endDate = DateTime(year, month + 1, 0, 23, 59, 59).toIso8601String();
@@ -651,27 +808,28 @@ class DatabaseHelper {
       whereArgs: [id, 'income'],
     );
 
-    return await db.delete(
-      'income',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return await db.delete('income', where: 'id = ?', whereArgs: [id]);
   }
 
   // Move income to deleted (for undo/restore)
+  // FIX M5: Wrap insert+delete in a transaction for atomicity.
+  // Without a transaction, a crash after insert but before delete would
+  // duplicate the income (present in both tables).
   Future<void> moveIncomeToDeleted(Income income) async {
     final db = await database;
-    await db.insert('deleted_income', {
-      'original_id': income.id,
-      'amount': income.amount,
-      'category': income.category,
-      'description': income.description,
-      'date': income.date.toIso8601String(),
-      'account_id': income.accountId,
-      // FIX: Use UTC to avoid timezone-dependent expiration
-      'deletedAt': DateTime.now().toUtc().toIso8601String(),
+    await db.transaction((txn) async {
+      await txn.insert('deleted_income', {
+        'original_id': income.id,
+        'amount': income.amount,
+        'category': income.category,
+        'description': income.description,
+        'date': income.date.toIso8601String(),
+        'account_id': income.accountId,
+        // FIX: Use UTC to avoid timezone-dependent expiration
+        'deletedAt': DateTime.now().toUtc().toIso8601String(),
+      });
+      await txn.delete('income', where: 'id = ?', whereArgs: [income.id]);
     });
-    await db.delete('income', where: 'id = ?', whereArgs: [income.id]);
   }
 
   // Move income to deleted by ID (fetches from DB if needed)
@@ -712,11 +870,7 @@ class DatabaseHelper {
 
   Future<int> deleteTemplate(int id) async {
     final db = await database;
-    return await db.delete(
-      'quick_templates',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return await db.delete('quick_templates', where: 'id = ?', whereArgs: [id]);
   }
 
   // ============== ACCOUNT METHODS ==============
@@ -728,7 +882,10 @@ class DatabaseHelper {
 
   Future<List<Account>> readAllAccounts() async {
     final db = await database;
-    final result = await db.query('accounts', orderBy: 'isDefault DESC, name ASC');
+    final result = await db.query(
+      'accounts',
+      orderBy: 'isDefault DESC, name ASC',
+    );
     return result.map((map) => Account.fromMap(map)).toList();
   }
 
@@ -747,7 +904,11 @@ class DatabaseHelper {
     final db = await database;
 
     // Don't allow deleting the default account
-    final accountResult = await db.query('accounts', where: 'id = ?', whereArgs: [id]);
+    final accountResult = await db.query(
+      'accounts',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
     if (accountResult.isEmpty) {
       throw Exception('Account not found');
     }
@@ -783,18 +944,23 @@ class DatabaseHelper {
 
     // FIX: Log estimated backup size for diagnostics (debug only)
     if (kDebugMode) {
-      final estimatedSizeBytes = (expenseCount + incomeCount) * 1024; // 1KB per transaction
+      final estimatedSizeBytes =
+          (expenseCount + incomeCount) * 1024; // 1KB per transaction
       final estimatedSizeMB = estimatedSizeBytes / (1024 * 1024);
-      debugPrint('Estimated backup size: ${estimatedSizeMB.toStringAsFixed(2)}MB for $expenseCount expenses + $incomeCount incomes');
+      debugPrint(
+        'Estimated backup size: ${estimatedSizeMB.toStringAsFixed(2)}MB for $expenseCount expenses + $incomeCount incomes',
+      );
     }
 
     // Note: We can't reliably check free space on all platforms without platform channels
     // So we'll catch disk full errors during file write instead
 
-    final backupFile = File(path.join(
-      backupsDir.path,
-      'account_${id}_${deletedAt.millisecondsSinceEpoch}.json',
-    ));
+    final backupFile = File(
+      path.join(
+        backupsDir.path,
+        'account_${id}_${deletedAt.millisecondsSinceEpoch}.json',
+      ),
+    );
 
     // Write data incrementally to file using a stream to avoid loading everything in memory
     final sink = backupFile.openWrite();
@@ -852,23 +1018,43 @@ class DatabaseHelper {
       sink.write(']');
 
       // Write other data (typically small)
-      final budgets = await db.query('budgets', where: 'account_id = ?', whereArgs: [id]);
+      final budgets = await db.query(
+        'budgets',
+        where: 'account_id = ?',
+        whereArgs: [id],
+      );
       sink.write(',"budgets":');
       sink.write(jsonEncode(budgets));
 
-      final recurringExpenses = await db.query('recurring_expenses', where: 'account_id = ?', whereArgs: [id]);
+      final recurringExpenses = await db.query(
+        'recurring_expenses',
+        where: 'account_id = ?',
+        whereArgs: [id],
+      );
       sink.write(',"recurringExpenses":');
       sink.write(jsonEncode(recurringExpenses));
 
-      final recurringIncome = await db.query('recurring_income', where: 'account_id = ?', whereArgs: [id]);
+      final recurringIncome = await db.query(
+        'recurring_income',
+        where: 'account_id = ?',
+        whereArgs: [id],
+      );
       sink.write(',"recurringIncome":');
       sink.write(jsonEncode(recurringIncome));
 
-      final categories = await db.query('categories', where: 'account_id = ?', whereArgs: [id]);
+      final categories = await db.query(
+        'categories',
+        where: 'account_id = ?',
+        whereArgs: [id],
+      );
       sink.write(',"categories":');
       sink.write(jsonEncode(categories));
 
-      final templates = await db.query('quick_templates', where: 'account_id = ?', whereArgs: [id]);
+      final templates = await db.query(
+        'quick_templates',
+        where: 'account_id = ?',
+        whereArgs: [id],
+      );
       sink.write(',"templates":');
       sink.write(jsonEncode(templates));
 
@@ -895,14 +1081,18 @@ class DatabaseHelper {
           await backupFile.delete();
         }
       } catch (deleteError) {
-        if (kDebugMode) debugPrint('Could not delete incomplete backup file: $deleteError');
+        if (kDebugMode)
+          debugPrint('Could not delete incomplete backup file: $deleteError');
         // Track orphaned file for cleanup
         await _trackOrphanedFile(backupFile.path);
       }
 
       // Provide user-friendly error message
-      if (e.toString().contains('No space left') || e.toString().contains('disk full')) {
-        throw Exception('Not enough disk space to backup account. Please free up space and try again.');
+      if (e.toString().contains('No space left') ||
+          e.toString().contains('disk full')) {
+        throw Exception(
+          'Not enough disk space to backup account. Please free up space and try again.',
+        );
       }
       rethrow;
     }
@@ -924,7 +1114,11 @@ class DatabaseHelper {
       if (expenseIdsBatch.isEmpty) break;
 
       for (final expenseRow in expenseIdsBatch) {
-        await db.delete('transaction_tags', where: 'transaction_id = ? AND transaction_type = ?', whereArgs: [expenseRow['id'], 'expense']);
+        await db.delete(
+          'transaction_tags',
+          where: 'transaction_id = ? AND transaction_type = ?',
+          whereArgs: [expenseRow['id'], 'expense'],
+        );
       }
       tagExpenseOffset += batchSize;
     }
@@ -943,7 +1137,11 @@ class DatabaseHelper {
       if (incomeIdsBatch.isEmpty) break;
 
       for (final incomeRow in incomeIdsBatch) {
-        await db.delete('transaction_tags', where: 'transaction_id = ? AND transaction_type = ?', whereArgs: [incomeRow['id'], 'income']);
+        await db.delete(
+          'transaction_tags',
+          where: 'transaction_id = ? AND transaction_type = ?',
+          whereArgs: [incomeRow['id'], 'income'],
+        );
       }
       tagIncomeOffset += batchSize;
     }
@@ -952,11 +1150,27 @@ class DatabaseHelper {
     await db.delete('expenses', where: 'account_id = ?', whereArgs: [id]);
     await db.delete('income', where: 'account_id = ?', whereArgs: [id]);
     await db.delete('budgets', where: 'account_id = ?', whereArgs: [id]);
-    await db.delete('recurring_expenses', where: 'account_id = ?', whereArgs: [id]);
-    await db.delete('recurring_income', where: 'account_id = ?', whereArgs: [id]);
+    await db.delete(
+      'recurring_expenses',
+      where: 'account_id = ?',
+      whereArgs: [id],
+    );
+    await db.delete(
+      'recurring_income',
+      where: 'account_id = ?',
+      whereArgs: [id],
+    );
     await db.delete('categories', where: 'account_id = ?', whereArgs: [id]);
-    await db.delete('quick_templates', where: 'account_id = ?', whereArgs: [id]);
-    await db.delete('deleted_expenses', where: 'account_id = ?', whereArgs: [id]);
+    await db.delete(
+      'quick_templates',
+      where: 'account_id = ?',
+      whereArgs: [id],
+    );
+    await db.delete(
+      'deleted_expenses',
+      where: 'account_id = ?',
+      whereArgs: [id],
+    );
     await db.delete('deleted_income', where: 'account_id = ?', whereArgs: [id]);
     // FIX: Also delete tags that belong to this account
     await db.delete('tags', where: 'account_id = ?', whereArgs: [id]);
@@ -996,7 +1210,8 @@ class DatabaseHelper {
             // Parse: "timestamp: filepath"
             final parts = line.split(': ');
             if (parts.length >= 2) {
-              final filePath = parts.sublist(1).join(': '); // Rejoin in case path has ':'
+              final filePath =
+                  parts.sublist(1).join(': '); // Rejoin in case path has ':'
               final file = File(filePath);
               if (await file.exists()) {
                 await file.delete();
@@ -1004,7 +1219,8 @@ class DatabaseHelper {
               }
             }
           } catch (e) {
-            if (kDebugMode) debugPrint('Error cleaning orphaned file from log: $e');
+            if (kDebugMode)
+              debugPrint('Error cleaning orphaned file from log: $e');
           }
         }
 
@@ -1013,10 +1229,15 @@ class DatabaseHelper {
       }
 
       // Also scan backups directory for files not in database
-      final backupsDir = Directory(path.join(appDocDir.path, 'deleted_accounts'));
+      final backupsDir = Directory(
+        path.join(appDocDir.path, 'deleted_accounts'),
+      );
       if (await backupsDir.exists()) {
         final db = await database;
-        final registeredPaths = (await db.query('deleted_accounts', columns: ['data']))
+        final registeredPaths = (await db.query(
+          'deleted_accounts',
+          columns: ['data'],
+        ))
             .map((row) => row['data'] as String)
             .toSet();
 
@@ -1025,9 +1246,11 @@ class DatabaseHelper {
             try {
               await entity.delete();
               cleanedCount++;
-              if (kDebugMode) debugPrint('Cleaned orphaned backup: ${entity.path}');
+              if (kDebugMode)
+                debugPrint('Cleaned orphaned backup: ${entity.path}');
             } catch (e) {
-              if (kDebugMode) debugPrint('Could not delete orphaned backup: $e');
+              if (kDebugMode)
+                debugPrint('Could not delete orphaned backup: $e');
             }
           }
         }
@@ -1042,7 +1265,10 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getDeletedAccounts() async {
     final db = await database;
     // FIX: Use UTC to avoid timezone-dependent expiration
-    final cutoffDate = DateTime.now().toUtc().subtract(const Duration(days: 30)).toIso8601String();
+    final cutoffDate = DateTime.now()
+        .toUtc()
+        .subtract(const Duration(days: 30))
+        .toIso8601String();
 
     // FIX: Clean up old backup files before deleting database records
     final oldAccounts = await db.query(
@@ -1072,10 +1298,7 @@ class DatabaseHelper {
       whereArgs: [cutoffDate],
     );
 
-    return await db.query(
-      'deleted_accounts',
-      orderBy: 'deletedAt DESC',
-    );
+    return await db.query('deleted_accounts', orderBy: 'deletedAt DESC');
   }
 
   /// Restore a deleted account and all its data
@@ -1139,7 +1362,8 @@ class DatabaseHelper {
     }
 
     // Restore recurring expenses
-    final recurringExpenses = backupData['recurringExpenses'] as List<dynamic>? ?? [];
+    final recurringExpenses =
+        backupData['recurringExpenses'] as List<dynamic>? ?? [];
     for (final rec in recurringExpenses) {
       final recMap = Map<String, dynamic>.from(rec as Map);
       recMap.remove('id');
@@ -1148,7 +1372,8 @@ class DatabaseHelper {
     }
 
     // Restore recurring income
-    final recurringIncome = backupData['recurringIncome'] as List<dynamic>? ?? [];
+    final recurringIncome =
+        backupData['recurringIncome'] as List<dynamic>? ?? [];
     for (final rec in recurringIncome) {
       final recMap = Map<String, dynamic>.from(rec as Map);
       recMap.remove('id');
@@ -1177,7 +1402,11 @@ class DatabaseHelper {
     }
 
     // Remove from deleted_accounts
-    await db.delete('deleted_accounts', where: 'id = ?', whereArgs: [deletedId]);
+    await db.delete(
+      'deleted_accounts',
+      where: 'id = ?',
+      whereArgs: [deletedId],
+    );
 
     // FIX: Delete the backup file after successful restore
     if (await backupFile.exists()) {
@@ -1192,7 +1421,11 @@ class DatabaseHelper {
     final db = await database;
 
     // FIX: Delete the backup file before removing database record
-    final result = await db.query('deleted_accounts', where: 'id = ?', whereArgs: [deletedId]);
+    final result = await db.query(
+      'deleted_accounts',
+      where: 'id = ?',
+      whereArgs: [deletedId],
+    );
     if (result.isNotEmpty) {
       final filePath = result.first['data'] as String;
       final file = File(filePath);
@@ -1201,7 +1434,11 @@ class DatabaseHelper {
       }
     }
 
-    await db.delete('deleted_accounts', where: 'id = ?', whereArgs: [deletedId]);
+    await db.delete(
+      'deleted_accounts',
+      where: 'id = ?',
+      whereArgs: [deletedId],
+    );
   }
 
   // ============== EXPENSE METHODS ==============
@@ -1223,7 +1460,11 @@ class DatabaseHelper {
     return result.map((map) => Expense.fromMap(map)).toList();
   }
 
-  Future<List<Expense>> getExpensesByMonth(int accountId, int year, int month) async {
+  Future<List<Expense>> getExpensesByMonth(
+    int accountId,
+    int year,
+    int month,
+  ) async {
     final db = await database;
     final startDate = DateTime(year, month, 1).toIso8601String();
     final endDate = DateTime(year, month + 1, 0, 23, 59, 59).toIso8601String();
@@ -1257,21 +1498,13 @@ class DatabaseHelper {
       whereArgs: [id, 'expense'],
     );
 
-    return await db.delete(
-      'expenses',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return await db.delete('expenses', where: 'id = ?', whereArgs: [id]);
   }
 
   // Get single expense by ID
   Future<Expense?> getExpenseById(int id) async {
     final db = await database;
-    final result = await db.query(
-      'expenses',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    final result = await db.query('expenses', where: 'id = ?', whereArgs: [id]);
     if (result.isEmpty) return null;
     return Expense.fromMap(result.first);
   }
@@ -1279,31 +1512,32 @@ class DatabaseHelper {
   // Get single income by ID
   Future<Income?> getIncomeById(int id) async {
     final db = await database;
-    final result = await db.query(
-      'income',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    final result = await db.query('income', where: 'id = ?', whereArgs: [id]);
     if (result.isEmpty) return null;
     return Income.fromMap(result.first);
   }
 
   // Move expense to deleted (for 30-day restore)
+  // FIX M5: Wrap insert+delete in a transaction for atomicity.
+  // Without a transaction, a crash after insert but before delete would
+  // duplicate the expense (present in both tables).
   Future<void> moveToDeleted(Expense expense) async {
     final db = await database;
-    await db.insert('deleted_expenses', {
-      'original_id': expense.id,
-      'amount': expense.amount,
-      'category': expense.category,
-      'description': expense.description,
-      'date': expense.date.toIso8601String(),
-      'account_id': expense.accountId,
-      'amountPaid': expense.amountPaid,
-      'paymentMethod': expense.paymentMethod,
-      // FIX: Use UTC to avoid timezone-dependent expiration
-      'deletedAt': DateTime.now().toUtc().toIso8601String(),
+    await db.transaction((txn) async {
+      await txn.insert('deleted_expenses', {
+        'original_id': expense.id,
+        'amount': expense.amount,
+        'category': expense.category,
+        'description': expense.description,
+        'date': expense.date.toIso8601String(),
+        'account_id': expense.accountId,
+        'amountPaid': expense.amountPaid,
+        'paymentMethod': expense.paymentMethod,
+        // FIX: Use UTC to avoid timezone-dependent expiration
+        'deletedAt': DateTime.now().toUtc().toIso8601String(),
+      });
+      await txn.delete('expenses', where: 'id = ?', whereArgs: [expense.id]);
     });
-    await db.delete('expenses', where: 'id = ?', whereArgs: [expense.id]);
   }
 
   // Move expense to deleted by ID (fetches from DB if needed)
@@ -1315,10 +1549,15 @@ class DatabaseHelper {
   }
 
   // FIX #2: Get ALL deleted expenses (for trash screen)
-  Future<List<Map<String, dynamic>>> getAllDeletedExpenses(int accountId) async {
+  Future<List<Map<String, dynamic>>> getAllDeletedExpenses(
+    int accountId,
+  ) async {
     final db = await database;
     // FIX: Use UTC to avoid timezone-dependent expiration
-    final thirtyDaysAgo = DateTime.now().toUtc().subtract(const Duration(days: 30)).toIso8601String();
+    final thirtyDaysAgo = DateTime.now()
+        .toUtc()
+        .subtract(const Duration(days: 30))
+        .toIso8601String();
     final result = await db.query(
       'deleted_expenses',
       where: 'account_id = ? AND deletedAt >= ?',
@@ -1332,7 +1571,10 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getAllDeletedIncome(int accountId) async {
     final db = await database;
     // FIX: Use UTC to avoid timezone-dependent expiration
-    final thirtyDaysAgo = DateTime.now().toUtc().subtract(const Duration(days: 30)).toIso8601String();
+    final thirtyDaysAgo = DateTime.now()
+        .toUtc()
+        .subtract(const Duration(days: 30))
+        .toIso8601String();
     final result = await db.query(
       'deleted_income',
       where: 'account_id = ? AND deletedAt >= ?',
@@ -1362,7 +1604,11 @@ class DatabaseHelper {
         'amountPaid': map['amountPaid'],
         'paymentMethod': map['paymentMethod'],
       });
-      await db.delete('deleted_expenses', where: 'id = ?', whereArgs: [deletedId]);
+      await db.delete(
+        'deleted_expenses',
+        where: 'id = ?',
+        whereArgs: [deletedId],
+      );
     }
   }
 
@@ -1384,14 +1630,22 @@ class DatabaseHelper {
         'date': map['date'],
         'account_id': map['account_id'],
       });
-      await db.delete('deleted_income', where: 'id = ?', whereArgs: [deletedId]);
+      await db.delete(
+        'deleted_income',
+        where: 'id = ?',
+        whereArgs: [deletedId],
+      );
     }
   }
 
   // Permanently delete from trash
   Future<void> permanentlyDeleteExpense(int deletedId) async {
     final db = await database;
-    await db.delete('deleted_expenses', where: 'id = ?', whereArgs: [deletedId]);
+    await db.delete(
+      'deleted_expenses',
+      where: 'id = ?',
+      whereArgs: [deletedId],
+    );
   }
 
   Future<void> permanentlyDeleteIncome(int deletedId) async {
@@ -1445,7 +1699,11 @@ class DatabaseHelper {
         'amountPaid': map['amountPaid'],
         'paymentMethod': map['paymentMethod'],
       });
-      await db.delete('deleted_expenses', where: 'id = ?', whereArgs: [map['id']]);
+      await db.delete(
+        'deleted_expenses',
+        where: 'id = ?',
+        whereArgs: [map['id']],
+      );
     }
   }
 
@@ -1453,7 +1711,10 @@ class DatabaseHelper {
   Future<void> clearOldDeleted() async {
     final db = await database;
     // FIX: Use UTC to avoid timezone-dependent expiration
-    final thirtyDaysAgo = DateTime.now().toUtc().subtract(const Duration(days: 30)).toIso8601String();
+    final thirtyDaysAgo = DateTime.now()
+        .toUtc()
+        .subtract(const Duration(days: 30))
+        .toIso8601String();
     await db.delete(
       'deleted_expenses',
       where: 'deletedAt < ?',
@@ -1469,8 +1730,16 @@ class DatabaseHelper {
   // Empty trash completely
   Future<void> emptyTrash(int accountId) async {
     final db = await database;
-    await db.delete('deleted_expenses', where: 'account_id = ?', whereArgs: [accountId]);
-    await db.delete('deleted_income', where: 'account_id = ?', whereArgs: [accountId]);
+    await db.delete(
+      'deleted_expenses',
+      where: 'account_id = ?',
+      whereArgs: [accountId],
+    );
+    await db.delete(
+      'deleted_income',
+      where: 'account_id = ?',
+      whereArgs: [accountId],
+    );
   }
 
   // ============== BUDGET METHODS ==============
@@ -1482,7 +1751,11 @@ class DatabaseHelper {
 
   /// CRITICAL FIX: Read budgets with optional month filter and limit
   /// Without filters, this could load ALL budgets across ALL months into memory
-  Future<List<Budget>> readAllBudgets(int accountId, {DateTime? month, int? limit}) async {
+  Future<List<Budget>> readAllBudgets(
+    int accountId, {
+    DateTime? month,
+    int? limit,
+  }) async {
     final db = await database;
 
     String whereClause = 'account_id = ?';
@@ -1493,7 +1766,10 @@ class DatabaseHelper {
       final monthStart = DateTime(month.year, month.month, 1);
       final monthEnd = DateTime(month.year, month.month + 1, 0);
       whereClause += ' AND month >= ? AND month <= ?';
-      whereArgs.addAll([monthStart.toIso8601String(), monthEnd.toIso8601String()]);
+      whereArgs.addAll([
+        monthStart.toIso8601String(),
+        monthEnd.toIso8601String(),
+      ]);
     }
 
     final result = await db.query(
@@ -1509,9 +1785,17 @@ class DatabaseHelper {
   }
 
   // FIX #7: Get budgets for specific month only
-  Future<List<Budget>> getBudgetsForMonth(int accountId, int year, int month) async {
+  Future<List<Budget>> getBudgetsForMonth(
+    int accountId,
+    int year,
+    int month,
+  ) async {
     final db = await database;
-    final monthStr = DateTime(year, month, 1).toIso8601String().substring(0, 7); // "2024-01"
+    final monthStr = DateTime(
+      year,
+      month,
+      1,
+    ).toIso8601String().substring(0, 7); // "2024-01"
 
     final result = await db.query(
       'budgets',
@@ -1533,19 +1817,22 @@ class DatabaseHelper {
 
   Future<int> deleteBudget(int id) async {
     final db = await database;
-    return await db.delete(
-      'budgets',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return await db.delete('budgets', where: 'id = ?', whereArgs: [id]);
   }
 
   // ============== MONTHLY BALANCE METHODS ==============
 
   /// Get the monthly balance for a specific month
-  Future<MonthlyBalance?> getMonthlyBalance(int accountId, DateTime month) async {
+  Future<MonthlyBalance?> getMonthlyBalance(
+    int accountId,
+    DateTime month,
+  ) async {
     final db = await database;
-    final monthStr = DateTime(month.year, month.month, 1).toIso8601String().substring(0, 7);
+    final monthStr = DateTime(
+      month.year,
+      month.month,
+      1,
+    ).toIso8601String().substring(0, 7);
 
     final result = await db.query(
       'monthly_balances',
@@ -1579,7 +1866,10 @@ class DatabaseHelper {
   }
 
   /// Get all monthly balances for an account (for analytics/history)
-  Future<List<MonthlyBalance>> getMonthlyBalances(int accountId, {int? limit}) async {
+  Future<List<MonthlyBalance>> getMonthlyBalances(
+    int accountId, {
+    int? limit,
+  }) async {
     final db = await database;
 
     final result = await db.query(
@@ -1605,7 +1895,11 @@ class DatabaseHelper {
 
   /// Calculate the balance for a specific month (income - expenses)
   /// This is used to compute the carryover for the next month
-  Future<double> calculateMonthBalance(int accountId, int year, int month) async {
+  Future<double> calculateMonthBalance(
+    int accountId,
+    int year,
+    int month,
+  ) async {
     final db = await database;
     final startDate = DateTime(year, month, 1).toIso8601String();
     final endDate = DateTime(year, month + 1, 0, 23, 59, 59).toIso8601String();
@@ -1615,14 +1909,16 @@ class DatabaseHelper {
       'SELECT COALESCE(SUM(amount), 0) as total FROM income WHERE account_id = ? AND date >= ? AND date <= ?',
       [accountId, startDate, endDate],
     );
-    final totalIncome = (incomeResult.first['total'] as num?)?.toDouble() ?? 0.0;
+    final totalIncome =
+        (incomeResult.first['total'] as num?)?.toDouble() ?? 0.0;
 
     // Sum expenses for the month
     final expenseResult = await db.rawQuery(
       'SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE account_id = ? AND date >= ? AND date <= ?',
       [accountId, startDate, endDate],
     );
-    final totalExpenses = (expenseResult.first['total'] as num?)?.toDouble() ?? 0.0;
+    final totalExpenses =
+        (expenseResult.first['total'] as num?)?.toDouble() ?? 0.0;
 
     return totalIncome - totalExpenses;
   }
@@ -1646,7 +1942,9 @@ class DatabaseHelper {
 
   /// FIX: Optimized method to read only active recurring expenses
   /// This prevents iterating over inactive transactions during daily processing
-  Future<List<RecurringExpense>> readActiveRecurringExpenses(int accountId) async {
+  Future<List<RecurringExpense>> readActiveRecurringExpenses(
+    int accountId,
+  ) async {
     final db = await database;
     final result = await db.query(
       'recurring_expenses',
@@ -1682,11 +1980,22 @@ class DatabaseHelper {
     return await db.insert('categories', category.toMap());
   }
 
-  Future<List<Category>> readAllCategories(int accountId, {String? type}) async {
+  Future<List<Category>> readAllCategories(
+    int accountId, {
+    String? type,
+  }) async {
     final db = await database;
     final result = type == null
-        ? await db.query('categories', where: 'account_id = ?', whereArgs: [accountId])
-        : await db.query('categories', where: 'account_id = ? AND type = ?', whereArgs: [accountId, type]);
+        ? await db.query(
+            'categories',
+            where: 'account_id = ?',
+            whereArgs: [accountId],
+          )
+        : await db.query(
+            'categories',
+            where: 'account_id = ? AND type = ?',
+            whereArgs: [accountId, type],
+          );
     return result.map((map) => Category.fromMap(map)).toList();
   }
 
@@ -1701,7 +2010,12 @@ class DatabaseHelper {
   }
 
   // FIX #2: Cascade category rename across all dependent tables
-  Future<void> renameCategoryInAllTables(int accountId, String oldName, String newName, String type) async {
+  Future<void> renameCategoryInAllTables(
+    int accountId,
+    String oldName,
+    String newName,
+    String type,
+  ) async {
     final db = await database;
 
     // Use a transaction for atomicity
@@ -1754,7 +2068,12 @@ class DatabaseHelper {
 
   /// Bulk reassign all transactions from one category to another
   /// This is much faster than updating one-by-one in a loop
-  Future<void> bulkReassignCategory(int accountId, String oldCategory, String newCategory, String type) async {
+  Future<void> bulkReassignCategory(
+    int accountId,
+    String oldCategory,
+    String newCategory,
+    String type,
+  ) async {
     final db = await database;
 
     // Use a transaction for atomicity - either all succeed or all fail
@@ -1818,7 +2137,13 @@ class DatabaseHelper {
   }
 
   /// FIX #3: Atomically reassign transactions AND delete category to prevent data loss
-  Future<void> bulkReassignCategoryAndDelete(int accountId, int categoryId, String oldCategory, String newCategory, String type) async {
+  Future<void> bulkReassignCategoryAndDelete(
+    int accountId,
+    int categoryId,
+    String oldCategory,
+    String newCategory,
+    String type,
+  ) async {
     final db = await database;
 
     // Use a transaction for atomicity - either all succeed or all fail
@@ -1872,7 +2197,12 @@ class DatabaseHelper {
   }
 
   /// FIX #3: Atomically delete transactions AND category to prevent orphaned data
-  Future<void> bulkDeleteTransactionsAndCategory(int accountId, int categoryId, String category, String type) async {
+  Future<void> bulkDeleteTransactionsAndCategory(
+    int accountId,
+    int categoryId,
+    String category,
+    String type,
+  ) async {
     final db = await database;
 
     await db.transaction((txn) async {
@@ -1940,7 +2270,11 @@ class DatabaseHelper {
 
   /// Bulk delete all transactions in a specific category
   /// This is much faster than deleting one-by-one in a loop
-  Future<void> bulkDeleteTransactionsByCategory(int accountId, String category, String type) async {
+  Future<void> bulkDeleteTransactionsByCategory(
+    int accountId,
+    String category,
+    String type,
+  ) async {
     final db = await database;
 
     // Use a transaction for atomicity
@@ -2039,7 +2373,11 @@ class DatabaseHelper {
   }
 
   /// Get expenses for a specific date range (for lazy loading)
-  Future<List<Expense>> getExpensesInRange(int accountId, DateTime start, DateTime end) async {
+  Future<List<Expense>> getExpensesInRange(
+    int accountId,
+    DateTime start,
+    DateTime end,
+  ) async {
     final db = await database;
     final result = await db.query(
       'expenses',
@@ -2051,7 +2389,11 @@ class DatabaseHelper {
   }
 
   /// Get income for a specific date range (for lazy loading)
-  Future<List<Income>> getIncomeInRange(int accountId, DateTime start, DateTime end) async {
+  Future<List<Income>> getIncomeInRange(
+    int accountId,
+    DateTime start,
+    DateTime end,
+  ) async {
     final db = await database;
     final result = await db.query(
       'income',
@@ -2145,7 +2487,8 @@ class DatabaseHelper {
   /// Call this on app startup (with rate limiting to avoid running too frequently)
   Future<void> performMaintenance({bool force = false}) async {
     if (force || await needsMaintenance()) {
-      if (kDebugMode) debugPrint('Running database maintenance (vacuum + analyze)...');
+      if (kDebugMode)
+        debugPrint('Running database maintenance (vacuum + analyze)...');
       await vacuum();
       await analyze();
       if (kDebugMode) debugPrint('Database maintenance complete');
@@ -2283,7 +2626,11 @@ class DatabaseHelper {
     return await db.delete('tags', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<void> addTagToTransaction(int transactionId, String transactionType, int tagId) async {
+  Future<void> addTagToTransaction(
+    int transactionId,
+    String transactionType,
+    int tagId,
+  ) async {
     final db = await database;
     await db.insert('transaction_tags', {
       'transaction_id': transactionId,
@@ -2292,7 +2639,11 @@ class DatabaseHelper {
     });
   }
 
-  Future<void> removeTagFromTransaction(int transactionId, String transactionType, int tagId) async {
+  Future<void> removeTagFromTransaction(
+    int transactionId,
+    String transactionType,
+    int tagId,
+  ) async {
     final db = await database;
     await db.delete(
       'transaction_tags',
@@ -2301,16 +2652,25 @@ class DatabaseHelper {
     );
   }
 
-  Future<List<Map<String, dynamic>>> getTagsForTransaction(int transactionId, String transactionType) async {
+  Future<List<Map<String, dynamic>>> getTagsForTransaction(
+    int transactionId,
+    String transactionType,
+  ) async {
     final db = await database;
-    return await db.rawQuery('''
+    return await db.rawQuery(
+      '''
       SELECT t.* FROM tags t
       INNER JOIN transaction_tags tt ON t.id = tt.tag_id
       WHERE tt.transaction_id = ? AND tt.transaction_type = ?
-    ''', [transactionId, transactionType]);
+    ''',
+      [transactionId, transactionType],
+    );
   }
 
-  Future<List<int>> getTransactionIdsForTag(int tagId, String transactionType) async {
+  Future<List<int>> getTransactionIdsForTag(
+    int tagId,
+    String transactionType,
+  ) async {
     final db = await database;
     final result = await db.query(
       'transaction_tags',
@@ -2323,41 +2683,57 @@ class DatabaseHelper {
 
   // ============== SEARCH METHODS ==============
 
-  Future<List<Expense>> searchExpenses(int accountId, String query, {int? limit, int offset = 0}) async {
+  Future<List<Expense>> searchExpenses(
+    int accountId,
+    String query, {
+    int? limit,
+    int offset = 0,
+  }) async {
     final db = await database;
 
     // FIX: Sanitize search query to prevent LIKE performance issues
     final sanitizedQuery = _sanitizeSearchQuery(query);
     if (sanitizedQuery.isEmpty) return [];
 
-    final result = await _queryWithTimeout(() => db.query(
-      'expenses',
-      where: 'account_id = ? AND (description LIKE ? OR category LIKE ?)',
-      whereArgs: [accountId, '%$sanitizedQuery%', '%$sanitizedQuery%'],
-      orderBy: 'date DESC',
-      limit: limit,
-      offset: offset,
-    ));
+    final result = await _queryWithTimeout(
+      () => db.query(
+        'expenses',
+        where:
+            "account_id = ? AND (description LIKE ? ESCAPE '\\' OR category LIKE ? ESCAPE '\\')",
+        whereArgs: [accountId, '%$sanitizedQuery%', '%$sanitizedQuery%'],
+        orderBy: 'date DESC',
+        limit: limit,
+        offset: offset,
+      ),
+    );
 
     if (result == null) return []; // Timeout occurred
     return result.map((map) => Expense.fromMap(map)).toList();
   }
 
-  Future<List<Income>> searchIncome(int accountId, String query, {int? limit, int offset = 0}) async {
+  Future<List<Income>> searchIncome(
+    int accountId,
+    String query, {
+    int? limit,
+    int offset = 0,
+  }) async {
     final db = await database;
 
     // FIX: Sanitize search query to prevent LIKE performance issues
     final sanitizedQuery = _sanitizeSearchQuery(query);
     if (sanitizedQuery.isEmpty) return [];
 
-    final result = await _queryWithTimeout(() => db.query(
-      'income',
-      where: 'account_id = ? AND (description LIKE ? OR category LIKE ?)',
-      whereArgs: [accountId, '%$sanitizedQuery%', '%$sanitizedQuery%'],
-      orderBy: 'date DESC',
-      limit: limit,
-      offset: offset,
-    ));
+    final result = await _queryWithTimeout(
+      () => db.query(
+        'income',
+        where:
+            "account_id = ? AND (description LIKE ? ESCAPE '\\' OR category LIKE ? ESCAPE '\\')",
+        whereArgs: [accountId, '%$sanitizedQuery%', '%$sanitizedQuery%'],
+        orderBy: 'date DESC',
+        limit: limit,
+        offset: offset,
+      ),
+    );
 
     if (result == null) return []; // Timeout occurred
     return result.map((map) => Income.fromMap(map)).toList();
@@ -2444,7 +2820,8 @@ class DatabaseHelper {
     String? category, // FIX: Add category filter parameter
     String? startDate, // FIX: Add date range parameters
     String? endDate,
-    String sortOrder = 'newest', // Sort order: newest, oldest, highest, lowest, category
+    String sortOrder =
+        'newest', // Sort order: newest, oldest, highest, lowest, category
   }) async {
     final db = await database;
 
@@ -2465,12 +2842,18 @@ class DatabaseHelper {
       final conditions = <String>[];
 
       // Search token conditions
+      // FIX H13: Add ESCAPE '\\' to all LIKE clauses so that escaped
+      // wildcards (\\%, \\_) from _sanitizeSearchQuery are treated literally.
       for (final token in tokens) {
         final isNumeric = double.tryParse(token) != null;
         if (isNumeric) {
-          conditions.add('($prefix.description LIKE ? OR $prefix.category LIKE ? OR CAST($prefix.amount AS TEXT) LIKE ?)');
+          conditions.add(
+            "($prefix.description LIKE ? ESCAPE '\\' OR $prefix.category LIKE ? ESCAPE '\\' OR CAST($prefix.amount AS TEXT) LIKE ? ESCAPE '\\')",
+          );
         } else {
-          conditions.add('($prefix.description LIKE ? OR $prefix.category LIKE ?)');
+          conditions.add(
+            "($prefix.description LIKE ? ESCAPE '\\' OR $prefix.category LIKE ? ESCAPE '\\')",
+          );
         }
       }
 
@@ -2542,7 +2925,11 @@ class DatabaseHelper {
       final pattern = '%$token%';
       final isNumeric = double.tryParse(token) != null;
       if (isNumeric) {
-        args.addAll([pattern, pattern, pattern]); // description, category, amount
+        args.addAll([
+          pattern,
+          pattern,
+          pattern,
+        ]); // description, category, amount
       } else {
         args.addAll([pattern, pattern]); // description, category
       }

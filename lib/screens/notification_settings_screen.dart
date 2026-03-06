@@ -8,7 +8,8 @@ class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
 
   @override
-  State<NotificationSettingsScreen> createState() => _NotificationSettingsScreenState();
+  State<NotificationSettingsScreen> createState() =>
+      _NotificationSettingsScreenState();
 }
 
 class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
@@ -51,7 +52,10 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   }
 
   // FIX #2: Request notification permission when enabling any notification
-  Future<void> _handleNotificationToggle(bool value, Future<void> Function(bool) toggle) async {
+  Future<void> _handleNotificationToggle(
+    bool value,
+    Future<void> Function(bool) toggle,
+  ) async {
     if (value && !_permissionGranted) {
       // Request permission first
       final granted = await NotificationHelper().requestPermissions();
@@ -65,7 +69,9 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                 label: 'Settings',
                 onPressed: () {
                   // Open app notification settings directly
-                  AppSettings.openAppSettings(type: AppSettingsType.notification);
+                  AppSettings.openAppSettings(
+                    type: AppSettingsType.notification,
+                  );
                 },
               ),
             ),
@@ -143,14 +149,17 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                   TextButton(
                     onPressed: () async {
                       // First try to request permission via the system dialog
-                      final granted = await NotificationHelper().requestPermissions();
+                      final granted =
+                          await NotificationHelper().requestPermissions();
                       if (granted) {
                         if (mounted) {
                           setState(() => _permissionGranted = true);
                         }
                       } else {
                         // If denied, open app settings directly
-                        AppSettings.openAppSettings(type: AppSettingsType.notification);
+                        AppSettings.openAppSettings(
+                          type: AppSettingsType.notification,
+                        );
                       }
                     },
                     child: const Text('Enable'),
@@ -167,7 +176,9 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             decoration: BoxDecoration(
               color: Colors.blue.withAlpha((255 * 0.1).round()),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.blue.withAlpha((255 * 0.3).round())),
+              border: Border.all(
+                color: Colors.blue.withAlpha((255 * 0.3).round()),
+              ),
             ),
             child: Row(
               children: [
@@ -194,10 +205,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             title: 'Bill Reminders',
             subtitle: 'Get notified 1 day before recurring bills are due',
             value: appState.billRemindersEnabled,
-            onChanged: (value) => _handleNotificationToggle(
-              value,
-              appState.toggleBillReminders,
-            ),
+            onChanged: (value) =>
+                _handleNotificationToggle(value, appState.toggleBillReminders),
           ),
 
           const SizedBox(height: 12),
@@ -208,10 +217,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             title: 'Budget Alerts',
             subtitle: 'Notifications at 80%, 90%, and 100% of budget',
             value: appState.budgetAlertsEnabled,
-            onChanged: (value) => _handleNotificationToggle(
-              value,
-              appState.toggleBudgetAlerts,
-            ),
+            onChanged: (value) =>
+                _handleNotificationToggle(value, appState.toggleBudgetAlerts),
           ),
 
           const SizedBox(height: 12),
@@ -222,10 +229,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             title: 'Monthly Summary',
             subtitle: 'Get a spending summary on the 1st of each month',
             value: appState.monthlySummaryEnabled,
-            onChanged: (value) => _handleNotificationToggle(
-              value,
-              appState.toggleMonthlySummary,
-            ),
+            onChanged: (value) =>
+                _handleNotificationToggle(value, appState.toggleMonthlySummary),
           ),
 
           const SizedBox(height: 24),
@@ -309,11 +314,16 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               onTap: () async {
                 // Send a test notification
                 try {
-                  await NotificationHelper().showMonthlySummary(1234.56, 1500.00);
+                  await NotificationHelper().showMonthlySummary(
+                    1234.56,
+                    1500.00,
+                  );
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Test notification sent! Check your notification shade.'),
+                        content: Text(
+                          'Test notification sent! Check your notification shade.',
+                        ),
                         duration: Duration(seconds: 2),
                       ),
                     );
@@ -415,15 +425,14 @@ class _NotificationCard extends StatelessWidget {
           ),
           child: Icon(
             icon,
-            color: value ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+            color: value
+                ? theme.colorScheme.primary
+                : theme.colorScheme.onSurfaceVariant,
           ),
         ),
         title: Text(
           title,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
         subtitle: Text(
           subtitle,

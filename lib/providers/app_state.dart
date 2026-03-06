@@ -64,14 +64,17 @@ class AppState extends ChangeNotifier {
   bool _budgetAlertsEnabled = true;
   bool _monthlySummaryEnabled = true;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 9, minute: 0);
-  bool _showTransactionColors = false; // Optional transparent background colors on transaction cards
-  double _transactionColorIntensity = 0.5; // 0.0 - 1.0, how visible the background color is
+  bool _showTransactionColors =
+      false; // Optional transparent background colors on transaction cards
+  double _transactionColorIntensity =
+      0.5; // 0.0 - 1.0, how visible the background color is
 
   // ============== PIN LOCK STATE ==============
   bool _isLocked = true; // App starts locked if PIN is enabled
   Timer? _lockTimer;
   static const Duration _lockTimeout = Duration(minutes: 3);
-  bool _isDisposed = false; // FIX: Track disposed state to prevent timer callback crashes
+  bool _isDisposed =
+      false; // FIX: Track disposed state to prevent timer callback crashes
 
   // ============== FILTERS ==============
   String _filterCategory = 'All';
@@ -93,18 +96,19 @@ class AppState extends ChangeNotifier {
   int? _cacheExpenseHash; // FIX: Track content changes, not just length
 
   List<Expense> get expenses {
-    // FIX: Calculate a comprehensive hash of expense fields to detect any content changes
-    // Includes: id, amount, description, category, amountPaid, and date
-    // This catches all cases where an expense is updated
-    final currentHash = _expenses.isEmpty ? 0 : _expenses.fold(0, (hash, e) {
-      return hash ^
-          (e.id ?? 0) ^
-          e.amountDecimal.hashCode ^
-          e.description.hashCode ^
-          e.category.hashCode ^
-          e.amountPaidDecimal.hashCode ^
-          e.date.millisecondsSinceEpoch;
-    });
+    // FIX: Use multiplicative hash to avoid XOR fold collisions where
+    // swapped or symmetric field values cancel each other out
+    final currentHash = _expenses.isEmpty
+        ? 0
+        : _expenses.fold(0, (hash, e) {
+            int h = hash * 37 + (e.id ?? 0);
+            h = h * 37 + e.amountDecimal.hashCode;
+            h = h * 37 + e.description.hashCode;
+            h = h * 37 + e.category.hashCode;
+            h = h * 37 + e.amountPaidDecimal.hashCode;
+            h = h * 37 + e.date.millisecondsSinceEpoch;
+            return h;
+          });
 
     // Check if cache is valid
     final cacheValid = _cachedFilteredExpenses != null &&
@@ -145,6 +149,7 @@ class AppState extends ChangeNotifier {
   List<RecurringExpense> get recurringExpenses => _recurringExpenses;
   List<RecurringIncome> get recurringIncomes => _recurringIncomes;
   List<Map<String, dynamic>> get tags => _tags;
+
   /// FIX P2-12: Expose monthly balances for complete backup export
   Map<String, MonthlyBalance> get monthlyBalances => _monthlyBalances;
 
@@ -161,8 +166,18 @@ class AppState extends ChangeNotifier {
   DateTime get selectedMonth => _selectedMonth;
   String get selectedMonthName {
     final months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return '${months[_selectedMonth.month - 1]} ${_selectedMonth.year}';
   }
@@ -179,11 +194,20 @@ class AppState extends ChangeNotifier {
   double get transactionColorIntensity => _transactionColorIntensity;
 
   String formatAmount(double amount, {int decimalDigits = 2}) {
-    return CurrencyHelper.formatAmount(amount, _currencyCode, decimalDigits: decimalDigits);
+    return CurrencyHelper.formatAmount(
+      amount,
+      _currencyCode,
+      decimalDigits: decimalDigits,
+    );
   }
 
   String formatWithCurrency(double amount, {int decimalDigits = 2}) {
-    return CurrencyHelper.formatWithSymbol(amount, currency, _currencyCode, decimalDigits: decimalDigits);
+    return CurrencyHelper.formatWithSymbol(
+      amount,
+      currency,
+      _currencyCode,
+      decimalDigits: decimalDigits,
+    );
   }
 
   String formatCompact(double amount) {
@@ -194,7 +218,11 @@ class AppState extends ChangeNotifier {
   DateTimeRange? get dateRange => _dateRange;
 
   List<Budget> get currentMonthBudgets => _budgets
-      .where((b) => b.month.year == _selectedMonth.year && b.month.month == _selectedMonth.month)
+      .where(
+        (b) =>
+            b.month.year == _selectedMonth.year &&
+            b.month.month == _selectedMonth.month,
+      )
       .toList();
 
   /// Get the total budget for the selected month (sum of all category budgets)
@@ -202,7 +230,9 @@ class AppState extends ChangeNotifier {
     final budgets = currentMonthBudgets;
     if (budgets.isEmpty) return 0.0;
     return _decimalToDouble(
-      budgets.map((b) => b.amountDecimal).fold(Decimal.zero, (sum, amount) => sum + amount)
+      budgets
+          .map((b) => b.amountDecimal)
+          .fold(Decimal.zero, (sum, amount) => sum + amount),
     );
   }
 
@@ -258,7 +288,9 @@ class AppState extends ChangeNotifier {
   /// Get the projected end-of-month balance
   /// This is: Income + Carryover - Total Expenses
   double get projectedEndOfMonthBalance {
-    return totalIncomeThisMonth + carryoverForSelectedMonth - totalExpensesThisMonth;
+    return totalIncomeThisMonth +
+        carryoverForSelectedMonth -
+        totalExpensesThisMonth;
   }
 
   /// Check if there's a carryover for the selected month
@@ -296,9 +328,10 @@ class AppState extends ChangeNotifier {
       _loadMonthlyBalances(),
     ]);
 
-    // FIX: Simplified null check - no need to check _currentAccount twice
-    if (_categories.isEmpty && _currentAccount?.id != null) {
-      await _createDefaultCategoriesForAccount(_currentAccount!.id!);
+    // FIX: Use null guard to avoid force-unwrap crash if account is null
+    final accountId = _currentAccount?.id;
+    if (_categories.isEmpty && accountId != null) {
+      await _createDefaultCategoriesForAccount(accountId);
       await _loadCategories();
     }
 
@@ -365,11 +398,13 @@ class AppState extends ChangeNotifier {
       }
       await _initializeNotifications();
     } catch (e) {
-      if (kDebugMode) debugPrint('Error processing recurring transactions in background: $e');
+      if (kDebugMode)
+        debugPrint('Error processing recurring transactions in background: $e');
     } finally {
       _processingRecurring = false;
     }
 
+    if (_isDisposed) return; // FIX: Prevent notifyListeners after dispose
     if (_lastAutoCreatedCount > 0 &&
         epochAtStart == _backgroundProcessingEpoch &&
         accountIdAtStart == currentAccountId) {
@@ -380,7 +415,8 @@ class AppState extends ChangeNotifier {
   Future<void> _initializeNotifications() async {
     try {
       await _notificationHelper.initialize();
-      final notificationsEnabled = await _notificationHelper.areNotificationsEnabled();
+      final notificationsEnabled =
+          await _notificationHelper.areNotificationsEnabled();
       if (!notificationsEnabled) {
         return;
       }
@@ -411,7 +447,8 @@ class AppState extends ChangeNotifier {
     _budgetAlertsEnabled = await SettingsHelper.getBudgetAlerts();
     _monthlySummaryEnabled = await SettingsHelper.getMonthlySummary();
     _showTransactionColors = await SettingsHelper.getShowTransactionColors();
-    _transactionColorIntensity = await SettingsHelper.getTransactionColorIntensity();
+    _transactionColorIntensity =
+        await SettingsHelper.getTransactionColorIntensity();
     final hour = await SettingsHelper.getReminderHour();
     final minute = await SettingsHelper.getReminderMinute();
     _reminderTime = TimeOfDay(hour: hour, minute: minute);
@@ -421,12 +458,18 @@ class AppState extends ChangeNotifier {
     _accounts = await _db.readAllAccounts();
     if (_accounts.isEmpty) {
       final currencyFromPrefs = await SettingsHelper.getCurrencyCode();
-      await _db.createAccount(Account(name: 'Main Account', isDefault: true, currencyCode: currencyFromPrefs));
+      await _db.createAccount(
+        Account(
+          name: 'Main Account',
+          isDefault: true,
+          currencyCode: currencyFromPrefs,
+        ),
+      );
       _accounts = await _db.readAllAccounts();
     }
     if (_accounts.isNotEmpty) {
       _currentAccount = _accounts.firstWhere(
-            (a) => a.isDefault,
+        (a) => a.isDefault,
         orElse: () => _accounts[0],
       );
     }
@@ -434,15 +477,20 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _loadCategories() async {
-    _categories = (await _db.readAllCategories(currentAccountId)).cast<Category>();
+    _categories = (await _db.readAllCategories(
+      currentAccountId,
+    ))
+        .cast<Category>();
   }
 
   // FIX P3-15: Documented memory management constants
   /// Tracks which months have been loaded to enable lazy-loading
   final Set<String> _loadedExpenseMonths = {};
   final Set<String> _loadedIncomeMonths = {};
+
   /// Tracks last access time per month for LRU-style pruning
   final Map<String, DateTime> _monthAccessTimes = {};
+
   /// Maximum number of months to keep in memory to balance performance vs memory usage.
   /// 6 months allows viewing recent history while keeping memory footprint reasonable.
   /// Older months are pruned when this limit is exceeded.
@@ -453,10 +501,16 @@ class AppState extends ChangeNotifier {
   Future<void> _loadExpensesInternal() async {
     final now = DateHelper.today();
     final currentMonthStart = DateHelper.startOfMonth(now);
-    final prevMonthStart = DateHelper.startOfMonth(DateHelper.subtractMonths(now, 1));
+    final prevMonthStart = DateHelper.startOfMonth(
+      DateHelper.subtractMonths(now, 1),
+    );
     final currentMonthEnd = DateHelper.endOfMonth(now);
 
-    final expenses = await _db.getExpensesInRange(currentAccountId, prevMonthStart, currentMonthEnd);
+    final expenses = await _db.getExpensesInRange(
+      currentAccountId,
+      prevMonthStart,
+      currentMonthEnd,
+    );
 
     _expenses = expenses;
     _loadedExpenseMonths.clear();
@@ -473,10 +527,16 @@ class AppState extends ChangeNotifier {
   Future<void> _loadIncomesInternal() async {
     final now = DateHelper.today();
     final currentMonthStart = DateHelper.startOfMonth(now);
-    final prevMonthStart = DateHelper.startOfMonth(DateHelper.subtractMonths(now, 1));
+    final prevMonthStart = DateHelper.startOfMonth(
+      DateHelper.subtractMonths(now, 1),
+    );
     final currentMonthEnd = DateHelper.endOfMonth(now);
 
-    final incomes = await _db.getIncomeInRange(currentAccountId, prevMonthStart, currentMonthEnd);
+    final incomes = await _db.getIncomeInRange(
+      currentAccountId,
+      prevMonthStart,
+      currentMonthEnd,
+    );
 
     _incomes = incomes;
     _loadedIncomeMonths.clear();
@@ -492,7 +552,8 @@ class AppState extends ChangeNotifier {
 
   Future<void> ensureMonthLoaded(DateTime month) async {
     final key = _monthKey(month);
-    if (_loadedExpenseMonths.contains(key) && _loadedIncomeMonths.contains(key)) {
+    if (_loadedExpenseMonths.contains(key) &&
+        _loadedIncomeMonths.contains(key)) {
       _monthAccessTimes[key] = DateTime.now();
       return;
     }
@@ -500,7 +561,11 @@ class AppState extends ChangeNotifier {
     if (!_loadedExpenseMonths.contains(key)) {
       final monthStart = DateHelper.startOfMonth(month);
       final monthEnd = DateHelper.endOfMonth(month);
-      final newExpenses = await _db.getExpensesInRange(currentAccountId, monthStart, monthEnd);
+      final newExpenses = await _db.getExpensesInRange(
+        currentAccountId,
+        monthStart,
+        monthEnd,
+      );
       final existingIds = _expenses.map((e) => e.id).toSet();
       for (final expense in newExpenses) {
         if (!existingIds.contains(expense.id)) {
@@ -514,7 +579,11 @@ class AppState extends ChangeNotifier {
     if (!_loadedIncomeMonths.contains(key)) {
       final monthStart = DateHelper.startOfMonth(month);
       final monthEnd = DateHelper.endOfMonth(month);
-      final newIncomes = await _db.getIncomeInRange(currentAccountId, monthStart, monthEnd);
+      final newIncomes = await _db.getIncomeInRange(
+        currentAccountId,
+        monthStart,
+        monthEnd,
+      );
       final existingIds = _incomes.map((i) => i.id).toSet();
       for (final income in newIncomes) {
         if (!existingIds.contains(income.id)) {
@@ -544,23 +613,32 @@ class AppState extends ChangeNotifier {
       if (year == null || month == null) {
         return 999999;
       }
-      final distance = ((currentMonth.year - year) * 12 + (currentMonth.month - month)).abs();
+      final distance =
+          ((currentMonth.year - year) * 12 + (currentMonth.month - month))
+              .abs();
       final distanceScore = (distance * 10).clamp(0, 100);
       final lastAccess = _monthAccessTimes[key];
-      final recencyScore = lastAccess != null ? (100 - now.difference(lastAccess).inMinutes).clamp(0, 100) : 0;
+      final recencyScore = lastAccess != null
+          ? (100 - now.difference(lastAccess).inMinutes).clamp(0, 100)
+          : 0;
       return distanceScore - recencyScore;
     }
 
     if (_loadedExpenseMonths.length > _maxMonthsInMemory) {
-      final sortedMonths = _loadedExpenseMonths.toList()..sort((a, b) => monthScore(a).compareTo(monthScore(b)));
-      final monthsToRemove = sortedMonths.reversed.take(_loadedExpenseMonths.length - _maxMonthsInMemory).toSet();
+      final sortedMonths = _loadedExpenseMonths.toList()
+        ..sort((a, b) => monthScore(a).compareTo(monthScore(b)));
+      final monthsToRemove = sortedMonths.reversed
+          .take(_loadedExpenseMonths.length - _maxMonthsInMemory)
+          .toSet();
       for (final monthKey in monthsToRemove) {
         final parts = monthKey.split('-');
         if (parts.length >= 2) {
           final year = int.tryParse(parts[0]);
           final month = int.tryParse(parts[1]);
           if (year != null && month != null) {
-            _expenses.removeWhere((e) => e.date.year == year && e.date.month == month);
+            _expenses.removeWhere(
+              (e) => e.date.year == year && e.date.month == month,
+            );
           }
         }
         _loadedExpenseMonths.remove(monthKey);
@@ -569,15 +647,20 @@ class AppState extends ChangeNotifier {
     }
 
     if (_loadedIncomeMonths.length > _maxMonthsInMemory) {
-      final sortedMonths = _loadedIncomeMonths.toList()..sort((a, b) => monthScore(a).compareTo(monthScore(b)));
-      final monthsToRemove = sortedMonths.reversed.take(_loadedIncomeMonths.length - _maxMonthsInMemory).toSet();
+      final sortedMonths = _loadedIncomeMonths.toList()
+        ..sort((a, b) => monthScore(a).compareTo(monthScore(b)));
+      final monthsToRemove = sortedMonths.reversed
+          .take(_loadedIncomeMonths.length - _maxMonthsInMemory)
+          .toSet();
       for (final monthKey in monthsToRemove) {
         final parts = monthKey.split('-');
         if (parts.length >= 2) {
           final year = int.tryParse(parts[0]);
           final month = int.tryParse(parts[1]);
           if (year != null && month != null) {
-            _incomes.removeWhere((i) => i.date.year == year && i.date.month == month);
+            _incomes.removeWhere(
+              (i) => i.date.year == year && i.date.month == month,
+            );
           }
         }
         _loadedIncomeMonths.remove(monthKey);
@@ -608,9 +691,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> _loadMonthlyBalances() async {
     final balances = await _db.getMonthlyBalances(currentAccountId, limit: 12);
-    _monthlyBalances = {
-      for (final b in balances) _monthKey(b.month): b
-    };
+    _monthlyBalances = {for (final b in balances) _monthKey(b.month): b};
   }
 
   // ============== EXPENSE METHODS ==============
@@ -684,11 +765,13 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> undoDelete() async {
-    await _db.restoreLastDeleted(currentAccountId);
-    await _loadExpenses();
-    _invalidateExpenseCache(); // FIX: Invalidate cache after undo
-    notifyListeners();
-    _updateHomeWidget(); // FIX: Update home widget after undo
+    await _writeMutex.synchronized(() async {
+      await _db.restoreLastDeleted(currentAccountId);
+      await _loadExpenses();
+      _invalidateExpenseCache(); // FIX: Invalidate cache after undo
+      notifyListeners();
+      _updateHomeWidget(); // FIX: Update home widget after undo
+    });
   }
 
   Future<void> addPayment(Expense expense, double amount) async {
@@ -701,7 +784,8 @@ class AppState extends ChangeNotifier {
       if (newAmountPaidDecimal >= expense.amountDecimal) {
         // Cap at expense amount to prevent overpayment
         finalAmountPaid = expense.amountDecimal;
-      } else if (remainingDecimal > Decimal.zero && remainingDecimal < tenCents) {
+      } else if (remainingDecimal > Decimal.zero &&
+          remainingDecimal < tenCents) {
         // Auto-round up if less than 10 cents remaining
         finalAmountPaid = expense.amountDecimal;
       } else {
@@ -717,7 +801,9 @@ class AppState extends ChangeNotifier {
   }
 
   List<Expense> getExpensesForSelectedMonth() {
-    return _expenses.where((e) => _isSameMonth(e.date, _selectedMonth)).toList();
+    return _expenses
+        .where((e) => _isSameMonth(e.date, _selectedMonth))
+        .toList();
   }
 
   List<Expense> _getFilteredExpenses() {
@@ -862,13 +948,23 @@ class AppState extends ChangeNotifier {
   Future<void> _autoRolloverBudgets() async {
     final now = DateHelper.today();
     final currentMonthStart = DateHelper.startOfMonth(now);
-    final currentMonthBudgetsExist = _budgets.any((b) => _isSameMonth(b.month, currentMonthStart));
+    final currentMonthBudgetsExist = _budgets.any(
+      (b) => _isSameMonth(b.month, currentMonthStart),
+    );
 
     if (!currentMonthBudgetsExist) {
-      final prevMonth = DateHelper.startOfMonth(DateHelper.subtractMonths(now, 1));
-      final prevMonthBudgets = _budgets.where((b) => _isSameMonth(b.month, prevMonth)).toList();
+      final prevMonth = DateHelper.startOfMonth(
+        DateHelper.subtractMonths(now, 1),
+      );
+      final prevMonthBudgets =
+          _budgets.where((b) => _isSameMonth(b.month, prevMonth)).toList();
       for (final budget in prevMonthBudgets) {
-        final newBudget = Budget(category: budget.category, amount: budget.amountDecimal, accountId: budget.accountId, month: currentMonthStart);
+        final newBudget = Budget(
+          category: budget.category,
+          amount: budget.amountDecimal,
+          accountId: budget.accountId,
+          month: currentMonthStart,
+        );
         await _db.createBudget(newBudget);
       }
       if (prevMonthBudgets.isNotEmpty) {
@@ -895,12 +991,24 @@ class AppState extends ChangeNotifier {
         throw ArgumentError('Category "$category" does not exist');
       }
 
-      final existing = _budgets.where((b) => b.category == category && _isSameMonth(b.month, _selectedMonth)).toList();
+      final existing = _budgets
+          .where(
+            (b) =>
+                b.category == category && _isSameMonth(b.month, _selectedMonth),
+          )
+          .toList();
       if (existing.isNotEmpty) {
-        final updated = existing.first.copyWithDecimal(amount: DecimalHelper.fromDouble(amount));
+        final updated = existing.first.copyWithDecimal(
+          amount: DecimalHelper.fromDouble(amount),
+        );
         await _db.updateBudget(updated);
       } else {
-        final budget = Budget(category: category, amount: DecimalHelper.fromDouble(amount), accountId: currentAccountId, month: DateHelper.startOfMonth(_selectedMonth));
+        final budget = Budget(
+          category: category,
+          amount: DecimalHelper.fromDouble(amount),
+          accountId: currentAccountId,
+          month: DateHelper.startOfMonth(_selectedMonth),
+        );
         await _db.createBudget(budget);
       }
       await _loadBudgets();
@@ -942,51 +1050,90 @@ class AppState extends ChangeNotifier {
   }
 
   Map<String, double> getBudgetSpentBreakdown(String category) {
-    final actualSpentDecimal = getExpensesForSelectedMonth().where((e) => e.category == category).map((e) => e.amountDecimal).fold(Decimal.zero, (sum, amount) => sum + amount);
+    final actualSpentDecimal = getExpensesForSelectedMonth()
+        .where((e) => e.category == category)
+        .map((e) => e.amountDecimal)
+        .fold(Decimal.zero, (sum, amount) => sum + amount);
     Decimal projectedRecurringDecimal = Decimal.zero;
     for (final recurring in _recurringExpenses) {
       if (!recurring.shouldBeActive || recurring.category != category) {
         continue;
       }
-      final occurrencesInMonth = _countRecurringOccurrencesInMonth(recurring, _selectedMonth);
+      final occurrencesInMonth = _countRecurringOccurrencesInMonth(
+        recurring,
+        _selectedMonth,
+      );
       if (occurrencesInMonth == 0) {
         continue;
       }
-      final alreadyCreatedCount = _expenses.where((e) => e.description == recurring.description && e.category == recurring.category && e.amountDecimal == recurring.amountDecimal && _isSameMonth(e.date, _selectedMonth)).length;
+      final alreadyCreatedCount = _expenses
+          .where(
+            (e) =>
+                e.description == recurring.description &&
+                e.category == recurring.category &&
+                e.amountDecimal == recurring.amountDecimal &&
+                _isSameMonth(e.date, _selectedMonth),
+          )
+          .length;
       final remainingOccurrences = occurrencesInMonth - alreadyCreatedCount;
       if (remainingOccurrences > 0) {
-        projectedRecurringDecimal += recurring.amountDecimal * Decimal.fromInt(remainingOccurrences);
+        projectedRecurringDecimal +=
+            recurring.amountDecimal * Decimal.fromInt(remainingOccurrences);
       }
     }
-    return {'actual': _decimalToDouble(actualSpentDecimal), 'projected': _decimalToDouble(projectedRecurringDecimal), 'total': _decimalToDouble(actualSpentDecimal + projectedRecurringDecimal)};
+    return {
+      'actual': _decimalToDouble(actualSpentDecimal),
+      'projected': _decimalToDouble(projectedRecurringDecimal),
+      'total': _decimalToDouble(actualSpentDecimal + projectedRecurringDecimal),
+    };
   }
 
-  double getBudgetSpent(String category) => getBudgetSpentBreakdown(category)['total'] ?? 0.0;
+  double getBudgetSpent(String category) =>
+      getBudgetSpentBreakdown(category)['total'] ?? 0.0;
   double getBudgetSpentActual(String category) {
-    final actualSpentDecimal = getExpensesForSelectedMonth().where((e) => e.category == category).map((e) => e.amountDecimal).fold(Decimal.zero, (sum, amount) => sum + amount);
+    final actualSpentDecimal = getExpensesForSelectedMonth()
+        .where((e) => e.category == category)
+        .map((e) => e.amountDecimal)
+        .fold(Decimal.zero, (sum, amount) => sum + amount);
     return _decimalToDouble(actualSpentDecimal);
   }
 
-  int _countRecurringOccurrencesInMonth(RecurringExpense recurring, DateTime month) {
-    if (recurring.startDate != null && DateHelper.normalize(recurring.startDate!).isAfter(DateHelper.endOfMonth(month))) {
+  int _countRecurringOccurrencesInMonth(
+    RecurringExpense recurring,
+    DateTime month,
+  ) {
+    if (recurring.startDate != null &&
+        DateHelper.normalize(
+          recurring.startDate!,
+        ).isAfter(DateHelper.endOfMonth(month))) {
       return 0;
     }
-    if (recurring.endDate != null && DateHelper.normalize(recurring.endDate!).isBefore(DateHelper.startOfMonth(month))) {
+    if (recurring.endDate != null &&
+        DateHelper.normalize(
+          recurring.endDate!,
+        ).isBefore(DateHelper.startOfMonth(month))) {
       return 0;
     }
     switch (recurring.frequency) {
-      case RecurringExpenseFrequency.monthly: return 1;
-      case RecurringExpenseFrequency.weekly: return _countWeeklyOccurrencesInMonth(recurring, month);
-      case RecurringExpenseFrequency.biweekly: return _countBiweeklyOccurrencesInMonth(recurring, month);
+      case RecurringExpenseFrequency.monthly:
+        return 1;
+      case RecurringExpenseFrequency.weekly:
+        return _countWeeklyOccurrencesInMonth(recurring, month);
+      case RecurringExpenseFrequency.biweekly:
+        return _countBiweeklyOccurrencesInMonth(recurring, month);
     }
   }
 
-  int _countWeeklyOccurrencesInMonth(RecurringExpense recurring, DateTime month) {
+  int _countWeeklyOccurrencesInMonth(
+    RecurringExpense recurring,
+    DateTime month,
+  ) {
     final monthStart = DateHelper.startOfMonth(month);
     final monthEnd = DateHelper.lastDayOfMonth(month);
     int count = 0;
     DateTime current = monthStart;
     while (!DateHelper.normalize(current).isAfter(monthEnd)) {
+      // dayOfMonth stores 0-6 (Mon-Sun) for weekly/biweekly; weekday-1 converts Dart's 1-7 to 0-6
       if (current.weekday - 1 == recurring.dayOfMonth) {
         count++;
       }
@@ -998,7 +1145,10 @@ class AppState extends ChangeNotifier {
   /// Counts biweekly occurrences within a given month.
   /// FIX P1-5: Removed redundant weekday check. Since we iterate by 14 days from startDate,
   /// the weekday remains constant. We trust that startDate was set to the correct weekday.
-  int _countBiweeklyOccurrencesInMonth(RecurringExpense recurring, DateTime month) {
+  int _countBiweeklyOccurrencesInMonth(
+    RecurringExpense recurring,
+    DateTime month,
+  ) {
     if (recurring.startDate == null) {
       return 0;
     }
@@ -1037,7 +1187,11 @@ class AppState extends ChangeNotifier {
     }
     final today = DateHelper.today();
     final currentMonth = DateHelper.startOfMonth(today);
-    final matchingBudgets = _budgets.where((b) => b.category == category && _isSameMonth(b.month, currentMonth)).toList();
+    final matchingBudgets = _budgets
+        .where(
+          (b) => b.category == category && _isSameMonth(b.month, currentMonth),
+        )
+        .toList();
     if (matchingBudgets.isEmpty) {
       return;
     }
@@ -1063,7 +1217,9 @@ class AppState extends ChangeNotifier {
 
   /// Calculate the carryover for a specific month from its previous month
   Future<void> _calculateCarryoverForMonth(DateTime month) async {
-    final prevMonth = DateHelper.startOfMonth(DateHelper.subtractMonths(month, 1));
+    final prevMonth = DateHelper.startOfMonth(
+      DateHelper.subtractMonths(month, 1),
+    );
     final monthKey = _monthKey(month);
 
     // Check if we already have a carryover stored for this month
@@ -1072,7 +1228,8 @@ class AppState extends ChangeNotifier {
     // Get the previous month's carryover (if any)
     final prevMonthKey = _monthKey(prevMonth);
     final prevBalance = _monthlyBalances[prevMonthKey];
-    final prevCarryover = prevBalance?.carryoverFromPreviousDecimal ?? Decimal.zero;
+    final prevCarryover =
+        prevBalance?.carryoverFromPreviousDecimal ?? Decimal.zero;
 
     // Calculate previous month's balance (income - expenses)
     final prevMonthBalance = await _db.calculateMonthBalance(
@@ -1082,7 +1239,8 @@ class AppState extends ChangeNotifier {
     );
 
     // Total carryover = previous month's (balance + carryover)
-    final totalCarryover = DecimalHelper.fromDouble(prevMonthBalance) + prevCarryover;
+    final totalCarryover =
+        DecimalHelper.fromDouble(prevMonthBalance) + prevCarryover;
 
     // Only update if the calculated carryover is different or doesn't exist
     if (existingBalance == null ||
@@ -1154,7 +1312,8 @@ class AppState extends ChangeNotifier {
 
       final newBalance = MonthlyBalance(
         id: existingBalance?.id,
-        carryoverFromPrevious: existingBalance?.carryoverFromPreviousDecimal ?? Decimal.zero,
+        carryoverFromPrevious:
+            existingBalance?.carryoverFromPreviousDecimal ?? Decimal.zero,
         overallBudget: DecimalHelper.fromDouble(amount),
         accountId: currentAccountId,
         month: _selectedMonth,
@@ -1236,7 +1395,9 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       // FIX P0-1: Prevent deleting the last account - app requires at least one account
       if (_accounts.length <= 1) {
-        throw ArgumentError('Cannot delete the last account. At least one account must exist.');
+        throw ArgumentError(
+          'Cannot delete the last account. At least one account must exist.',
+        );
       }
 
       await _db.deleteAccount(id);
@@ -1260,17 +1421,57 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       final db = await _db.database;
       await db.transaction((txn) async {
-        await txn.delete('expenses', where: 'account_id = ?', whereArgs: [accountId]);
-        await txn.delete('income', where: 'account_id = ?', whereArgs: [accountId]);
-        await txn.delete('budgets', where: 'account_id = ?', whereArgs: [accountId]);
-        await txn.delete('recurring_expenses', where: 'account_id = ?', whereArgs: [accountId]);
-        await txn.delete('recurring_income', where: 'account_id = ?', whereArgs: [accountId]);
-        await txn.delete('quick_templates', where: 'account_id = ?', whereArgs: [accountId]);
-        await txn.delete('categories', where: 'account_id = ? AND isDefault = 0', whereArgs: [accountId]);
-        await txn.delete('tags', where: 'account_id = ?', whereArgs: [accountId]);
+        await txn.delete(
+          'expenses',
+          where: 'account_id = ?',
+          whereArgs: [accountId],
+        );
+        await txn.delete(
+          'income',
+          where: 'account_id = ?',
+          whereArgs: [accountId],
+        );
+        await txn.delete(
+          'budgets',
+          where: 'account_id = ?',
+          whereArgs: [accountId],
+        );
+        await txn.delete(
+          'recurring_expenses',
+          where: 'account_id = ?',
+          whereArgs: [accountId],
+        );
+        await txn.delete(
+          'recurring_income',
+          where: 'account_id = ?',
+          whereArgs: [accountId],
+        );
+        await txn.delete(
+          'quick_templates',
+          where: 'account_id = ?',
+          whereArgs: [accountId],
+        );
+        await txn.delete(
+          'categories',
+          where: 'account_id = ? AND isDefault = 0',
+          whereArgs: [accountId],
+        );
+        await txn.delete(
+          'tags',
+          where: 'account_id = ?',
+          whereArgs: [accountId],
+        );
         await txn.delete('transaction_tags', where: '1=1');
-        await txn.delete('deleted_expenses', where: 'account_id = ?', whereArgs: [accountId]);
-        await txn.delete('deleted_income', where: 'account_id = ?', whereArgs: [accountId]);
+        await txn.delete(
+          'deleted_expenses',
+          where: 'account_id = ?',
+          whereArgs: [accountId],
+        );
+        await txn.delete(
+          'deleted_income',
+          where: 'account_id = ?',
+          whereArgs: [accountId],
+        );
       });
       if (_currentAccount?.id == accountId) {
         clearFilters();
@@ -1280,7 +1481,8 @@ class AppState extends ChangeNotifier {
     });
   }
 
-  Future<List<Map<String, dynamic>>> getDeletedAccounts() async => await _db.getDeletedAccounts();
+  Future<List<Map<String, dynamic>>> getDeletedAccounts() async =>
+      await _db.getDeletedAccounts();
 
   Future<void> restoreDeletedAccount(int deletedId) async {
     final newAccountId = await _db.restoreDeletedAccount(deletedId);
@@ -1289,7 +1491,8 @@ class AppState extends ChangeNotifier {
     await switchAccount(restoredAccount);
   }
 
-  Future<void> permanentlyDeleteAccount(int deletedId) async => await _db.permanentlyDeleteAccount(deletedId);
+  Future<void> permanentlyDeleteAccount(int deletedId) async =>
+      await _db.permanentlyDeleteAccount(deletedId);
 
   Future<void> switchAccount(Account account) async {
     _currentAccount = account;
@@ -1324,13 +1527,42 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _createDefaultCategoriesForAccount(int accountId) async {
-    final defaultExpenseCategories = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Health', 'Education', 'Bills', 'Other'];
+    final defaultExpenseCategories = [
+      'Food',
+      'Transport',
+      'Shopping',
+      'Entertainment',
+      'Health',
+      'Education',
+      'Bills',
+      'Other',
+    ];
     for (var cat in defaultExpenseCategories) {
-      await _db.createCategory(Category(name: cat, accountId: accountId, isDefault: true, type: 'expense'));
+      await _db.createCategory(
+        Category(
+          name: cat,
+          accountId: accountId,
+          isDefault: true,
+          type: 'expense',
+        ),
+      );
     }
-    final defaultIncomeCategories = ['Salary', 'Freelance', 'Investment', 'Gift', 'Other'];
+    final defaultIncomeCategories = [
+      'Salary',
+      'Freelance',
+      'Investment',
+      'Gift',
+      'Other',
+    ];
     for (var cat in defaultIncomeCategories) {
-      await _db.createCategory(Category(name: cat, accountId: accountId, isDefault: true, type: 'income'));
+      await _db.createCategory(
+        Category(
+          name: cat,
+          accountId: accountId,
+          isDefault: true,
+          type: 'income',
+        ),
+      );
     }
   }
 
@@ -1347,7 +1579,12 @@ class AppState extends ChangeNotifier {
   /// FIX: Validates for duplicate category names (case-insensitive) at the data layer
   /// to prevent duplicates even when called programmatically.
   /// Throws ArgumentError if name is empty or already exists.
-  Future<void> addCategory(String name, {String type = 'expense', String? color, String? icon}) async {
+  Future<void> addCategory(
+    String name, {
+    String type = 'expense',
+    String? color,
+    String? icon,
+  }) async {
     final trimmedName = name.trim();
     if (trimmedName.isEmpty) {
       throw ArgumentError('Category name cannot be empty');
@@ -1355,15 +1592,25 @@ class AppState extends ChangeNotifier {
 
     await _writeMutex.synchronized(() async {
       // FIX: Check for duplicate names (case-insensitive) before insertion
-      final existingCategories = type == 'expense' ? expenseCategories : incomeCategories;
+      final existingCategories =
+          type == 'expense' ? expenseCategories : incomeCategories;
       final lowerCaseName = trimmedName.toLowerCase();
-      final isDuplicate = existingCategories.any((c) => c.name.toLowerCase() == lowerCaseName);
+      final isDuplicate = existingCategories.any(
+        (c) => c.name.toLowerCase() == lowerCaseName,
+      );
 
       if (isDuplicate) {
         throw ArgumentError('A category with this name already exists');
       }
 
-      final category = Category(name: trimmedName, accountId: currentAccountId, isDefault: false, type: type, color: color, icon: icon);
+      final category = Category(
+        name: trimmedName,
+        accountId: currentAccountId,
+        isDefault: false,
+        type: type,
+        color: color,
+        icon: icon,
+      );
       await _db.createCategory(category);
       await _loadCategories();
       notifyListeners();
@@ -1378,12 +1625,23 @@ class AppState extends ChangeNotifier {
       _categoryRenameInProgress = true;
       try {
         if (oldName != null && oldName != category.name) {
-          await _db.renameCategoryInAllTables(currentAccountId, oldName, category.name, category.type);
+          await _db.renameCategoryInAllTables(
+            currentAccountId,
+            oldName,
+            category.name,
+            category.type,
+          );
         }
         await _db.updateCategory(category);
         await _loadCategories();
         if (oldName != null && oldName != category.name) {
-          await Future.wait([_loadExpensesInternal(), _loadIncomesInternal(), _loadBudgets(), _loadQuickTemplates(), _loadRecurringExpenses()]);
+          await Future.wait([
+            _loadExpensesInternal(),
+            _loadIncomesInternal(),
+            _loadBudgets(),
+            _loadQuickTemplates(),
+            _loadRecurringExpenses(),
+          ]);
         }
         notifyListeners();
       } finally {
@@ -1400,46 +1658,106 @@ class AppState extends ChangeNotifier {
     });
   }
 
-  Future<void> bulkReassignCategory(String oldCategory, String newCategory, String type) async {
+  Future<void> bulkReassignCategory(
+    String oldCategory,
+    String newCategory,
+    String type,
+  ) async {
     await _writeMutex.synchronized(() async {
-      await _db.bulkReassignCategory(currentAccountId, oldCategory, newCategory, type);
-      await Future.wait([_loadExpensesInternal(), _loadIncomesInternal(), _loadBudgets(), _loadQuickTemplates(), _loadRecurringExpenses(), _loadRecurringIncomes()]);
+      await _db.bulkReassignCategory(
+        currentAccountId,
+        oldCategory,
+        newCategory,
+        type,
+      );
+      await Future.wait([
+        _loadExpensesInternal(),
+        _loadIncomesInternal(),
+        _loadBudgets(),
+        _loadQuickTemplates(),
+        _loadRecurringExpenses(),
+        _loadRecurringIncomes(),
+      ]);
       notifyListeners();
     });
   }
 
-  Future<void> bulkDeleteTransactionsByCategory(String category, String type) async {
+  Future<void> bulkDeleteTransactionsByCategory(
+    String category,
+    String type,
+  ) async {
     await _writeMutex.synchronized(() async {
-      await _db.bulkDeleteTransactionsByCategory(currentAccountId, category, type);
+      await _db.bulkDeleteTransactionsByCategory(
+        currentAccountId,
+        category,
+        type,
+      );
       await Future.wait([_loadExpensesInternal(), _loadIncomesInternal()]);
       notifyListeners();
     });
   }
 
-  Future<void> reassignCategoryAndDelete(int categoryId, String oldCategory, String newCategory, String type) async {
+  Future<void> reassignCategoryAndDelete(
+    int categoryId,
+    String oldCategory,
+    String newCategory,
+    String type,
+  ) async {
     await _writeMutex.synchronized(() async {
-      await _db.bulkReassignCategoryAndDelete(currentAccountId, categoryId, oldCategory, newCategory, type);
-      await Future.wait([_loadCategories(), _loadExpensesInternal(), _loadIncomesInternal(), _loadBudgets(), _loadQuickTemplates(), _loadRecurringExpenses(), _loadRecurringIncomes()]);
+      await _db.bulkReassignCategoryAndDelete(
+        currentAccountId,
+        categoryId,
+        oldCategory,
+        newCategory,
+        type,
+      );
+      await Future.wait([
+        _loadCategories(),
+        _loadExpensesInternal(),
+        _loadIncomesInternal(),
+        _loadBudgets(),
+        _loadQuickTemplates(),
+        _loadRecurringExpenses(),
+        _loadRecurringIncomes(),
+      ]);
       notifyListeners();
     });
   }
 
-  Future<void> deleteTransactionsAndCategory(int categoryId, String category, String type) async {
+  Future<void> deleteTransactionsAndCategory(
+    int categoryId,
+    String category,
+    String type,
+  ) async {
     await _writeMutex.synchronized(() async {
-      await _db.bulkDeleteTransactionsAndCategory(currentAccountId, categoryId, category, type);
-      await Future.wait([_loadCategories(), _loadExpensesInternal(), _loadIncomesInternal()]);
+      await _db.bulkDeleteTransactionsAndCategory(
+        currentAccountId,
+        categoryId,
+        category,
+        type,
+      );
+      await Future.wait([
+        _loadCategories(),
+        _loadExpensesInternal(),
+        _loadIncomesInternal(),
+      ]);
       notifyListeners();
     });
   }
 
   Map<String, int> getCategoryUsageInRecurring(String categoryName) {
     return {
-      'recurringExpenses': _recurringExpenses.where((r) => r.category == categoryName).length,
-      'recurringIncome': _recurringIncomes.where((r) => r.category == categoryName).length,
+      'recurringExpenses':
+          _recurringExpenses.where((r) => r.category == categoryName).length,
+      'recurringIncome':
+          _recurringIncomes.where((r) => r.category == categoryName).length,
     };
   }
 
-  Future<int> countTransactionsByCategory(String categoryName, String type) async {
+  Future<int> countTransactionsByCategory(
+    String categoryName,
+    String type,
+  ) async {
     if (type == 'expense') {
       return await _db.countExpensesByCategory(currentAccountId, categoryName);
     }
@@ -1482,26 +1800,52 @@ class AppState extends ChangeNotifier {
     // FIX: Validate category still exists
     String categoryToUse = template.category;
     if (template.type == 'expense') {
-      final categoryExists = expenseCategories.any((c) => c.name == template.category);
+      final categoryExists = expenseCategories.any(
+        (c) => c.name == template.category,
+      );
       if (!categoryExists) {
         // Try to find 'Uncategorized' or use first available category
         final uncategorized = expenseCategories.firstWhere(
           (c) => c.name.toLowerCase() == 'uncategorized',
-          orElse: () => expenseCategories.isNotEmpty ? expenseCategories.first : throw ArgumentError('No expense categories available'),
+          orElse: () => expenseCategories.isNotEmpty
+              ? expenseCategories.first
+              : throw ArgumentError('No expense categories available'),
         );
         categoryToUse = uncategorized.name;
       }
-      await addExpense(Expense(amount: template.amountDecimal, category: categoryToUse, description: template.name, date: date, accountId: currentAccountId, amountPaid: template.amountDecimal, paymentMethod: template.paymentMethod));
+      await addExpense(
+        Expense(
+          amount: template.amountDecimal,
+          category: categoryToUse,
+          description: template.name,
+          date: date,
+          accountId: currentAccountId,
+          amountPaid: template.amountDecimal,
+          paymentMethod: template.paymentMethod,
+        ),
+      );
     } else {
-      final categoryExists = incomeCategories.any((c) => c.name == template.category);
+      final categoryExists = incomeCategories.any(
+        (c) => c.name == template.category,
+      );
       if (!categoryExists) {
         final uncategorized = incomeCategories.firstWhere(
           (c) => c.name.toLowerCase() == 'uncategorized',
-          orElse: () => incomeCategories.isNotEmpty ? incomeCategories.first : throw ArgumentError('No income categories available'),
+          orElse: () => incomeCategories.isNotEmpty
+              ? incomeCategories.first
+              : throw ArgumentError('No income categories available'),
         );
         categoryToUse = uncategorized.name;
       }
-      await addIncome(Income(amount: template.amountDecimal, category: categoryToUse, description: template.name, date: date, accountId: currentAccountId));
+      await addIncome(
+        Income(
+          amount: template.amountDecimal,
+          category: categoryToUse,
+          description: template.name,
+          date: date,
+          accountId: currentAccountId,
+        ),
+      );
     }
   }
 
@@ -1572,7 +1916,9 @@ class AppState extends ChangeNotifier {
       final today = DateHelper.today();
       int totalCreated = 0;
       // FIX: Query only active recurring expenses from database to avoid iterating inactive ones
-      final activeRecurring = await _db.readActiveRecurringExpenses(currentAccountId);
+      final activeRecurring = await _db.readActiveRecurringExpenses(
+        currentAccountId,
+      );
       for (final recurring in activeRecurring) {
         // FIX: Wrap individual recurring item processing in try-catch
         // so one failure doesn't prevent processing of other items
@@ -1584,15 +1930,38 @@ class AppState extends ChangeNotifier {
           if (lastCreated != null && DateHelper.isSameDay(lastCreated, today)) {
             continue;
           }
-          final expensesToCreate = _processMonthlyRecurring<Expense>(lastCreated: lastCreated, dayOfMonth: recurring.dayOfMonth, now: today, createTransaction: (date) => Expense(amount: recurring.amountDecimal, category: recurring.category, description: recurring.description, date: date, accountId: recurring.accountId, amountPaid: Decimal.zero, paymentMethod: recurring.paymentMethod));
+          final expensesToCreate = _processMonthlyRecurring<Expense>(
+            lastCreated: lastCreated,
+            dayOfMonth: recurring.dayOfMonth,
+            now: today,
+            createTransaction: (date) => Expense(
+              amount: recurring.amountDecimal,
+              category: recurring.category,
+              description: recurring.description,
+              date: date,
+              accountId: recurring.accountId,
+              amountPaid: Decimal.zero,
+              paymentMethod: recurring.paymentMethod,
+            ),
+          );
           if (expensesToCreate.isNotEmpty) {
-            final updatedRecurring = recurring.copyWith(lastCreated: today, occurrenceCount: recurring.occurrenceCount + expensesToCreate.length);
-            await _db.createRecurringExpensesBatch(expenses: expensesToCreate, recurringToUpdate: updatedRecurring);
+            final updatedRecurring = recurring.copyWith(
+              lastCreated: today,
+              occurrenceCount:
+                  recurring.occurrenceCount + expensesToCreate.length,
+            );
+            await _db.createRecurringExpensesBatch(
+              expenses: expensesToCreate,
+              recurringToUpdate: updatedRecurring,
+            );
             totalCreated += expensesToCreate.length;
           }
         } catch (e) {
           // Log error but continue processing other recurring items
-          if (kDebugMode) debugPrint('Error processing recurring expense ${recurring.id}: $e');
+          if (kDebugMode)
+            debugPrint(
+              'Error processing recurring expense ${recurring.id}: $e',
+            );
         }
       }
       _lastAutoCreatedCount += totalCreated;
@@ -1608,7 +1977,9 @@ class AppState extends ChangeNotifier {
       final today = DateHelper.today();
       int totalCreated = 0;
       // FIX: Query only active recurring income from database to avoid iterating inactive ones
-      final activeRecurring = await _db.readActiveRecurringIncome(currentAccountId);
+      final activeRecurring = await _db.readActiveRecurringIncome(
+        currentAccountId,
+      );
       for (final recurring in activeRecurring) {
         // FIX: Wrap individual recurring item processing in try-catch
         // so one failure doesn't prevent processing of other items
@@ -1616,18 +1987,38 @@ class AppState extends ChangeNotifier {
           if (!recurring.shouldBeActive) {
             continue; // Double-check in case of race condition
           }
-          if (recurring.lastCreated != null && DateHelper.isSameDay(recurring.lastCreated!, today)) {
+          if (recurring.lastCreated != null &&
+              DateHelper.isSameDay(recurring.lastCreated!, today)) {
             continue;
           }
-          final incomesToCreate = _processMonthlyRecurring<Income>(lastCreated: recurring.lastCreated, dayOfMonth: recurring.dayOfMonth, now: today, createTransaction: (date) => Income(amount: recurring.amountDecimal, category: recurring.category, description: recurring.description, date: date, accountId: recurring.accountId));
+          final incomesToCreate = _processMonthlyRecurring<Income>(
+            lastCreated: recurring.lastCreated,
+            dayOfMonth: recurring.dayOfMonth,
+            now: today,
+            createTransaction: (date) => Income(
+              amount: recurring.amountDecimal,
+              category: recurring.category,
+              description: recurring.description,
+              date: date,
+              accountId: recurring.accountId,
+            ),
+          );
           if (incomesToCreate.isNotEmpty) {
-            final updatedRecurring = recurring.copyWith(lastCreated: today, occurrenceCount: recurring.occurrenceCount + incomesToCreate.length);
-            await _db.createRecurringIncomeBatch(incomes: incomesToCreate, recurringToUpdate: updatedRecurring);
+            final updatedRecurring = recurring.copyWith(
+              lastCreated: today,
+              occurrenceCount:
+                  recurring.occurrenceCount + incomesToCreate.length,
+            );
+            await _db.createRecurringIncomeBatch(
+              incomes: incomesToCreate,
+              recurringToUpdate: updatedRecurring,
+            );
             totalCreated += incomesToCreate.length;
           }
         } catch (e) {
           // Log error but continue processing other recurring items
-          if (kDebugMode) debugPrint('Error processing recurring income ${recurring.id}: $e');
+          if (kDebugMode)
+            debugPrint('Error processing recurring income ${recurring.id}: $e');
         }
       }
       _lastAutoCreatedCount += totalCreated;
@@ -1636,14 +2027,34 @@ class AppState extends ChangeNotifier {
     });
   }
 
-  List<T> _processMonthlyRecurring<T>({required DateTime? lastCreated, required int dayOfMonth, required DateTime now, required T Function(DateTime date) createTransaction}) {
+  List<T> _processMonthlyRecurring<T>({
+    required DateTime? lastCreated,
+    required int dayOfMonth,
+    required DateTime now,
+    required T Function(DateTime date) createTransaction,
+  }) {
     final List<T> transactionsToCreate = [];
-    DateTime currentMonth = lastCreated == null ? (now.day >= dayOfMonth ? DateHelper.startOfMonth(DateHelper.addMonths(now, 1)) : DateHelper.startOfMonth(now)) : DateHelper.addMonths(lastCreated, 1);
+    DateTime currentMonth = lastCreated == null
+        ? (now.day >= dayOfMonth
+            ? DateHelper.startOfMonth(DateHelper.addMonths(now, 1))
+            : DateHelper.startOfMonth(now))
+        : DateHelper.addMonths(lastCreated, 1);
     final currentMonthStart = DateHelper.startOfMonth(now);
     while (!DateHelper.normalize(currentMonth).isAfter(currentMonthStart)) {
-      if (DateHelper.normalize(currentMonth).isBefore(currentMonthStart) || now.day >= dayOfMonth) {
+      if (DateHelper.normalize(currentMonth).isBefore(currentMonthStart) ||
+          now.day >= dayOfMonth) {
         final lastDay = DateHelper.lastDayOfMonth(currentMonth).day;
-        transactionsToCreate.add(createTransaction(DateHelper.normalize(DateTime(currentMonth.year, currentMonth.month, dayOfMonth > lastDay ? lastDay : dayOfMonth))));
+        transactionsToCreate.add(
+          createTransaction(
+            DateHelper.normalize(
+              DateTime(
+                currentMonth.year,
+                currentMonth.month,
+                dayOfMonth > lastDay ? lastDay : dayOfMonth,
+              ),
+            ),
+          ),
+        );
       }
       currentMonth = DateHelper.addMonths(currentMonth, 1);
     }
@@ -1676,50 +2087,104 @@ class AppState extends ChangeNotifier {
     });
   }
 
-  Future<void> addTagToTransaction(int transactionId, String transactionType, int tagId) async {
+  Future<void> addTagToTransaction(
+    int transactionId,
+    String transactionType,
+    int tagId,
+  ) async {
     await _writeMutex.synchronized(() async {
       await _db.addTagToTransaction(transactionId, transactionType, tagId);
       notifyListeners();
     });
   }
 
-  Future<void> removeTagFromTransaction(int transactionId, String transactionType, int tagId) async {
+  Future<void> removeTagFromTransaction(
+    int transactionId,
+    String transactionType,
+    int tagId,
+  ) async {
     await _writeMutex.synchronized(() async {
       await _db.removeTagFromTransaction(transactionId, transactionType, tagId);
       notifyListeners();
     });
   }
 
-  Future<List<Tag>> getTagsForTransaction(int transactionId, String transactionType) async {
-    final tagMaps = await _db.getTagsForTransaction(transactionId, transactionType);
+  Future<List<Tag>> getTagsForTransaction(
+    int transactionId,
+    String transactionType,
+  ) async {
+    final tagMaps = await _db.getTagsForTransaction(
+      transactionId,
+      transactionType,
+    );
     return tagMaps.map((map) => Tag.fromMap(map)).toList();
   }
 
   // ============== SEARCH & ANALYTICS ==============
 
-  Future<Map<String, dynamic>> searchTransactionsUnified(String query, {int limit = 50, int offset = 0, String? category, String? startDate, String? endDate, String sortOrder = 'newest'}) async {
+  Future<Map<String, dynamic>> searchTransactionsUnified(
+    String query, {
+    int limit = 50,
+    int offset = 0,
+    String? category,
+    String? startDate,
+    String? endDate,
+    String sortOrder = 'newest',
+  }) async {
     if (query.isEmpty) {
       return {'expenses': <Expense>[], 'income': <Income>[], 'hasMore': false};
     }
-    return await _db.searchTransactionsUnified(currentAccountId, query, limit: limit, offset: offset, category: category, startDate: startDate, endDate: endDate, sortOrder: sortOrder);
+    return await _db.searchTransactionsUnified(
+      currentAccountId,
+      query,
+      limit: limit,
+      offset: offset,
+      category: category,
+      startDate: startDate,
+      endDate: endDate,
+      sortOrder: sortOrder,
+    );
   }
 
   Map<String, dynamic> getMonthOverMonthComparison() {
     final currentExpenses = getExpensesForSelectedMonth();
     final prevMonth = DateHelper.subtractMonths(_selectedMonth, 1);
-    final prevExpenses = _expenses.where((e) => _isSameMonth(e.date, prevMonth)).toList();
-    final currentTotal = currentExpenses.map((e) => e.amountDecimal).fold(Decimal.zero, (sum, a) => sum + a);
-    final prevTotal = prevExpenses.map((e) => e.amountDecimal).fold(Decimal.zero, (sum, a) => sum + a);
-    final change = prevTotal > Decimal.zero ? (((currentTotal - prevTotal) / prevTotal).toDecimal(scaleOnInfinitePrecision: 4) * Decimal.fromInt(100)) : Decimal.zero;
+    final prevExpenses =
+        _expenses.where((e) => _isSameMonth(e.date, prevMonth)).toList();
+    final currentTotal = currentExpenses
+        .map((e) => e.amountDecimal)
+        .fold(Decimal.zero, (sum, a) => sum + a);
+    final prevTotal = prevExpenses
+        .map((e) => e.amountDecimal)
+        .fold(Decimal.zero, (sum, a) => sum + a);
+    final change = prevTotal > Decimal.zero
+        ? (((currentTotal - prevTotal) / prevTotal).toDecimal(
+              scaleOnInfinitePrecision: 4,
+            ) *
+            Decimal.fromInt(100))
+        : Decimal.zero;
 
     // Calculate category-by-category comparison
     final Map<String, Map<String, double>> categoryComparison = {};
-    final allCategories = {...currentExpenses.map((e) => e.category), ...prevExpenses.map((e) => e.category)};
+    final allCategories = {
+      ...currentExpenses.map((e) => e.category),
+      ...prevExpenses.map((e) => e.category),
+    };
 
     for (final category in allCategories) {
-      final currentCategoryTotal = currentExpenses.where((e) => e.category == category).map((e) => e.amountDecimal).fold(Decimal.zero, (sum, a) => sum + a);
-      final prevCategoryTotal = prevExpenses.where((e) => e.category == category).map((e) => e.amountDecimal).fold(Decimal.zero, (sum, a) => sum + a);
-      final categoryChange = prevCategoryTotal > Decimal.zero ? (((currentCategoryTotal - prevCategoryTotal) / prevCategoryTotal).toDecimal(scaleOnInfinitePrecision: 4) * Decimal.fromInt(100)) : Decimal.zero;
+      final currentCategoryTotal = currentExpenses
+          .where((e) => e.category == category)
+          .map((e) => e.amountDecimal)
+          .fold(Decimal.zero, (sum, a) => sum + a);
+      final prevCategoryTotal = prevExpenses
+          .where((e) => e.category == category)
+          .map((e) => e.amountDecimal)
+          .fold(Decimal.zero, (sum, a) => sum + a);
+      final categoryChange = prevCategoryTotal > Decimal.zero
+          ? (((currentCategoryTotal - prevCategoryTotal) / prevCategoryTotal)
+                  .toDecimal(scaleOnInfinitePrecision: 4) *
+              Decimal.fromInt(100))
+          : Decimal.zero;
 
       categoryComparison[category] = {
         'current': _decimalToDouble(currentCategoryTotal),
@@ -1737,13 +2202,28 @@ class AppState extends ChangeNotifier {
   }
 
   Map<String, dynamic> getIncomeMonthOverMonthComparison() {
-    final currentIncome = _incomes.where((i) => _isSameMonth(i.date, _selectedMonth)).toList();
+    final currentIncome =
+        _incomes.where((i) => _isSameMonth(i.date, _selectedMonth)).toList();
     final prevMonth = DateHelper.subtractMonths(_selectedMonth, 1);
-    final prevIncome = _incomes.where((i) => _isSameMonth(i.date, prevMonth)).toList();
-    final currentTotal = currentIncome.map((i) => i.amountDecimal).fold(Decimal.zero, (sum, a) => sum + a);
-    final prevTotal = prevIncome.map((i) => i.amountDecimal).fold(Decimal.zero, (sum, a) => sum + a);
-    final change = prevTotal > Decimal.zero ? (((currentTotal - prevTotal) / prevTotal).toDecimal(scaleOnInfinitePrecision: 4) * Decimal.fromInt(100)) : Decimal.zero;
-    return {'currentTotal': _decimalToDouble(currentTotal), 'previousTotal': _decimalToDouble(prevTotal), 'percentChange': _decimalToDouble(change)};
+    final prevIncome =
+        _incomes.where((i) => _isSameMonth(i.date, prevMonth)).toList();
+    final currentTotal = currentIncome
+        .map((i) => i.amountDecimal)
+        .fold(Decimal.zero, (sum, a) => sum + a);
+    final prevTotal = prevIncome
+        .map((i) => i.amountDecimal)
+        .fold(Decimal.zero, (sum, a) => sum + a);
+    final change = prevTotal > Decimal.zero
+        ? (((currentTotal - prevTotal) / prevTotal).toDecimal(
+              scaleOnInfinitePrecision: 4,
+            ) *
+            Decimal.fromInt(100))
+        : Decimal.zero;
+    return {
+      'currentTotal': _decimalToDouble(currentTotal),
+      'previousTotal': _decimalToDouble(prevTotal),
+      'percentChange': _decimalToDouble(change),
+    };
   }
 
   Future<List<Map<String, dynamic>>> getSpendingTrends({int months = 6}) async {
@@ -1751,13 +2231,24 @@ class AppState extends ChangeNotifier {
     // FIX: Use selected month instead of today to support viewing future/past month analytics
     final referenceMonth = _selectedMonth;
     for (int i = months - 1; i >= 0; i--) {
-      final month = DateHelper.startOfMonth(DateHelper.subtractMonths(referenceMonth, i));
+      final month = DateHelper.startOfMonth(
+        DateHelper.subtractMonths(referenceMonth, i),
+      );
       await ensureMonthLoaded(month);
       final monthExpenses = _expenses.where((e) => _isSameMonth(e.date, month));
       final monthIncome = _incomes.where((i) => _isSameMonth(i.date, month));
-      final expTotal = monthExpenses.map((e) => e.amountDecimal).fold(Decimal.zero, (sum, a) => sum + a);
-      final incTotal = monthIncome.map((i) => i.amountDecimal).fold(Decimal.zero, (sum, a) => sum + a);
-      trends.add({'month': month, 'expenses': _decimalToDouble(expTotal), 'income': _decimalToDouble(incTotal), 'savings': _decimalToDouble(incTotal - expTotal)});
+      final expTotal = monthExpenses
+          .map((e) => e.amountDecimal)
+          .fold(Decimal.zero, (sum, a) => sum + a);
+      final incTotal = monthIncome
+          .map((i) => i.amountDecimal)
+          .fold(Decimal.zero, (sum, a) => sum + a);
+      trends.add({
+        'month': month,
+        'expenses': _decimalToDouble(expTotal),
+        'income': _decimalToDouble(incTotal),
+        'savings': _decimalToDouble(incTotal - expTotal),
+      });
     }
     return trends;
   }
@@ -1803,34 +2294,141 @@ class AppState extends ChangeNotifier {
 
   // ============== SETTINGS & FILTERS ==============
 
-  Future<void> toggleDarkMode() async { _isDarkMode = !_isDarkMode; await SettingsHelper.setDarkMode(_isDarkMode); notifyListeners(); }
-  Future<void> setThemeMode(String mode) async { _themeMode = mode; _isDarkMode = mode == 'dark'; await SettingsHelper.setThemeMode(mode); notifyListeners(); }
-  Future<void> changeCurrency(String code) async { await _writeMutex.synchronized(() async { _currencyCode = code; if (_currentAccount != null) await _db.updateAccount(_currentAccount!.copyWith(currencyCode: code)); notifyListeners(); }); }
-  Future<void> toggleBillReminders(bool value) async { _billRemindersEnabled = value; await SettingsHelper.setBillReminders(value); notifyListeners(); }
-  Future<void> toggleBudgetAlerts(bool value) async { _budgetAlertsEnabled = value; await SettingsHelper.setBudgetAlerts(value); notifyListeners(); }
-  Future<void> toggleMonthlySummary(bool value) async { _monthlySummaryEnabled = value; await SettingsHelper.setMonthlySummary(value); notifyListeners(); }
-  Future<void> toggleShowTransactionColors(bool value) async { _showTransactionColors = value; await SettingsHelper.setShowTransactionColors(value); notifyListeners(); }
-  Future<void> setTransactionColorIntensity(double value) async { _transactionColorIntensity = value.clamp(0.0, 1.0); await SettingsHelper.setTransactionColorIntensity(_transactionColorIntensity); notifyListeners(); }
-  Future<void> setReminderTime(TimeOfDay time) async { _reminderTime = time; await SettingsHelper.setReminderHour(time.hour); await SettingsHelper.setReminderMinute(time.minute); notifyListeners(); }
+  Future<void> toggleDarkMode() async {
+    _isDarkMode = !_isDarkMode;
+    await SettingsHelper.setDarkMode(_isDarkMode);
+    notifyListeners();
+  }
 
-  void setFilterCategory(String category) { _filterCategory = category; _invalidateExpenseCache(); notifyListeners(); }
-  void setDateRange(DateTime? start, DateTime? end) { _dateRange = (start != null && end != null) ? DateTimeRange(start: start, end: end) : null; _invalidateExpenseCache(); notifyListeners(); }
-  void setAmountRange(double? min, double? max) { _minAmount = min; _maxAmount = max; _invalidateExpenseCache(); notifyListeners(); }
-  void setPaidStatusFilter(bool? isPaid) { _paidStatusFilter = isPaid; _invalidateExpenseCache(); notifyListeners(); }
-  void clearFilters() { _filterCategory = 'All'; _dateRange = null; _minAmount = null; _maxAmount = null; _paidStatusFilter = null; _invalidateExpenseCache(); notifyListeners(); }
+  Future<void> setThemeMode(String mode) async {
+    _themeMode = mode;
+    _isDarkMode = mode == 'dark';
+    await SettingsHelper.setThemeMode(mode);
+    notifyListeners();
+  }
+
+  Future<void> changeCurrency(String code) async {
+    await _writeMutex.synchronized(() async {
+      _currencyCode = code;
+      final acct = _currentAccount;
+      if (acct != null) {
+        await _db.updateAccount(acct.copyWith(currencyCode: code));
+      }
+      notifyListeners();
+    });
+  }
+
+  Future<void> toggleBillReminders(bool value) async {
+    _billRemindersEnabled = value;
+    await SettingsHelper.setBillReminders(value);
+    notifyListeners();
+  }
+
+  Future<void> toggleBudgetAlerts(bool value) async {
+    _budgetAlertsEnabled = value;
+    await SettingsHelper.setBudgetAlerts(value);
+    notifyListeners();
+  }
+
+  Future<void> toggleMonthlySummary(bool value) async {
+    _monthlySummaryEnabled = value;
+    await SettingsHelper.setMonthlySummary(value);
+    notifyListeners();
+  }
+
+  Future<void> toggleShowTransactionColors(bool value) async {
+    _showTransactionColors = value;
+    await SettingsHelper.setShowTransactionColors(value);
+    notifyListeners();
+  }
+
+  Future<void> setTransactionColorIntensity(double value) async {
+    _transactionColorIntensity = value.clamp(0.0, 1.0);
+    await SettingsHelper.setTransactionColorIntensity(
+      _transactionColorIntensity,
+    );
+    notifyListeners();
+  }
+
+  Future<void> setReminderTime(TimeOfDay time) async {
+    _reminderTime = time;
+    await SettingsHelper.setReminderHour(time.hour);
+    await SettingsHelper.setReminderMinute(time.minute);
+    notifyListeners();
+  }
+
+  void setFilterCategory(String category) {
+    _filterCategory = category;
+    _invalidateExpenseCache();
+    notifyListeners();
+  }
+
+  void setDateRange(DateTime? start, DateTime? end) {
+    _dateRange = (start != null && end != null)
+        ? DateTimeRange(start: start, end: end)
+        : null;
+    _invalidateExpenseCache();
+    notifyListeners();
+  }
+
+  void setAmountRange(double? min, double? max) {
+    _minAmount = min;
+    _maxAmount = max;
+    _invalidateExpenseCache();
+    notifyListeners();
+  }
+
+  void setPaidStatusFilter(bool? isPaid) {
+    _paidStatusFilter = isPaid;
+    _invalidateExpenseCache();
+    notifyListeners();
+  }
+
+  void clearFilters() {
+    _filterCategory = 'All';
+    _dateRange = null;
+    _minAmount = null;
+    _maxAmount = null;
+    _paidStatusFilter = null;
+    _invalidateExpenseCache();
+    notifyListeners();
+  }
 
   // ============== CALCULATIONS & ALIASES ==============
 
-  double get totalExpensesThisMonth => _decimalToDouble(getExpensesForSelectedMonth().map((e) => e.amountDecimal).fold(Decimal.zero, (sum, amount) => sum + amount));
-  double get totalIncomeThisMonth => _decimalToDouble(_incomes.where((i) => _isSameMonth(i.date, _selectedMonth)).map((i) => i.amountDecimal).fold(Decimal.zero, (sum, amount) => sum + amount));
+  double get totalExpensesThisMonth => _decimalToDouble(
+        getExpensesForSelectedMonth()
+            .map((e) => e.amountDecimal)
+            .fold(Decimal.zero, (sum, amount) => sum + amount),
+      );
+  double get totalIncomeThisMonth => _decimalToDouble(
+        _incomes
+            .where((i) => _isSameMonth(i.date, _selectedMonth))
+            .map((i) => i.amountDecimal)
+            .fold(Decimal.zero, (sum, amount) => sum + amount),
+      );
   double get balanceThisMonth => totalIncomeThisMonth - totalExpensesThisMonth;
 
-  double get totalPaid => _decimalToDouble(getExpensesForSelectedMonth().map((e) => e.amountPaidDecimal).fold(Decimal.zero, (sum, amount) => sum + amount));
-  double get totalRemaining => _decimalToDouble(getExpensesForSelectedMonth().map((e) => e.amountDecimal - e.amountPaidDecimal).fold(Decimal.zero, (sum, amount) => sum + amount));
+  double get totalPaid => _decimalToDouble(
+        getExpensesForSelectedMonth()
+            .map((e) => e.amountPaidDecimal)
+            .fold(Decimal.zero, (sum, amount) => sum + amount),
+      );
+  double get totalRemaining => _decimalToDouble(
+        getExpensesForSelectedMonth()
+            .map((e) => e.amountDecimal - e.amountPaidDecimal)
+            .fold(Decimal.zero, (sum, amount) => sum + amount),
+      );
   double get availableIncomeBalance => totalIncomeThisMonth - totalPaid;
   double getAvailableIncomeForMonth(DateTime month) {
-    final incTotal = _incomes.where((i) => _isSameMonth(i.date, month)).map((i) => i.amountDecimal).fold(Decimal.zero, (sum, a) => sum + a);
-    final expPaid = _expenses.where((e) => _isSameMonth(e.date, month)).map((e) => e.amountPaidDecimal).fold(Decimal.zero, (sum, a) => sum + a);
+    final incTotal = _incomes
+        .where((i) => _isSameMonth(i.date, month))
+        .map((i) => i.amountDecimal)
+        .fold(Decimal.zero, (sum, a) => sum + a);
+    final expPaid = _expenses
+        .where((e) => _isSameMonth(e.date, month))
+        .map((e) => e.amountPaidDecimal)
+        .fold(Decimal.zero, (sum, a) => sum + a);
     return _decimalToDouble(incTotal - expPaid);
   }
 
@@ -1843,7 +2441,13 @@ class AppState extends ChangeNotifier {
         continue;
       }
       final lastDay = DateHelper.lastDayOfMonth(_selectedMonth).day;
-      final due = DateHelper.normalize(DateTime(_selectedMonth.year, _selectedMonth.month, r.dayOfMonth > lastDay ? lastDay : r.dayOfMonth));
+      final due = DateHelper.normalize(
+        DateTime(
+          _selectedMonth.year,
+          _selectedMonth.month,
+          r.dayOfMonth > lastDay ? lastDay : r.dayOfMonth,
+        ),
+      );
       if (!due.isBefore(today)) {
         // Calculate days until due
         final daysUntilDue = DateHelper.daysBetween(today, due);
@@ -1856,7 +2460,9 @@ class AppState extends ChangeNotifier {
         });
       }
     }
-    upcoming.sort((a, b) => (a['dueDate'] as DateTime).compareTo(b['dueDate'] as DateTime));
+    upcoming.sort(
+      (a, b) => (a['dueDate'] as DateTime).compareTo(b['dueDate'] as DateTime),
+    );
     return upcoming;
   }
 
@@ -1867,25 +2473,45 @@ class AppState extends ChangeNotifier {
   Map<String, double> getCategorySpending() {
     final Map<String, Decimal> spending = {};
     for (final e in getExpensesForSelectedMonth()) {
-      spending[e.category] = (spending[e.category] ?? Decimal.zero) + e.amountDecimal;
+      spending[e.category] =
+          (spending[e.category] ?? Decimal.zero) + e.amountDecimal;
     }
     return spending.map((k, v) => MapEntry(k, _decimalToDouble(v)));
   }
 
-  List<String> get allExpenseCategoryNames => ({...expenseCategories.map((c) => c.name), ..._expenses.map((e) => e.category)}.toList()..sort());
-  List<String> get allIncomeCategoryNames => ({...incomeCategories.map((c) => c.name), ..._incomes.map((i) => i.category)}.toList()..sort());
+  List<String> get allExpenseCategoryNames => ({
+        ...expenseCategories.map((c) => c.name),
+        ..._expenses.map((e) => e.category),
+      }.toList()
+        ..sort());
+  List<String> get allIncomeCategoryNames => ({
+        ...incomeCategories.map((c) => c.name),
+        ..._incomes.map((i) => i.category),
+      }.toList()
+        ..sort());
 
-  Future<List<Expense>> getAllExpensesForBackup() async => await _db.readAllExpenses(currentAccountId);
-  Future<List<Income>> getAllIncomesForBackup() async => await _db.readAllIncome(currentAccountId);
+  Future<List<Expense>> getAllExpensesForBackup() async =>
+      await _db.readAllExpenses(currentAccountId);
+  Future<List<Income>> getAllIncomesForBackup() async =>
+      await _db.readAllIncome(currentAccountId);
   Future<void> closeDatabase() async {
-    while (_processingRecurring) {
+    int retries = 0;
+    while (_processingRecurring && retries < 50) {
       await Future.delayed(const Duration(milliseconds: 100));
+      retries++;
     }
-    await _db.closeDatabase();
+    await _writeMutex.synchronized(() async {
+      await _db.closeDatabase();
+    });
   }
-  Future<void> reloadAfterRestore() async { await closeDatabase(); await loadData(); }
 
-  bool _isSameMonth(DateTime a, DateTime b) => a.year == b.year && a.month == b.month;
+  Future<void> reloadAfterRestore() async {
+    await closeDatabase();
+    await loadData();
+  }
+
+  bool _isSameMonth(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month;
   List<Tag> get allTags => _tags.map((map) => Tag.fromMap(map)).toList();
 
   // ============== PIN LOCK FUNCTIONALITY ==============

@@ -10,20 +10,27 @@ class BudgetScreen extends StatelessWidget {
   const BudgetScreen({super.key});
 
   // FIX #10: Extract magic numbers to named constants for clarity
-  static const double _baseToolbarHeight = 56.0;  // Material default toolbar height
-  static const double _textScaleMultiplier = 14.0; // Base font size for scaling calculation
-  static const double _textScaleFactor = 2.0; // Extra height per scaled text unit
+  static const double _baseToolbarHeight =
+      56.0; // Material default toolbar height
+  static const double _textScaleMultiplier =
+      14.0; // Base font size for scaling calculation
+  static const double _textScaleFactor =
+      2.0; // Extra height per scaled text unit
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // Optimize: Only watch the selected month name for display
-    final selectedMonthName = context.select<AppState, String>((s) => s.selectedMonthName);
-    final appState = context.read<AppState>(); // Read for one-time access in callbacks
+    final selectedMonthName = context.select<AppState, String>(
+      (s) => s.selectedMonthName,
+    );
+    final appState =
+        context.read<AppState>(); // Read for one-time access in callbacks
 
     // Calculate accessible toolbar height based on text scale
     final textScaler = MediaQuery.textScalerOf(context);
-    final toolbarHeight = _baseToolbarHeight + (textScaler.scale(_textScaleMultiplier) * _textScaleFactor);
+    final toolbarHeight = _baseToolbarHeight +
+        (textScaler.scale(_textScaleMultiplier) * _textScaleFactor);
 
     return Scaffold(
       backgroundColor: theme.brightness == Brightness.dark
@@ -52,13 +59,17 @@ class BudgetScreen extends StatelessWidget {
                 onPressed: appState.goToPreviousMonth,
               ),
               Semantics(
-                label: 'Current month: $selectedMonthName. Tap to select month, long press for today.',
+                label:
+                    'Current month: $selectedMonthName. Tap to select month, long press for today.',
                 button: true,
                 child: GestureDetector(
                   onTap: () => _showMonthPicker(context, appState, theme),
                   onLongPress: () => context.read<AppState>().goToToday(),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(8),
@@ -117,135 +128,164 @@ class BudgetScreen extends StatelessWidget {
     );
   }
 
-  void _showMonthPicker(BuildContext context, AppState appState, ThemeData theme) {
+  void _showMonthPicker(
+    BuildContext context,
+    AppState appState,
+    ThemeData theme,
+  ) {
+    var displayYear = appState.selectedMonth.year;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => Container(
-        height: 350,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left),
-                    onPressed: () {
-                      appState.goToMonth(DateTime(appState.selectedMonth.year - 1, appState.selectedMonth.month));
-                    },
-                  ),
-                  Text(
-                    '${appState.selectedMonth.year}',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: 350,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: () {
+                        setModalState(() => displayYear--);
+                      },
                     ),
-                  ),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.chevron_right),
-                        onPressed: () {
-                          appState.goToMonth(DateTime(appState.selectedMonth.year + 1, appState.selectedMonth.month));
-                        },
+                    Text(
+                      '$displayYear',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
                       ),
-                      TextButton(
-                        onPressed: () {
-                          appState.goToToday();
-                          Navigator.pop(context);
-                        },
-                        child: const Text('Today'),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  childAspectRatio: 2,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          onPressed: () {
+                            setModalState(() => displayYear++);
+                          },
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            appState.goToToday();
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Today'),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                itemCount: 12,
-                itemBuilder: (context, index) {
-                  final month = DateTime(appState.selectedMonth.year, index + 1);
-                  final isSelected = month.month == appState.selectedMonth.month;
-                  // FIX #13: Indicate current month
-                  final now = DateTime.now();
-                  final isCurrentMonth = month.year == now.year && month.month == now.month;
-                  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+              ),
+              Expanded(
+                child: GridView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    childAspectRatio: 2,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
+                  itemCount: 12,
+                  itemBuilder: (context, index) {
+                    final month = DateTime(
+                      displayYear,
+                      index + 1,
+                    );
+                    final isSelected =
+                        month.year == appState.selectedMonth.year &&
+                            month.month == appState.selectedMonth.month;
+                    // FIX #13: Indicate current month
+                    final now = DateTime.now();
+                    final isCurrentMonth =
+                        month.year == now.year && month.month == now.month;
+                    const months = [
+                      'Jan',
+                      'Feb',
+                      'Mar',
+                      'Apr',
+                      'May',
+                      'Jun',
+                      'Jul',
+                      'Aug',
+                      'Sep',
+                      'Oct',
+                      'Nov',
+                      'Dec',
+                    ];
 
-                  return InkWell(
-                    onTap: () {
-                      appState.goToMonth(month);
-                      Navigator.pop(context);
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
-                        // FIX #13: Add border for current month
-                        border: isCurrentMonth && !isSelected
-                            ? Border.all(
-                                color: theme.colorScheme.primary,
-                                width: 2,
-                              )
-                            : null,
-                      ),
-                      child: Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // FIX #13: Show dot indicator for current month
-                            if (isCurrentMonth && !isSelected) ...[
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
+                    return InkWell(
+                      onTap: () {
+                        appState.goToMonth(month);
+                        Navigator.pop(context);
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(12),
+                          // FIX #13: Add border for current month
+                          border: isCurrentMonth && !isSelected
+                              ? Border.all(
                                   color: theme.colorScheme.primary,
-                                  shape: BoxShape.circle,
+                                  width: 2,
+                                )
+                              : null,
+                        ),
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // FIX #13: Show dot indicator for current month
+                              if (isCurrentMonth && !isSelected) ...[
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                              ],
+                              Text(
+                                months[index],
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? theme.colorScheme.onPrimary
+                                      : isCurrentMonth
+                                          ? theme.colorScheme.primary
+                                          : theme.colorScheme.onSurface,
+                                  fontWeight: isSelected || isCurrentMonth
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
                                 ),
                               ),
-                              const SizedBox(width: 4),
                             ],
-                            Text(
-                              months[index],
-                              style: TextStyle(
-                                color: isSelected
-                                    ? theme.colorScheme.onPrimary
-                                    : isCurrentMonth
-                                        ? theme.colorScheme.primary
-                                        : theme.colorScheme.onSurface,
-                                fontWeight: isSelected || isCurrentMonth ? FontWeight.w600 : FontWeight.normal,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -276,7 +316,8 @@ class _MonthlySummaryCard extends StatelessWidget {
     final categoryBudgetTotal = appState.totalCategoryBudget;
 
     // Calculate budget progress
-    final budgetProgress = totalBudget > 0 ? (totalSpent / totalBudget).clamp(0.0, 1.5) : 0.0;
+    final budgetProgress =
+        totalBudget > 0 ? (totalSpent / totalBudget).clamp(0.0, 1.5) : 0.0;
     final budgetPercentage = (budgetProgress * 100).clamp(0.0, 150.0);
 
     // Determine status color based on budget usage
@@ -341,7 +382,8 @@ class _MonthlySummaryCard extends StatelessWidget {
               Expanded(
                 child: _SummaryItem(
                   label: 'Income',
-                  value: '$currency${appState.formatAmount(totalIncome, decimalDigits: 0)}',
+                  value:
+                      '$currency${appState.formatAmount(totalIncome, decimalDigits: 0)}',
                   valueColor: Colors.green,
                   icon: Icons.arrow_downward,
                 ),
@@ -355,9 +397,12 @@ class _MonthlySummaryCard extends StatelessWidget {
                 Expanded(
                   child: _SummaryItem(
                     label: 'Carryover',
-                    value: '${carryover >= 0 ? '+' : ''}$currency${appState.formatAmount(carryover, decimalDigits: 0)}',
+                    value:
+                        '${carryover >= 0 ? '+' : ''}$currency${appState.formatAmount(carryover, decimalDigits: 0)}',
                     valueColor: carryover >= 0 ? Colors.blue : Colors.red,
-                    icon: carryover >= 0 ? Icons.trending_up : Icons.trending_down,
+                    icon: carryover >= 0
+                        ? Icons.trending_up
+                        : Icons.trending_down,
                   ),
                 ),
               ],
@@ -369,7 +414,9 @@ class _MonthlySummaryCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: (carryover >= 0 ? Colors.blue : Colors.red).withValues(alpha: 0.1),
+                color: (carryover >= 0 ? Colors.blue : Colors.red).withValues(
+                  alpha: 0.1,
+                ),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -400,7 +447,15 @@ class _MonthlySummaryCard extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Overall Monthly Budget Section
-          _buildOverallBudgetSection(context, theme, appState, currency, hasOverallBudget, totalBudget, categoryBudgetTotal),
+          _buildOverallBudgetSection(
+            context,
+            theme,
+            appState,
+            currency,
+            hasOverallBudget,
+            totalBudget,
+            categoryBudgetTotal,
+          ),
 
           const SizedBox(height: 16),
 
@@ -576,7 +631,10 @@ class _MonthlySummaryCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   InkWell(
-                    onTap: () => _showSetOverallBudgetDialog(context, appState.overallMonthlyBudget),
+                    onTap: () => _showSetOverallBudgetDialog(
+                      context,
+                      appState.overallMonthlyBudget,
+                    ),
                     borderRadius: BorderRadius.circular(4),
                     child: Padding(
                       padding: const EdgeInsets.all(4),
@@ -656,7 +714,9 @@ class _MonthlySummaryCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                color: theme.colorScheme.primaryContainer.withValues(
+                  alpha: 0.3,
+                ),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: theme.colorScheme.primary.withValues(alpha: 0.3),
@@ -665,11 +725,7 @@ class _MonthlySummaryCard extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.add,
-                    size: 16,
-                    color: theme.colorScheme.primary,
-                  ),
+                  Icon(Icons.add, size: 16, color: theme.colorScheme.primary),
                   const SizedBox(width: 6),
                   Text(
                     'Set overall monthly budget',
@@ -741,12 +797,16 @@ class _MonthlySummaryCard extends StatelessWidget {
     }
   }
 
-  void _showSetOverallBudgetDialog(BuildContext context, double? currentBudget) {
+  void _showSetOverallBudgetDialog(
+    BuildContext context,
+    double? currentBudget,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => _SetOverallBudgetDialog(currentBudget: currentBudget),
+      builder: (context) =>
+          _SetOverallBudgetDialog(currentBudget: currentBudget),
     );
   }
 
@@ -785,7 +845,8 @@ class _SetOverallBudgetDialog extends StatefulWidget {
   const _SetOverallBudgetDialog({this.currentBudget});
 
   @override
-  State<_SetOverallBudgetDialog> createState() => _SetOverallBudgetDialogState();
+  State<_SetOverallBudgetDialog> createState() =>
+      _SetOverallBudgetDialogState();
 }
 
 class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
@@ -831,7 +892,9 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                widget.currentBudget != null ? 'Edit Monthly Budget' : 'Set Monthly Budget',
+                widget.currentBudget != null
+                    ? 'Edit Monthly Budget'
+                    : 'Set Monthly Budget',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w400,
@@ -850,7 +913,9 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: 0.3,
+                  ),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -876,7 +941,9 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
               const SizedBox(height: 24),
               TextFormField(
                 controller: _amountController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 inputFormatters: [CurrencyHelper.decimalInputFormatter()],
                 autofocus: true,
                 decoration: InputDecoration(
@@ -1013,7 +1080,8 @@ class _BudgetList extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // Optimize: Select only budgets and currency, read appState for methods
-    final budgetsAndCurrency = context.select<AppState, (List<dynamic>, String)>(
+    final budgetsAndCurrency =
+        context.select<AppState, (List<dynamic>, String)>(
       (s) => (s.currentMonthBudgets, s.currency),
     );
     final budgets = budgetsAndCurrency.$1;
@@ -1044,16 +1112,22 @@ class _BudgetList extends StatelessWidget {
         IconData statusIcon = Icons.check_circle;
         if (percentage >= 95) {
           statusColor = Colors.red;
-          statusIcon = Icons.error; // CRITICAL FIX: Add icon for color-blind users
+          statusIcon =
+              Icons.error; // CRITICAL FIX: Add icon for color-blind users
         } else if (percentage >= 85) {
           statusColor = Colors.orange;
-          statusIcon = Icons.warning; // CRITICAL FIX: Add icon for color-blind users
+          statusIcon =
+              Icons.warning; // CRITICAL FIX: Add icon for color-blind users
         } else if (percentage >= 75) {
           statusColor = Colors.amber;
-          statusIcon = Icons.info; // CRITICAL FIX: Add icon for color-blind users
+          statusIcon =
+              Icons.info; // CRITICAL FIX: Add icon for color-blind users
         }
 
-        final statusLabel = AccessibilityHelper.getBudgetStatusLabel(percentage, budget.category);
+        final statusLabel = AccessibilityHelper.getBudgetStatusLabel(
+          percentage,
+          budget.category,
+        );
 
         return Semantics(
           label: statusLabel,
@@ -1091,7 +1165,11 @@ class _BudgetList extends StatelessWidget {
                         AccessibilityHelper.semanticIconButton(
                           icon: Icons.edit_outlined,
                           label: 'Edit ${budget.category} budget',
-                          onPressed: () => _showEditBudget(context, budget.category, budget.amount),
+                          onPressed: () => _showEditBudget(
+                            context,
+                            budget.category,
+                            budget.amount,
+                          ),
                           size: 18,
                         ),
                         const SizedBox(width: 12),
@@ -1117,7 +1195,10 @@ class _BudgetList extends StatelessWidget {
                 const SizedBox(height: 12),
                 // FIX: Stacked progress bar showing actual (solid) and projected (lighter)
                 Semantics(
-                  label: AccessibilityHelper.getBudgetStatusLabel(percentage, budget.category),
+                  label: AccessibilityHelper.getBudgetStatusLabel(
+                    percentage,
+                    budget.category,
+                  ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: SizedBox(
@@ -1131,7 +1212,10 @@ class _BudgetList extends StatelessWidget {
                           // Projected (total) - lighter/semi-transparent
                           if (projectedSpent > 0)
                             FractionallySizedBox(
-                              widthFactor: (spent / budget.amount).clamp(0.0, 1.0),
+                              widthFactor: (spent / budget.amount).clamp(
+                                0.0,
+                                1.0,
+                              ),
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: statusColor.withValues(alpha: 0.3),
@@ -1144,10 +1228,11 @@ class _BudgetList extends StatelessWidget {
                             ),
                           // Actual - solid color
                           FractionallySizedBox(
-                            widthFactor: (actualSpent / budget.amount).clamp(0.0, 1.0),
-                            child: Container(
-                              color: statusColor,
+                            widthFactor: (actualSpent / budget.amount).clamp(
+                              0.0,
+                              1.0,
                             ),
+                            child: Container(color: statusColor),
                           ),
                         ],
                       ),
@@ -1158,7 +1243,8 @@ class _BudgetList extends StatelessWidget {
                 // FIX: Show breakdown of actual vs projected
                 if (projectedSpent > 0)
                   Semantics(
-                    label: 'Breakdown: Actual spending $currency${actualSpent.toStringAsFixed(0)}, Projected spending $currency${projectedSpent.toStringAsFixed(0)}',
+                    label:
+                        'Breakdown: Actual spending $currency${actualSpent.toStringAsFixed(0)}, Projected spending $currency${projectedSpent.toStringAsFixed(0)}',
                     child: Row(
                       children: [
                         ExcludeSemantics(
@@ -1207,7 +1293,8 @@ class _BudgetList extends StatelessWidget {
                   ),
                 const SizedBox(height: 12),
                 Semantics(
-                  label: '${percentage.toStringAsFixed(0)}% used, ${remaining >= 0 ? '${appState.currency}${remaining.toStringAsFixed(0)} remaining' : '${appState.currency}${(-remaining).toStringAsFixed(0)} over budget'}',
+                  label:
+                      '${percentage.toStringAsFixed(0)}% used, ${remaining >= 0 ? '${appState.currency}${remaining.toStringAsFixed(0)} remaining' : '${appState.currency}${(-remaining).toStringAsFixed(0)} over budget'}',
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -1241,7 +1328,11 @@ class _BudgetList extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState(ThemeData theme, String monthName, BuildContext context) {
+  Widget _buildEmptyState(
+    ThemeData theme,
+    String monthName,
+    BuildContext context,
+  ) {
     return GestureDetector(
       onTap: () => BudgetScreen.showAddBudget(context),
       child: Container(
@@ -1349,7 +1440,9 @@ class _BudgetList extends StatelessWidget {
     final appState = context.read<AppState>();
 
     // Find the budget to show details in the warning
-    final budgetIndex = appState.currentMonthBudgets.indexWhere((b) => b.id == id);
+    final budgetIndex = appState.currentMonthBudgets.indexWhere(
+      (b) => b.id == id,
+    );
     if (budgetIndex == -1) return; // Budget not found
     final budget = appState.currentMonthBudgets[budgetIndex];
     final breakdown = appState.getBudgetSpentBreakdown(budget.category);
@@ -1392,10 +1485,7 @@ class _AddBudgetDialog extends StatefulWidget {
   final String? initialCategory;
   final String? initialAmount;
 
-  const _AddBudgetDialog({
-    this.initialCategory,
-    this.initialAmount,
-  });
+  const _AddBudgetDialog({this.initialCategory, this.initialAmount});
 
   @override
   State<_AddBudgetDialog> createState() => _AddBudgetDialogState();
@@ -1424,7 +1514,8 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // Optimize: Select only categoryNames and currency, read appState for other methods
-    final categoryNamesAndCurrency = context.select<AppState, (List<String>, String, String)>(
+    final categoryNamesAndCurrency =
+        context.select<AppState, (List<String>, String, String)>(
       (s) => (s.categoryNames, s.currency, s.selectedMonthName),
     );
     final categories = categoryNamesAndCurrency.$1;
@@ -1466,70 +1557,72 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
               const SizedBox(height: 24),
               // Fixed dropdown using InputDecorator pattern to avoid deprecation
               InputDecorator(
-              decoration: InputDecoration(
-                labelText: 'Category',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedCategory,
-                  isDense: true,
-                  isExpanded: true,
-                  hint: const Text('Select category'),
-                  items: categories.map((cat) {
-                    return DropdownMenuItem(value: cat, child: Text(cat));
-                  }).toList(),
-                  onChanged: widget.initialCategory == null
-                      ? (value) => setState(() => _selectedCategory = value)
-                      : null,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _amountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [CurrencyHelper.decimalInputFormatter()],
-              decoration: InputDecoration(
-                labelText: 'Monthly Budget',
-                prefixText: '$currency ',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              validator: (value) {
-                if (value?.isEmpty ?? true) return 'Required';
-                final amount = CurrencyHelper.parseDecimal(value!);
-                if (amount == null) return 'Invalid number';
-                // FIX #46: Validate budget amount must be greater than 0
-                if (amount <= 0) return 'Budget must be greater than 0';
-                return null;
-              },
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _saveBudget,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.onSurface,
-                  foregroundColor: theme.colorScheme.surface,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
+                decoration: InputDecoration(
+                  labelText: 'Category',
+                  border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: _isSaving
-                    ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-                    : const Text('Save'),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedCategory,
+                    isDense: true,
+                    isExpanded: true,
+                    hint: const Text('Select category'),
+                    items: categories.map((cat) {
+                      return DropdownMenuItem(value: cat, child: Text(cat));
+                    }).toList(),
+                    onChanged: widget.initialCategory == null
+                        ? (value) => setState(() => _selectedCategory = value)
+                        : null,
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _amountController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [CurrencyHelper.decimalInputFormatter()],
+                decoration: InputDecoration(
+                  labelText: 'Monthly Budget',
+                  prefixText: '$currency ',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                validator: (value) {
+                  if (value?.isEmpty ?? true) return 'Required';
+                  final amount = CurrencyHelper.parseDecimal(value!);
+                  if (amount == null) return 'Invalid number';
+                  // FIX #46: Validate budget amount must be greater than 0
+                  if (amount <= 0) return 'Budget must be greater than 0';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _saveBudget,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.onSurface,
+                    foregroundColor: theme.colorScheme.surface,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Save'),
+                ),
+              ),
             ],
           ),
         ),
