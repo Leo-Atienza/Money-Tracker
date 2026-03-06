@@ -9,7 +9,8 @@ class NotificationHelper {
   factory NotificationHelper() => _instance;
   NotificationHelper._internal();
 
-  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _notifications =
+      FlutterLocalNotificationsPlugin();
   bool _initialized = false;
 
   // FIX P2-9: Use separate ID ranges to prevent notification ID collisions
@@ -25,7 +26,8 @@ class NotificationHelper {
   static String _billRemindersChannelName = 'Bill Reminders';
   static String _billRemindersChannelDesc = 'Reminders for upcoming bills';
   static String _budgetAlertsChannelName = 'Budget Alerts';
-  static String _budgetAlertsChannelDesc = 'Alerts when approaching or exceeding budgets';
+  static String _budgetAlertsChannelDesc =
+      'Alerts when approaching or exceeding budgets';
   static String _monthlyReportsChannelName = 'Monthly Reports';
   static String _monthlyReportsChannelDesc = 'Monthly spending summaries';
 
@@ -39,12 +41,16 @@ class NotificationHelper {
     String? monthlyReportsName,
     String? monthlyReportsDesc,
   }) {
-    if (billRemindersName != null) _billRemindersChannelName = billRemindersName;
-    if (billRemindersDesc != null) _billRemindersChannelDesc = billRemindersDesc;
+    if (billRemindersName != null)
+      _billRemindersChannelName = billRemindersName;
+    if (billRemindersDesc != null)
+      _billRemindersChannelDesc = billRemindersDesc;
     if (budgetAlertsName != null) _budgetAlertsChannelName = budgetAlertsName;
     if (budgetAlertsDesc != null) _budgetAlertsChannelDesc = budgetAlertsDesc;
-    if (monthlyReportsName != null) _monthlyReportsChannelName = monthlyReportsName;
-    if (monthlyReportsDesc != null) _monthlyReportsChannelDesc = monthlyReportsDesc;
+    if (monthlyReportsName != null)
+      _monthlyReportsChannelName = monthlyReportsName;
+    if (monthlyReportsDesc != null)
+      _monthlyReportsChannelDesc = monthlyReportsDesc;
   }
 
   Future<void> initialize() async {
@@ -52,7 +58,9 @@ class NotificationHelper {
 
     tz.initializeTimeZones();
 
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const iosSettings = DarwinInitializationSettings();
     const initSettings = InitializationSettings(
       android: androidSettings,
@@ -96,16 +104,20 @@ class NotificationHelper {
   // Request permissions (iOS and Android)
   Future<bool> requestPermissions() async {
     // iOS permissions
-    final ios = _notifications
-        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+    final ios = _notifications.resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin>();
     if (ios != null) {
-      final result = await ios.requestPermissions(alert: true, badge: true, sound: true);
+      final result = await ios.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
       return result ?? true;
     }
 
     // Android notification permission (Android 13+)
-    final android = _notifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final android = _notifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
     if (android != null) {
       final result = await android.requestNotificationsPermission();
       return result ?? true;
@@ -218,7 +230,11 @@ class NotificationHelper {
 
   // ========== BUDGET ALERTS ==========
 
-  Future<void> showBudgetAlert(Budget budget, double spent, double percentage) async {
+  Future<void> showBudgetAlert(
+    Budget budget,
+    double spent,
+    double percentage,
+  ) async {
     await initialize();
 
     String title;
@@ -228,13 +244,16 @@ class NotificationHelper {
 
     if (percentage >= 1.0) {
       title = '🚨 Budget Exceeded!';
-      body = '${budget.category} budget exceeded! Spent: \$${spent.toStringAsFixed(2)} of \$${budget.amount.toStringAsFixed(2)}';
+      body =
+          '${budget.category} budget exceeded! Spent: \$${spent.toStringAsFixed(2)} of \$${budget.amount.toStringAsFixed(2)}';
     } else if (percentage >= 0.9) {
       title = '⚠️ Budget Alert';
-      body = '${budget.category} at ${(percentage * 100).toInt()}%! Only \$${(budget.amount - spent).toStringAsFixed(2)} left';
+      body =
+          '${budget.category} at ${(percentage * 100).toInt()}%! Only \$${(budget.amount - spent).toStringAsFixed(2)} left';
     } else if (percentage >= 0.8) {
       title = '💡 Budget Warning';
-      body = '${budget.category} at ${(percentage * 100).toInt()}%. \$${(budget.amount - spent).toStringAsFixed(2)} remaining';
+      body =
+          '${budget.category} at ${(percentage * 100).toInt()}%. \$${(budget.amount - spent).toStringAsFixed(2)} remaining';
     } else {
       return; // Don't notify if under 80%
     }
@@ -268,10 +287,10 @@ class NotificationHelper {
     // Schedule for 1st of next month at 9 AM
     final now = DateTime.now();
     var scheduledDate = DateTime(now.year, now.month + 1, 1, 9, 0);
-    
+
     // If for some reason that calculation resulted in a past time (unlikely given +1 month), fix it
     if (scheduledDate.isBefore(now)) {
-       scheduledDate = DateTime(now.year, now.month + 2, 1, 9, 0);
+      scheduledDate = DateTime(now.year, now.month + 2, 1, 9, 0);
     }
 
     // FIX P3-17: Use localized channel names
@@ -296,7 +315,7 @@ class NotificationHelper {
       matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime,
     );
   }
-  
+
   Future<void> cancelMonthlyReports() async {
     await _notifications.cancel(9999);
   }

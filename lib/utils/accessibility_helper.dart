@@ -11,7 +11,8 @@ class AccessibilityHelper {
   }
 
   /// Wrap a widget with minimum touch target padding if needed
-  static Widget ensureMinTouchTarget(Widget child, {
+  static Widget ensureMinTouchTarget(
+    Widget child, {
     double currentWidth = 0,
     double currentHeight = 0,
   }) {
@@ -22,12 +23,10 @@ class AccessibilityHelper {
       return child;
     }
 
-    final horizontalPadding = needsHorizontalPadding
-        ? (minTouchTargetSize - currentWidth) / 2
-        : 0.0;
-    final verticalPadding = needsVerticalPadding
-        ? (minTouchTargetSize - currentHeight) / 2
-        : 0.0;
+    final horizontalPadding =
+        needsHorizontalPadding ? (minTouchTargetSize - currentWidth) / 2 : 0.0;
+    final verticalPadding =
+        needsVerticalPadding ? (minTouchTargetSize - currentHeight) / 2 : 0.0;
 
     return Padding(
       padding: EdgeInsets.symmetric(
@@ -109,7 +108,8 @@ class AccessibilityHelper {
   }
 
   /// Make any widget focusable for keyboard navigation
-  static Widget makeFocusable(Widget child, {
+  static Widget makeFocusable(
+    Widget child, {
     required VoidCallback onTap,
     String? semanticLabel,
   }) {

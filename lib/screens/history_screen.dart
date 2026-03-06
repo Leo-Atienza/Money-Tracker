@@ -23,7 +23,8 @@ class HistoryScreen extends StatefulWidget {
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProviderStateMixin {
+class _HistoryScreenState extends State<HistoryScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _searchTerm = '';
   String _filterCategory = 'All';
@@ -37,6 +38,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   /// Number of items to load per page for infinite scroll.
   /// 50 provides a good balance between UI responsiveness and network efficiency.
   static const int _pageSize = 50;
+
   /// Maximum total items to load in "All Time" view to prevent unbounded memory growth.
   /// 1000 items is sufficient for most use cases while keeping memory usage reasonable.
   /// Users with more transactions should use date filters for better performance.
@@ -63,7 +65,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   String _paymentStatusFilter = 'all'; // 'all', 'unpaid', 'partial', 'paid'
 
   // Sort order for transactions
-  String _sortOrder = 'newest'; // 'newest', 'oldest', 'highest', 'lowest', 'category'
+  String _sortOrder =
+      'newest'; // 'newest', 'oldest', 'highest', 'lowest', 'category'
 
   // CRITICAL FIX #3: Track active operations for proper cleanup
   bool _isDisposed = false;
@@ -93,7 +96,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     // Clear cached all-time data if we have too many items loaded
     final totalLoaded = _allTimeExpenses.length + _allTimeIncome.length;
     if (totalLoaded > _maxTotalResults * 0.8) {
-      if (kDebugMode) debugPrint('Memory pressure: clearing cached data (total items: $totalLoaded)');
+      if (kDebugMode)
+        debugPrint(
+          'Memory pressure: clearing cached data (total items: $totalLoaded)',
+        );
 
       if (mounted && !_isDisposed) {
         setState(() {
@@ -123,7 +129,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       }
       return;
     }
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
       _loadMoreData();
     }
   }
@@ -182,9 +189,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   void _showEditIncomeDialog(BuildContext context, Income income) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => AddIncomeScreen(income: income),
-      ),
+      MaterialPageRoute(builder: (context) => AddIncomeScreen(income: income)),
     );
   }
 
@@ -196,15 +201,13 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       context: context,
       firstDate: Validators.getFilterMinDate(),
       lastDate: Validators.getFilterMaxDate(),
-      initialDateRange: _dateRange ?? DateTimeRange(
-        start: DateTime(now.year, now.month, 1),
-        end: now,
-      ),
+      initialDateRange: _dateRange ??
+          DateTimeRange(start: DateTime(now.year, now.month, 1), end: now),
       builder: (context, child) {
         return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme,
-          ),
+          data: Theme.of(
+            context,
+          ).copyWith(colorScheme: Theme.of(context).colorScheme),
           child: child!,
         );
       },
@@ -213,7 +216,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     if (picked != null) {
       // FIX #10: Validate date range (max 2 years)
       final rangeDuration = picked.end.difference(picked.start).inDays;
-      if (rangeDuration > 730) { // 2 years ≈ 730 days
+      if (rangeDuration > 730) {
+        // 2 years ≈ 730 days
         if (!mounted) return;
         if (!context.mounted) return;
         showDialog(
@@ -295,14 +299,16 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       final appState = context.read<AppState>();
 
       // CRITICAL FIX #3: Add timeout to prevent hanging operations
-      final result = await appState.searchTransactionsUnified(
+      final result = await appState
+          .searchTransactionsUnified(
         _searchTerm,
         limit: _pageSize,
         category: _filterCategory,
         startDate: _dateRange?.start.toIso8601String(),
         endDate: _dateRange?.end.toIso8601String(),
         sortOrder: _sortOrder,
-      ).timeout(
+      )
+          .timeout(
         const Duration(seconds: 10),
         onTimeout: () {
           throw TimeoutException('Search operation timed out');
@@ -363,7 +369,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       final offset = _allTimeExpenses.length + _allTimeIncome.length;
 
       // CRITICAL FIX #3: Add timeout to prevent hanging operations
-      final result = await appState.searchTransactionsUnified(
+      final result = await appState
+          .searchTransactionsUnified(
         _searchTerm,
         limit: _pageSize,
         offset: offset,
@@ -371,7 +378,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         startDate: _dateRange?.start.toIso8601String(),
         endDate: _dateRange?.end.toIso8601String(),
         sortOrder: _sortOrder,
-      ).timeout(
+      )
+          .timeout(
         const Duration(seconds: 10),
         onTimeout: () {
           throw TimeoutException('Load more operation timed out');
@@ -423,16 +431,19 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     if (item is Expense) {
       // FIX: Search exact amount with decimals, and integer part without rounding
       final amountStr = item.amount.toStringAsFixed(2); // e.g., "50.90"
-      final integerPart = item.amount.truncate().toString(); // e.g., "50" (no rounding!)
+      final integerPart =
+          item.amount.truncate().toString(); // e.g., "50" (no rounding!)
       final descriptionLower = item.description.toLowerCase();
       final categoryLower = item.category.toLowerCase();
 
       // All tokens must match at least one field
-      return tokens.every((token) =>
-          descriptionLower.contains(token) ||
-          categoryLower.contains(token) ||
-          amountStr.contains(token) ||
-          integerPart.contains(token));
+      return tokens.every(
+        (token) =>
+            descriptionLower.contains(token) ||
+            categoryLower.contains(token) ||
+            amountStr.contains(token) ||
+            integerPart.contains(token),
+      );
     } else if (item is Income) {
       final amountStr = item.amount.toStringAsFixed(2);
       final integerPart = item.amount.truncate().toString();
@@ -440,11 +451,13 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       final categoryLower = item.category.toLowerCase();
 
       // All tokens must match at least one field
-      return tokens.every((token) =>
-          descriptionLower.contains(token) ||
-          categoryLower.contains(token) ||
-          amountStr.contains(token) ||
-          integerPart.contains(token));
+      return tokens.every(
+        (token) =>
+            descriptionLower.contains(token) ||
+            categoryLower.contains(token) ||
+            amountStr.contains(token) ||
+            integerPart.contains(token),
+      );
     }
     return false;
   }
@@ -566,7 +579,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                           _searchTerm = value;
                           // FIX: Auto-enable all-time search when user starts typing
                           if (value.isNotEmpty && !_searchAllTime) {
-                            _previousAllTimeState = _searchAllTime; // Remember state
+                            _previousAllTimeState =
+                                _searchAllTime; // Remember state
                             _searchAllTime = true;
                             _loadAllTimeData();
                           } else if (value.isNotEmpty) {
@@ -584,9 +598,12 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                       color: theme.colorScheme.onSurface,
                     ),
                     decoration: InputDecoration(
-                      hintText: 'Search transactions...', // FIX #18: Shorter placeholder
+                      hintText:
+                          'Search transactions...', // FIX #18: Shorter placeholder
                       hintStyle: TextStyle(
-                        color: theme.colorScheme.onSurfaceVariant.withAlpha(150),
+                        color: theme.colorScheme.onSurfaceVariant.withAlpha(
+                          150,
+                        ),
                         fontSize: 14,
                       ),
                       prefixIcon: Icon(
@@ -596,20 +613,20 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                       ),
                       suffixIcon: _searchTerm.isNotEmpty
                           ? Semantics(
-                        label: 'Clear search',
-                        button: true,
-                        child: IconButton(
-                          icon: Icon(
-                            Icons.close_rounded,
-                            color: theme.colorScheme.onSurfaceVariant,
-                            size: 20,
-                          ),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() => _searchTerm = '');
-                          },
-                        ),
-                      )
+                              label: 'Clear search',
+                              button: true,
+                              child: IconButton(
+                                icon: Icon(
+                                  Icons.close_rounded,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchTerm = '');
+                                },
+                              ),
+                            )
                           : null,
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
@@ -633,7 +650,9 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                 children: [
                   // All time toggle chip
                   Semantics(
-                    label: _searchAllTime ? 'All time search enabled' : 'All time search disabled',
+                    label: _searchAllTime
+                        ? 'All time search enabled'
+                        : 'All time search disabled',
                     hint: 'Search across all months',
                     button: true,
                     child: FilterChip(
@@ -688,12 +707,20 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                         children: [
                           Icon(Icons.date_range, size: 16),
                           const SizedBox(width: 4),
-                          Text(_dateRange != null ? _formatDateRange(_dateRange!) : 'Date range'),
+                          Text(
+                            _dateRange != null
+                                ? _formatDateRange(_dateRange!)
+                                : 'Date range',
+                          ),
                         ],
                       ),
                       onSelected: (_) => _showDateRangePicker(context),
-                      onDeleted: _dateRange != null ? () => setState(() => _dateRange = null) : null,
-                      deleteIcon: _dateRange != null ? Icon(Icons.close, size: 16) : null,
+                      onDeleted: _dateRange != null
+                          ? () => setState(() => _dateRange = null)
+                          : null,
+                      deleteIcon: _dateRange != null
+                          ? Icon(Icons.close, size: 16)
+                          : null,
                       labelStyle: TextStyle(fontSize: 13),
                       backgroundColor: theme.colorScheme.surface,
                       selectedColor: theme.colorScheme.primary.withAlpha(30),
@@ -772,7 +799,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   }
 
   // FIX: Build compact category filter chips for horizontal scroll
-  List<Widget> _buildCompactCategoryFilters(ThemeData theme, AppState appState) {
+  List<Widget> _buildCompactCategoryFilters(
+    ThemeData theme,
+    AppState appState,
+  ) {
     final Set<String> categorySet = {};
 
     if (_tabController.index == 0 || _tabController.index == 1) {
@@ -840,7 +870,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
             ],
           ),
           onSelected: (selected) {
-            setState(() => _paymentStatusFilter = selected ? status['value'] as String : 'all');
+            setState(
+              () => _paymentStatusFilter =
+                  selected ? status['value'] as String : 'all',
+            );
             if (_searchAllTime && _searchTerm.isNotEmpty) {
               _loadAllTimeData();
             }
@@ -947,13 +980,48 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                   controller: scrollController,
                   padding: EdgeInsets.zero,
                   children: [
-                    _buildSortOption(context, theme, 'newest', 'Newest First', 'Most recent transactions at the top', Icons.arrow_downward_rounded),
-                    _buildSortOption(context, theme, 'oldest', 'Oldest First', 'Earliest transactions at the top', Icons.arrow_upward_rounded),
+                    _buildSortOption(
+                      context,
+                      theme,
+                      'newest',
+                      'Newest First',
+                      'Most recent transactions at the top',
+                      Icons.arrow_downward_rounded,
+                    ),
+                    _buildSortOption(
+                      context,
+                      theme,
+                      'oldest',
+                      'Oldest First',
+                      'Earliest transactions at the top',
+                      Icons.arrow_upward_rounded,
+                    ),
                     const Divider(height: 1),
-                    _buildSortOption(context, theme, 'highest', 'Highest Amount', 'Largest amounts at the top', Icons.trending_up_rounded),
-                    _buildSortOption(context, theme, 'lowest', 'Lowest Amount', 'Smallest amounts at the top', Icons.trending_down_rounded),
+                    _buildSortOption(
+                      context,
+                      theme,
+                      'highest',
+                      'Highest Amount',
+                      'Largest amounts at the top',
+                      Icons.trending_up_rounded,
+                    ),
+                    _buildSortOption(
+                      context,
+                      theme,
+                      'lowest',
+                      'Lowest Amount',
+                      'Smallest amounts at the top',
+                      Icons.trending_down_rounded,
+                    ),
                     const Divider(height: 1),
-                    _buildSortOption(context, theme, 'category', 'By Category', 'Group by category name (A-Z)', Icons.category_rounded),
+                    _buildSortOption(
+                      context,
+                      theme,
+                      'category',
+                      'By Category',
+                      'Group by category name (A-Z)',
+                      Icons.category_rounded,
+                    ),
                     const SizedBox(height: 32),
                   ],
                 ),
@@ -965,7 +1033,14 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildSortOption(BuildContext context, ThemeData theme, String value, String title, String subtitle, IconData icon) {
+  Widget _buildSortOption(
+    BuildContext context,
+    ThemeData theme,
+    String value,
+    String title,
+    String subtitle,
+    IconData icon,
+  ) {
     final isSelected = _sortOrder == value;
     return ListTile(
       leading: Container(
@@ -979,7 +1054,9 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         ),
         child: Icon(
           icon,
-          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+          color: isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurfaceVariant,
           size: 20,
         ),
       ),
@@ -987,7 +1064,9 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         title,
         style: TextStyle(
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+          color: isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurface,
         ),
       ),
       subtitle: Text(
@@ -1014,7 +1093,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   /// Sort items based on the selected sort order
   void _sortItems(List<dynamic> items) {
     // Helper to get ID from item (for tie-breaking when dates are equal)
-    int getId(dynamic item) => item is Expense ? (item.id ?? 0) : ((item as Income).id ?? 0);
+    int getId(dynamic item) =>
+        item is Expense ? (item.id ?? 0) : ((item as Income).id ?? 0);
 
     switch (_sortOrder) {
       case 'newest':
@@ -1041,7 +1121,9 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         items.sort((a, b) {
           final amountA = a is Expense ? a.amount : (a as Income).amount;
           final amountB = b is Expense ? b.amount : (b as Income).amount;
-          final amountCompare = amountB.compareTo(amountA); // Descending by amount
+          final amountCompare = amountB.compareTo(
+            amountA,
+          ); // Descending by amount
           if (amountCompare != 0) return amountCompare;
           // Same amount: sort by date descending, then ID descending
           final dateA = a is Expense ? a.date : (a as Income).date;
@@ -1055,7 +1137,9 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         items.sort((a, b) {
           final amountA = a is Expense ? a.amount : (a as Income).amount;
           final amountB = b is Expense ? b.amount : (b as Income).amount;
-          final amountCompare = amountA.compareTo(amountB); // Ascending by amount
+          final amountCompare = amountA.compareTo(
+            amountB,
+          ); // Ascending by amount
           if (amountCompare != 0) return amountCompare;
           // Same amount: sort by date descending, then ID descending
           final dateA = a is Expense ? a.date : (a as Income).date;
@@ -1084,7 +1168,11 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
 
   // ============== ALL LIST ==============
 
-  Widget _buildAllList(BuildContext context, AppState appState, ThemeData theme) {
+  Widget _buildAllList(
+    BuildContext context,
+    AppState appState,
+    ThemeData theme,
+  ) {
     // Use all-time data if toggle is on (for search or date range)
     List<Expense> expenses;
     List<Income> incomes;
@@ -1115,25 +1203,41 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       // For monthly view (non-all-time), apply filters locally
       final date = item is Expense ? item.date : (item as Income).date;
       final categoryMatch = _filterCategory == 'All' ||
-          (item is Expense ? item.category : (item as Income).category) == _filterCategory;
+          (item is Expense ? item.category : (item as Income).category) ==
+              _filterCategory;
       final dateMatch = _isInDateRange(date);
 
       // FIX: Apply payment status filter for expenses
-      final paymentMatch = item is! Expense || _paymentStatusFilter == 'all' || _matchesPaymentStatus(item);
+      final paymentMatch = item is! Expense ||
+          _paymentStatusFilter == 'all' ||
+          _matchesPaymentStatus(item);
 
-      return _matchesSearch(item, _searchTerm) && categoryMatch && dateMatch && paymentMatch;
+      return _matchesSearch(item, _searchTerm) &&
+          categoryMatch &&
+          dateMatch &&
+          paymentMatch;
     }).toList();
 
     if (filteredItems.isEmpty) {
       return _buildEmptyState(theme);
     }
 
-    return _buildTransactionList(context, filteredItems, appState, theme, showMonth: _searchAllTime);
+    return _buildTransactionList(
+      context,
+      filteredItems,
+      appState,
+      theme,
+      showMonth: _searchAllTime,
+    );
   }
 
   // ============== EXPENSES LIST ==============
 
-  Widget _buildExpensesList(BuildContext context, AppState appState, ThemeData theme) {
+  Widget _buildExpensesList(
+    BuildContext context,
+    AppState appState,
+    ThemeData theme,
+  ) {
     // Use all-time data if toggle is on
     List<Expense> expenses;
     if (_searchAllTime) {
@@ -1150,10 +1254,15 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       }
 
       // For monthly view, apply filters locally
-      final categoryMatch = _filterCategory == 'All' || expense.category == _filterCategory;
-      final paymentMatch = _paymentStatusFilter == 'all' || _matchesPaymentStatus(expense);
+      final categoryMatch =
+          _filterCategory == 'All' || expense.category == _filterCategory;
+      final paymentMatch =
+          _paymentStatusFilter == 'all' || _matchesPaymentStatus(expense);
       final dateMatch = _isInDateRange(expense.date);
-      return _matchesSearch(expense, _searchTerm) && categoryMatch && dateMatch && paymentMatch;
+      return _matchesSearch(expense, _searchTerm) &&
+          categoryMatch &&
+          dateMatch &&
+          paymentMatch;
     }).toList();
 
     // Apply sorting
@@ -1163,7 +1272,13 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       return _buildEmptyState(theme);
     }
 
-    return _buildTransactionList(context, filteredExpenses, appState, theme, showMonth: _searchAllTime);
+    return _buildTransactionList(
+      context,
+      filteredExpenses,
+      appState,
+      theme,
+      showMonth: _searchAllTime,
+    );
   }
 
   // ============== INCOME LIST ==============
@@ -1175,7 +1290,11 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     }).toList();
   }
 
-  Widget _buildIncomeList(BuildContext context, AppState appState, ThemeData theme) {
+  Widget _buildIncomeList(
+    BuildContext context,
+    AppState appState,
+    ThemeData theme,
+  ) {
     // Use all-time data if toggle is on
     List<Income> incomes;
     if (_searchAllTime) {
@@ -1191,7 +1310,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       }
 
       // For monthly view, apply filters locally
-      final categoryMatch = _filterCategory == 'All' || income.category == _filterCategory;
+      final categoryMatch =
+          _filterCategory == 'All' || income.category == _filterCategory;
       final dateMatch = _isInDateRange(income.date);
       return _matchesSearch(income, _searchTerm) && categoryMatch && dateMatch;
     }).toList();
@@ -1203,23 +1323,35 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       return _buildEmptyState(theme);
     }
 
-    return _buildTransactionList(context, filteredIncomes, appState, theme, showMonth: _searchAllTime);
+    return _buildTransactionList(
+      context,
+      filteredIncomes,
+      appState,
+      theme,
+      showMonth: _searchAllTime,
+    );
   }
 
   // ============== SHARED LIST BUILDER ==============
 
   Widget _buildTransactionList(
-      BuildContext context,
-      List<dynamic> items,
-      AppState appState,
-      ThemeData theme, {
-      bool showMonth = false,
-      }) {
+    BuildContext context,
+    List<dynamic> items,
+    AppState appState,
+    ThemeData theme, {
+    bool showMonth = false,
+  }) {
     // For amount-based sorting, don't group - show flat list with dates inline
     final bool isAmountSort = _sortOrder == 'highest' || _sortOrder == 'lowest';
 
     if (isAmountSort) {
-      return _buildFlatTransactionList(context, items, appState, theme, showMonth: showMonth);
+      return _buildFlatTransactionList(
+        context,
+        items,
+        appState,
+        theme,
+        showMonth: showMonth,
+      );
     }
 
     // Determine grouping based on sort order
@@ -1254,7 +1386,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
 
     // Add loading indicator item count if loading more, or limit message
     final totalLoaded = _allTimeExpenses.length + _allTimeIncome.length;
-    final showLimitMessage = showMonth && !_hasMoreData && totalLoaded >= _maxTotalResults;
+    final showLimitMessage =
+        showMonth && !_hasMoreData && totalLoaded >= _maxTotalResults;
     final itemCount = sortedKeys.length +
         (_isLoadingMore && showMonth ? 1 : 0) +
         (showLimitMessage ? 1 : 0);
@@ -1272,106 +1405,113 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         controller: showMonth ? _scrollController : null,
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 100),
         itemCount: itemCount,
-      itemBuilder: (context, index) {
-        // Show loading indicator at the end
-        if (_isLoadingMore && index == sortedKeys.length) {
-          return const Padding(
-            padding: EdgeInsets.all(16),
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
+        itemBuilder: (context, index) {
+          // Show loading indicator at the end
+          if (_isLoadingMore && index == sortedKeys.length) {
+            return const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
 
-        // FIX: Show limit reached message
-        if (showLimitMessage && index == sortedKeys.length) {
-          return Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  color: theme.colorScheme.onSurfaceVariant,
-                  size: 32,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Result limit reached',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.onSurface,
+          // FIX: Show limit reached message
+          if (showLimitMessage && index == sortedKeys.length) {
+            return Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: theme.colorScheme.onSurfaceVariant,
+                    size: 32,
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Showing first $_maxTotalResults results. Refine your search to see more specific items.',
-                  textAlign: TextAlign.center,
+                  const SizedBox(height: 8),
+                  Text(
+                    'Result limit reached',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Showing first $_maxTotalResults results. Refine your search to see more specific items.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final groupKey = sortedKeys[index];
+          final groupItems = grouped[groupKey]!;
+          final groupByCategory = _sortOrder == 'category';
+
+          // Determine header text based on grouping type
+          String headerText;
+          if (groupByCategory) {
+            // Category header
+            headerText = groupKey.toUpperCase();
+          } else {
+            // Date header
+            final date = DateTime.parse(groupKey);
+            headerText = showMonth
+                ? _formatDateHeaderWithMonth(date)
+                : _formatDateHeader(date);
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Group Header (date or category) - Premium styling
+              Padding(
+                padding: const EdgeInsets.only(top: 20, bottom: 14),
+                child: Text(
+                  headerText,
                   style: TextStyle(
                     fontSize: 12,
-                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurfaceVariant.withAlpha(180),
+                    letterSpacing: 1.0,
                   ),
                 ),
-              ],
-            ),
-          );
-        }
-
-        final groupKey = sortedKeys[index];
-        final groupItems = grouped[groupKey]!;
-        final groupByCategory = _sortOrder == 'category';
-
-        // Determine header text based on grouping type
-        String headerText;
-        if (groupByCategory) {
-          // Category header
-          headerText = groupKey.toUpperCase();
-        } else {
-          // Date header
-          final date = DateTime.parse(groupKey);
-          headerText = showMonth ? _formatDateHeaderWithMonth(date) : _formatDateHeader(date);
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Group Header (date or category) - Premium styling
-            Padding(
-              padding: const EdgeInsets.only(top: 20, bottom: 14),
-              child: Text(
-                headerText,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurfaceVariant.withAlpha(180),
-                  letterSpacing: 1.0,
-                ),
               ),
-            ),
-            // Transactions for this group
-            ...groupItems.asMap().entries.map((entry) {
-              final itemIndex = entry.key;
-              final item = entry.value;
-              if (item is Expense) {
-                return StaggeredListItem(
-                  index: itemIndex,
-                  delay: const Duration(milliseconds: 25),
-                  child: _buildExpenseItem(context, item, appState, theme),
-                );
-              } else {
-                return StaggeredListItem(
-                  index: itemIndex,
-                  delay: const Duration(milliseconds: 25),
-                  child: _buildIncomeItem(context, item as Income, appState, theme),
-                );
-              }
-            }),
-          ],
-        );
-      },
+              // Transactions for this group
+              ...groupItems.asMap().entries.map((entry) {
+                final itemIndex = entry.key;
+                final item = entry.value;
+                if (item is Expense) {
+                  return StaggeredListItem(
+                    index: itemIndex,
+                    delay: const Duration(milliseconds: 25),
+                    child: _buildExpenseItem(context, item, appState, theme),
+                  );
+                } else {
+                  return StaggeredListItem(
+                    index: itemIndex,
+                    delay: const Duration(milliseconds: 25),
+                    child: _buildIncomeItem(
+                      context,
+                      item as Income,
+                      appState,
+                      theme,
+                    ),
+                  );
+                }
+              }),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1379,15 +1519,16 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   /// Build a flat (non-grouped) transaction list for amount-based sorting.
   /// Shows each transaction with its date inline rather than grouping by date.
   Widget _buildFlatTransactionList(
-      BuildContext context,
-      List<dynamic> items,
-      AppState appState,
-      ThemeData theme, {
-      bool showMonth = false,
-      }) {
+    BuildContext context,
+    List<dynamic> items,
+    AppState appState,
+    ThemeData theme, {
+    bool showMonth = false,
+  }) {
     // Add loading indicator item count if loading more, or limit message
     final totalLoaded = _allTimeExpenses.length + _allTimeIncome.length;
-    final showLimitMessage = showMonth && !_hasMoreData && totalLoaded >= _maxTotalResults;
+    final showLimitMessage =
+        showMonth && !_hasMoreData && totalLoaded >= _maxTotalResults;
     final itemCount = items.length +
         (_isLoadingMore && showMonth ? 1 : 0) +
         (showLimitMessage ? 1 : 0);
@@ -1457,13 +1598,25 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
             return StaggeredListItem(
               index: index,
               delay: const Duration(milliseconds: 20),
-              child: _buildExpenseItemWithDate(context, item, appState, theme, showMonth: showMonth),
+              child: _buildExpenseItemWithDate(
+                context,
+                item,
+                appState,
+                theme,
+                showMonth: showMonth,
+              ),
             );
           } else {
             return StaggeredListItem(
               index: index,
               delay: const Duration(milliseconds: 20),
-              child: _buildIncomeItemWithDate(context, item as Income, appState, theme, showMonth: showMonth),
+              child: _buildIncomeItemWithDate(
+                context,
+                item as Income,
+                appState,
+                theme,
+                showMonth: showMonth,
+              ),
             );
           }
         },
@@ -1473,12 +1626,12 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
 
   /// Build expense item with date shown inline (for amount-based sorting)
   Widget _buildExpenseItemWithDate(
-      BuildContext context,
-      Expense expense,
-      AppState appState,
-      ThemeData theme, {
-      bool showMonth = false,
-      }) {
+    BuildContext context,
+    Expense expense,
+    AppState appState,
+    ThemeData theme, {
+    bool showMonth = false,
+  }) {
     final date = expense.date;
     final dateStr = showMonth
         ? DateFormat('MMM d, yyyy').format(date)
@@ -1506,12 +1659,12 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
 
   /// Build income item with date shown inline (for amount-based sorting)
   Widget _buildIncomeItemWithDate(
-      BuildContext context,
-      Income income,
-      AppState appState,
-      ThemeData theme, {
-      bool showMonth = false,
-      }) {
+    BuildContext context,
+    Income income,
+    AppState appState,
+    ThemeData theme, {
+    bool showMonth = false,
+  }) {
     final date = income.date;
     final dateStr = showMonth
         ? DateFormat('MMM d, yyyy').format(date)
@@ -1571,11 +1724,11 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   // ============== ITEM BUILDERS ==============
 
   Widget _buildExpenseItem(
-      BuildContext context,
-      Expense expense,
-      AppState appState,
-      ThemeData theme,
-      ) {
+    BuildContext context,
+    Expense expense,
+    AppState appState,
+    ThemeData theme,
+  ) {
     final paymentStatus = expense.isPaid
         ? 'paid'
         : expense.amountPaid > 0
@@ -1583,7 +1736,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
             : 'unpaid';
 
     return Semantics(
-      label: 'Expense: ${expense.description}, ${expense.category}, ${appState.currency}${expense.amount.toStringAsFixed(2)}, $paymentStatus. Tap to add payment, long press to edit, swipe left to delete.',
+      label:
+          'Expense: ${expense.description}, ${expense.category}, ${appState.currency}${expense.amount.toStringAsFixed(2)}, $paymentStatus. Tap to add payment, long press to edit, swipe left to delete.',
       button: true,
       child: Padding(
         padding: const EdgeInsets.only(bottom: 16),
@@ -1597,12 +1751,20 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
               color: Colors.red.shade400,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 24),
+            child: const Icon(
+              Icons.delete_outline_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
-          confirmDismiss: (direction) => _confirmDelete(context, theme, 'expense', expense.description),
+          confirmDismiss: (direction) =>
+              _confirmDelete(context, theme, 'expense', expense.description),
           onDismissed: (direction) async {
             // Show loading indicator during delete operation
-            ProgressIndicatorHelper.show(context, message: 'Deleting expense...');
+            ProgressIndicatorHelper.show(
+              context,
+              message: 'Deleting expense...',
+            );
             try {
               // Remove from local all-time list to prevent reappearing
               if (_searchAllTime) {
@@ -1632,20 +1794,30 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
               builder: (context) {
                 // Get category for both icon and optional background color
                 final category = appState.categories
-                    .where((c) => c.name == expense.category && c.type == 'expense')
+                    .where(
+                      (c) => c.name == expense.category && c.type == 'expense',
+                    )
                     .firstOrNull;
 
                 // Parse category color for background (if enabled)
                 Color? bgColor;
                 if (appState.showTransactionColors) {
                   // Calculate alpha based on intensity (10% to 40% depending on setting)
-                  final baseAlpha = theme.brightness == Brightness.dark ? 25 : 15;
-                  final maxAlpha = theme.brightness == Brightness.dark ? 100 : 80;
-                  final alpha = (baseAlpha + (maxAlpha - baseAlpha) * appState.transactionColorIntensity).round();
+                  final baseAlpha =
+                      theme.brightness == Brightness.dark ? 25 : 15;
+                  final maxAlpha =
+                      theme.brightness == Brightness.dark ? 100 : 80;
+                  final alpha = (baseAlpha +
+                          (maxAlpha - baseAlpha) *
+                              appState.transactionColorIntensity)
+                      .round();
 
                   if (category?.color != null && category!.color!.isNotEmpty) {
                     try {
-                      final colorValue = int.parse(category.color!.replaceFirst('#', ''), radix: 16);
+                      final colorValue = int.parse(
+                        category.color!.replaceFirst('#', ''),
+                        radix: 16,
+                      );
                       bgColor = Color(colorValue | 0xFF000000).withAlpha(alpha);
                     } catch (_) {}
                   }
@@ -1654,237 +1826,282 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                 }
 
                 return Container(
-          decoration: BoxDecoration(
-            color: bgColor ?? theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: theme.brightness == Brightness.dark
-                  ? theme.colorScheme.outline.withAlpha(30)
-                  : theme.colorScheme.outline.withAlpha(50),
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: theme.brightness == Brightness.dark
-                    ? Colors.black.withAlpha(40)
-                    : Colors.black.withAlpha(8),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: InkWell(
-            onTap: () => _showAddPaymentDialog(context, expense),
-            onLongPress: () => _showAddPaymentDialog(context, expense),
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              child: Column(
-                children: [
-                   Row(
-                    children: [
-                      // Category tile with icon
-                      CategoryTile(
-                        categoryName: expense.category,
-                        categoryType: 'expense',
-                        color: category?.color,
-                        icon: category?.icon,
+                  decoration: BoxDecoration(
+                    color: bgColor ?? theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: theme.brightness == Brightness.dark
+                          ? theme.colorScheme.outline.withAlpha(30)
+                          : theme.colorScheme.outline.withAlpha(50),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.brightness == Brightness.dark
+                            ? Colors.black.withAlpha(40)
+                            : Colors.black.withAlpha(8),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
-                      const SizedBox(width: 14),
-                      // Details
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              expense.description,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: theme.colorScheme.onSurface,
+                    ],
+                  ),
+                  child: InkWell(
+                    onTap: () => _showAddPaymentDialog(context, expense),
+                    onLongPress: () => _showAddPaymentDialog(context, expense),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              // Category tile with icon
+                              CategoryTile(
+                                categoryName: expense.category,
+                                categoryType: 'expense',
+                                color: category?.color,
+                                icon: category?.icon,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Text(
-                                  expense.category,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                // Show relative time if available
-                                Builder(
-                                  builder: (context) {
-                                    final relativeTime = DateHelper.getRelativeTime(expense.date);
-                                    if (relativeTime.isNotEmpty) {
-                                      return Row(
-                                        children: [
-                                          Padding(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                                            child: Text(
-                                              '•',
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                color: theme.colorScheme.onSurfaceVariant.withAlpha(120),
-                                              ),
-                                            ),
+                              const SizedBox(width: 14),
+                              // Details
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      expense.description,
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: theme.colorScheme.onSurface,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          expense.category,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: theme
+                                                .colorScheme.onSurfaceVariant,
                                           ),
+                                        ),
+                                        // Show relative time if available
+                                        Builder(
+                                          builder: (context) {
+                                            final relativeTime =
+                                                DateHelper.getRelativeTime(
+                                              expense.date,
+                                            );
+                                            if (relativeTime.isNotEmpty) {
+                                              return Row(
+                                                children: [
+                                                  Padding(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                      horizontal: 6,
+                                                    ),
+                                                    child: Text(
+                                                      '•',
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        color: theme.colorScheme
+                                                            .onSurfaceVariant
+                                                            .withAlpha(120),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    relativeTime,
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: theme.colorScheme
+                                                          .onSurfaceVariant
+                                                          .withAlpha(150),
+                                                    ),
+                                                  ),
+                                                ],
+                                              );
+                                            }
+                                            return const SizedBox.shrink();
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Amount
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '${appState.currency}${expense.amount.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.brightness == Brightness.dark
+                                          ? const Color(
+                                              0xFFF87171,
+                                            ) // Softer red for dark mode
+                                          : const Color(
+                                              0xFFDC2626,
+                                            ), // Tailwind red-600
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  // CRITICAL FIX: Show payment status for BOTH paid and unpaid
+                                  if (!expense.isPaid) ...[
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.withAlpha(20),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        '${appState.currency}${expense.remainingAmount.toStringAsFixed(2)} left',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.orange,
+                                        ),
+                                      ),
+                                    ),
+                                  ] else ...[
+                                    // CRITICAL FIX: Show "PAID" badge for fully paid expenses
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.withAlpha(20),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: Colors.green.withAlpha(60),
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.check_circle,
+                                            size: 10,
+                                            color: Colors.green.shade700,
+                                          ),
+                                          const SizedBox(width: 3),
                                           Text(
-                                            relativeTime,
+                                            'PAID',
                                             style: TextStyle(
-                                              fontSize: 12,
-                                              color: theme.colorScheme.onSurfaceVariant.withAlpha(150),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.green.shade700,
+                                              letterSpacing: 0.5,
                                             ),
                                           ),
                                         ],
-                                      );
-                                    }
-                                    return const SizedBox.shrink();
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Amount
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '${appState.currency}${expense.amount.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: theme.brightness == Brightness.dark
-                                  ? const Color(0xFFF87171) // Softer red for dark mode
-                                  : const Color(0xFFDC2626), // Tailwind red-600
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          // CRITICAL FIX: Show payment status for BOTH paid and unpaid
-                          if (!expense.isPaid) ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.withAlpha(20),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                '${appState.currency}${expense.remainingAmount.toStringAsFixed(2)} left',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.orange,
-                                ),
-                              ),
-                            ),
-                          ] else ...[
-                            // CRITICAL FIX: Show "PAID" badge for fully paid expenses
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.green.withAlpha(20),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: Colors.green.withAlpha(60), width: 0.5),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.check_circle, size: 10, color: Colors.green.shade700),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    'PAID',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.green.shade700,
-                                      letterSpacing: 0.5,
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 ],
                               ),
+                            ],
+                          ),
+                          if (expense.amountPaid > 0 && !expense.isPaid) ...[
+                            const SizedBox(height: 12),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(2),
+                              child: LinearProgressIndicator(
+                                value: expense.paymentProgress,
+                                backgroundColor:
+                                    theme.colorScheme.surfaceContainerHighest,
+                                color: Colors.orange,
+                                minHeight: 4,
+                              ),
                             ),
                           ],
+                          // Payment and Edit actions
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              // Record Payment button (shown if not paid)
+                              if (!expense.isPaid)
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () =>
+                                        _showAddPaymentDialog(context, expense),
+                                    icon: Icon(
+                                      Icons.payment,
+                                      size: 16,
+                                      color: Colors.orange.shade700,
+                                    ),
+                                    label: Text(
+                                      expense.amountPaid > 0
+                                          ? 'Pay More'
+                                          : 'Pay Bill',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.orange.shade700,
+                                      ),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      side: BorderSide(
+                                        color: Colors.orange.shade300,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              if (!expense.isPaid) const SizedBox(width: 8),
+                              // Edit button
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () =>
+                                      _showEditExpenseDialog(context, expense),
+                                  icon: Icon(
+                                    Icons.edit_outlined,
+                                    size: 16,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                  label: const Text(
+                                    'Edit Details',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(
+                                      color: theme.colorScheme.primary
+                                          .withAlpha(100),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
-                    ],
-                  ),
-                   if (expense.amountPaid > 0 && !expense.isPaid) ...[
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: LinearProgressIndicator(
-                        value: expense.paymentProgress,
-                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                        color: Colors.orange,
-                        minHeight: 4,
-                      ),
                     ),
-                  ],
-                  // Payment and Edit actions
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      // Record Payment button (shown if not paid)
-                      if (!expense.isPaid)
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _showAddPaymentDialog(context, expense),
-                            icon: Icon(
-                              Icons.payment,
-                              size: 16,
-                              color: Colors.orange.shade700,
-                            ),
-                            label: Text(
-                              expense.amountPaid > 0 ? 'Pay More' : 'Pay Bill',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.orange.shade700,
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: Colors.orange.shade300),
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                        ),
-                      if (!expense.isPaid) const SizedBox(width: 8),
-                      // Edit button
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _showEditExpenseDialog(context, expense),
-                          icon: Icon(
-                            Icons.edit_outlined,
-                            size: 16,
-                            color: theme.colorScheme.primary,
-                          ),
-                          label: const Text(
-                            'Edit Details',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: theme.colorScheme.primary.withAlpha(100)),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
-                ],
-              ),
-            ),
-          ),
                 );
               },
             ),
@@ -1895,13 +2112,14 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   }
 
   Widget _buildIncomeItem(
-      BuildContext context,
-      Income income,
-      AppState appState,
-      ThemeData theme,
-      ) {
+    BuildContext context,
+    Income income,
+    AppState appState,
+    ThemeData theme,
+  ) {
     return Semantics(
-      label: 'Income: ${income.description}, ${income.category}, ${appState.currency}${income.amount.toStringAsFixed(2)}. Long press to edit, swipe left to delete.',
+      label:
+          'Income: ${income.description}, ${income.category}, ${appState.currency}${income.amount.toStringAsFixed(2)}. Long press to edit, swipe left to delete.',
       button: true,
       child: Padding(
         padding: const EdgeInsets.only(bottom: 16),
@@ -1915,12 +2133,20 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
               color: Colors.red.shade400,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 24),
+            child: const Icon(
+              Icons.delete_outline_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
-          confirmDismiss: (direction) => _confirmDelete(context, theme, 'income', income.description),
+          confirmDismiss: (direction) =>
+              _confirmDelete(context, theme, 'income', income.description),
           onDismissed: (direction) async {
             // Show loading indicator during delete operation
-            ProgressIndicatorHelper.show(context, message: 'Deleting income...');
+            ProgressIndicatorHelper.show(
+              context,
+              message: 'Deleting income...',
+            );
             try {
               // Remove from local all-time list to prevent reappearing
               if (_searchAllTime) {
@@ -1950,20 +2176,30 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
               builder: (context) {
                 // Get category for both icon and optional background color
                 final category = appState.categories
-                    .where((c) => c.name == income.category && c.type == 'income')
+                    .where(
+                      (c) => c.name == income.category && c.type == 'income',
+                    )
                     .firstOrNull;
 
                 // Parse category color for background (if enabled)
                 Color? bgColor;
                 if (appState.showTransactionColors) {
                   // Calculate alpha based on intensity (10% to 40% depending on setting)
-                  final baseAlpha = theme.brightness == Brightness.dark ? 25 : 15;
-                  final maxAlpha = theme.brightness == Brightness.dark ? 100 : 80;
-                  final alpha = (baseAlpha + (maxAlpha - baseAlpha) * appState.transactionColorIntensity).round();
+                  final baseAlpha =
+                      theme.brightness == Brightness.dark ? 25 : 15;
+                  final maxAlpha =
+                      theme.brightness == Brightness.dark ? 100 : 80;
+                  final alpha = (baseAlpha +
+                          (maxAlpha - baseAlpha) *
+                              appState.transactionColorIntensity)
+                      .round();
 
                   if (category?.color != null && category!.color!.isNotEmpty) {
                     try {
-                      final colorValue = int.parse(category.color!.replaceFirst('#', ''), radix: 16);
+                      final colorValue = int.parse(
+                        category.color!.replaceFirst('#', ''),
+                        radix: 16,
+                      );
                       bgColor = Color(colorValue | 0xFF000000).withAlpha(alpha);
                     } catch (_) {}
                   }
@@ -1996,7 +2232,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                     onLongPress: () => _showEditIncomeDialog(context, income),
                     borderRadius: BorderRadius.circular(16),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
                       child: Row(
                         children: [
                           // Category tile with icon
@@ -2029,23 +2268,32 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                                       income.category,
                                       style: TextStyle(
                                         fontSize: 13,
-                                        color: theme.colorScheme.onSurfaceVariant,
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
                                       ),
                                     ),
                                     // Show relative time if available
                                     Builder(
                                       builder: (context) {
-                                        final relativeTime = DateHelper.getRelativeTime(income.date);
+                                        final relativeTime =
+                                            DateHelper.getRelativeTime(
+                                          income.date,
+                                        );
                                         if (relativeTime.isNotEmpty) {
                                           return Row(
                                             children: [
                                               Padding(
-                                                padding: const EdgeInsets.symmetric(horizontal: 6),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 6,
+                                                ),
                                                 child: Text(
                                                   '•',
                                                   style: TextStyle(
                                                     fontSize: 10,
-                                                    color: theme.colorScheme.onSurfaceVariant.withAlpha(120),
+                                                    color: theme.colorScheme
+                                                        .onSurfaceVariant
+                                                        .withAlpha(120),
                                                   ),
                                                 ),
                                               ),
@@ -2053,7 +2301,9 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                                                 relativeTime,
                                                 style: TextStyle(
                                                   fontSize: 12,
-                                                  color: theme.colorScheme.onSurfaceVariant.withAlpha(150),
+                                                  color: theme.colorScheme
+                                                      .onSurfaceVariant
+                                                      .withAlpha(150),
                                                 ),
                                               ),
                                             ],
@@ -2090,11 +2340,11 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   }
 
   Future<bool?> _confirmDelete(
-      BuildContext context,
-      ThemeData theme,
-      String type,
-      String name,
-      ) async {
+    BuildContext context,
+    ThemeData theme,
+    String type,
+    String name,
+  ) async {
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -2131,8 +2381,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   Widget _buildEmptyState(ThemeData theme) {
     // CRITICAL FIX: Provide actionable guidance in empty state
     final bool hasFilters = _searchTerm.isNotEmpty ||
-                           _paymentStatusFilter != 'all' ||
-                           _dateRange != null;
+        _paymentStatusFilter != 'all' ||
+        _dateRange != null;
 
     return Center(
       child: Padding(

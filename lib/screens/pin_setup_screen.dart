@@ -7,11 +7,7 @@ class PinSetupScreen extends StatefulWidget {
   final bool isChangingPin;
   final String? oldPin; // Required when changing PIN
 
-  const PinSetupScreen({
-    super.key,
-    this.isChangingPin = false,
-    this.oldPin,
-  });
+  const PinSetupScreen({super.key, this.isChangingPin = false, this.oldPin});
 
   @override
   State<PinSetupScreen> createState() => _PinSetupScreenState();
@@ -171,7 +167,11 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                      const Icon(
+                        Icons.error_outline,
+                        color: Colors.red,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(

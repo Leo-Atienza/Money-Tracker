@@ -28,10 +28,14 @@ class Income {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'amount': DecimalHelper.toDouble(_amount),  // Convert to double for database
+      'amount': DecimalHelper.toDouble(
+        _amount,
+      ), // Convert to double for database
       'category': category,
       'description': description,
-      'date': DateHelper.toDateString(date),  // Normalize to ISO 8601 date string
+      'date': DateHelper.toDateString(
+        date,
+      ), // Normalize to ISO 8601 date string
       'account_id': accountId,
     };
   }
@@ -52,10 +56,13 @@ class Income {
 
     return Income(
       id: map['id'],
-      amount: DecimalHelper.fromDoubleSafe(map['amount'] as double?),  // Convert from database double
+      amount: DecimalHelper.fromDoubleSafe(
+        map['amount'] as double?,
+      ), // Convert from database double
       category: category as String,
       description: map['description'] ?? '',
-      date: DateHelper.parseDate(map['date']) ?? DateHelper.today(),  // Normalize date from database
+      date: DateHelper.parseDate(map['date']) ??
+          DateHelper.today(), // Normalize date from database
       accountId: accountId as int,
     );
   }

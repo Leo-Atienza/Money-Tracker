@@ -18,12 +18,36 @@ enum CsvSeparator {
   static CsvSeparator fromLocale(String localeString) {
     // European locales that use comma as decimal separator
     const europeanLocales = [
-      'de', 'fr', 'es', 'it', 'nl', 'pl', 'pt', 'ru', 'sv', 'da', 'fi', 'no',
-      'cs', 'el', 'hu', 'ro', 'sk', 'tr', 'bg', 'hr', 'et', 'lv', 'lt', 'sl',
+      'de',
+      'fr',
+      'es',
+      'it',
+      'nl',
+      'pl',
+      'pt',
+      'ru',
+      'sv',
+      'da',
+      'fi',
+      'no',
+      'cs',
+      'el',
+      'hu',
+      'ro',
+      'sk',
+      'tr',
+      'bg',
+      'hr',
+      'et',
+      'lv',
+      'lt',
+      'sl',
     ];
 
     final languageCode = localeString.split('_').first.toLowerCase();
-    return europeanLocales.contains(languageCode) ? CsvSeparator.semicolon : CsvSeparator.comma;
+    return europeanLocales.contains(languageCode)
+        ? CsvSeparator.semicolon
+        : CsvSeparator.comma;
   }
 }
 
@@ -48,7 +72,9 @@ class CsvExporter {
     csvData.writeln('');
 
     // Column header
-    csvData.writeln('Date${sep}Description${sep}Category${sep}Amount${sep}Paid${sep}Remaining${sep}Status');
+    csvData.writeln(
+      'Date${sep}Description${sep}Category${sep}Amount${sep}Paid${sep}Remaining${sep}Status',
+    );
 
     // Calculate totals while building data rows
     double totalAmount = 0.0;
@@ -65,13 +91,16 @@ class CsvExporter {
       final remaining = _formatNumber(expense.remainingAmount, separator);
       final status = expense.isPaid ? 'Paid' : 'Unpaid';
 
-      csvData.writeln('$date$sep$description$sep$category$sep$amount$sep$paid$sep$remaining$sep$status');
+      csvData.writeln(
+        '$date$sep$description$sep$category$sep$amount$sep$paid$sep$remaining$sep$status',
+      );
 
       // Accumulate totals
       totalAmount += expense.amount;
       totalPaid += expense.amountPaid;
       totalRemaining += expense.remainingAmount;
-      categoryTotals[expense.category] = (categoryTotals[expense.category] ?? 0.0) + expense.amount;
+      categoryTotals[expense.category] =
+          (categoryTotals[expense.category] ?? 0.0) + expense.amount;
     }
 
     // Summary section
@@ -80,18 +109,23 @@ class CsvExporter {
     csvData.writeln('Total Transactions$sep${expenses.length}');
     csvData.writeln('Total Amount$sep${_formatNumber(totalAmount, separator)}');
     csvData.writeln('Total Paid$sep${_formatNumber(totalPaid, separator)}');
-    csvData.writeln('Total Remaining$sep${_formatNumber(totalRemaining, separator)}');
+    csvData.writeln(
+      'Total Remaining$sep${_formatNumber(totalRemaining, separator)}',
+    );
     csvData.writeln('');
     csvData.writeln('--- BY CATEGORY ---');
     final sortedCategories = categoryTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     for (final entry in sortedCategories) {
-      csvData.writeln('${_escapeCsv(entry.key, separator)}$sep${_formatNumber(entry.value, separator)}');
+      csvData.writeln(
+        '${_escapeCsv(entry.key, separator)}$sep${_formatNumber(entry.value, separator)}',
+      );
     }
 
     // Save to file
     final directory = await getApplicationDocumentsDirectory();
-    final fileName = 'expenses_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv';
+    final fileName =
+        'expenses_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv';
     final file = File('${directory.path}/$fileName');
 
     await file.writeAsString(csvData.toString());
@@ -101,7 +135,11 @@ class CsvExporter {
   /// Formats a number for CSV export using locale-aware formatting.
   /// FIX: Use proper NumberFormat with locale instead of simple string replacement
   /// This correctly handles thousand separators and decimal points
-  static String _formatNumber(double value, CsvSeparator separator, {String? locale}) {
+  static String _formatNumber(
+    double value,
+    CsvSeparator separator, {
+    String? locale,
+  }) {
     // Use locale-specific number formatting
     final NumberFormat formatter;
 
@@ -139,7 +177,9 @@ class CsvExporter {
     }
 
     // Check for the actual separator being used, quotes, and newlines
-    if (result.contains(separator.value) || result.contains('"') || result.contains('\n')) {
+    if (result.contains(separator.value) ||
+        result.contains('"') ||
+        result.contains('\n')) {
       return '"${result.replaceAll('"', '""')}"';
     }
     return result;
@@ -177,7 +217,8 @@ class CsvExporter {
 
       // Accumulate totals
       totalAmount += income.amount;
-      categoryTotals[income.category] = (categoryTotals[income.category] ?? 0.0) + income.amount;
+      categoryTotals[income.category] =
+          (categoryTotals[income.category] ?? 0.0) + income.amount;
     }
 
     // Summary section
@@ -190,7 +231,9 @@ class CsvExporter {
     final sortedCategories = categoryTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     for (final entry in sortedCategories) {
-      csvData.writeln('${_escapeCsv(entry.key, separator)}$sep${_formatNumber(entry.value, separator)}');
+      csvData.writeln(
+        '${_escapeCsv(entry.key, separator)}$sep${_formatNumber(entry.value, separator)}',
+      );
     }
 
     // Save to file
@@ -219,7 +262,9 @@ class CsvExporter {
     csvData.writeln('');
 
     // Column header
-    csvData.writeln('Date${sep}Type${sep}Description${sep}Category${sep}Amount${sep}Status');
+    csvData.writeln(
+      'Date${sep}Type${sep}Description${sep}Category${sep}Amount${sep}Status',
+    );
 
     // Combine and sort by date
     final allTransactions = <_TransactionRow>[];
@@ -228,26 +273,30 @@ class CsvExporter {
     double totalExpenses = 0.0;
 
     for (final expense in expenses) {
-      allTransactions.add(_TransactionRow(
-        date: expense.date,
-        type: 'Expense',
-        description: expense.description,
-        category: expense.category,
-        amount: -expense.amount, // Negative for expenses
-        status: expense.isPaid ? 'Paid' : 'Unpaid',
-      ));
+      allTransactions.add(
+        _TransactionRow(
+          date: expense.date,
+          type: 'Expense',
+          description: expense.description,
+          category: expense.category,
+          amount: -expense.amount, // Negative for expenses
+          status: expense.isPaid ? 'Paid' : 'Unpaid',
+        ),
+      );
       totalExpenses += expense.amount;
     }
 
     for (final income in incomes) {
-      allTransactions.add(_TransactionRow(
-        date: income.date,
-        type: 'Income',
-        description: income.description,
-        category: income.category,
-        amount: income.amount,
-        status: '-',
-      ));
+      allTransactions.add(
+        _TransactionRow(
+          date: income.date,
+          type: 'Income',
+          description: income.description,
+          category: income.category,
+          amount: income.amount,
+          status: '-',
+        ),
+      );
       totalIncome += income.amount;
     }
 
@@ -263,7 +312,9 @@ class CsvExporter {
       final amount = _formatNumber(transaction.amount, separator);
       final status = transaction.status;
 
-      csvData.writeln('$date$sep$type$sep$description$sep$category$sep$amount$sep$status');
+      csvData.writeln(
+        '$date$sep$type$sep$description$sep$category$sep$amount$sep$status',
+      );
     }
 
     // Summary section
@@ -271,12 +322,17 @@ class CsvExporter {
     csvData.writeln('--- SUMMARY ---');
     csvData.writeln('Total Transactions$sep${allTransactions.length}');
     csvData.writeln('Total Income$sep${_formatNumber(totalIncome, separator)}');
-    csvData.writeln('Total Expenses$sep${_formatNumber(totalExpenses, separator)}');
-    csvData.writeln('Net Balance$sep${_formatNumber(totalIncome - totalExpenses, separator)}');
+    csvData.writeln(
+      'Total Expenses$sep${_formatNumber(totalExpenses, separator)}',
+    );
+    csvData.writeln(
+      'Net Balance$sep${_formatNumber(totalIncome - totalExpenses, separator)}',
+    );
 
     // Save to file
     final directory = await getApplicationDocumentsDirectory();
-    final fileName = 'transactions_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv';
+    final fileName =
+        'transactions_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv';
     final file = File('${directory.path}/$fileName');
 
     await file.writeAsString(csvData.toString());

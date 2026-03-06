@@ -104,7 +104,9 @@ class DateHelper {
     final lastDayOfTargetMonth = DateTime.utc(newYear, newMonth + 1, 0).day;
 
     // Use the original day or the last day of the target month, whichever is smaller
-    final newDay = normalized.day > lastDayOfTargetMonth ? lastDayOfTargetMonth : normalized.day;
+    final newDay = normalized.day > lastDayOfTargetMonth
+        ? lastDayOfTargetMonth
+        : normalized.day;
 
     return DateTime.utc(newYear, newMonth, newDay);
   }
@@ -157,7 +159,20 @@ class DateHelper {
 
     // For older dates or future dates, return a formatted date string
     // FIX P2-14: Return formatted date instead of empty string
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     if (normalizedDate.year == normalizedNow.year) {
       return '${months[normalizedDate.month - 1]} ${normalizedDate.day}';
     }

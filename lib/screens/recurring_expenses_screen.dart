@@ -71,7 +71,9 @@ class _RecurringList extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // Optimize: Watch specific data, read for methods
-    final recurring = context.select<AppState, List<RecurringExpense>>((s) => s.recurringExpenses);
+    final recurring = context.select<AppState, List<RecurringExpense>>(
+      (s) => s.recurringExpenses,
+    );
     final appState = context.read<AppState>(); // For method calls
 
     if (recurring.isEmpty) {
@@ -88,7 +90,10 @@ class _RecurringList extends StatelessWidget {
             border: Border.all(color: theme.colorScheme.outline),
           ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 12,
+            ),
             title: Text(
               rec.description,
               style: TextStyle(
@@ -138,7 +143,9 @@ class _RecurringList extends StatelessWidget {
                   value: rec.isActive,
                   onChanged: (value) async {
                     final updated = rec.copyWith(isActive: value);
-                    await context.read<AppState>().updateRecurringExpense(updated);
+                    await context.read<AppState>().updateRecurringExpense(
+                          updated,
+                        );
                   },
                   activeTrackColor: theme.colorScheme.onSurface,
                 ),
@@ -333,7 +340,8 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
   late TextEditingController _maxOccurrencesController;
   String? _selectedCategory;
   bool _isSaving = false;
-  RecurringExpenseFrequency _selectedFrequency = RecurringExpenseFrequency.monthly;
+  RecurringExpenseFrequency _selectedFrequency =
+      RecurringExpenseFrequency.monthly;
   int _selectedDayOfWeek = 0; // 0 = Monday
   DateTime _startDate = DateHelper.today();
   DateTime? _endDate;
@@ -341,7 +349,13 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
   bool _hasMaxOccurrences = false;
 
   static const List<String> _dayNames = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
   ];
 
   @override
@@ -400,7 +414,9 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // Optimize: Watch specific data, read for methods
-    final categories = context.select<AppState, List<String>>((s) => s.categoryNames);
+    final categories = context.select<AppState, List<String>>(
+      (s) => s.categoryNames,
+    );
     final appState = context.read<AppState>(); // For method calls
 
     return Padding(
@@ -483,11 +499,26 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  _buildFrequencyChip(theme, RecurringExpenseFrequency.monthly, 'Monthly', Icons.calendar_month),
+                  _buildFrequencyChip(
+                    theme,
+                    RecurringExpenseFrequency.monthly,
+                    'Monthly',
+                    Icons.calendar_month,
+                  ),
                   const SizedBox(width: 8),
-                  _buildFrequencyChip(theme, RecurringExpenseFrequency.weekly, 'Weekly', Icons.calendar_today),
+                  _buildFrequencyChip(
+                    theme,
+                    RecurringExpenseFrequency.weekly,
+                    'Weekly',
+                    Icons.calendar_today,
+                  ),
                   const SizedBox(width: 8),
-                  _buildFrequencyChip(theme, RecurringExpenseFrequency.biweekly, 'Bi-weekly', Icons.date_range),
+                  _buildFrequencyChip(
+                    theme,
+                    RecurringExpenseFrequency.biweekly,
+                    'Bi-weekly',
+                    Icons.date_range,
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
@@ -528,7 +559,9 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
                   setState(() {
                     _hasEndDate = value ?? false;
                     if (_hasEndDate && _endDate == null) {
-                      _endDate = DateHelper.today().add(const Duration(days: 365));
+                      _endDate = DateHelper.today().add(
+                        const Duration(days: 365),
+                      );
                     }
                   });
                 },
@@ -536,13 +569,18 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
               ),
               if (_hasEndDate) ...[
                 ListTile(
-                  title: Text(_endDate != null ? DateFormat.yMMMd().format(_endDate!) : 'Select date'),
+                  title: Text(
+                    _endDate != null
+                        ? DateFormat.yMMMd().format(_endDate!)
+                        : 'Select date',
+                  ),
                   trailing: const Icon(Icons.calendar_today),
                   onTap: () async {
                     // CRITICAL FIX: Use centralized date range helpers for consistency
                     final picked = await showDatePicker(
                       context: context,
-                      initialDate: _endDate ?? DateHelper.today().add(const Duration(days: 365)),
+                      initialDate: _endDate ??
+                          DateHelper.today().add(const Duration(days: 365)),
                       firstDate: Validators.getRecurringEndMinDate(),
                       lastDate: Validators.getRecurringEndMaxDate(),
                     );
@@ -570,9 +608,7 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
                   child: TextFormField(
                     controller: _maxOccurrencesController,
                     keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     decoration: InputDecoration(
                       labelText: 'Number of occurrences',
                       hintText: 'e.g., 12 for one year',
@@ -598,10 +634,10 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
                   ),
                   child: _isSaving
                       ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Save'),
                 ),
               ),
@@ -739,14 +775,21 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
     for (final existing in existingRecurring) {
       // Check if all key fields match (description, amount, category, day, frequency)
       // Use toLowerCase for case-insensitive comparison
-      final descMatch = existing.description.toLowerCase() == description.toLowerCase();
-      final amountMatch = (existing.amount - amount).abs() < 0.01; // Floating point comparison
+      final descMatch =
+          existing.description.toLowerCase() == description.toLowerCase();
+      final amountMatch =
+          (existing.amount - amount).abs() < 0.01; // Floating point comparison
       final catMatch = existing.category == category;
       final dayMatch = existing.dayOfMonth == dayValue;
       final freqMatch = existing.frequency == frequency;
 
       // If all fields match, it's a duplicate
-      if (descMatch && amountMatch && catMatch && dayMatch && freqMatch && existing.isActive) {
+      if (descMatch &&
+          amountMatch &&
+          catMatch &&
+          dayMatch &&
+          freqMatch &&
+          existing.isActive) {
         return existing;
       }
     }
@@ -766,11 +809,18 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.orange,
+              size: 28,
+            ),
             const SizedBox(width: 12),
             Text(
               'Similar Transaction Found',
-              style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 18),
+              style: TextStyle(
+                color: theme.colorScheme.onSurface,
+                fontSize: 18,
+              ),
             ),
           ],
         ),
@@ -818,10 +868,7 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
             const SizedBox(height: 12),
             Text(
               'Creating this will result in duplicate expenses every ${duplicate.frequency == RecurringExpenseFrequency.monthly ? 'month' : 'week'}.',
-              style: TextStyle(
-                fontSize: 13,
-                color: theme.colorScheme.error,
-              ),
+              style: TextStyle(fontSize: 13, color: theme.colorScheme.error),
             ),
           ],
         ),
@@ -857,10 +904,14 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerHighest,
+            color: isSelected
+                ? theme.colorScheme.primaryContainer
+                : theme.colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected ? theme.colorScheme.primary : theme.colorScheme.outline,
+              color: isSelected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outline,
               width: isSelected ? 2 : 1,
             ),
           ),
@@ -868,7 +919,9 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
             children: [
               Icon(
                 icon,
-                color: isSelected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant,
+                color: isSelected
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.onSurfaceVariant,
                 size: 24,
               ),
               const SizedBox(height: 4),
@@ -877,7 +930,9 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: isSelected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant,
+                  color: isSelected
+                      ? theme.colorScheme.onPrimaryContainer
+                      : theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -893,17 +948,14 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
       final dayField = TextFormField(
         controller: _dayController,
         keyboardType: TextInputType.number,
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly,
-        ],
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         decoration: InputDecoration(
           labelText: 'Day of Month',
           hintText: '1-31',
-          helperText: 'Enter a day between 1-31. For 29-31, months without those days will use the last day.',
+          helperText:
+              'Enter a day between 1-31. For 29-31, months without those days will use the last day.',
           helperMaxLines: 2,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         ),
         // FIX #24: Add real-time validation for day of month
         autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -940,7 +992,11 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                  const Icon(
+                    Icons.info_outline,
+                    color: Colors.orange,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -965,7 +1021,8 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
       return dayField;
     } else {
       // Weekly/Bi-weekly day selector
-      final isBiweekly = _selectedFrequency == RecurringExpenseFrequency.biweekly;
+      final isBiweekly =
+          _selectedFrequency == RecurringExpenseFrequency.biweekly;
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1000,7 +1057,9 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 ),
                 side: BorderSide(
-                  color: isSelected ? theme.colorScheme.primary : theme.colorScheme.outline,
+                  color: isSelected
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.outline,
                 ),
               );
             }),

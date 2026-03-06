@@ -29,7 +29,9 @@ class ProgressIndicatorHelper {
   static Future<void> showWithProgress(
     BuildContext context, {
     required String title,
-    required Future<void> Function(void Function(double progress, String status) updateProgress) operation,
+    required Future<void> Function(
+      void Function(double progress, String status) updateProgress,
+    ) operation,
   }) async {
     double progress = 0.0;
     String status = 'Starting...';

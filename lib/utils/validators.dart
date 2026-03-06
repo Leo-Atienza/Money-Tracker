@@ -8,7 +8,8 @@ class Validators {
   // Maximum text lengths (must match database schema constraints)
   static const int maxDescriptionLength = 200;
   static const int maxCategoryNameLength = 50;
-  static const int maxTagNameLength = 50; // CRITICAL FIX: Changed from 30 to 50 to match category length
+  static const int maxTagNameLength =
+      50; // CRITICAL FIX: Changed from 30 to 50 to match category length
 
   /// Validate amount input
   static String? validateAmount(String? value, {bool allowZero = false}) {
@@ -74,7 +75,9 @@ class Validators {
     }
 
     // Check length if value is provided
-    if (value != null && value.isNotEmpty && value.length > maxDescriptionLength) {
+    if (value != null &&
+        value.isNotEmpty &&
+        value.length > maxDescriptionLength) {
       return 'Description is too long (max $maxDescriptionLength characters)';
     }
 
@@ -82,7 +85,11 @@ class Validators {
   }
 
   /// Validate category name
-  static String? validateCategoryName(String? value, List<String> existingCategories, {String? originalName}) {
+  static String? validateCategoryName(
+    String? value,
+    List<String> existingCategories, {
+    String? originalName,
+  }) {
     if (value == null || value.trim().isEmpty) {
       return 'Please enter a category name';
     }
@@ -95,8 +102,8 @@ class Validators {
 
     // Check for duplicates (case-insensitive)
     final lowerCaseName = trimmed.toLowerCase();
-    final isDuplicate = existingCategories.any((cat) =>
-      cat.toLowerCase() == lowerCaseName && cat != originalName
+    final isDuplicate = existingCategories.any(
+      (cat) => cat.toLowerCase() == lowerCaseName && cat != originalName,
     );
 
     if (isDuplicate) {
@@ -105,7 +112,8 @@ class Validators {
 
     // FIX: Enhanced special character validation for security and UI stability
     // Blocks: angle brackets, braces, brackets, backslash, backticks, pipe, null char
-    if (trimmed.contains(RegExp(r'[<>{}[\]\\`|]')) || trimmed.contains('\x00')) {
+    if (trimmed.contains(RegExp(r'[<>{}[\]\\`|]')) ||
+        trimmed.contains('\x00')) {
       return 'Category name contains invalid characters';
     }
 
@@ -126,8 +134,8 @@ class Validators {
 
     // Check for duplicates (case-insensitive)
     final lowerCaseName = trimmed.toLowerCase();
-    final isDuplicate = existingTags.any((tag) =>
-      tag.toLowerCase() == lowerCaseName
+    final isDuplicate = existingTags.any(
+      (tag) => tag.toLowerCase() == lowerCaseName,
     );
 
     if (isDuplicate) {

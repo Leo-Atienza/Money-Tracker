@@ -82,7 +82,8 @@ class _AccountList extends StatelessWidget {
         final isCurrent = account.id == currentAccountId;
 
         return Semantics(
-          label: '${account.name}${account.isDefault ? ', default account' : ''}${isCurrent ? ', currently active' : ', tap to view options'}',
+          label:
+              '${account.name}${account.isDefault ? ', default account' : ''}${isCurrent ? ', currently active' : ', tap to view options'}',
           button: !isCurrent,
           child: Container(
             margin: const EdgeInsets.only(bottom: 16),
@@ -98,265 +99,296 @@ class _AccountList extends StatelessWidget {
             ),
             child: ExcludeSemantics(
               child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            leading: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: isCurrent
-                    ? theme.colorScheme.onSurface.withAlpha((255 * 0.1).round())
-                    : theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.account_balance_wallet,
-                color: isCurrent
-                    ? theme.colorScheme.onSurface
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            title: Text(
-              account.name,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            subtitle: account.isDefault
-                ? Text(
-              'Default Account',
-              style: TextStyle(
-                fontSize: 13,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            )
-                : null,
-            trailing: isCurrent
-                ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.onSurface,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'Active',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.surface,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
                 ),
-              ),
-            )
-                : PopupMenuButton(
-              icon: Icon(
-                Icons.more_vert,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'switch',
-                  child: Row(
-                    children: [
-                      Icon(Icons.check_circle),
-                      SizedBox(width: 12),
-                      Text('Switch to this'),
-                    ],
+                leading: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: isCurrent
+                        ? theme.colorScheme.onSurface.withAlpha(
+                            (255 * 0.1).round(),
+                          )
+                        : theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.account_balance_wallet,
+                    color: isCurrent
+                        ? theme.colorScheme.onSurface
+                        : theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                if (!account.isDefault)
-                  const PopupMenuItem(
-                    value: 'setDefault',
-                    child: Row(
-                      children: [
-                        Icon(Icons.star_outline),
-                        SizedBox(width: 12),
-                        Text('Make Default'),
-                      ],
-                    ),
+                title: Text(
+                  account.name,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurface,
                   ),
-                if (!account.isDefault)
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete, color: Colors.red),
-                        SizedBox(width: 12),
-                        Text('Delete', style: TextStyle(color: Colors.red)),
-                      ],
-                    ),
-                  ),
-              ],
-              onSelected: (value) async {
-                if (value == 'switch') {
-                  // FIX #1: Show confirmation dialog before switching accounts
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      backgroundColor: theme.colorScheme.surface,
-                      title: Text(
-                        'Switch Account?',
-                        style: TextStyle(color: theme.colorScheme.onSurface),
-                      ),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Switch to "${account.name}"?',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              color: theme.colorScheme.onSurface,
-                            ),
+                ),
+                subtitle: account.isDefault
+                    ? Text(
+                        'Default Account',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      )
+                    : null,
+                trailing: isCurrent
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.onSurface,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Active',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.surface,
                           ),
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.withAlpha(20),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.blue.withAlpha(100)),
-                            ),
+                        ),
+                      )
+                    : PopupMenuButton(
+                        icon: Icon(
+                          Icons.more_vert,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'switch',
                             child: Row(
                               children: [
-                                const Icon(Icons.info_outline, color: Colors.blue, size: 20),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    'You\'ll see transactions and budgets for this account.',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: theme.colorScheme.onSurface,
+                                Icon(Icons.check_circle),
+                                SizedBox(width: 12),
+                                Text('Switch to this'),
+                              ],
+                            ),
+                          ),
+                          if (!account.isDefault)
+                            const PopupMenuItem(
+                              value: 'setDefault',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.star_outline),
+                                  SizedBox(width: 12),
+                                  Text('Make Default'),
+                                ],
+                              ),
+                            ),
+                          if (!account.isDefault)
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete, color: Colors.red),
+                                  SizedBox(width: 12),
+                                  Text(
+                                    'Delete',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                        onSelected: (value) async {
+                          if (value == 'switch') {
+                            // FIX #1: Show confirmation dialog before switching accounts
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                backgroundColor: theme.colorScheme.surface,
+                                title: Text(
+                                  'Switch Account?',
+                                  style: TextStyle(
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                ),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Switch to "${account.name}"?',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        color: theme.colorScheme.onSurface,
+                                      ),
                                     ),
+                                    const SizedBox(height: 12),
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.withAlpha(20),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: Colors.blue.withAlpha(100),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.info_outline,
+                                            color: Colors.blue,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Text(
+                                              'You\'ll see transactions and budgets for this account.',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color:
+                                                    theme.colorScheme.onSurface,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
+                                    child: const Text('Switch'),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            if (confirmed != true || !context.mounted) return;
+
+                            // Show loading indicator during account switch
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (context) => const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+                            await appState.switchAccount(account);
+                            if (context.mounted) {
+                              Navigator.pop(context); // Close loading dialog
+                              Navigator.pop(context); // Close account manager
+                            }
+                          } else if (value == 'setDefault') {
+                            await appState.setDefaultAccount(account.id!);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    '${account.name} is now the default account',
+                                  ),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          } else if (value == 'delete') {
+                            _confirmDelete(context, account.id!);
+                          }
+                        },
+                      ),
+                onTap: isCurrent
+                    ? null
+                    : () async {
+                        // FIX #1: Show confirmation dialog before switching accounts
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            backgroundColor: theme.colorScheme.surface,
+                            title: Text(
+                              'Switch Account?',
+                              style: TextStyle(
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Switch to "${account.name}"?',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withAlpha(20),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.blue.withAlpha(100),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.info_outline,
+                                        color: Colors.blue,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          'You\'ll see transactions and budgets for this account.',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: theme.colorScheme.onSurface,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Switch'),
-                        ),
-                      ],
-                    ),
-                  );
-
-                  if (confirmed != true || !context.mounted) return;
-
-                  // Show loading indicator during account switch
-                  showDialog(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (context) => const Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                  await appState.switchAccount(account);
-                  if (context.mounted) {
-                    Navigator.pop(context); // Close loading dialog
-                    Navigator.pop(context); // Close account manager
-                  }
-                } else if (value == 'setDefault') {
-                  await appState.setDefaultAccount(account.id!);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('${account.name} is now the default account'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  }
-                } else if (value == 'delete') {
-                  _confirmDelete(context, account.id!);
-                }
-              },
-            ),
-            onTap: isCurrent
-                ? null
-                : () async {
-              // FIX #1: Show confirmation dialog before switching accounts
-              final confirmed = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  backgroundColor: theme.colorScheme.surface,
-                  title: Text(
-                    'Switch Account?',
-                    style: TextStyle(color: theme.colorScheme.onSurface),
-                  ),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Switch to "${account.name}"?',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withAlpha(20),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.blue.withAlpha(100)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.info_outline, color: Colors.blue, size: 20),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'You\'ll see transactions and budgets for this account.',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: theme.colorScheme.onSurface,
-                                ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('Cancel'),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Switch'),
-                    ),
-                  ],
-                ),
-              );
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text('Switch'),
+                              ),
+                            ],
+                          ),
+                        );
 
-              if (confirmed != true || !context.mounted) return;
+                        if (confirmed != true || !context.mounted) return;
 
-              // Show loading indicator during account switch
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => const Center(
-                  child: CircularProgressIndicator(),
-                ),
-              );
-              await appState.switchAccount(account);
-              if (context.mounted) {
-                Navigator.pop(context); // Close loading dialog
-                Navigator.pop(context); // Close account manager
-              }
-            },
-          ),
+                        // Show loading indicator during account switch
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) =>
+                              const Center(child: CircularProgressIndicator()),
+                        );
+                        await appState.switchAccount(account);
+                        if (context.mounted) {
+                          Navigator.pop(context); // Close loading dialog
+                          Navigator.pop(context); // Close account manager
+                        }
+                      },
+              ),
             ),
           ),
         );
@@ -382,10 +414,7 @@ class _AccountList extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'No accounts',
-            style: TextStyle(
-              fontSize: 16,
-              color: theme.colorScheme.onSurface,
-            ),
+            style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface),
           ),
           const SizedBox(height: 8),
           Text(
@@ -416,7 +445,11 @@ class _AccountList extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.red,
+              size: 28,
+            ),
             const SizedBox(width: 12),
             Text(
               'Delete Account?',
@@ -483,7 +516,10 @@ class _AccountList extends StatelessWidget {
 
               // Show loading indicator during delete
               if (!context.mounted) return;
-              ProgressIndicatorHelper.show(context, message: 'Deleting account...');
+              ProgressIndicatorHelper.show(
+                context,
+                message: 'Deleting account...',
+              );
 
               try {
                 await appState.deleteAccount(id);
@@ -556,9 +592,7 @@ class _AddAccountDialogState extends State<_AddAccountDialog> {
         decoration: InputDecoration(
           labelText: 'Account Name',
           hintText: 'e.g., Personal, Business, Savings',
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
       actions: [
@@ -570,10 +604,10 @@ class _AddAccountDialogState extends State<_AddAccountDialog> {
           onPressed: _isSaving ? null : _save,
           child: _isSaving
               ? const SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          )
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Add'),
         ),
       ],
@@ -595,7 +629,9 @@ class _AddAccountDialogState extends State<_AddAccountDialog> {
 
     // Validate account name doesn't contain problematic characters
     if (accountName.contains(RegExp(r'[<>"\\/]'))) {
-      _showError('Account name cannot contain special characters like < > " \\ /');
+      _showError(
+        'Account name cannot contain special characters like < > " \\ /',
+      );
       return;
     }
 
@@ -626,7 +662,8 @@ class _DeletedAccountsSection extends StatefulWidget {
   const _DeletedAccountsSection();
 
   @override
-  State<_DeletedAccountsSection> createState() => _DeletedAccountsSectionState();
+  State<_DeletedAccountsSection> createState() =>
+      _DeletedAccountsSectionState();
 }
 
 class _DeletedAccountsSectionState extends State<_DeletedAccountsSection> {
@@ -690,7 +727,10 @@ class _DeletedAccountsSectionState extends State<_DeletedAccountsSection> {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(10),
@@ -725,7 +765,8 @@ class _DeletedAccountsSectionState extends State<_DeletedAccountsSection> {
           const SizedBox(height: 12),
           ...(_deletedAccounts.map((account) {
             final deletedAt = DateTime.parse(account['deletedAt'] as String);
-            final daysRemaining = 30 - DateTime.now().difference(deletedAt).inDays;
+            final daysRemaining =
+                30 - DateTime.now().difference(deletedAt).inDays;
 
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
