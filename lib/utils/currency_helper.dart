@@ -204,12 +204,21 @@ class CurrencyHelper {
     } else if (lastDot != -1) {
       // Only dots - check if it looks like thousands separator
       final dotCount = '.'.allMatches(result).length;
-      final afterLastDot = result.substring(lastDot + 1);
-      if (dotCount > 1 ||
-          (dotCount == 1 && afterLastDot.length == 3 && result.length > 4)) {
-        // Multiple dots or exactly 3 digits after in a longer number = thousands separator
-        result = result.replaceAll('.', '');
+      if (dotCount > 1) {
+        // Multiple dots: check if they follow thousands grouping pattern
+        // (first group 1-3 digits, subsequent groups exactly 3 digits)
+        final isThousandsPattern =
+            RegExp(r'^\d{1,3}(\.\d{3})+$').hasMatch(result);
+        if (isThousandsPattern) {
+          // Valid thousands pattern like "1.234.567" - remove ALL dots
+          result = result.replaceAll('.', '');
+        } else {
+          // Not valid thousands like "12.34.56" - keep last dot as decimal
+          result = result.substring(0, lastDot).replaceAll('.', '') +
+              result.substring(lastDot);
+        }
       }
+      // Single dot is always treated as decimal separator (never thousands)
     }
 
     return result;
@@ -220,14 +229,18 @@ class CurrencyHelper {
   /// Also strips thousands separators and currency symbols for pasted values from banking apps.
   /// e.g., "12,50" -> "12.50", "$1,234.56" -> "1234.56", "€1.234,56" -> "1234.56"
   static String normalizeDecimalInput(String input) {
-    // FIX: Strip currency symbols first (handles "$50.00", "€1,234.56", etc.)
     String result = input;
-    for (final symbol in currencies.values) {
-      result = result.replaceAll(symbol, '');
-    }
-    // Strip known currency codes (specific list to avoid stripping unrelated text)
+    // Strip currency codes FIRST (3-char, more specific) before symbols,
+    // so single-char symbols like 'R' (ZAR) don't mangle codes like 'EUR'.
     final knownCodes = currencies.keys.join('|');
     result = result.replaceAll(RegExp('(?:$knownCodes)'), '');
+    // Then strip currency symbols, sorted by length descending so multi-char
+    // symbols (e.g., "A$", "HK$", "R$") are stripped before single-char ones.
+    final sortedSymbols = currencies.values.toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
+    for (final symbol in sortedSymbols) {
+      result = result.replaceAll(symbol, '');
+    }
     result = result.trim();
 
     // Then strip thousands separators
