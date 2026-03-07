@@ -61,7 +61,8 @@ class Budget {
         (map['amount'] as num?)?.toDouble(),
       ), // Convert from database double
       accountId: map['account_id'] ??
-          map['accountId'], // Support both formats for compatibility
+          map['accountId'] ??
+          0, // Support both formats, default to 0
       month: parsedMonth ??
           DateHelper.startOfMonth(
             DateHelper.today(),
