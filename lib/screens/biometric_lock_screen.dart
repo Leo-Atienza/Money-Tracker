@@ -5,10 +5,7 @@ import '../services/biometric_service.dart';
 class BiometricLockScreen extends StatefulWidget {
   final VoidCallback onAuthenticated;
 
-  const BiometricLockScreen({
-    super.key,
-    required this.onAuthenticated,
-  });
+  const BiometricLockScreen({super.key, required this.onAuthenticated});
 
   @override
   State<BiometricLockScreen> createState() => _BiometricLockScreenState();
@@ -175,7 +172,11 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, color: Colors.red, size: 24),
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 24,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
@@ -199,7 +200,10 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                     icon: const Icon(Icons.refresh),
                     label: const Text('Try Again'),
                     style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 16,
+                      ),
                     ),
                   ),
 
@@ -225,57 +229,38 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
 
   void _showPinDialog() {
     final theme = Theme.of(context);
-    final pinController = TextEditingController();
 
+    // FIX: PIN fallback requires local_auth package with biometricOnly: false.
+    // Since BiometricService is a stub, show a message instead of a fake PIN dialog
+    // that ignores input and just calls _authenticate() (which always returns true).
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (context) => AlertDialog(
         backgroundColor: theme.colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Enter PIN'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Enter your device PIN to continue',
-              style: TextStyle(
-                fontSize: 14,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: pinController,
-              autofocus: true,
-              obscureText: true,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'PIN',
-                border: OutlineInputBorder(),
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(6),
-              ],
-            ),
-          ],
+        title: const Text('PIN Not Available'),
+        content: Text(
+          'Device credential authentication requires the local_auth package. '
+          'Please use biometric authentication or contact support.',
+          style: TextStyle(
+            fontSize: 14,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context);
             },
-            child: const Text('Cancel'),
+            child: const Text('OK'),
           ),
           TextButton(
-            onPressed: () async {
-              // For now, we'll use biometric authentication with PIN fallback
-              // The local_auth package handles PIN fallback automatically when biometricOnly is false
+            onPressed: () {
               Navigator.pop(context);
               _authenticate();
             },
-            child: const Text('Continue'),
+            child: const Text('Try Biometric Again'),
           ),
         ],
       ),

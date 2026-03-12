@@ -15,20 +15,10 @@ class Tag {
   final String? color;
   final int accountId;
 
-  Tag({
-    this.id,
-    required this.name,
-    this.color,
-    required this.accountId,
-  });
+  Tag({this.id, required this.name, this.color, required this.accountId});
 
   Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'name': name,
-      'color': color,
-      'account_id': accountId,
-    };
+    return {'id': id, 'name': name, 'color': color, 'account_id': accountId};
   }
 
   /// Create a Tag from a database map.
@@ -53,12 +43,7 @@ class Tag {
     );
   }
 
-  Tag copyWith({
-    int? id,
-    String? name,
-    String? color,
-    int? accountId,
-  }) {
+  Tag copyWith({int? id, String? name, String? color, int? accountId}) {
     return Tag(
       id: id ?? this.id,
       name: name ?? this.name,

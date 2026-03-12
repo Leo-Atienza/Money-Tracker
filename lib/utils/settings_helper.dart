@@ -3,7 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SettingsHelper {
   // Keys for SharedPreferences
   static const String _keyDarkMode = 'dark_mode';
-  static const String _keyThemeMode = 'theme_mode'; // FIX: New tri-state theme mode
+  static const String _keyThemeMode =
+      'theme_mode'; // FIX: New tri-state theme mode
   static const String _keyCurrencyCode = 'currency_code';
   static const String _keyBillReminders = 'bill_reminders';
   static const String _keyBudgetAlerts = 'budget_alerts';
@@ -21,7 +22,8 @@ class SettingsHelper {
   // When enabled, shows transparent category color as background on transaction cards
   static const String _keyShowTransactionColors = 'show_transaction_colors';
   // Transaction color intensity (0.0 - 1.0, default 0.5 = medium)
-  static const String _keyTransactionColorIntensity = 'transaction_color_intensity';
+  static const String _keyTransactionColorIntensity =
+      'transaction_color_intensity';
 
   // Dark Mode (deprecated - kept for migration)
   static Future<bool> getDarkMode() async {

@@ -27,9 +27,13 @@ class Budget {
     return {
       'id': id,
       'category': category,
-      'amount': DecimalHelper.toDouble(_amount),  // Convert to double for database
-      'account_id': accountId,  // Use snake_case to match database column
-      'month': DateHelper.toDateString(month),  // Normalize month to ISO 8601 date string
+      'amount': DecimalHelper.toDouble(
+        _amount,
+      ), // Convert to double for database
+      'account_id': accountId, // Use snake_case to match database column
+      'month': DateHelper.toDateString(
+        month,
+      ), // Normalize month to ISO 8601 date string
     };
   }
 
@@ -43,17 +47,26 @@ class Budget {
     } else if (monthValue is String) {
       parsedMonth = DateHelper.parseDate(monthValue);
     } else if (monthValue is int) {
-      parsedMonth = DateHelper.normalize(DateTime.fromMillisecondsSinceEpoch(monthValue));
+      parsedMonth = DateHelper.normalize(
+        DateTime.fromMillisecondsSinceEpoch(monthValue),
+      );
     } else {
       parsedMonth = DateHelper.startOfMonth(DateHelper.today());
     }
 
     return Budget(
       id: map['id'],
-      category: map['category'],
-      amount: DecimalHelper.fromDoubleSafe(map['amount'] as double?),  // Convert from database double
-      accountId: map['account_id'] ?? map['accountId'],  // Support both formats for compatibility
-      month: parsedMonth ?? DateHelper.startOfMonth(DateHelper.today()),  // Normalize month and fallback to current month
+      category: map['category'] ?? 'Uncategorized',
+      amount: DecimalHelper.fromDoubleSafe(
+        (map['amount'] as num?)?.toDouble(),
+      ), // Convert from database double
+      accountId: map['account_id'] ??
+          map['accountId'] ??
+          0, // Support both formats, default to 0
+      month: parsedMonth ??
+          DateHelper.startOfMonth(
+            DateHelper.today(),
+          ), // Normalize month and fallback to current month
     );
   }
 

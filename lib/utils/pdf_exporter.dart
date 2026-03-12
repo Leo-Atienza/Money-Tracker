@@ -30,7 +30,8 @@ class PdfExporter {
     double grandTotal = 0.0;
 
     for (final expense in expenses) {
-      categoryTotals[expense.category] = (categoryTotals[expense.category] ?? 0.0) + expense.amount;
+      categoryTotals[expense.category] =
+          (categoryTotals[expense.category] ?? 0.0) + expense.amount;
       grandTotal += expense.amount;
     }
 
@@ -107,7 +108,10 @@ class PdfExporter {
                   pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      pw.Text('Total Expenses:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.Text(
+                        'Total Expenses:',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
                       pw.Text(
                         '$currencySymbol${grandTotal.toStringAsFixed(2)}',
                         style: pw.TextStyle(
@@ -146,19 +150,30 @@ class PdfExporter {
                 children: [
                   // Header row
                   pw.TableRow(
-                    decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                    decoration: const pw.BoxDecoration(
+                      color: PdfColors.grey200,
+                    ),
                     children: [
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Category', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        child: pw.Text(
+                          'Category',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Amount', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        child: pw.Text(
+                          'Amount',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Percentage', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        child: pw.Text(
+                          'Percentage',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
                       ),
                     ],
                   ),
@@ -166,7 +181,8 @@ class PdfExporter {
                   ...sortedCategories.asMap().entries.map((mapEntry) {
                     final index = mapEntry.key;
                     final entry = mapEntry.value;
-                    final percentage = grandTotal > 0 ? (entry.value / grandTotal * 100) : 0.0;
+                    final percentage =
+                        grandTotal > 0 ? (entry.value / grandTotal * 100) : 0.0;
                     final isEvenRow = index % 2 == 0;
                     return pw.TableRow(
                       decoration: isEvenRow
@@ -179,7 +195,9 @@ class PdfExporter {
                         ),
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(8),
-                          child: pw.Text('$currencySymbol${entry.value.toStringAsFixed(2)}'),
+                          child: pw.Text(
+                            '$currencySymbol${entry.value.toStringAsFixed(2)}',
+                          ),
                         ),
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(8),
@@ -196,10 +214,7 @@ class PdfExporter {
             // Detailed Transaction List
             pw.Text(
               'Detailed Transactions',
-              style: pw.TextStyle(
-                fontSize: 16,
-                fontWeight: pw.FontWeight.bold,
-              ),
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
             ),
             pw.SizedBox(height: 12),
             pw.Table(
@@ -218,23 +233,53 @@ class PdfExporter {
                   children: [
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
-                      child: pw.Text('Date', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                      child: pw.Text(
+                        'Date',
+                        style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold,
+                          fontSize: 9,
+                        ),
+                      ),
                     ),
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
-                      child: pw.Text('Description', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                      child: pw.Text(
+                        'Description',
+                        style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold,
+                          fontSize: 9,
+                        ),
+                      ),
                     ),
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
-                      child: pw.Text('Category', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                      child: pw.Text(
+                        'Category',
+                        style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold,
+                          fontSize: 9,
+                        ),
+                      ),
                     ),
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
-                      child: pw.Text('Payment', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                      child: pw.Text(
+                        'Payment',
+                        style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold,
+                          fontSize: 9,
+                        ),
+                      ),
                     ),
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
-                      child: pw.Text('Amount', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                      child: pw.Text(
+                        'Amount',
+                        style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold,
+                          fontSize: 9,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -250,19 +295,31 @@ class PdfExporter {
                     children: [
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(6),
-                        child: pw.Text(dateFormat.format(expense.date), style: const pw.TextStyle(fontSize: 8)),
+                        child: pw.Text(
+                          dateFormat.format(expense.date),
+                          style: const pw.TextStyle(fontSize: 8),
+                        ),
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(6),
-                        child: pw.Text(expense.description, style: const pw.TextStyle(fontSize: 8)),
+                        child: pw.Text(
+                          expense.description,
+                          style: const pw.TextStyle(fontSize: 8),
+                        ),
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(6),
-                        child: pw.Text(expense.category, style: const pw.TextStyle(fontSize: 8)),
+                        child: pw.Text(
+                          expense.category,
+                          style: const pw.TextStyle(fontSize: 8),
+                        ),
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(6),
-                        child: pw.Text(expense.paymentMethod, style: const pw.TextStyle(fontSize: 8)),
+                        child: pw.Text(
+                          expense.paymentMethod,
+                          style: const pw.TextStyle(fontSize: 8),
+                        ),
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(6),
@@ -283,10 +340,7 @@ class PdfExporter {
             pw.SizedBox(height: 8),
             pw.Text(
               'Money Tracker - Financial Report',
-              style: const pw.TextStyle(
-                fontSize: 8,
-                color: PdfColors.grey600,
-              ),
+              style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
               textAlign: pw.TextAlign.center,
             ),
           ];
@@ -322,7 +376,8 @@ class PdfExporter {
     double grandTotal = 0.0;
 
     for (final income in incomes) {
-      categoryTotals[income.category] = (categoryTotals[income.category] ?? 0.0) + income.amount;
+      categoryTotals[income.category] =
+          (categoryTotals[income.category] ?? 0.0) + income.amount;
       grandTotal += income.amount;
     }
 
@@ -390,7 +445,10 @@ class PdfExporter {
                   pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      pw.Text('Total Income:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.Text(
+                        'Total Income:',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
                       pw.Text(
                         '$currencySymbol${grandTotal.toStringAsFixed(2)}',
                         style: pw.TextStyle(
@@ -428,19 +486,30 @@ class PdfExporter {
                 border: pw.TableBorder.all(color: PdfColors.grey300),
                 children: [
                   pw.TableRow(
-                    decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                    decoration: const pw.BoxDecoration(
+                      color: PdfColors.grey200,
+                    ),
                     children: [
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Category', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        child: pw.Text(
+                          'Category',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Amount', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        child: pw.Text(
+                          'Amount',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Percentage', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        child: pw.Text(
+                          'Percentage',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
                       ),
                     ],
                   ),
@@ -448,7 +517,8 @@ class PdfExporter {
                   ...sortedCategories.asMap().entries.map((mapEntry) {
                     final index = mapEntry.key;
                     final entry = mapEntry.value;
-                    final percentage = grandTotal > 0 ? (entry.value / grandTotal * 100) : 0.0;
+                    final percentage =
+                        grandTotal > 0 ? (entry.value / grandTotal * 100) : 0.0;
                     final isEvenRow = index % 2 == 0;
                     return pw.TableRow(
                       decoration: isEvenRow
@@ -461,7 +531,9 @@ class PdfExporter {
                         ),
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(8),
-                          child: pw.Text('$currencySymbol${entry.value.toStringAsFixed(2)}'),
+                          child: pw.Text(
+                            '$currencySymbol${entry.value.toStringAsFixed(2)}',
+                          ),
                         ),
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(8),
@@ -478,10 +550,7 @@ class PdfExporter {
             // Detailed Transaction List
             pw.Text(
               'Detailed Transactions',
-              style: pw.TextStyle(
-                fontSize: 16,
-                fontWeight: pw.FontWeight.bold,
-              ),
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
             ),
             pw.SizedBox(height: 12),
             pw.Table(
@@ -492,19 +561,31 @@ class PdfExporter {
                   children: [
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text('Date', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      child: pw.Text(
+                        'Date',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
                     ),
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text('Description', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      child: pw.Text(
+                        'Description',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
                     ),
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text('Category', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      child: pw.Text(
+                        'Category',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
                     ),
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text('Amount', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      child: pw.Text(
+                        'Amount',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
                     ),
                   ],
                 ),
@@ -532,7 +613,9 @@ class PdfExporter {
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('$currencySymbol${income.amount.toStringAsFixed(2)}'),
+                        child: pw.Text(
+                          '$currencySymbol${income.amount.toStringAsFixed(2)}',
+                        ),
                       ),
                     ],
                   );
@@ -571,7 +654,8 @@ class PdfExporter {
     // Calculate category spending
     final Map<String, double> categorySpending = {};
     for (final expense in expenses) {
-      categorySpending[expense.category] = (categorySpending[expense.category] ?? 0.0) + expense.amount;
+      categorySpending[expense.category] =
+          (categorySpending[expense.category] ?? 0.0) + expense.amount;
     }
 
     pdf.addPage(
@@ -626,10 +710,16 @@ class PdfExporter {
                   pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      pw.Text('Total Income:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.Text(
+                        'Total Income:',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
                       pw.Text(
                         '$currencySymbol${totalIncome.toStringAsFixed(2)}',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.green700),
+                        style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.green700,
+                        ),
                       ),
                     ],
                   ),
@@ -637,10 +727,16 @@ class PdfExporter {
                   pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      pw.Text('Total Expenses:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.Text(
+                        'Total Expenses:',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
                       pw.Text(
                         '$currencySymbol${totalExpenses.toStringAsFixed(2)}',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.red700),
+                        style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.red700,
+                        ),
                       ),
                     ],
                   ),
@@ -650,13 +746,21 @@ class PdfExporter {
                   pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      pw.Text('Net Balance:', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                      pw.Text(
+                        'Net Balance:',
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
                       pw.Text(
                         '$currencySymbol${balance.toStringAsFixed(2)}',
                         style: pw.TextStyle(
                           fontSize: 16,
                           fontWeight: pw.FontWeight.bold,
-                          color: balance >= 0 ? PdfColors.green700 : PdfColors.red700,
+                          color: balance >= 0
+                              ? PdfColors.green700
+                              : PdfColors.red700,
                         ),
                       ),
                     ],
@@ -680,30 +784,49 @@ class PdfExporter {
                 border: pw.TableBorder.all(color: PdfColors.grey300),
                 children: [
                   pw.TableRow(
-                    decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                    decoration: const pw.BoxDecoration(
+                      color: PdfColors.grey200,
+                    ),
                     children: [
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Category', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        child: pw.Text(
+                          'Category',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Budget', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        child: pw.Text(
+                          'Budget',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Spent', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        child: pw.Text(
+                          'Spent',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Status', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        child: pw.Text(
+                          'Status',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
                       ),
                     ],
                   ),
                   ...budgets.map((budget) {
                     final spent = categorySpending[budget.category] ?? 0.0;
-                    final percentage = budget.amount > 0 ? (spent / budget.amount * 100) : 0.0;
-                    final status = percentage > 100 ? 'Over' : percentage > 90 ? 'Warning' : 'On Track';
+                    final percentage =
+                        budget.amount > 0 ? (spent / budget.amount * 100) : 0.0;
+                    final status = percentage > 100
+                        ? 'Over'
+                        : percentage > 90
+                            ? 'Warning'
+                            : 'On Track';
 
                     return pw.TableRow(
                       children: [
@@ -713,11 +836,15 @@ class PdfExporter {
                         ),
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(8),
-                          child: pw.Text('$currencySymbol${budget.amount.toStringAsFixed(2)}'),
+                          child: pw.Text(
+                            '$currencySymbol${budget.amount.toStringAsFixed(2)}',
+                          ),
                         ),
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(8),
-                          child: pw.Text('$currencySymbol${spent.toStringAsFixed(2)}'),
+                          child: pw.Text(
+                            '$currencySymbol${spent.toStringAsFixed(2)}',
+                          ),
                         ),
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(8),

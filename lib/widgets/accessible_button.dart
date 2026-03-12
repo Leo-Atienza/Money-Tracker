@@ -54,12 +54,7 @@ class AccessibleButton extends StatelessWidget {
       );
     }
 
-    return Semantics(
-      label: label,
-      button: true,
-      enabled: true,
-      child: button,
-    );
+    return Semantics(label: label, button: true, enabled: true, child: button);
   }
 }
 

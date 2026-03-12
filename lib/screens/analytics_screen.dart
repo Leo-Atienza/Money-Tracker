@@ -76,7 +76,8 @@ class _SpendingTrendsChart extends StatefulWidget {
   State<_SpendingTrendsChart> createState() => _SpendingTrendsChartState();
 }
 
-class _SpendingTrendsChartState extends State<_SpendingTrendsChart> with SingleTickerProviderStateMixin {
+class _SpendingTrendsChartState extends State<_SpendingTrendsChart>
+    with SingleTickerProviderStateMixin {
   List<Map<String, dynamic>> _trends = [];
   bool _isLoading = true;
   DateTime? _lastLoadedMonth;
@@ -166,7 +167,9 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart> with SingleT
       return _buildEmptyState(theme);
     }
 
-    final hasAnyData = _trends.any((t) => (t['expenses'] as double) > 0 || (t['income'] as double) > 0);
+    final hasAnyData = _trends.any(
+      (t) => (t['expenses'] as double) > 0 || (t['income'] as double) > 0,
+    );
     if (!hasAnyData) {
       return _buildEmptyState(theme);
     }
@@ -182,180 +185,193 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart> with SingleT
     return AnimatedBuilder(
       animation: _chartAnimation,
       builder: (context, child) => Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.colorScheme.outline),
-      ),
-      child: Semantics(
-        label: 'Six month trends chart, $chartDescription',
-        container: true,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '6-MONTH TRENDS',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.2,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                Row(
-                  children: [
-                    _buildLegendItem(theme, Colors.red, 'Expenses'),
-                    const SizedBox(width: 16),
-                    _buildLegendItem(theme, Colors.green, 'Income'),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              height: 200,
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: maxValue * 1.2,
-                  barTouchData: BarTouchData(
-                    enabled: true,
-                    touchTooltipData: BarTouchTooltipData(
-                      getTooltipColor: (group) =>
-                          theme.colorScheme.surfaceContainerHighest,
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        final month = _trends[groupIndex]['month'] as DateTime;
-                        final monthName = _getMonthName(month);
-                        final value = rod.toY;
-                        final label = rodIndex == 0 ? 'Expenses' : 'Income';
-                        return BarTooltipItem(
-                          '$monthName\n$label: $currency${value.toStringAsFixed(0)}',
-                          TextStyle(
-                            color: theme.colorScheme.onSurface,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        );
-                      },
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: theme.colorScheme.outline),
+        ),
+        child: Semantics(
+          label: 'Six month trends chart, $chartDescription',
+          container: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '6-MONTH TRENDS',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.2,
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    rightTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          if (value.toInt() >= _trends.length) {
-                            return const Text('');
-                          }
+                  Row(
+                    children: [
+                      _buildLegendItem(theme, Colors.red, 'Expenses'),
+                      const SizedBox(width: 16),
+                      _buildLegendItem(theme, Colors.green, 'Income'),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 200,
+                child: BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: maxValue * 1.2,
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        getTooltipColor: (group) =>
+                            theme.colorScheme.surfaceContainerHighest,
+                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
                           final month =
-                              _trends[value.toInt()]['month'] as DateTime;
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              _getMonthShort(month),
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: theme.colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          );
-                        },
-                        reservedSize: 28,
-                      ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 55,
-                        getTitlesWidget: (value, meta) {
-                          // FIX: Skip rendering labels at boundaries to prevent ghosting
-                          if (value == 0 || value == meta.max || value == meta.min) {
-                            return const SizedBox.shrink();
-                          }
-                          // FIX: Use SizedBox with alignment to prevent text overlap
-                          return SizedBox(
-                            width: 50,
-                            child: Text(
-                              '$currency${_formatAmount(value)}',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: theme.colorScheme.onSurfaceVariant,
-                                height: 1.0,
-                              ),
-                              textAlign: TextAlign.right,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              _trends[groupIndex]['month'] as DateTime;
+                          final monthName = _getMonthName(month);
+                          final value = rod.toY;
+                          final label = rodIndex == 0 ? 'Expenses' : 'Income';
+                          return BarTooltipItem(
+                            '$monthName\n$label: $currency${value.toStringAsFixed(0)}',
+                            TextStyle(
+                              color: theme.colorScheme.onSurface,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
                             ),
                           );
                         },
                       ),
                     ),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    // FIX: Use smarter interval calculation to prevent label overlap
-                    horizontalInterval: _calculateGridInterval(maxValue),
-                    getDrawingHorizontalLine: (value) => FlLine(
-                      color: theme.colorScheme.outline.withAlpha(50),
-                      strokeWidth: 1,
+                    titlesData: FlTitlesData(
+                      show: true,
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (value, meta) {
+                            if (value.toInt() >= _trends.length) {
+                              return const Text('');
+                            }
+                            final month =
+                                _trends[value.toInt()]['month'] as DateTime;
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                _getMonthShort(month),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            );
+                          },
+                          reservedSize: 28,
+                        ),
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 55,
+                          getTitlesWidget: (value, meta) {
+                            // FIX: Skip rendering labels at boundaries to prevent ghosting
+                            if (value == 0 ||
+                                value == meta.max ||
+                                value == meta.min) {
+                              return const SizedBox.shrink();
+                            }
+                            // FIX: Use SizedBox with alignment to prevent text overlap
+                            return SizedBox(
+                              width: 50,
+                              child: Text(
+                                '$currency${_formatAmount(value)}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  height: 1.0,
+                                ),
+                                textAlign: TextAlign.right,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                     ),
+                    borderData: FlBorderData(show: false),
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      // FIX: Use smarter interval calculation to prevent label overlap
+                      horizontalInterval: _calculateGridInterval(maxValue),
+                      getDrawingHorizontalLine: (value) => FlLine(
+                        color: theme.colorScheme.outline.withAlpha(50),
+                        strokeWidth: 1,
+                      ),
+                    ),
+                    barGroups: _trends.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final data = entry.value;
+                      return BarChartGroupData(
+                        x: index,
+                        barRods: [
+                          BarChartRodData(
+                            toY: (data['expenses'] as double) *
+                                _chartAnimation.value,
+                            color: Colors.red.shade400,
+                            width: 12,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(4),
+                              topRight: Radius.circular(4),
+                            ),
+                          ),
+                          BarChartRodData(
+                            toY: (data['income'] as double) *
+                                _chartAnimation.value,
+                            color: Colors.green.shade400,
+                            width: 12,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(4),
+                              topRight: Radius.circular(4),
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
                   ),
-                  barGroups: _trends.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final data = entry.value;
-                    return BarChartGroupData(
-                      x: index,
-                      barRods: [
-                        BarChartRodData(
-                          toY: (data['expenses'] as double) * _chartAnimation.value,
-                          color: Colors.red.shade400,
-                          width: 12,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(4),
-                            topRight: Radius.circular(4),
-                          ),
-                        ),
-                        BarChartRodData(
-                          toY: (data['income'] as double) * _chartAnimation.value,
-                          color: Colors.green.shade400,
-                          width: 12,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(4),
-                            topRight: Radius.circular(4),
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
 
   String _buildChartDescription(
-      List<Map<String, dynamic>> trends, String currency) {
+    List<Map<String, dynamic>> trends,
+    String currency,
+  ) {
     if (trends.isEmpty) return 'No data available';
-    final totalExpenses =
-        trends.fold<double>(0, (sum, t) => sum + (t['expenses'] as double));
-    final totalIncome =
-        trends.fold<double>(0, (sum, t) => sum + (t['income'] as double));
+    final totalExpenses = trends.fold<double>(
+      0,
+      (sum, t) => sum + (t['expenses'] as double),
+    );
+    final totalIncome = trends.fold<double>(
+      0,
+      (sum, t) => sum + (t['income'] as double),
+    );
     return 'Total expenses: $currency${totalExpenses.toStringAsFixed(0)}, Total income: $currency${totalIncome.toStringAsFixed(0)}';
   }
 
@@ -396,7 +412,7 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart> with SingleT
       'Sep',
       'Oct',
       'Nov',
-      'Dec'
+      'Dec',
     ];
     return '${months[date.month - 1]} ${date.year}';
   }
@@ -414,7 +430,7 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart> with SingleT
       'Sep',
       'Oct',
       'Nov',
-      'Dec'
+      'Dec',
     ];
     return months[date.month - 1];
   }
@@ -425,7 +441,9 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart> with SingleT
     } else if (value >= 1000) {
       // FIX: Use cleaner K notation without decimal for cleaner display
       final kValue = value / 1000;
-      return kValue >= 10 ? '${kValue.toStringAsFixed(0)}K' : '${kValue.toStringAsFixed(1)}K';
+      return kValue >= 10
+          ? '${kValue.toStringAsFixed(0)}K'
+          : '${kValue.toStringAsFixed(1)}K';
     }
     return value.toStringAsFixed(0);
   }
@@ -505,7 +523,9 @@ class _SpendingChart extends StatelessWidget {
 
   /// Groups small categories into "Others" to avoid pie chart clutter
   Map<String, double> _groupSmallCategories(
-      Map<String, double> spending, double total) {
+    Map<String, double> spending,
+    double total,
+  ) {
     if (spending.length <= _maxCategories) {
       return spending;
     }
@@ -569,8 +589,10 @@ class _SpendingChart extends StatelessWidget {
     final colors = _getColors(theme);
 
     final categoryDescriptions = spending.entries
-        .map((e) =>
-            '${e.key}: $currency${e.value.toStringAsFixed(2)}, ${((e.value / total) * 100).toStringAsFixed(0)}%')
+        .map(
+          (e) =>
+              '${e.key}: $currency${e.value.toStringAsFixed(2)}, ${((e.value / total) * 100).toStringAsFixed(0)}%',
+        )
         .join('; ');
 
     return Container(
@@ -602,8 +624,9 @@ class _SpendingChart extends StatelessWidget {
                 PieChartData(
                   sectionsSpace: 1,
                   centerSpaceRadius: 55,
-                  sections:
-                      spending.entries.toList().asMap().entries.map((entry) {
+                  sections: spending.entries.toList().asMap().entries.map((
+                    entry,
+                  ) {
                     final index = entry.key;
                     final data = entry.value;
                     final percentage = (data.value / total * 100);
@@ -622,7 +645,9 @@ class _SpendingChart extends StatelessWidget {
                     return PieChartSectionData(
                       color: bgColor,
                       value: data.value,
-                      title: isTinySlice ? '' : '${percentage.toStringAsFixed(0)}%',
+                      title: isTinySlice
+                          ? ''
+                          : '${percentage.toStringAsFixed(0)}%',
                       radius: 50, // Consistent radius for all slices
                       titleStyle: TextStyle(
                         fontSize: chartLabelFontSize,
@@ -642,7 +667,9 @@ class _SpendingChart extends StatelessWidget {
               final data = entry.value;
               final isOthers = data.key == 'Others';
               final percentage = (data.value / total) * 100;
-              final percentageStr = percentage.toStringAsFixed(percentage < 1 ? 1 : 0);
+              final percentageStr = percentage.toStringAsFixed(
+                percentage < 1 ? 1 : 0,
+              );
               // Use matching color for the legend
               final legendColor = isOthers
                   ? (theme.brightness == Brightness.dark
@@ -829,7 +856,9 @@ class _BudgetProgress extends StatelessWidget {
                           ? Colors.amber
                           : Colors.green;
               final statusLabel = AccessibilityHelper.getBudgetStatusLabel(
-                  percentage, budget.category);
+                percentage,
+                budget.category,
+              );
 
               return Semantics(
                 label: statusLabel,
@@ -984,7 +1013,8 @@ class _CategoryBreakdown extends StatelessWidget {
             final percentage = total > 0 ? (entry.value / total * 100) : 0.0;
 
             return Semantics(
-              label: '${entry.key}, $currency${entry.value.toStringAsFixed(2)}, ${percentage.toStringAsFixed(1)}% of total spending',
+              label:
+                  '${entry.key}, $currency${entry.value.toStringAsFixed(2)}, ${percentage.toStringAsFixed(1)}% of total spending',
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: Row(
@@ -1062,7 +1092,7 @@ class _MonthOverMonthInsights extends StatelessWidget {
       (s) => (
         s.getMonthOverMonthComparison(),
         s.getIncomeMonthOverMonthComparison(),
-        s.currency
+        s.currency,
       ),
     );
     final comparison = comparisonData.$1;
@@ -1081,8 +1111,11 @@ class _MonthOverMonthInsights extends StatelessWidget {
 
     // Find categories with biggest changes
     final categoryChanges = categoryComparison.entries.toList()
-      ..sort((a, b) => (b.value['change']?.abs() ?? 0)
-          .compareTo(a.value['change']?.abs() ?? 0));
+      ..sort(
+        (a, b) => (b.value['change']?.abs() ?? 0).compareTo(
+          a.value['change']?.abs() ?? 0,
+        ),
+      );
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1199,7 +1232,8 @@ class _MonthOverMonthInsights extends StatelessWidget {
     }
 
     return Semantics(
-      label: '$title: $currency${current.toStringAsFixed(0)}, $changeDescription',
+      label:
+          '$title: $currency${current.toStringAsFixed(0)}, $changeDescription',
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(

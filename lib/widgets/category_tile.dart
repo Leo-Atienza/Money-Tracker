@@ -9,26 +9,26 @@ class CategoryColors {
 
   /// Default colors for expense categories by name
   static const Map<String, Color> expenseColors = {
-    'Food': Color(0xFF8B5CF6),        // Violet/Purple
-    'Restaurant': Color(0xFF8B5CF6),  // Violet/Purple
-    'Transport': Color(0xFF3B82F6),   // Blue
-    'Shopping': Color(0xFF10B981),    // Emerald/Green
-    'Grocery': Color(0xFF10B981),     // Emerald/Green
+    'Food': Color(0xFF8B5CF6), // Violet/Purple
+    'Restaurant': Color(0xFF8B5CF6), // Violet/Purple
+    'Transport': Color(0xFF3B82F6), // Blue
+    'Shopping': Color(0xFF10B981), // Emerald/Green
+    'Grocery': Color(0xFF10B981), // Emerald/Green
     'Entertainment': Color(0xFFEC4899), // Pink
-    'Health': Color(0xFFEF4444),      // Red
-    'Education': Color(0xFF6366F1),   // Indigo
-    'Bills': Color(0xFF6366F1),       // Indigo (Electric/Utilities)
-    'Utilities': Color(0xFF6366F1),   // Indigo
-    'Other': Color(0xFF64748B),       // Slate
+    'Health': Color(0xFFEF4444), // Red
+    'Education': Color(0xFF6366F1), // Indigo
+    'Bills': Color(0xFF6366F1), // Indigo (Electric/Utilities)
+    'Utilities': Color(0xFF6366F1), // Indigo
+    'Other': Color(0xFF64748B), // Slate
   };
 
   /// Default colors for income categories by name
   static const Map<String, Color> incomeColors = {
-    'Salary': Color(0xFFD97706),      // Amber/Brown
-    'Freelance': Color(0xFF14B8A6),   // Teal/Cyan
-    'Investment': Color(0xFF10B981),  // Emerald
-    'Gift': Color(0xFFEC4899),        // Pink
-    'Other': Color(0xFF10B981),       // Emerald
+    'Salary': Color(0xFFD97706), // Amber/Brown
+    'Freelance': Color(0xFF14B8A6), // Teal/Cyan
+    'Investment': Color(0xFF10B981), // Emerald
+    'Gift': Color(0xFFEC4899), // Pink
+    'Other': Color(0xFF10B981), // Emerald
   };
 
   /// Get default color for a category
@@ -96,9 +96,11 @@ class CategoryTile extends StatelessWidget {
 
     // Icon color - slightly brighter in dark mode for visibility
     final Color iconColor = isDark
-        ? HSLColor.fromColor(baseColor).withLightness(
-            (HSLColor.fromColor(baseColor).lightness + 0.1).clamp(0.0, 1.0)
-          ).toColor()
+        ? HSLColor.fromColor(baseColor)
+            .withLightness(
+              (HSLColor.fromColor(baseColor).lightness + 0.1).clamp(0.0, 1.0),
+            )
+            .toColor()
         : baseColor;
 
     return Container(
@@ -123,11 +125,7 @@ class CategoryTile extends StatelessWidget {
           ),
         ],
       ),
-      child: Icon(
-        iconData,
-        color: iconColor,
-        size: size * iconScale,
-      ),
+      child: Icon(iconData, color: iconColor, size: size * iconScale),
     );
   }
 }

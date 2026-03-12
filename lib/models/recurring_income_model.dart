@@ -5,9 +5,9 @@ import '../utils/date_helper.dart';
 
 /// Frequency types for recurring income
 enum RecurringFrequency {
-  monthly,   // On a specific day of the month (1-31)
-  biweekly,  // Every two weeks on a specific day of the week
-  weekly,    // Every week on a specific day of the week
+  monthly, // On a specific day of the month (1-31)
+  biweekly, // Every two weeks on a specific day of the week
+  weekly, // Every week on a specific day of the week
 }
 
 class RecurringIncome {
@@ -15,15 +15,15 @@ class RecurringIncome {
   final String description;
   final Decimal _amount;
   final String category;
-  final int dayOfMonth;        // For monthly: 1-31, For weekly/biweekly: 0-6 (Mon-Sun)
+  final int dayOfMonth; // For monthly: 1-31, For weekly/biweekly: 0-6 (Mon-Sun)
   final bool isActive;
   final DateTime? lastCreated;
   final int accountId;
   final RecurringFrequency frequency;
-  final DateTime? startDate;   // Reference date for bi-weekly calculations
-  final DateTime? endDate;     // FIX: Optional end date for recurring income
-  final int? maxOccurrences;   // FIX: Optional max number of occurrences
-  final int occurrenceCount;   // FIX: Track how many times it has occurred
+  final DateTime? startDate; // Reference date for bi-weekly calculations
+  final DateTime? endDate; // FIX: Optional end date for recurring income
+  final int? maxOccurrences; // FIX: Optional max number of occurrences
+  final int occurrenceCount; // FIX: Track how many times it has occurred
 
   RecurringIncome({
     this.id,
@@ -49,7 +49,15 @@ class RecurringIncome {
 
   /// Get the day name for weekly/biweekly frequencies
   String get dayName {
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const days = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
     if (frequency == RecurringFrequency.monthly) {
       return 'Day $dayOfMonth';
     }
@@ -72,14 +80,18 @@ class RecurringIncome {
     return {
       'id': id,
       'description': description,
-      'amount': DecimalHelper.toDouble(_amount),  // Convert to double for database
+      'amount': DecimalHelper.toDouble(
+        _amount,
+      ), // Convert to double for database
       'category': category,
       'dayOfMonth': dayOfMonth,
       'isActive': isActive ? 1 : 0,
-      'lastCreated': lastCreated != null ? DateHelper.toDateString(lastCreated!) : null,
+      'lastCreated':
+          lastCreated != null ? DateHelper.toDateString(lastCreated!) : null,
       'account_id': accountId,
       'frequency': frequency.index,
-      'startDate': startDate != null ? DateHelper.toDateString(startDate!) : null,
+      'startDate':
+          startDate != null ? DateHelper.toDateString(startDate!) : null,
       'endDate': endDate != null ? DateHelper.toDateString(endDate!) : null,
       'maxOccurrences': maxOccurrences,
       'occurrenceCount': occurrenceCount,
@@ -92,22 +104,31 @@ class RecurringIncome {
       if (value == null) return null;
       final parsed = DateHelper.parseDate(value.toString());
       if (parsed == null && kDebugMode) {
-        debugPrint('RecurringIncome ID ${map['id']}: Invalid $fieldName date "$value"');
+        debugPrint(
+          'RecurringIncome ID ${map['id']}: Invalid $fieldName date "$value"',
+        );
       }
       return parsed;
     }
 
     // FIX P0-3: Validate frequency index to prevent RangeError on corrupted data
     final frequencyIndex = map['frequency'] as int? ?? 0;
-    final safeFrequencyIndex = frequencyIndex.clamp(0, RecurringFrequency.values.length - 1);
+    final safeFrequencyIndex = frequencyIndex.clamp(
+      0,
+      RecurringFrequency.values.length - 1,
+    );
     if (frequencyIndex != safeFrequencyIndex && kDebugMode) {
-      debugPrint('RecurringIncome ID ${map['id']}: Invalid frequency index $frequencyIndex, using $safeFrequencyIndex');
+      debugPrint(
+        'RecurringIncome ID ${map['id']}: Invalid frequency index $frequencyIndex, using $safeFrequencyIndex',
+      );
     }
 
     return RecurringIncome(
       id: map['id'],
       description: map['description'],
-      amount: DecimalHelper.fromDoubleSafe(map['amount'] as double?),  // Convert from database double
+      amount: DecimalHelper.fromDoubleSafe(
+        (map['amount'] as num?)?.toDouble(),
+      ), // Convert from database double
       category: map['category'],
       dayOfMonth: map['dayOfMonth'],
       isActive: map['isActive'] == 1,
@@ -154,7 +175,8 @@ class RecurringIncome {
       frequency: frequency ?? this.frequency,
       startDate: clearStartDate ? null : (startDate ?? this.startDate),
       endDate: clearEndDate ? null : (endDate ?? this.endDate),
-      maxOccurrences: clearMaxOccurrences ? null : (maxOccurrences ?? this.maxOccurrences),
+      maxOccurrences:
+          clearMaxOccurrences ? null : (maxOccurrences ?? this.maxOccurrences),
       occurrenceCount: occurrenceCount ?? this.occurrenceCount,
     );
   }
@@ -192,7 +214,8 @@ class RecurringIncome {
       frequency: frequency ?? this.frequency,
       startDate: clearStartDate ? null : (startDate ?? this.startDate),
       endDate: clearEndDate ? null : (endDate ?? this.endDate),
-      maxOccurrences: clearMaxOccurrences ? null : (maxOccurrences ?? this.maxOccurrences),
+      maxOccurrences:
+          clearMaxOccurrences ? null : (maxOccurrences ?? this.maxOccurrences),
       occurrenceCount: occurrenceCount ?? this.occurrenceCount,
     );
   }

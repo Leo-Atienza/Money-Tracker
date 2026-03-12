@@ -103,7 +103,9 @@ class DialogHelpers {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('You are changing currency from $oldCurrency to $newCurrency.'),
+            Text(
+              'You are changing currency from $oldCurrency to $newCurrency.',
+            ),
             const SizedBox(height: 16),
             Text('You have $transactionCount existing transactions.'),
             const SizedBox(height: 16),
@@ -184,7 +186,9 @@ class DialogHelpers {
             children: [
               Text('You selected a future date: ${_formatDate(selectedDate)}'),
               const SizedBox(height: 16),
-              const Text('This transaction will be created with a future date.'),
+              const Text(
+                'This transaction will be created with a future date.',
+              ),
               const SizedBox(height: 16),
               CheckboxListTile(
                 value: dontAskAgain,
@@ -230,7 +234,20 @@ class DialogHelpers {
   }
 
   static String _formatDate(DateTime date) {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 

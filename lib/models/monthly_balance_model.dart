@@ -24,11 +24,12 @@ class MonthlyBalance {
     Decimal? overallBudget,
     required this.accountId,
     required this.month,
-  }) : _carryoverFromPrevious = carryoverFromPrevious,
-       _overallBudget = overallBudget;
+  })  : _carryoverFromPrevious = carryoverFromPrevious,
+        _overallBudget = overallBudget;
 
   /// The amount carried over from the previous month (can be negative for deficits)
-  double get carryoverFromPrevious => DecimalHelper.toDouble(_carryoverFromPrevious);
+  double get carryoverFromPrevious =>
+      DecimalHelper.toDouble(_carryoverFromPrevious);
 
   /// Internal Decimal getter for precise calculations
   Decimal get carryoverFromPreviousDecimal => _carryoverFromPrevious;
@@ -70,7 +71,9 @@ class MonthlyBalance {
     } else if (monthValue is String) {
       parsedMonth = DateHelper.parseDate(monthValue);
     } else if (monthValue is int) {
-      parsedMonth = DateHelper.normalize(DateTime.fromMillisecondsSinceEpoch(monthValue));
+      parsedMonth = DateHelper.normalize(
+        DateTime.fromMillisecondsSinceEpoch(monthValue),
+      );
     } else {
       parsedMonth = DateHelper.startOfMonth(DateHelper.today());
     }
@@ -79,7 +82,9 @@ class MonthlyBalance {
     final overallBudgetValue = map['overall_budget'];
     Decimal? overallBudget;
     if (overallBudgetValue != null) {
-      overallBudget = DecimalHelper.fromDoubleSafe(overallBudgetValue as double?);
+      overallBudget = DecimalHelper.fromDoubleSafe(
+        (overallBudgetValue as num?)?.toDouble(),
+      );
       // Treat zero as null (no budget set)
       if (overallBudget == Decimal.zero) {
         overallBudget = null;
@@ -88,9 +93,11 @@ class MonthlyBalance {
 
     return MonthlyBalance(
       id: map['id'],
-      carryoverFromPrevious: DecimalHelper.fromDoubleSafe(map['carryover_from_previous'] as double?),
+      carryoverFromPrevious: DecimalHelper.fromDoubleSafe(
+        (map['carryover_from_previous'] as num?)?.toDouble(),
+      ),
       overallBudget: overallBudget,
-      accountId: map['account_id'] ?? map['accountId'],
+      accountId: map['account_id'] ?? map['accountId'] ?? 0,
       month: parsedMonth ?? DateHelper.startOfMonth(DateHelper.today()),
     );
   }
@@ -110,7 +117,9 @@ class MonthlyBalance {
           : _carryoverFromPrevious,
       overallBudget: clearOverallBudget
           ? null
-          : (overallBudget != null ? DecimalHelper.fromDouble(overallBudget) : _overallBudget),
+          : (overallBudget != null
+              ? DecimalHelper.fromDouble(overallBudget)
+              : _overallBudget),
       accountId: accountId ?? this.accountId,
       month: month ?? this.month,
     );
@@ -127,7 +136,8 @@ class MonthlyBalance {
     return MonthlyBalance(
       id: id ?? this.id,
       carryoverFromPrevious: carryoverFromPrevious ?? _carryoverFromPrevious,
-      overallBudget: clearOverallBudget ? null : (overallBudget ?? _overallBudget),
+      overallBudget:
+          clearOverallBudget ? null : (overallBudget ?? _overallBudget),
       accountId: accountId ?? this.accountId,
       month: month ?? this.month,
     );

@@ -4,7 +4,7 @@
 class DatabaseConstants {
   // Database metadata
   static const String databaseName = 'expense_tracker_v4.db';
-  static const int databaseVersion = 12;
+  static const int databaseVersion = 17;
 
   // Table names
   static const String tableAccounts = 'accounts';

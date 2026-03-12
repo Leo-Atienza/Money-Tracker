@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
+import '../models/account_model.dart';
 import '../utils/currency_helper.dart';
 import '../utils/dialog_helpers.dart';
 import '../utils/progress_indicator_helper.dart';
@@ -102,14 +103,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.palette_outlined,
                       trailing: Switch(
                         value: appState.showTransactionColors,
-                        onChanged: (value) => appState.toggleShowTransactionColors(value),
+                        onChanged: (value) =>
+                            appState.toggleShowTransactionColors(value),
                       ),
                     ),
                     // Show intensity slider when transaction colors are enabled
                     if (appState.showTransactionColors) ...[
                       const _Divider(),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -145,14 +150,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             SliderTheme(
                               data: SliderTheme.of(context).copyWith(
                                 trackHeight: 4,
-                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                                thumbShape: const RoundSliderThumbShape(
+                                  enabledThumbRadius: 8,
+                                ),
                               ),
                               child: Slider(
                                 value: appState.transactionColorIntensity,
                                 min: 0.1,
                                 max: 1.0,
                                 divisions: 9,
-                                onChanged: (value) => appState.setTransactionColorIntensity(value),
+                                onChanged: (value) => appState
+                                    .setTransactionColorIntensity(value),
                               ),
                             ),
                             Row(
@@ -197,7 +205,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     _SettingsTile(
                       title: 'Currency',
-                      subtitle: '${CurrencyHelper.getName(appState.currencyCode)} (${appState.currency})',
+                      subtitle:
+                          '${CurrencyHelper.getName(appState.currencyCode)} (${appState.currency})',
                       icon: Icons.attach_money,
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => _showCurrencyPicker(context),
@@ -227,9 +236,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          PremiumPageRoute(
-                            page: const RecurringIncomeScreen(),
-                          ),
+                          PremiumPageRoute(page: const RecurringIncomeScreen()),
                         );
                       },
                     ),
@@ -242,9 +249,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          PremiumPageRoute(
-                            page: const CategoryManagerScreen(),
-                          ),
+                          PremiumPageRoute(page: const CategoryManagerScreen()),
                         );
                       },
                     ),
@@ -257,9 +262,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          PremiumPageRoute(
-                            page: const QuickTemplatesScreen(),
-                          ),
+                          PremiumPageRoute(page: const QuickTemplatesScreen()),
                         );
                       },
                     ),
@@ -281,9 +284,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          PremiumPageRoute(
-                            page: const BudgetScreen(),
-                          ),
+                          PremiumPageRoute(page: const BudgetScreen()),
                         );
                       },
                     ),
@@ -296,9 +297,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          PremiumPageRoute(
-                            page: const AnalyticsScreen(),
-                          ),
+                          PremiumPageRoute(page: const AnalyticsScreen()),
                         );
                       },
                     ),
@@ -320,9 +319,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          PremiumPageRoute(
-                            page: const TrashScreen(),
-                          ),
+                          PremiumPageRoute(page: const TrashScreen()),
                         );
                       },
                     ),
@@ -335,9 +332,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          PremiumPageRoute(
-                            page: const BackupRestoreScreen(),
-                          ),
+                          PremiumPageRoute(page: const BackupRestoreScreen()),
                         );
                       },
                     ),
@@ -350,9 +345,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          PremiumPageRoute(
-                            page: const ExportDataScreen(),
-                          ),
+                          PremiumPageRoute(page: const ExportDataScreen()),
                         );
                       },
                     ),
@@ -401,7 +394,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         'Made by Leo Atienza',
                         style: TextStyle(
                           fontSize: 11,
-                          color: theme.colorScheme.onSurfaceVariant.withAlpha((255 * 0.6).round()),
+                          color: theme.colorScheme.onSurfaceVariant.withAlpha(
+                            (255 * 0.6).round(),
+                          ),
                         ),
                       ),
                     ],
@@ -445,7 +440,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           child: Row(
             children: [
-              Icon(icon, color: isSelected ? Colors.blue : theme.colorScheme.onSurface),
+              Icon(
+                icon,
+                color: isSelected ? Colors.blue : theme.colorScheme.onSurface,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -455,7 +453,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title,
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.normal,
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
@@ -479,7 +478,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   decoration: BoxDecoration(
                     color: previewColors['surface'],
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: theme.colorScheme.outline.withAlpha(50)),
+                    border: Border.all(
+                      color: theme.colorScheme.outline.withAlpha(50),
+                    ),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -671,15 +672,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     subtitle: Text(code),
                     trailing: isSelected
                         ? Icon(
-                      Icons.check_circle,
-                      color: theme.colorScheme.onSurface,
-                    )
+                            Icons.check_circle,
+                            color: theme.colorScheme.onSurface,
+                          )
                         : null,
-                    onTap: isSelected ? null : () async {
-                      Navigator.pop(context);
-                      // FIX #5: Show currency change warning
-                      await _showCurrencyChangeWarning(context, code, name, symbol);
-                    },
+                    onTap: isSelected
+                        ? null
+                        : () async {
+                            Navigator.pop(context);
+                            // FIX #5: Show currency change warning
+                            await _showCurrencyChangeWarning(
+                              context,
+                              code,
+                              name,
+                              symbol,
+                            );
+                          },
                   );
                 },
               ),
@@ -692,16 +700,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // FIX #50: Enhanced currency change warning with data clearing option
   Future<void> _showCurrencyChangeWarning(
-      BuildContext context,
-      String newCode,
-      String newName,
-      String newSymbol,
-      ) async {
+    BuildContext context,
+    String newCode,
+    String newName,
+    String newSymbol,
+  ) async {
     final appState = context.read<AppState>();
 
-    // Show comprehensive warning with clear data option
-    final transactionCount = appState.getExpensesForSelectedMonth().length +
-        appState.incomes.length;
+    // FIX M8: Use allExpenses (not just current month) for accurate total count
+    final transactionCount =
+        appState.allExpenses.length + appState.incomes.length;
 
     final action = await DialogHelpers.showCurrencyChangeWarning(
       context,
@@ -721,7 +729,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final confirmed = await DialogHelpers.showConfirmation(
         context,
         title: 'Clear All Data?',
-        message: 'This will permanently delete all transactions, budgets, and categories. This cannot be undone.',
+        message:
+            'This will permanently delete all transactions, budgets, and categories. This cannot be undone.',
         confirmText: 'Delete Everything',
         isDangerous: true,
       );
@@ -840,18 +849,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 child: CircularProgressIndicator(),
                               ),
                             );
-                            await appState.switchAccount(account);
-                            if (context.mounted) {
-                              Navigator.pop(context); // Close loading dialog
-                              Navigator.pop(context); // Close account selector
-                              // FIX #15: Show confirmation feedback
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Switched to ${account.name}'),
-                                  behavior: SnackBarBehavior.floating,
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
+                            try {
+                              await appState.switchAccount(account);
+                              if (context.mounted) {
+                                Navigator.pop(context); // Close loading dialog
+                                Navigator.pop(
+                                    context); // Close account selector
+                                // FIX #15: Show confirmation feedback
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content:
+                                        Text('Switched to ${account.name}'),
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                Navigator.pop(context); // Close loading dialog
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content:
+                                        Text('Failed to switch account: $e'),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
                             }
                           },
                   );
@@ -919,7 +943,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  void _showAccountOptionsMenu(BuildContext context, account) {
+  void _showAccountOptionsMenu(BuildContext context, Account account) {
     final theme = Theme.of(context);
 
     showModalBottomSheet(
@@ -938,7 +962,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.all(24),
               child: Row(
                 children: [
-                  Icon(Icons.account_balance_wallet, color: theme.colorScheme.onSurface),
+                  Icon(
+                    Icons.account_balance_wallet,
+                    color: theme.colorScheme.onSurface,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -1003,7 +1030,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showResetAccountDialog(BuildContext context, account) async {
+  void _showResetAccountDialog(BuildContext context, Account account) async {
     final theme = Theme.of(context);
     final appState = context.read<AppState>();
 
@@ -1014,7 +1041,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.orange,
+              size: 28,
+            ),
             const SizedBox(width: 12),
             Text(
               'Reset Account?',
@@ -1041,7 +1072,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('This will delete:', style: TextStyle(fontWeight: FontWeight.w600)),
+                  Text(
+                    'This will delete:',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                   SizedBox(height: 8),
                   Text('• All transactions (expenses & income)'),
                   Text('• All budgets'),
@@ -1049,7 +1083,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Text('• All custom categories'),
                   Text('• All templates and tags'),
                   SizedBox(height: 8),
-                  Text('The account itself will remain.', style: TextStyle(fontStyle: FontStyle.italic)),
+                  Text(
+                    'The account itself will remain.',
+                    style: TextStyle(fontStyle: FontStyle.italic),
+                  ),
                 ],
               ),
             ),
@@ -1075,11 +1112,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     if (confirmed == true) {
-      if (!context.mounted) return;
+      final id = account.id;
+      if (id == null || !context.mounted) return;
       ProgressIndicatorHelper.show(context, message: 'Resetting account...');
 
       try {
-        await appState.resetAccount(account.id);
+        await appState.resetAccount(id);
         if (!context.mounted) return;
         ProgressIndicatorHelper.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1103,7 +1141,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  void _showDeleteAccountDialog(BuildContext context, account) async {
+  void _showDeleteAccountDialog(BuildContext context, Account account) async {
     final theme = Theme.of(context);
     final appState = context.read<AppState>();
 
@@ -1114,7 +1152,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.red,
+              size: 28,
+            ),
             const SizedBox(width: 12),
             Text(
               'Delete Account?',
@@ -1176,11 +1218,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     if (confirmed == true) {
-      if (!context.mounted) return;
+      final id = account.id;
+      if (id == null || !context.mounted) return;
       ProgressIndicatorHelper.show(context, message: 'Deleting account...');
 
       try {
-        await appState.deleteAccount(account.id);
+        await appState.deleteAccount(id);
         if (!context.mounted) return;
         ProgressIndicatorHelper.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1237,9 +1280,7 @@ class _SettingsCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
-      child: Column(
-        children: children,
-      ),
+      child: Column(children: children),
     );
   }
 }
@@ -1267,7 +1308,9 @@ class _SettingsTile extends StatelessWidget {
 
     return InkWell(
       onTap: onTap, // Can be null
-      borderRadius: BorderRadius.circular(16), // Match container radius for ripples
+      borderRadius: BorderRadius.circular(
+        16,
+      ), // Match container radius for ripples
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Row(
@@ -1278,7 +1321,10 @@ class _SettingsTile extends StatelessWidget {
                 color: theme.colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, color: iconColor ?? theme.colorScheme.onSurface),
+              child: Icon(
+                icon,
+                color: iconColor ?? theme.colorScheme.onSurface,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -1306,10 +1352,7 @@ class _SettingsTile extends StatelessWidget {
                 ],
               ),
             ),
-            if (trailing != null) ...[
-              const SizedBox(width: 16),
-              trailing!,
-            ],
+            if (trailing != null) ...[const SizedBox(width: 16), trailing!],
           ],
         ),
       ),
@@ -1363,9 +1406,7 @@ class _PinSecurityCardState extends State<_PinSecurityCard> {
   Future<void> _setupPin() async {
     final result = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (context) => const PinSetupScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const PinSetupScreen()),
     );
 
     if (result == true && mounted) {
