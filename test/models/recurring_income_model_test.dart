@@ -8,7 +8,7 @@ void main() {
     // -----------------------------------------------------------------------
     // Helper: build a fully-populated RecurringIncome
     // -----------------------------------------------------------------------
-    RecurringIncome _make({
+    RecurringIncome make({
       int? id = 1,
       String description = 'Salary',
       double amount = 3000.00,
@@ -49,7 +49,7 @@ void main() {
         final endDate = DateTime.utc(2025, 12, 31);
         final lastCreated = DateTime.utc(2024, 6, 1);
 
-        final income = _make(
+        final income = make(
           startDate: startDate,
           endDate: endDate,
           lastCreated: lastCreated,
@@ -112,7 +112,7 @@ void main() {
     // -----------------------------------------------------------------------
     group('dayName', () {
       test('returns "Day N" for monthly frequency', () {
-        final income = _make(
+        final income = make(
           frequency: RecurringFrequency.monthly,
           dayOfMonth: 25,
         );
@@ -120,7 +120,7 @@ void main() {
       });
 
       test('returns weekday name for weekly frequency (0 = Monday)', () {
-        final income = _make(
+        final income = make(
           frequency: RecurringFrequency.weekly,
           dayOfMonth: 0,
         );
@@ -128,7 +128,7 @@ void main() {
       });
 
       test('returns weekday name for weekly frequency (4 = Friday)', () {
-        final income = _make(
+        final income = make(
           frequency: RecurringFrequency.weekly,
           dayOfMonth: 4,
         );
@@ -136,7 +136,7 @@ void main() {
       });
 
       test('returns weekday name for weekly frequency (6 = Sunday)', () {
-        final income = _make(
+        final income = make(
           frequency: RecurringFrequency.weekly,
           dayOfMonth: 6,
         );
@@ -144,7 +144,7 @@ void main() {
       });
 
       test('returns weekday name for biweekly frequency', () {
-        final income = _make(
+        final income = make(
           frequency: RecurringFrequency.biweekly,
           dayOfMonth: 3,
         );
@@ -152,7 +152,7 @@ void main() {
       });
 
       test('clamps negative dayOfMonth to Monday for weekly', () {
-        final income = _make(
+        final income = make(
           frequency: RecurringFrequency.weekly,
           dayOfMonth: -3,
         );
@@ -160,7 +160,7 @@ void main() {
       });
 
       test('clamps dayOfMonth > 6 to Sunday for weekly', () {
-        final income = _make(
+        final income = make(
           frequency: RecurringFrequency.weekly,
           dayOfMonth: 100,
         );
@@ -173,7 +173,7 @@ void main() {
     // -----------------------------------------------------------------------
     group('frequencyDescription', () {
       test('monthly description', () {
-        final income = _make(
+        final income = make(
           frequency: RecurringFrequency.monthly,
           dayOfMonth: 1,
         );
@@ -181,7 +181,7 @@ void main() {
       });
 
       test('weekly description', () {
-        final income = _make(
+        final income = make(
           frequency: RecurringFrequency.weekly,
           dayOfMonth: 2,
         );
@@ -189,7 +189,7 @@ void main() {
       });
 
       test('biweekly description', () {
-        final income = _make(
+        final income = make(
           frequency: RecurringFrequency.biweekly,
           dayOfMonth: 4,
         );
@@ -206,7 +206,7 @@ void main() {
         final endDate = DateTime.utc(2025, 12, 31);
         final lastCreated = DateTime.utc(2024, 6, 1);
 
-        final income = _make(
+        final income = make(
           startDate: startDate,
           endDate: endDate,
           lastCreated: lastCreated,
@@ -233,12 +233,12 @@ void main() {
       });
 
       test('serializes isActive=false as 0', () {
-        final income = _make(isActive: false);
+        final income = make(isActive: false);
         expect(income.toMap()['isActive'], 0);
       });
 
       test('serializes null optional dates as null', () {
-        final income = _make(
+        final income = make(
           lastCreated: null,
           endDate: null,
           startDate: null,
@@ -250,7 +250,7 @@ void main() {
       });
 
       test('serializes null maxOccurrences', () {
-        final income = _make(maxOccurrences: null);
+        final income = make(maxOccurrences: null);
         expect(income.toMap()['maxOccurrences'], isNull);
       });
     });
@@ -488,35 +488,35 @@ void main() {
     // -----------------------------------------------------------------------
     group('shouldBeActive', () {
       test('returns true when active with no constraints', () {
-        final income = _make(isActive: true);
+        final income = make(isActive: true);
         expect(income.shouldBeActive, true);
       });
 
       test('returns false when isActive is false', () {
-        final income = _make(isActive: false);
+        final income = make(isActive: false);
         expect(income.shouldBeActive, false);
       });
 
       test('returns false when endDate is in the past', () {
         final pastDate = DateHelper.today().subtract(const Duration(days: 1));
-        final income = _make(isActive: true, endDate: pastDate);
+        final income = make(isActive: true, endDate: pastDate);
         expect(income.shouldBeActive, false);
       });
 
       test('returns true when endDate is in the future', () {
         final futureDate = DateHelper.today().add(const Duration(days: 30));
-        final income = _make(isActive: true, endDate: futureDate);
+        final income = make(isActive: true, endDate: futureDate);
         expect(income.shouldBeActive, true);
       });
 
       test('returns true when endDate is today', () {
         final today = DateHelper.today();
-        final income = _make(isActive: true, endDate: today);
+        final income = make(isActive: true, endDate: today);
         expect(income.shouldBeActive, true);
       });
 
       test('returns false when maxOccurrences reached', () {
-        final income = _make(
+        final income = make(
           isActive: true,
           maxOccurrences: 10,
           occurrenceCount: 10,
@@ -525,7 +525,7 @@ void main() {
       });
 
       test('returns false when occurrenceCount exceeds maxOccurrences', () {
-        final income = _make(
+        final income = make(
           isActive: true,
           maxOccurrences: 5,
           occurrenceCount: 8,
@@ -534,7 +534,7 @@ void main() {
       });
 
       test('returns true when occurrenceCount < maxOccurrences', () {
-        final income = _make(
+        final income = make(
           isActive: true,
           maxOccurrences: 12,
           occurrenceCount: 7,
@@ -543,7 +543,7 @@ void main() {
       });
 
       test('returns true when maxOccurrences is null (unlimited)', () {
-        final income = _make(
+        final income = make(
           isActive: true,
           maxOccurrences: null,
           occurrenceCount: 1000,
@@ -553,7 +553,7 @@ void main() {
 
       test('returns false when inactive even with future endDate', () {
         final futureDate = DateHelper.today().add(const Duration(days: 365));
-        final income = _make(isActive: false, endDate: futureDate);
+        final income = make(isActive: false, endDate: futureDate);
         expect(income.shouldBeActive, false);
       });
     });
@@ -563,57 +563,57 @@ void main() {
     // -----------------------------------------------------------------------
     group('copyWith()', () {
       test('overrides description', () {
-        final original = _make();
+        final original = make();
         final copy = original.copyWith(description: 'Bonus');
         expect(copy.description, 'Bonus');
         expect(copy.id, original.id);
       });
 
       test('overrides amount', () {
-        final original = _make();
+        final original = make();
         final copy = original.copyWith(amount: 5000.00);
         expect(copy.amount, closeTo(5000.00, 0.001));
       });
 
       test('overrides isActive', () {
-        final original = _make(isActive: true);
+        final original = make(isActive: true);
         final copy = original.copyWith(isActive: false);
         expect(copy.isActive, false);
       });
 
       test('overrides frequency', () {
-        final original = _make();
+        final original = make();
         final copy = original.copyWith(frequency: RecurringFrequency.weekly);
         expect(copy.frequency, RecurringFrequency.weekly);
       });
 
       test('overrides endDate', () {
         final newEnd = DateTime.utc(2030, 6, 15);
-        final original = _make();
+        final original = make();
         final copy = original.copyWith(endDate: newEnd);
         expect(copy.endDate, newEnd);
       });
 
       test('clears endDate with clearEndDate flag', () {
-        final original = _make(endDate: DateTime.utc(2025, 12, 31));
+        final original = make(endDate: DateTime.utc(2025, 12, 31));
         final copy = original.copyWith(clearEndDate: true);
         expect(copy.endDate, isNull);
       });
 
       test('clears lastCreated with clearLastCreated flag', () {
-        final original = _make(lastCreated: DateTime.utc(2024, 1, 1));
+        final original = make(lastCreated: DateTime.utc(2024, 1, 1));
         final copy = original.copyWith(clearLastCreated: true);
         expect(copy.lastCreated, isNull);
       });
 
       test('clears maxOccurrences with clearMaxOccurrences flag', () {
-        final original = _make(maxOccurrences: 12);
+        final original = make(maxOccurrences: 12);
         final copy = original.copyWith(clearMaxOccurrences: true);
         expect(copy.maxOccurrences, isNull);
       });
 
       test('clears startDate with clearStartDate flag', () {
-        final original = _make(startDate: DateTime.utc(2024, 1, 1));
+        final original = make(startDate: DateTime.utc(2024, 1, 1));
         final copy = original.copyWith(clearStartDate: true);
         expect(copy.startDate, isNull);
       });
@@ -623,7 +623,7 @@ void main() {
         final endDate = DateTime.utc(2025, 12, 31);
         final lastCreated = DateTime.utc(2024, 6, 1);
 
-        final original = _make(
+        final original = make(
           startDate: startDate,
           endDate: endDate,
           lastCreated: lastCreated,
@@ -653,7 +653,7 @@ void main() {
     // -----------------------------------------------------------------------
     group('copyWithDecimal()', () {
       test('overrides amount with Decimal value', () {
-        final original = _make();
+        final original = make();
         final copy = original.copyWithDecimal(
           amount: Decimal.parse('7500.00'),
         );
@@ -661,7 +661,7 @@ void main() {
       });
 
       test('clear flags work with Decimal variant', () {
-        final original = _make(
+        final original = make(
           endDate: DateTime.utc(2025, 12, 31),
           maxOccurrences: 10,
           startDate: DateTime.utc(2024, 1, 1),
@@ -685,7 +685,7 @@ void main() {
     // -----------------------------------------------------------------------
     group('round-trip serialization', () {
       test('toMap then fromMap preserves all values', () {
-        final original = _make(
+        final original = make(
           startDate: DateTime.utc(2024, 1, 1),
           endDate: DateTime.utc(2025, 12, 31),
           lastCreated: DateTime.utc(2024, 6, 1),
@@ -712,7 +712,7 @@ void main() {
       });
 
       test('round-trip with nulls preserved', () {
-        final original = _make(
+        final original = make(
           id: null,
           lastCreated: null,
           startDate: null,

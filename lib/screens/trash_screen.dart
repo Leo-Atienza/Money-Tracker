@@ -42,8 +42,9 @@ class _TrashScreenState extends State<TrashScreen>
     _deletedExpenses = await appState.getDeletedExpenses();
     _deletedIncome = await appState.getDeletedIncome();
 
-    if (_isDisposed || !mounted)
+    if (_isDisposed || !mounted) {
       return; // FIX: Check again after async operation
+    }
     setState(() => _isLoading = false);
   }
 

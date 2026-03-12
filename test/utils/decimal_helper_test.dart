@@ -359,10 +359,9 @@ void main() {
       expect(DecimalHelper.divide(10.0, 2.0), 5.0);
     });
 
-    // BUG: divide() calls .toDecimal() without scaleOnInfinitePrecision,
-    // which throws for non-terminating decimals like 10/3.
-    test('throws for non-terminating decimal result (known bug)', () {
-      expect(() => DecimalHelper.divide(10.0, 3.0), throwsA(isA<Object>()));
+    test('handles non-terminating decimal result (10/3)', () {
+      final result = DecimalHelper.divide(10.0, 3.0);
+      expect(result, closeTo(3.33, 0.01));
     });
 
     test('returns zero for division by zero', () {
@@ -415,10 +414,9 @@ void main() {
       expect(DecimalHelper.percentage(-25, 100), -25.0);
     });
 
-    // BUG: percentage calls divide(), which calls .toDecimal() without
-    // scaleOnInfinitePrecision. 1/3 is a non-terminating decimal -> throws.
-    test('throws for non-terminating percentage (known bug)', () {
-      expect(() => DecimalHelper.percentage(1, 3), throwsA(isA<Object>()));
+    test('handles non-terminating percentage (1/3)', () {
+      // 1/3 ≈ 0.33 (rounded to 2dp by fromDouble), * 100 = 33.0
+      expect(DecimalHelper.percentage(1, 3), 33.0);
     });
   });
 
@@ -818,11 +816,9 @@ void main() {
       expect(DecimalHelper.multiply(double.nan, double.nan), 0.0);
     });
 
-    // BUG: NaN != 0 so the guard passes, but fromDouble(NaN) returns
-    // Decimal.zero, causing a Decimal 0/0 which throws.
-    test('divide throws for NaN / NaN (known bug)', () {
-      expect(() => DecimalHelper.divide(double.nan, double.nan),
-          throwsA(isA<Object>()));
+    test('divide returns zero for NaN / NaN', () {
+      // NaN → Decimal.zero via fromDouble, post-conversion guard catches zero divisor
+      expect(DecimalHelper.divide(double.nan, double.nan), 0.0);
     });
 
     test('divide handles 0 / 0', () {
@@ -837,13 +833,9 @@ void main() {
       expect(result, 1.0);
     });
 
-    // BUG: infinity != 0 so the guard in percentage passes, but
-    // fromDouble(infinity) returns Decimal.zero, causing 0-division in divide.
-    test('percentage throws for infinity total (known bug)', () {
-      expect(
-        () => DecimalHelper.percentage(50, double.infinity),
-        throwsA(isA<Object>()),
-      );
+    test('percentage returns zero for infinity total', () {
+      // infinity → Decimal.zero via fromDouble, divide's post-conversion guard returns 0
+      expect(DecimalHelper.percentage(50, double.infinity), 0.0);
     });
 
     test('fromDoubleSafe handles max double', () {

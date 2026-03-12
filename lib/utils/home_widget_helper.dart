@@ -85,10 +85,11 @@ class HomeWidgetHelper {
         iOSName: _iOSWidgetName,
       );
 
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint(
           'HomeWidget updated: Expenses=$expensesFormatted, Income=$incomeFormatted, Balance=$balanceFormatted',
         );
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('HomeWidget update error: $e');
     }

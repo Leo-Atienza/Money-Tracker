@@ -644,8 +644,12 @@ class DatabaseHelper {
 
   Future<List<Income>> getIncomeByMonth(int accountId, int year, int month) async {
     final db = await database;
-    final startDate = DateTime(year, month, 1).toIso8601String();
-    final endDate = DateTime(year, month + 1, 0, 23, 59, 59).toIso8601String();
+    // FIX: Use DateHelper for consistent date string format (YYYY-MM-DD)
+    // Previous code used DateTime(...).toIso8601String() which produced
+    // "YYYY-MM-DDT00:00:00.000" — SQLite string comparison excluded 1st-of-month entries
+    final monthDate = DateTime.utc(year, month, 1);
+    final startDate = DateHelper.toDateString(DateHelper.startOfMonth(monthDate));
+    final endDate = DateHelper.toDateString(DateHelper.lastDayOfMonth(monthDate));
 
     final result = await db.query(
       'income',
@@ -1340,8 +1344,12 @@ class DatabaseHelper {
 
   Future<List<Expense>> getExpensesByMonth(int accountId, int year, int month) async {
     final db = await database;
-    final startDate = DateTime(year, month, 1).toIso8601String();
-    final endDate = DateTime(year, month + 1, 0, 23, 59, 59).toIso8601String();
+    // FIX: Use DateHelper for consistent date string format (YYYY-MM-DD)
+    // Previous code used DateTime(...).toIso8601String() which produced
+    // "YYYY-MM-DDT00:00:00.000" — SQLite string comparison excluded 1st-of-month entries
+    final monthDate = DateTime.utc(year, month, 1);
+    final startDate = DateHelper.toDateString(DateHelper.startOfMonth(monthDate));
+    final endDate = DateHelper.toDateString(DateHelper.lastDayOfMonth(monthDate));
 
     final result = await db.query(
       'expenses',
@@ -1635,7 +1643,7 @@ class DatabaseHelper {
   // FIX #7: Get budgets for specific month only
   Future<List<Budget>> getBudgetsForMonth(int accountId, int year, int month) async {
     final db = await database;
-    final monthStr = DateTime(year, month, 1).toIso8601String().substring(0, 7); // "2024-01"
+    final monthStr = DateHelper.toMonthString(DateTime.utc(year, month, 1)); // "2024-01"
 
     final result = await db.query(
       'budgets',

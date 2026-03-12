@@ -243,8 +243,9 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               };
             } catch (e) {
               // Skip corrupt/unreadable backups instead of failing entirely
-              if (kDebugMode)
+              if (kDebugMode) {
                 debugPrint('Skipping unreadable backup ${backup.path}: $e');
+              }
               return null;
             }
           }),
@@ -352,26 +353,30 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         },
         onProcessingEnd: () {
           // Close the dialog before file picker opens
-          if (kDebugMode)
+          if (kDebugMode) {
             debugPrint('Closing loading dialog for file picker...');
+          }
           if (mounted && dialogShown) {
             Navigator.of(context, rootNavigator: true).pop();
             dialogShown = false;
           }
         },
       );
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint('saveBackupToUserSelectedLocation returned: $savedPath');
+      }
 
       if (!mounted) {
-        if (kDebugMode)
+        if (kDebugMode) {
           debugPrint('Widget unmounted after backup, skipping UI update');
+        }
         return;
       }
 
       if (savedPath != null) {
-        if (kDebugMode)
+        if (kDebugMode) {
           debugPrint('Backup successful, showing success message');
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Backup saved successfully!'),
@@ -412,8 +417,9 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       }
     } finally {
       // FIX: Always re-enable button
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint('_exportBackup finally block, re-enabling button');
+      }
       if (mounted) {
         setState(() => _isExporting = false);
       }

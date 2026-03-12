@@ -60,13 +60,25 @@ class _RestoreIsolateParams {
   _RestoreIsolateParams(this.backupJson);
 }
 
+/// Result from isolate decode — contains DB bytes and optional settings.
+class _RestoreIsolateResult {
+  final Uint8List dbBytes;
+  final Map<String, dynamic>? settings;
+
+  _RestoreIsolateResult(this.dbBytes, this.settings);
+}
+
 /// Isolate function to decode comprehensive backup (runs off main thread)
 /// FIX: Prevents OOM and UI freeze during restore
-/// FIX: Removed try-catch to preserve original exception and stack trace
-Future<Uint8List> _decodeBackupInIsolate(_RestoreIsolateParams params) async {
+/// FIX: Returns both DB bytes and settings so main thread avoids double decode
+Future<_RestoreIsolateResult> _decodeBackupInIsolate(
+  _RestoreIsolateParams params,
+) async {
   final backupData = jsonDecode(params.backupJson) as Map<String, dynamic>;
   final dbBase64 = backupData['database'] as String;
-  return base64Decode(dbBase64);
+  final dbBytes = base64Decode(dbBase64);
+  final settings = backupData['settings'] as Map<String, dynamic>?;
+  return _RestoreIsolateResult(dbBytes, settings);
 }
 
 class BackupHelper {
@@ -418,10 +430,11 @@ class BackupHelper {
         throw Exception('Database file not found');
       }
 
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint(
           'Database file exists, size: ${await dbFile.length()} bytes',
         );
+      }
 
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final fileName = 'expense_tracker_$timestamp.etbackup';
@@ -439,8 +452,9 @@ class BackupHelper {
         'reminderHour': prefs.getInt('reminderHour') ?? 9,
         'reminderMinute': prefs.getInt('reminderMinute') ?? 0,
       };
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint('Settings loaded: ${settings.keys.join(", ")}');
+      }
 
       // Run backup creation in isolate to avoid OOM and UI freeze
       if (kDebugMode) debugPrint('Creating backup in isolate...');
@@ -448,14 +462,16 @@ class BackupHelper {
         _createBackupInIsolate,
         _BackupIsolateParams(dbPath, settings),
       );
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint(
           'Backup JSON created, size: ${backupJson.length} characters',
         );
+      }
 
       final bytes = Uint8List.fromList(utf8.encode(backupJson));
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint('Encoded to bytes, size: ${bytes.length} bytes');
+      }
 
       // Save a local copy in app's backup directory first
       if (kDebugMode) debugPrint('Saving local backup copy...');
@@ -711,6 +727,9 @@ class BackupHelper {
           await dbFile.copy(backupPath); // Temporary rollback backup
         }
 
+        // FIX: Delete stale WAL/SHM journal files BEFORE replacing the DB.
+        await _deleteWalShmFiles(dbPath);
+
         // FIX: Atomic replacement - rename temp to target
         await tempFile.rename(dbPath);
 
@@ -729,6 +748,7 @@ class BackupHelper {
         return RestoreResult.success;
       } catch (e) {
         // Restore from backup if something went wrong
+        await _deleteWalShmFiles(dbPath);
         if (await backupFile.exists()) {
           try {
             await backupFile.rename(dbPath);
@@ -750,6 +770,19 @@ class BackupHelper {
     } catch (e) {
       if (kDebugMode) debugPrint('Error restoring database: $e');
       return RestoreResult.error;
+    }
+  }
+
+  /// Delete WAL and SHM journal files that can corrupt a restored database.
+  /// SQLite WAL mode (default on Android) creates these sidecar files.
+  /// If stale journals remain after replacing the .db file, SQLite replays
+  /// old transactions on open, corrupting or emptying the restored data.
+  Future<void> _deleteWalShmFiles(String dbPath) async {
+    for (final suffix in ['-wal', '-shm']) {
+      final file = File('$dbPath$suffix');
+      if (await file.exists()) {
+        await file.delete();
+      }
     }
   }
 
@@ -924,17 +957,21 @@ class BackupHelper {
         return RestoreResult.fileNotFound;
       }
 
-      // Quick validation before expensive decode
-      final backupData = jsonDecode(backupJson) as Map<String, dynamic>;
-      if (backupData['version'] == null || backupData['database'] == null) {
+      // FIX: Quick validation WITHOUT full JSON parse on main thread.
+      // The old code did jsonDecode(backupJson) here which duplicated the
+      // large base64 database string in memory (~2x the backup size).
+      // Instead, do a cheap string check for required keys.
+      if (!backupJson.contains('"version"') ||
+          !backupJson.contains('"database"')) {
         return RestoreResult.invalidFile;
       }
 
-      // FIX: Decode database in isolate to prevent OOM and UI freeze
-      final dbBytes = await compute(
+      // Decode database + settings in isolate to prevent OOM and UI freeze
+      final result = await compute(
         _decodeBackupInIsolate,
         _RestoreIsolateParams(backupJson),
       );
+      final dbBytes = result.dbBytes;
 
       // Get database path
       final dbPath = await _getDatabasePath();
@@ -969,6 +1006,11 @@ class BackupHelper {
         await closeDatabase();
         await Future.delayed(const Duration(milliseconds: 500));
 
+        // FIX: Delete stale WAL/SHM journal files BEFORE replacing the DB.
+        // Without this, SQLite replays old WAL transactions on the restored
+        // database, corrupting it or making it appear empty.
+        await _deleteWalShmFiles(dbPath);
+
         // Atomic replacement
         if (await dbFile.exists()) {
           await dbFile.delete();
@@ -976,8 +1018,8 @@ class BackupHelper {
         await tempFile.rename(dbPath);
 
         // FIX: Restore settings if present
-        if (backupData['settings'] != null) {
-          final settings = backupData['settings'] as Map<String, dynamic>;
+        if (result.settings != null) {
+          final settings = result.settings!;
           final prefs = await SharedPreferences.getInstance();
 
           await prefs.setBool(
@@ -1028,6 +1070,7 @@ class BackupHelper {
         if (await preRestoreFile.exists()) {
           await closeDatabase();
           await Future.delayed(const Duration(milliseconds: 500));
+          await _deleteWalShmFiles(dbPath);
           if (await dbFile.exists()) {
             await dbFile.delete();
           }

@@ -135,7 +135,6 @@ void main() {
       test('pair that fails AA can still pass AA large', () {
         // Find a pair with contrast between 3.0 and 4.5
         // A medium-gray on white tends to have moderate contrast
-        const mediumGray = Color(0xFF767676); // ~4.54:1 on white (borderline)
         const lightishGray = Color(0xFF949494); // lower contrast
 
         final ratio = ColorContrastHelper.contrastRatio(

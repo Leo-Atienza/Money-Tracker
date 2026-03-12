@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:budget_tracker/utils/async_mutex.dart';
 import 'package:flutter_test/flutter_test.dart';
 

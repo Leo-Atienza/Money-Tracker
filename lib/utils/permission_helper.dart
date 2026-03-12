@@ -28,10 +28,11 @@ class PermissionHelper {
     // Android 13+ (API 33+): SAF handles permissions automatically via FilePicker
     // No explicit permission is needed - the system file picker grants access
     if (sdkVersion >= 33) {
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint(
           'Android 13+: SAF handles permissions, no explicit permission needed',
         );
+      }
       return true;
     }
 
@@ -44,25 +45,28 @@ class PermissionHelper {
 
       // If already granted or restricted (meaning SAF-only), allow operation
       if (status.isGranted || status.isRestricted) {
-        if (kDebugMode)
+        if (kDebugMode) {
           debugPrint('Permission granted or restricted (SAF mode)');
+        }
         return true;
       }
 
       // For Android 11-12, try to proceed anyway since SAF might work
       // Only block if permission was explicitly denied AND user needs legacy access
       if (status.isPermanentlyDenied) {
-        if (kDebugMode)
+        if (kDebugMode) {
           debugPrint(
             'Permission permanently denied - but SAF should still work',
           );
+        }
         // Still return true - FilePicker uses SAF which doesn't need this permission
         return true;
       }
 
       // Request permission for better compatibility
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint('Requesting storage permission for better compatibility...');
+      }
       final requestResult = await Permission.storage.request();
       if (kDebugMode) debugPrint('Permission request result: $requestResult');
 
@@ -71,8 +75,9 @@ class PermissionHelper {
     }
 
     // Android 10 and below (API 29-): Need WRITE_EXTERNAL_STORAGE
-    if (kDebugMode)
+    if (kDebugMode) {
       debugPrint('Android 10 and below: Checking WRITE_EXTERNAL_STORAGE');
+    }
     var status = await Permission.storage.status;
     if (kDebugMode) debugPrint('Current status: $status');
 
@@ -82,8 +87,9 @@ class PermissionHelper {
     }
 
     if (status.isPermanentlyDenied) {
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint('Permission permanently denied, showing settings dialog');
+      }
       if (!context.mounted) return false;
       return await _showPermissionDeniedDialog(context);
     }
@@ -123,8 +129,9 @@ class PermissionHelper {
       const platform = MethodChannel('budget_tracker/device_info');
       final int sdkInt = await platform.invokeMethod('getAndroidSdkVersion');
       _cachedAndroidSdk = sdkInt;
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint('Got Android SDK version from platform channel: $sdkInt');
+      }
       return sdkInt;
     } catch (e) {
       if (kDebugMode) debugPrint('Platform channel not available: $e');
@@ -147,8 +154,9 @@ class PermissionHelper {
 
       // Check if manageExternalStorage is available (Android 11+)
       final manageStatus = await Permission.manageExternalStorage.status;
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint('Manage external storage status: $manageStatus');
+      }
 
       // If manageExternalStorage returns permanentlyDenied without ever requesting,
       // it likely means Android 11+ but feature is restricted

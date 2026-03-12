@@ -118,7 +118,11 @@ class DecimalHelper {
     if (b == 0) return 0;
     final decimalA = fromDouble(a);
     final decimalB = fromDouble(b);
-    return toDouble((decimalA / decimalB).toDecimal());
+    // Guard: NaN/infinity divisors become Decimal.zero after fromDouble
+    if (decimalB == Decimal.zero) return 0;
+    return toDouble(
+      (decimalA / decimalB).toDecimal(scaleOnInfinitePrecision: 10),
+    );
   }
 
   /// Calculate percentage with precision
@@ -160,7 +164,7 @@ class DecimalHelper {
   /// Divide Decimal values directly
   static Decimal divideDecimal(Decimal a, Decimal b) {
     if (b == Decimal.zero) return Decimal.zero;
-    return (a / b).toDecimal();
+    return (a / b).toDecimal(scaleOnInfinitePrecision: 10);
   }
 
   /// Compare Decimal values (-1 if a < b, 0 if equal, 1 if a > b)

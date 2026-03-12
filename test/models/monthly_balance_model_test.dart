@@ -8,7 +8,7 @@ void main() {
     // -----------------------------------------------------------------------
     // Helper: build a fully-populated MonthlyBalance
     // -----------------------------------------------------------------------
-    MonthlyBalance _make({
+    MonthlyBalance make({
       int? id = 1,
       double carryoverFromPrevious = 500.00,
       double? overallBudget = 2000.00,
@@ -33,7 +33,7 @@ void main() {
     group('constructor and getters', () {
       test('stores all fields', () {
         final month = DateTime.utc(2024, 6, 1);
-        final balance = _make(month: month);
+        final balance = make(month: month);
 
         expect(balance.id, 1);
         expect(balance.carryoverFromPrevious, closeTo(500.00, 0.001));
@@ -48,13 +48,13 @@ void main() {
       });
 
       test('overallBudget returns null when not set', () {
-        final balance = _make(overallBudget: null);
+        final balance = make(overallBudget: null);
         expect(balance.overallBudget, isNull);
         expect(balance.overallBudgetDecimal, isNull);
       });
 
       test('handles negative carryover', () {
-        final balance = _make(carryoverFromPrevious: -250.50);
+        final balance = make(carryoverFromPrevious: -250.50);
         expect(balance.carryoverFromPrevious, closeTo(-250.50, 0.001));
       });
 
@@ -73,12 +73,12 @@ void main() {
     // -----------------------------------------------------------------------
     group('hasOverallBudget', () {
       test('returns true when budget is positive', () {
-        final balance = _make(overallBudget: 1000.00);
+        final balance = make(overallBudget: 1000.00);
         expect(balance.hasOverallBudget, true);
       });
 
       test('returns false when budget is null', () {
-        final balance = _make(overallBudget: null);
+        final balance = make(overallBudget: null);
         expect(balance.hasOverallBudget, false);
       });
 
@@ -109,7 +109,7 @@ void main() {
     group('toMap()', () {
       test('serializes all fields correctly', () {
         final month = DateTime.utc(2024, 6, 1);
-        final balance = _make(month: month);
+        final balance = make(month: month);
         final map = balance.toMap();
 
         expect(map['id'], 1);
@@ -123,17 +123,17 @@ void main() {
       });
 
       test('serializes null id', () {
-        final balance = _make(id: null);
+        final balance = make(id: null);
         expect(balance.toMap()['id'], isNull);
       });
 
       test('serializes null overall_budget', () {
-        final balance = _make(overallBudget: null);
+        final balance = make(overallBudget: null);
         expect(balance.toMap()['overall_budget'], isNull);
       });
 
       test('serializes negative carryover', () {
-        final balance = _make(carryoverFromPrevious: -100.50);
+        final balance = make(carryoverFromPrevious: -100.50);
         expect(
           balance.toMap()['carryover_from_previous'],
           closeTo(-100.50, 0.001),
@@ -141,7 +141,7 @@ void main() {
       });
 
       test('serializes zero carryover', () {
-        final balance = _make(carryoverFromPrevious: 0.00);
+        final balance = make(carryoverFromPrevious: 0.00);
         expect(balance.toMap()['carryover_from_previous'], 0.0);
       });
     });
@@ -314,46 +314,46 @@ void main() {
     // -----------------------------------------------------------------------
     group('copyWith()', () {
       test('overrides id', () {
-        final original = _make();
+        final original = make();
         final copy = original.copyWith(id: 99);
         expect(copy.id, 99);
         expect(copy.carryoverFromPrevious, original.carryoverFromPrevious);
       });
 
       test('overrides carryoverFromPrevious', () {
-        final original = _make();
+        final original = make();
         final copy = original.copyWith(carryoverFromPrevious: 999.99);
         expect(copy.carryoverFromPrevious, closeTo(999.99, 0.001));
       });
 
       test('overrides overallBudget', () {
-        final original = _make();
+        final original = make();
         final copy = original.copyWith(overallBudget: 5000.00);
         expect(copy.overallBudget, closeTo(5000.00, 0.001));
       });
 
       test('clears overallBudget with clearOverallBudget flag', () {
-        final original = _make(overallBudget: 2000.00);
+        final original = make(overallBudget: 2000.00);
         final copy = original.copyWith(clearOverallBudget: true);
         expect(copy.overallBudget, isNull);
         expect(copy.hasOverallBudget, false);
       });
 
       test('overrides accountId', () {
-        final original = _make();
+        final original = make();
         final copy = original.copyWith(accountId: 42);
         expect(copy.accountId, 42);
       });
 
       test('overrides month', () {
         final newMonth = DateTime.utc(2025, 1, 1);
-        final original = _make();
+        final original = make();
         final copy = original.copyWith(month: newMonth);
         expect(copy.month, newMonth);
       });
 
       test('preserves all fields when nothing overridden', () {
-        final original = _make();
+        final original = make();
         final copy = original.copyWith();
 
         expect(copy.id, original.id);
@@ -369,7 +369,7 @@ void main() {
     // -----------------------------------------------------------------------
     group('copyWithDecimal()', () {
       test('overrides carryoverFromPrevious with Decimal', () {
-        final original = _make();
+        final original = make();
         final copy = original.copyWithDecimal(
           carryoverFromPrevious: Decimal.parse('1234.56'),
         );
@@ -380,7 +380,7 @@ void main() {
       });
 
       test('overrides overallBudget with Decimal', () {
-        final original = _make();
+        final original = make();
         final copy = original.copyWithDecimal(
           overallBudget: Decimal.parse('8000.00'),
         );
@@ -388,14 +388,14 @@ void main() {
       });
 
       test('clears overallBudget with clearOverallBudget flag', () {
-        final original = _make(overallBudget: 2000.00);
+        final original = make(overallBudget: 2000.00);
         final copy = original.copyWithDecimal(clearOverallBudget: true);
         expect(copy.overallBudgetDecimal, isNull);
         expect(copy.hasOverallBudget, false);
       });
 
       test('preserves all fields when nothing overridden', () {
-        final original = _make();
+        final original = make();
         final copy = original.copyWithDecimal();
 
         expect(copy.id, original.id);
@@ -414,7 +414,7 @@ void main() {
     // -----------------------------------------------------------------------
     group('round-trip serialization', () {
       test('toMap then fromMap preserves all values', () {
-        final original = _make(
+        final original = make(
           carryoverFromPrevious: 1500.75,
           overallBudget: 4000.00,
           accountId: 3,
@@ -437,7 +437,7 @@ void main() {
       });
 
       test('round-trip with null budget preserved', () {
-        final original = _make(overallBudget: null);
+        final original = make(overallBudget: null);
         final map = original.toMap();
         final restored = MonthlyBalance.fromMap(map);
 
@@ -446,7 +446,7 @@ void main() {
       });
 
       test('round-trip with negative carryover preserved', () {
-        final original = _make(carryoverFromPrevious: -350.25);
+        final original = make(carryoverFromPrevious: -350.25);
         final map = original.toMap();
         final restored = MonthlyBalance.fromMap(map);
 

@@ -80,12 +80,12 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
       final appState = context.read<AppState>();
       final selectedMonth = appState.selectedMonth;
       final now = DateTime.now();
-      // If viewing the current month, default to today's date
-      // Otherwise, default to first day of the selected month
+      // If viewing the current month, default to today's date (UTC midnight)
+      // Otherwise, default to first day of the selected month (UTC midnight)
       if (selectedMonth.year == now.year && selectedMonth.month == now.month) {
-        _selectedDate = DateTime(now.year, now.month, now.day, 12, 0, 0);
+        _selectedDate = DateHelper.today();
       } else {
-        _selectedDate = DateTime(selectedMonth.year, selectedMonth.month, 1, 12, 0, 0);
+        _selectedDate = DateHelper.startOfMonth(selectedMonth);
       }
       _initialDate = _selectedDate;
       _dateInitialized = true;

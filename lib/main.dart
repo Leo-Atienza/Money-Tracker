@@ -25,10 +25,11 @@ void notificationTapBackground(NotificationResponse notificationResponse) {
   // FIX: Handle notification taps when app is in background
   // Store the payload so we can navigate when the app resumes
   NotificationPayloadStore.storePendingPayload(notificationResponse.payload);
-  if (kDebugMode)
+  if (kDebugMode) {
     debugPrint(
       'Notification tapped in background: ${notificationResponse.payload}',
     );
+  }
 }
 
 void main() async {

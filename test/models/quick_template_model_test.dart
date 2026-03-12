@@ -7,7 +7,7 @@ void main() {
     // -----------------------------------------------------------------------
     // Helper: build a fully-populated QuickTemplate
     // -----------------------------------------------------------------------
-    QuickTemplate _makeTemplate({
+    QuickTemplate makeTemplate({
       int? id = 1,
       String name = 'Coffee',
       double amount = 4.50,
@@ -34,7 +34,7 @@ void main() {
     // -----------------------------------------------------------------------
     group('constructor and getters', () {
       test('stores all required and optional fields', () {
-        final t = _makeTemplate();
+        final t = makeTemplate();
 
         expect(t.id, 1);
         expect(t.name, 'Coffee');
@@ -93,7 +93,7 @@ void main() {
     // -----------------------------------------------------------------------
     group('toMap()', () {
       test('serializes all fields correctly', () {
-        final t = _makeTemplate();
+        final t = makeTemplate();
         final map = t.toMap();
 
         expect(map['id'], 1);
@@ -107,17 +107,17 @@ void main() {
       });
 
       test('serializes null id', () {
-        final t = _makeTemplate(id: null);
+        final t = makeTemplate(id: null);
         expect(t.toMap()['id'], isNull);
       });
 
       test('serializes income type', () {
-        final t = _makeTemplate(type: 'income');
+        final t = makeTemplate(type: 'income');
         expect(t.toMap()['type'], 'income');
       });
 
       test('serializes zero amount', () {
-        final t = _makeTemplate(amount: 0.0);
+        final t = makeTemplate(amount: 0.0);
         expect(t.toMap()['amount'], 0.0);
       });
     });
@@ -329,58 +329,58 @@ void main() {
     // -----------------------------------------------------------------------
     group('copyWith()', () {
       test('overrides id', () {
-        final original = _makeTemplate();
+        final original = makeTemplate();
         final copy = original.copyWith(id: 99);
         expect(copy.id, 99);
         expect(copy.name, original.name);
       });
 
       test('overrides name', () {
-        final original = _makeTemplate();
+        final original = makeTemplate();
         final copy = original.copyWith(name: 'Tea');
         expect(copy.name, 'Tea');
         expect(copy.id, original.id);
       });
 
       test('overrides amount', () {
-        final original = _makeTemplate();
+        final original = makeTemplate();
         final copy = original.copyWith(amount: 9.99);
         expect(copy.amount, closeTo(9.99, 0.001));
         expect(copy.name, original.name);
       });
 
       test('overrides category', () {
-        final original = _makeTemplate();
+        final original = makeTemplate();
         final copy = original.copyWith(category: 'Drinks');
         expect(copy.category, 'Drinks');
       });
 
       test('overrides paymentMethod', () {
-        final original = _makeTemplate();
+        final original = makeTemplate();
         final copy = original.copyWith(paymentMethod: 'Cash');
         expect(copy.paymentMethod, 'Cash');
       });
 
       test('overrides type', () {
-        final original = _makeTemplate();
+        final original = makeTemplate();
         final copy = original.copyWith(type: 'income');
         expect(copy.type, 'income');
       });
 
       test('overrides accountId', () {
-        final original = _makeTemplate();
+        final original = makeTemplate();
         final copy = original.copyWith(accountId: 42);
         expect(copy.accountId, 42);
       });
 
       test('overrides sortOrder', () {
-        final original = _makeTemplate();
+        final original = makeTemplate();
         final copy = original.copyWith(sortOrder: 10);
         expect(copy.sortOrder, 10);
       });
 
       test('preserves all fields when nothing overridden', () {
-        final original = _makeTemplate();
+        final original = makeTemplate();
         final copy = original.copyWith();
 
         expect(copy.id, original.id);
@@ -399,7 +399,7 @@ void main() {
     // -----------------------------------------------------------------------
     group('copyWithDecimal()', () {
       test('overrides amount with Decimal value', () {
-        final original = _makeTemplate();
+        final original = makeTemplate();
         final copy = original.copyWithDecimal(
           amount: Decimal.parse('19.99'),
         );
@@ -408,7 +408,7 @@ void main() {
       });
 
       test('preserves all fields when nothing overridden', () {
-        final original = _makeTemplate();
+        final original = makeTemplate();
         final copy = original.copyWithDecimal();
 
         expect(copy.id, original.id);
@@ -427,7 +427,7 @@ void main() {
     // -----------------------------------------------------------------------
     group('round-trip serialization', () {
       test('toMap then fromMap preserves all values', () {
-        final original = _makeTemplate();
+        final original = makeTemplate();
         final map = original.toMap();
         final restored = QuickTemplate.fromMap(map);
 

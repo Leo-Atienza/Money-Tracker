@@ -8,6 +8,7 @@ import '../utils/currency_helper.dart';
 import '../utils/decimal_helper.dart';
 import '../utils/validators.dart';
 import '../utils/dialog_helpers.dart';
+import '../utils/date_helper.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   final Expense? expense;
@@ -91,12 +92,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       final appState = context.read<AppState>();
       final selectedMonth = appState.selectedMonth;
       final now = DateTime.now();
-      // If viewing the current month, default to today's date
-      // Otherwise, default to first day of the selected month
+      // If viewing the current month, default to today's date (UTC midnight)
+      // Otherwise, default to first day of the selected month (UTC midnight)
       if (selectedMonth.year == now.year && selectedMonth.month == now.month) {
-        _selectedDate = DateTime(now.year, now.month, now.day, 12, 0, 0);
+        _selectedDate = DateHelper.today();
       } else {
-        _selectedDate = DateTime(selectedMonth.year, selectedMonth.month, 1, 12, 0, 0);
+        _selectedDate = DateHelper.startOfMonth(selectedMonth);
       }
       _initialDate = _selectedDate;
       _dateInitialized = true;
@@ -1158,16 +1159,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           }
                         }
 
-                        // FIX: Preserve time precision to maintain sort order
-                        // Without this, edited dates default to midnight causing sorting issues
-                        setState(() => _selectedDate = DateTime(
-                          date.year,
-                          date.month,
-                          date.day,
-                          _selectedDate.hour,
-                          _selectedDate.minute,
-                          _selectedDate.second,
-                        ));
+                        // FIX: Normalize to UTC midnight for consistent date handling
+                        // Sort order is maintained by date DESC + ID DESC in queries
+                        setState(() => _selectedDate = DateHelper.normalize(date));
                       }
                     },
                     borderRadius: BorderRadius.circular(12),

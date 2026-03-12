@@ -41,16 +41,24 @@ class NotificationHelper {
     String? monthlyReportsName,
     String? monthlyReportsDesc,
   }) {
-    if (billRemindersName != null)
+    if (billRemindersName != null) {
       _billRemindersChannelName = billRemindersName;
-    if (billRemindersDesc != null)
+    }
+    if (billRemindersDesc != null) {
       _billRemindersChannelDesc = billRemindersDesc;
-    if (budgetAlertsName != null) _budgetAlertsChannelName = budgetAlertsName;
-    if (budgetAlertsDesc != null) _budgetAlertsChannelDesc = budgetAlertsDesc;
-    if (monthlyReportsName != null)
+    }
+    if (budgetAlertsName != null) {
+      _budgetAlertsChannelName = budgetAlertsName;
+    }
+    if (budgetAlertsDesc != null) {
+      _budgetAlertsChannelDesc = budgetAlertsDesc;
+    }
+    if (monthlyReportsName != null) {
       _monthlyReportsChannelName = monthlyReportsName;
-    if (monthlyReportsDesc != null)
+    }
+    if (monthlyReportsDesc != null) {
       _monthlyReportsChannelDesc = monthlyReportsDesc;
+    }
   }
 
   Future<void> initialize() async {
