@@ -145,9 +145,10 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
       final amount = CurrencyHelper.parseDecimal(_amountController.text)!;
       // FIX #1: Ensure category is not null before using
       final category = _selectedCategory ?? 'Uncategorized';
-      final description = _descriptionController.text.trim().isEmpty
+      final rawDescription = _descriptionController.text.trim();
+      final description = rawDescription.isEmpty
           ? '$category income'
-          : _descriptionController.text.trim();
+          : CurrencyHelper.sanitizeText(rawDescription, maxLength: 200);
 
       final income = Income(
         id: widget.income?.id,
@@ -160,9 +161,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
 
       int? incomeId = widget.income?.id;
       if (widget.income == null) {
-        await appState.addIncome(income);
-        // Reload to get the ID
-        incomeId = income.id;
+        incomeId = await appState.addIncome(income);
       } else {
         await appState.updateIncome(income);
       }

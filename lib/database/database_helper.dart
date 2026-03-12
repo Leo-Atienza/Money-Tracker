@@ -996,21 +996,20 @@ class DatabaseHelper {
       tagIncomeOffset += batchSize;
     }
 
-    // Delete all associated data
-    await db.delete('expenses', where: 'account_id = ?', whereArgs: [id]);
-    await db.delete('income', where: 'account_id = ?', whereArgs: [id]);
-    await db.delete('budgets', where: 'account_id = ?', whereArgs: [id]);
-    await db.delete('recurring_expenses', where: 'account_id = ?', whereArgs: [id]);
-    await db.delete('recurring_income', where: 'account_id = ?', whereArgs: [id]);
-    await db.delete('categories', where: 'account_id = ?', whereArgs: [id]);
-    await db.delete('quick_templates', where: 'account_id = ?', whereArgs: [id]);
-    await db.delete('deleted_expenses', where: 'account_id = ?', whereArgs: [id]);
-    await db.delete('deleted_income', where: 'account_id = ?', whereArgs: [id]);
-    // FIX: Also delete tags that belong to this account
-    await db.delete('tags', where: 'account_id = ?', whereArgs: [id]);
-
-    // Finally delete the account
-    return await db.delete('accounts', where: 'id = ?', whereArgs: [id]);
+    // Delete all associated data atomically
+    return await db.transaction((txn) async {
+      await txn.delete('expenses', where: 'account_id = ?', whereArgs: [id]);
+      await txn.delete('income', where: 'account_id = ?', whereArgs: [id]);
+      await txn.delete('budgets', where: 'account_id = ?', whereArgs: [id]);
+      await txn.delete('recurring_expenses', where: 'account_id = ?', whereArgs: [id]);
+      await txn.delete('recurring_income', where: 'account_id = ?', whereArgs: [id]);
+      await txn.delete('categories', where: 'account_id = ?', whereArgs: [id]);
+      await txn.delete('quick_templates', where: 'account_id = ?', whereArgs: [id]);
+      await txn.delete('deleted_expenses', where: 'account_id = ?', whereArgs: [id]);
+      await txn.delete('deleted_income', where: 'account_id = ?', whereArgs: [id]);
+      await txn.delete('tags', where: 'account_id = ?', whereArgs: [id]);
+      return await txn.delete('accounts', where: 'id = ?', whereArgs: [id]);
+    });
   }
 
   /// FIX: Track orphaned backup files that failed to delete
@@ -1472,16 +1471,18 @@ class DatabaseHelper {
 
     if (result.isNotEmpty) {
       final map = result.first;
-      await db.insert('expenses', {
-        'amount': map['amount'],
-        'category': map['category'],
-        'description': map['description'],
-        'date': map['date'],
-        'account_id': map['account_id'],
-        'amountPaid': map['amountPaid'],
-        'paymentMethod': map['paymentMethod'],
+      await db.transaction((txn) async {
+        await txn.insert('expenses', {
+          'amount': map['amount'],
+          'category': map['category'],
+          'description': map['description'],
+          'date': map['date'],
+          'account_id': map['account_id'],
+          'amountPaid': map['amountPaid'],
+          'paymentMethod': map['paymentMethod'],
+        });
+        await txn.delete('deleted_expenses', where: 'id = ?', whereArgs: [deletedId]);
       });
-      await db.delete('deleted_expenses', where: 'id = ?', whereArgs: [deletedId]);
     }
   }
 
@@ -1496,14 +1497,16 @@ class DatabaseHelper {
 
     if (result.isNotEmpty) {
       final map = result.first;
-      await db.insert('income', {
-        'amount': map['amount'],
-        'category': map['category'],
-        'description': map['description'],
-        'date': map['date'],
-        'account_id': map['account_id'],
+      await db.transaction((txn) async {
+        await txn.insert('income', {
+          'amount': map['amount'],
+          'category': map['category'],
+          'description': map['description'],
+          'date': map['date'],
+          'account_id': map['account_id'],
+        });
+        await txn.delete('deleted_income', where: 'id = ?', whereArgs: [deletedId]);
       });
-      await db.delete('deleted_income', where: 'id = ?', whereArgs: [deletedId]);
     }
   }
 
@@ -1555,16 +1558,18 @@ class DatabaseHelper {
 
     if (result.isNotEmpty) {
       final map = result.first;
-      await db.insert('expenses', {
-        'amount': map['amount'],
-        'category': map['category'],
-        'description': map['description'],
-        'date': map['date'],
-        'account_id': map['account_id'],
-        'amountPaid': map['amountPaid'],
-        'paymentMethod': map['paymentMethod'],
+      await db.transaction((txn) async {
+        await txn.insert('expenses', {
+          'amount': map['amount'],
+          'category': map['category'],
+          'description': map['description'],
+          'date': map['date'],
+          'account_id': map['account_id'],
+          'amountPaid': map['amountPaid'],
+          'paymentMethod': map['paymentMethod'],
+        });
+        await txn.delete('deleted_expenses', where: 'id = ?', whereArgs: [map['id']]);
       });
-      await db.delete('deleted_expenses', where: 'id = ?', whereArgs: [map['id']]);
     }
   }
 
@@ -1723,8 +1728,8 @@ class DatabaseHelper {
   }
 
   /// Calculate the balance for a specific month (income - expenses)
-  /// This is used to compute the carryover for the next month
-  Future<double> calculateMonthBalance(int accountId, int year, int month) async {
+  /// Returns both sums separately so the caller can use Decimal arithmetic
+  Future<({double income, double expenses})> calculateMonthBalance(int accountId, int year, int month) async {
     final db = await database;
     final startDate = DateHelper.startOfMonth(DateTime.utc(year, month, 1)).toIso8601String();
     final endDate = DateHelper.lastDayOfMonth(DateTime.utc(year, month, 1)).toIso8601String();
@@ -1743,7 +1748,7 @@ class DatabaseHelper {
     );
     final totalExpenses = (expenseResult.first['total'] as num?)?.toDouble() ?? 0.0;
 
-    return totalIncome - totalExpenses;
+    return (income: totalIncome, expenses: totalExpenses);
   }
 
   // ============== RECURRING EXPENSE METHODS ==============
@@ -1860,6 +1865,18 @@ class DatabaseHelper {
         await txn.rawUpdate(
           'UPDATE income SET category = ? WHERE account_id = ? AND category = ?',
           [newName, accountId, oldName],
+        );
+
+        // Update recurring income
+        await txn.rawUpdate(
+          'UPDATE recurring_income SET category = ? WHERE account_id = ? AND category = ?',
+          [newName, accountId, oldName],
+        );
+
+        // Update income quick templates
+        await txn.rawUpdate(
+          'UPDATE quick_templates SET category = ? WHERE account_id = ? AND category = ? AND type = ?',
+          [newName, accountId, oldName, 'income'],
         );
 
         // Update deleted income
@@ -2461,13 +2478,11 @@ class DatabaseHelper {
     final sanitizedQuery = _sanitizeSearchQuery(query);
     if (sanitizedQuery.isEmpty) return [];
 
-    final result = await _queryWithTimeout(() => db.query(
-      'expenses',
-      where: 'account_id = ? AND (description LIKE ? OR category LIKE ?)',
-      whereArgs: [accountId, '%$sanitizedQuery%', '%$sanitizedQuery%'],
-      orderBy: 'date DESC',
-      limit: limit,
-      offset: offset,
+    final result = await _queryWithTimeout(() => db.rawQuery(
+      "SELECT * FROM expenses WHERE account_id = ? AND (description LIKE ? ESCAPE '\\' OR category LIKE ? ESCAPE '\\') ORDER BY date DESC"
+      '${limit != null ? ' LIMIT $limit' : ''}'
+      '${offset > 0 ? ' OFFSET $offset' : ''}',
+      [accountId, '%$sanitizedQuery%', '%$sanitizedQuery%'],
     ));
 
     if (result == null) return []; // Timeout occurred
@@ -2481,13 +2496,11 @@ class DatabaseHelper {
     final sanitizedQuery = _sanitizeSearchQuery(query);
     if (sanitizedQuery.isEmpty) return [];
 
-    final result = await _queryWithTimeout(() => db.query(
-      'income',
-      where: 'account_id = ? AND (description LIKE ? OR category LIKE ?)',
-      whereArgs: [accountId, '%$sanitizedQuery%', '%$sanitizedQuery%'],
-      orderBy: 'date DESC',
-      limit: limit,
-      offset: offset,
+    final result = await _queryWithTimeout(() => db.rawQuery(
+      "SELECT * FROM income WHERE account_id = ? AND (description LIKE ? ESCAPE '\\' OR category LIKE ? ESCAPE '\\') ORDER BY date DESC"
+      '${limit != null ? ' LIMIT $limit' : ''}'
+      '${offset > 0 ? ' OFFSET $offset' : ''}',
+      [accountId, '%$sanitizedQuery%', '%$sanitizedQuery%'],
     ));
 
     if (result == null) return []; // Timeout occurred
@@ -2599,9 +2612,9 @@ class DatabaseHelper {
       for (final token in tokens) {
         final isNumeric = double.tryParse(token) != null;
         if (isNumeric) {
-          conditions.add('($prefix.description LIKE ? OR $prefix.category LIKE ? OR CAST($prefix.amount AS TEXT) LIKE ?)');
+          conditions.add("($prefix.description LIKE ? ESCAPE '\\' OR $prefix.category LIKE ? ESCAPE '\\' OR CAST($prefix.amount AS TEXT) LIKE ? ESCAPE '\\')");
         } else {
-          conditions.add('($prefix.description LIKE ? OR $prefix.category LIKE ?)');
+          conditions.add("($prefix.description LIKE ? ESCAPE '\\' OR $prefix.category LIKE ? ESCAPE '\\')");
         }
       }
 

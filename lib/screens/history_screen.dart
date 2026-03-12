@@ -606,7 +606,11 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                           ),
                           onPressed: () {
                             _searchController.clear();
-                            setState(() => _searchTerm = '');
+                            setState(() {
+                              _searchTerm = '';
+                              _searchAllTime = _previousAllTimeState;
+                            });
+                            _loadAllTimeData();
                           },
                         ),
                       )

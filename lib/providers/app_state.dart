@@ -774,20 +774,24 @@ class AppState extends ChangeNotifier {
 
   // ============== INCOME METHODS ==============
 
-  Future<void> addIncome(Income income) async {
+  Future<int> addIncome(Income income) async {
     if (income.amountDecimal <= Decimal.zero) {
       throw ArgumentError('Income amount must be greater than zero');
     }
     if (income.category.isEmpty) {
       throw ArgumentError('Income must have a category');
     }
+    if (income.description.isEmpty) {
+      throw ArgumentError('Income must have a description');
+    }
 
-    await _writeMutex.synchronized(() async {
-      await _db.createIncome(income);
+    return await _writeMutex.synchronized(() async {
+      final incomeId = await _db.createIncome(income);
       await _loadIncomesInternal();
       await _recalculateCarryoverAfterTransaction(income.date);
       notifyListeners();
       _updateHomeWidget();
+      return incomeId;
     });
   }
 
@@ -850,30 +854,38 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> restoreDeletedExpense(int deletedId) async {
-    await _db.restoreDeletedExpense(deletedId);
-    await _loadExpenses();
-    _invalidateExpenseCache(); // FIX: Invalidate cache after restore
-    await _calculateAndStoreCarryover();
-    notifyListeners();
-    _updateHomeWidget(); // FIX: Update home widget after restore
+    await _writeMutex.synchronized(() async {
+      await _db.restoreDeletedExpense(deletedId);
+      await _loadExpensesInternal();
+      _invalidateExpenseCache();
+      await _calculateAndStoreCarryover();
+      notifyListeners();
+      _updateHomeWidget();
+    });
   }
 
   Future<void> restoreDeletedIncome(int deletedId) async {
-    await _db.restoreDeletedIncome(deletedId);
-    await _loadIncomes();
-    await _calculateAndStoreCarryover();
-    notifyListeners();
-    _updateHomeWidget(); // FIX: Update home widget after restore
+    await _writeMutex.synchronized(() async {
+      await _db.restoreDeletedIncome(deletedId);
+      await _loadIncomesInternal();
+      await _calculateAndStoreCarryover();
+      notifyListeners();
+      _updateHomeWidget();
+    });
   }
 
   Future<void> permanentlyDeleteExpense(int deletedId) async {
-    await _db.permanentlyDeleteExpense(deletedId);
-    notifyListeners();
+    await _writeMutex.synchronized(() async {
+      await _db.permanentlyDeleteExpense(deletedId);
+      notifyListeners();
+    });
   }
 
   Future<void> permanentlyDeleteIncome(int deletedId) async {
-    await _db.permanentlyDeleteIncome(deletedId);
-    notifyListeners();
+    await _writeMutex.synchronized(() async {
+      await _db.permanentlyDeleteIncome(deletedId);
+      notifyListeners();
+    });
   }
 
   Future<void> emptyTrash() async {
@@ -1116,15 +1128,16 @@ class AppState extends ChangeNotifier {
     final prevBalance = _monthlyBalances[prevMonthKey];
     final prevCarryover = prevBalance?.carryoverFromPreviousDecimal ?? Decimal.zero;
 
-    // Calculate previous month's balance (income - expenses)
-    final prevMonthBalance = await _db.calculateMonthBalance(
+    // Calculate previous month's balance using Decimal arithmetic for precision
+    final prevMonthSums = await _db.calculateMonthBalance(
       currentAccountId,
       prevMonth.year,
       prevMonth.month,
     );
+    final prevMonthBalance = DecimalHelper.fromDouble(prevMonthSums.income) - DecimalHelper.fromDouble(prevMonthSums.expenses);
 
     // Total carryover = previous month's (balance + carryover)
-    final totalCarryover = DecimalHelper.fromDouble(prevMonthBalance) + prevCarryover;
+    final totalCarryover = prevMonthBalance + prevCarryover;
 
     // Only update if the calculated carryover is different or doesn't exist
     if (existingBalance == null ||
@@ -1302,6 +1315,13 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       final db = await _db.database;
       await db.transaction((txn) async {
+        // Delete transaction_tags BEFORE expenses/income so subqueries can still find IDs
+        await txn.rawDelete(
+          'DELETE FROM transaction_tags WHERE '
+          '(transaction_type = ? AND transaction_id IN (SELECT id FROM expenses WHERE account_id = ?)) OR '
+          '(transaction_type = ? AND transaction_id IN (SELECT id FROM income WHERE account_id = ?))',
+          ['expense', accountId, 'income', accountId],
+        );
         await txn.delete('expenses', where: 'account_id = ?', whereArgs: [accountId]);
         await txn.delete('income', where: 'account_id = ?', whereArgs: [accountId]);
         await txn.delete('budgets', where: 'account_id = ?', whereArgs: [accountId]);
@@ -1310,13 +1330,6 @@ class AppState extends ChangeNotifier {
         await txn.delete('quick_templates', where: 'account_id = ?', whereArgs: [accountId]);
         await txn.delete('categories', where: 'account_id = ? AND isDefault = 0', whereArgs: [accountId]);
         await txn.delete('tags', where: 'account_id = ?', whereArgs: [accountId]);
-        // Only delete transaction_tags for transactions belonging to this account
-        await txn.rawDelete(
-          'DELETE FROM transaction_tags WHERE '
-          '(transaction_type = ? AND transaction_id IN (SELECT id FROM expenses WHERE account_id = ?)) OR '
-          '(transaction_type = ? AND transaction_id IN (SELECT id FROM income WHERE account_id = ?))',
-          ['expense', accountId, 'income', accountId],
-        );
         await txn.delete('deleted_expenses', where: 'account_id = ?', whereArgs: [accountId]);
         await txn.delete('deleted_income', where: 'account_id = ?', whereArgs: [accountId]);
       });
@@ -1331,18 +1344,25 @@ class AppState extends ChangeNotifier {
   Future<List<Map<String, dynamic>>> getDeletedAccounts() async => await _db.getDeletedAccounts();
 
   Future<void> restoreDeletedAccount(int deletedId) async {
-    final newAccountId = await _db.restoreDeletedAccount(deletedId);
-    await _loadAccounts();
-    final restoredAccount = _accounts.cast<Account?>().firstWhere(
-      (a) => a?.id == newAccountId,
-      orElse: () => null,
-    );
-    if (restoredAccount != null) {
-      await switchAccount(restoredAccount);
-    }
+    await _writeMutex.synchronized(() async {
+      final newAccountId = await _db.restoreDeletedAccount(deletedId);
+      await _loadAccounts();
+      final restoredAccount = _accounts.cast<Account?>().firstWhere(
+        (a) => a?.id == newAccountId,
+        orElse: () => null,
+      );
+      if (restoredAccount != null) {
+        await switchAccount(restoredAccount);
+      }
+    });
   }
 
-  Future<void> permanentlyDeleteAccount(int deletedId) async => await _db.permanentlyDeleteAccount(deletedId);
+  Future<void> permanentlyDeleteAccount(int deletedId) async {
+    await _writeMutex.synchronized(() async {
+      await _db.permanentlyDeleteAccount(deletedId);
+      notifyListeners();
+    });
+  }
 
   Future<void> switchAccount(Account account) async {
     _currentAccount = account;
@@ -1939,8 +1959,11 @@ class AppState extends ChangeNotifier {
   Future<List<Expense>> getAllExpensesForBackup() async => await _db.readAllExpenses(currentAccountId);
   Future<List<Income>> getAllIncomesForBackup() async => await _db.readAllIncome(currentAccountId);
   Future<void> closeDatabase() async {
-    while (_processingRecurring) {
+    // Wait up to 5 seconds for recurring processing to finish
+    var attempts = 0;
+    while (_processingRecurring && attempts < 50) {
       await Future.delayed(const Duration(milliseconds: 100));
+      attempts++;
     }
     await _db.closeDatabase();
   }
