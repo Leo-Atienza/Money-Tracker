@@ -497,35 +497,43 @@ class AppState extends ChangeNotifier {
       return;
     }
 
-    if (!_loadedExpenseMonths.contains(key)) {
-      final monthStart = DateHelper.startOfMonth(month);
-      final monthEnd = DateHelper.endOfMonth(month);
-      final newExpenses = await _db.getExpensesInRange(currentAccountId, monthStart, monthEnd);
-      final existingIds = _expenses.map((e) => e.id).toSet();
-      for (final expense in newExpenses) {
-        if (!existingIds.contains(expense.id)) {
-          _expenses.add(expense);
-        }
+    await _writeMutex.synchronized(() async {
+      // Re-check under lock to avoid redundant work
+      if (_loadedExpenseMonths.contains(key) && _loadedIncomeMonths.contains(key)) {
+        _monthAccessTimes[key] = DateTime.now();
+        return;
       }
-      _loadedExpenseMonths.add(key);
-      _monthAccessTimes[key] = DateTime.now();
-    }
 
-    if (!_loadedIncomeMonths.contains(key)) {
-      final monthStart = DateHelper.startOfMonth(month);
-      final monthEnd = DateHelper.endOfMonth(month);
-      final newIncomes = await _db.getIncomeInRange(currentAccountId, monthStart, monthEnd);
-      final existingIds = _incomes.map((i) => i.id).toSet();
-      for (final income in newIncomes) {
-        if (!existingIds.contains(income.id)) {
-          _incomes.add(income);
+      if (!_loadedExpenseMonths.contains(key)) {
+        final monthStart = DateHelper.startOfMonth(month);
+        final monthEnd = DateHelper.endOfMonth(month);
+        final newExpenses = await _db.getExpensesInRange(currentAccountId, monthStart, monthEnd);
+        final existingIds = _expenses.map((e) => e.id).toSet();
+        for (final expense in newExpenses) {
+          if (!existingIds.contains(expense.id)) {
+            _expenses.add(expense);
+          }
         }
+        _loadedExpenseMonths.add(key);
+        _monthAccessTimes[key] = DateTime.now();
       }
-      _loadedIncomeMonths.add(key);
-      _monthAccessTimes[key] = DateTime.now();
-    }
 
-    _pruneDistantMonths(month);
+      if (!_loadedIncomeMonths.contains(key)) {
+        final monthStart = DateHelper.startOfMonth(month);
+        final monthEnd = DateHelper.endOfMonth(month);
+        final newIncomes = await _db.getIncomeInRange(currentAccountId, monthStart, monthEnd);
+        final existingIds = _incomes.map((i) => i.id).toSet();
+        for (final income in newIncomes) {
+          if (!existingIds.contains(income.id)) {
+            _incomes.add(income);
+          }
+        }
+        _loadedIncomeMonths.add(key);
+        _monthAccessTimes[key] = DateTime.now();
+      }
+
+      _pruneDistantMonths(month);
+    });
   }
 
   void _pruneDistantMonths(DateTime currentMonth) {
@@ -630,6 +638,7 @@ class AppState extends ChangeNotifier {
       final expenseId = await _db.createExpense(expense);
       await _loadExpensesInternal();
       await _checkBudgetAlerts(expense.category);
+      await _recalculateCarryoverAfterTransaction(expense.date);
       notifyListeners();
       _updateHomeWidget();
       return expenseId;
@@ -661,6 +670,7 @@ class AppState extends ChangeNotifier {
       await _db.updateExpense(expense);
       await _loadExpensesInternal();
       _invalidateExpenseCache(); // FIX: Invalidate cache to ensure UI updates immediately
+      await _recalculateCarryoverAfterTransaction(expense.date);
       notifyListeners();
       _updateHomeWidget(); // FIX: Update home widget after expense update
     });
@@ -668,27 +678,35 @@ class AppState extends ChangeNotifier {
 
   Future<void> deleteExpense(int id) async {
     await _writeMutex.synchronized(() async {
-      // FIX: Properly handle case when expense is not found in memory
       final expenseIndex = _expenses.indexWhere((e) => e.id == id);
+      late final DateTime expenseDate;
       if (expenseIndex != -1) {
-        // Expense found in memory - use it for deletion
+        expenseDate = _expenses[expenseIndex].date;
         await _db.moveToDeleted(_expenses[expenseIndex]);
       } else {
-        // Expense not in memory (e.g., from a different month) - delete by ID
-        await _db.moveToDeletedById(id);
+        final deletedDate = await _db.moveToDeletedById(id);
+        if (deletedDate == null) {
+          if (kDebugMode) debugPrint('Expense $id not found for deletion');
+          return;
+        }
+        expenseDate = deletedDate;
       }
       await _loadExpensesInternal();
+      await _recalculateCarryoverAfterTransaction(expenseDate);
       notifyListeners();
       _updateHomeWidget();
     });
   }
 
   Future<void> undoDelete() async {
-    await _db.restoreLastDeleted(currentAccountId);
-    await _loadExpenses();
-    _invalidateExpenseCache(); // FIX: Invalidate cache after undo
-    notifyListeners();
-    _updateHomeWidget(); // FIX: Update home widget after undo
+    await _writeMutex.synchronized(() async {
+      await _db.restoreLastDeleted(currentAccountId);
+      await _loadExpensesInternal();
+      _invalidateExpenseCache();
+      await _calculateAndStoreCarryover();
+      notifyListeners();
+      _updateHomeWidget();
+    });
   }
 
   Future<void> addPayment(Expense expense, double amount) async {
@@ -711,6 +729,7 @@ class AppState extends ChangeNotifier {
       await _db.updateExpense(updated);
       await _loadExpensesInternal();
       _invalidateExpenseCache(); // FIX: Invalidate cache to ensure UI updates immediately
+      await _recalculateCarryoverAfterTransaction(expense.date);
       notifyListeners();
       _updateHomeWidget(); // FIX: Update home widget after payment
     });
@@ -766,6 +785,7 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.createIncome(income);
       await _loadIncomesInternal();
+      await _recalculateCarryoverAfterTransaction(income.date);
       notifyListeners();
       _updateHomeWidget();
     });
@@ -791,6 +811,7 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.updateIncome(income);
       await _loadIncomesInternal();
+      await _recalculateCarryoverAfterTransaction(income.date);
       notifyListeners();
       _updateHomeWidget(); // FIX: Update home widget after income update
     });
@@ -798,16 +819,21 @@ class AppState extends ChangeNotifier {
 
   Future<void> deleteIncome(int id) async {
     await _writeMutex.synchronized(() async {
-      // FIX: Properly handle case when income is not found in memory
       final incomeIndex = _incomes.indexWhere((i) => i.id == id);
+      late final DateTime incomeDate;
       if (incomeIndex != -1) {
-        // Income found in memory - use it for deletion
+        incomeDate = _incomes[incomeIndex].date;
         await _db.moveIncomeToDeleted(_incomes[incomeIndex]);
       } else {
-        // Income not in memory (e.g., from a different month) - delete by ID
-        await _db.moveIncomeToDeletedById(id);
+        final deletedDate = await _db.moveIncomeToDeletedById(id);
+        if (deletedDate == null) {
+          if (kDebugMode) debugPrint('Income $id not found for deletion');
+          return;
+        }
+        incomeDate = deletedDate;
       }
       await _loadIncomesInternal();
+      await _recalculateCarryoverAfterTransaction(incomeDate);
       notifyListeners();
       _updateHomeWidget();
     });
@@ -827,6 +853,7 @@ class AppState extends ChangeNotifier {
     await _db.restoreDeletedExpense(deletedId);
     await _loadExpenses();
     _invalidateExpenseCache(); // FIX: Invalidate cache after restore
+    await _calculateAndStoreCarryover();
     notifyListeners();
     _updateHomeWidget(); // FIX: Update home widget after restore
   }
@@ -834,6 +861,7 @@ class AppState extends ChangeNotifier {
   Future<void> restoreDeletedIncome(int deletedId) async {
     await _db.restoreDeletedIncome(deletedId);
     await _loadIncomes();
+    await _calculateAndStoreCarryover();
     notifyListeners();
     _updateHomeWidget(); // FIX: Update home widget after restore
   }
@@ -1051,6 +1079,20 @@ class AppState extends ChangeNotifier {
 
   // ============== CARRYOVER METHODS ==============
 
+  /// Recalculate carryover for the month after the given transaction date.
+  /// Must be called inside _writeMutex.synchronized blocks.
+  Future<void> _recalculateCarryoverAfterTransaction(DateTime transactionDate) async {
+    final transactionMonth = DateHelper.startOfMonth(transactionDate);
+    final nextMonth = DateHelper.addMonths(transactionMonth, 1);
+    await _calculateCarryoverForMonth(nextMonth);
+
+    // Also recalculate for the selected month if it's affected
+    final selectedStart = DateHelper.startOfMonth(_selectedMonth);
+    if (!_isSameMonth(selectedStart, nextMonth)) {
+      await _calculateCarryoverForMonth(selectedStart);
+    }
+  }
+
   /// Calculate and store the carryover for the current month from the previous month
   /// This should be called during app initialization and when navigating to a new month
   Future<void> _calculateAndStoreCarryover() async {
@@ -1197,7 +1239,7 @@ class AppState extends ChangeNotifier {
     }
 
     await _writeMutex.synchronized(() async {
-      final account = Account(name: trimmedName, isDefault: false);
+      final account = Account(name: trimmedName, isDefault: false, currencyCode: _currencyCode);
       final accountId = await _db.createAccount(account);
       await _createDefaultCategoriesForAccount(accountId);
       await _loadAccounts();
@@ -1268,7 +1310,13 @@ class AppState extends ChangeNotifier {
         await txn.delete('quick_templates', where: 'account_id = ?', whereArgs: [accountId]);
         await txn.delete('categories', where: 'account_id = ? AND isDefault = 0', whereArgs: [accountId]);
         await txn.delete('tags', where: 'account_id = ?', whereArgs: [accountId]);
-        await txn.delete('transaction_tags', where: '1=1');
+        // Only delete transaction_tags for transactions belonging to this account
+        await txn.rawDelete(
+          'DELETE FROM transaction_tags WHERE '
+          '(transaction_type = ? AND transaction_id IN (SELECT id FROM expenses WHERE account_id = ?)) OR '
+          '(transaction_type = ? AND transaction_id IN (SELECT id FROM income WHERE account_id = ?))',
+          ['expense', accountId, 'income', accountId],
+        );
         await txn.delete('deleted_expenses', where: 'account_id = ?', whereArgs: [accountId]);
         await txn.delete('deleted_income', where: 'account_id = ?', whereArgs: [accountId]);
       });
@@ -1285,8 +1333,13 @@ class AppState extends ChangeNotifier {
   Future<void> restoreDeletedAccount(int deletedId) async {
     final newAccountId = await _db.restoreDeletedAccount(deletedId);
     await _loadAccounts();
-    final restoredAccount = _accounts.firstWhere((a) => a.id == newAccountId);
-    await switchAccount(restoredAccount);
+    final restoredAccount = _accounts.cast<Account?>().firstWhere(
+      (a) => a?.id == newAccountId,
+      orElse: () => null,
+    );
+    if (restoredAccount != null) {
+      await switchAccount(restoredAccount);
+    }
   }
 
   Future<void> permanentlyDeleteAccount(int deletedId) async => await _db.permanentlyDeleteAccount(deletedId);
@@ -1477,7 +1530,7 @@ class AppState extends ChangeNotifier {
   /// If category was deleted, falls back to 'Uncategorized' or first available category.
   Future<void> useTemplate(QuickTemplate template) async {
     final now = DateTime.now();
-    final date = DateTime.utc(now.year, now.month, now.day, 12, 0, 0);
+    final date = DateHelper.normalize(now);
 
     // FIX: Validate category still exists
     String categoryToUse = template.category;
@@ -1796,8 +1849,11 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  void goToToday() {
-    _selectedMonth = DateHelper.startOfMonth(DateHelper.today());
+  Future<void> goToToday() async {
+    final todayMonth = DateHelper.startOfMonth(DateHelper.today());
+    await ensureMonthLoaded(todayMonth);
+    _selectedMonth = todayMonth;
+    await _ensureCarryoverLoaded(todayMonth);
     notifyListeners();
   }
 

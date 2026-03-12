@@ -79,8 +79,14 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
     if (!_dateInitialized && widget.income == null) {
       final appState = context.read<AppState>();
       final selectedMonth = appState.selectedMonth;
-      // Default to first day of selected month at noon for consistent sorting
-      _selectedDate = DateTime(selectedMonth.year, selectedMonth.month, 1, 12, 0, 0);
+      final now = DateTime.now();
+      // If viewing the current month, default to today's date
+      // Otherwise, default to first day of the selected month
+      if (selectedMonth.year == now.year && selectedMonth.month == now.month) {
+        _selectedDate = DateTime(now.year, now.month, now.day, 12, 0, 0);
+      } else {
+        _selectedDate = DateTime(selectedMonth.year, selectedMonth.month, 1, 12, 0, 0);
+      }
       _initialDate = _selectedDate;
       _dateInitialized = true;
     }

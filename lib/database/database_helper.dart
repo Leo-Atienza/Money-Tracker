@@ -62,7 +62,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       dbPath,
-      version: 17, // Bumped version for overall_budget column
+      version: 18, // Bumped version for tag indexing/dedupe improvements
       // FIX #4: Enable SQLite foreign key enforcement
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
@@ -329,6 +329,12 @@ class DatabaseHelper {
     // Performance indexes for recurring transactions (active status queries)
     await db.execute('CREATE INDEX idx_recurring_expenses_active ON recurring_expenses(account_id, isActive)');
     await db.execute('CREATE INDEX idx_recurring_income_active ON recurring_income(account_id, isActive)');
+
+    // Tag indexes to speed up lookup and prevent duplicate links.
+    await db.execute('CREATE INDEX idx_tags_account_name ON tags(account_id, name)');
+    await db.execute('CREATE INDEX idx_transaction_tags_lookup ON transaction_tags(transaction_type, transaction_id)');
+    await db.execute('CREATE INDEX idx_transaction_tags_tag_type ON transaction_tags(tag_id, transaction_type)');
+    await db.execute('CREATE UNIQUE INDEX idx_transaction_tags_unique ON transaction_tags(transaction_id, transaction_type, tag_id)');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -545,6 +551,25 @@ class DatabaseHelper {
       // Add overall_budget column to monthly_balances table
       await _addColumnIfNotExists(db, 'monthly_balances', 'overall_budget', 'REAL');
     }
+
+    if (oldVersion < 18) {
+      // Add missing tag indexes and ensure links are unique per transaction.
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_tags_account_name ON tags(account_id, name)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_transaction_tags_lookup ON transaction_tags(transaction_type, transaction_id)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_transaction_tags_tag_type ON transaction_tags(tag_id, transaction_type)');
+
+      // Deduplicate pre-existing links before creating unique index.
+      await db.execute('''
+        DELETE FROM transaction_tags
+        WHERE id NOT IN (
+          SELECT MIN(id)
+          FROM transaction_tags
+          GROUP BY transaction_id, transaction_type, tag_id
+        )
+      ''');
+
+      await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_transaction_tags_unique ON transaction_tags(transaction_id, transaction_type, tag_id)');
+    }
   }
 
   /// Safely adds a column to a table if it doesn't already exist.
@@ -661,25 +686,28 @@ class DatabaseHelper {
   // Move income to deleted (for undo/restore)
   Future<void> moveIncomeToDeleted(Income income) async {
     final db = await database;
-    await db.insert('deleted_income', {
-      'original_id': income.id,
-      'amount': income.amount,
-      'category': income.category,
-      'description': income.description,
-      'date': income.date.toIso8601String(),
-      'account_id': income.accountId,
-      // FIX: Use UTC to avoid timezone-dependent expiration
-      'deletedAt': DateTime.now().toUtc().toIso8601String(),
+    await db.transaction((txn) async {
+      await txn.insert('deleted_income', {
+        'original_id': income.id,
+        'amount': income.amount,
+        'category': income.category,
+        'description': income.description,
+        'date': income.date.toIso8601String(),
+        'account_id': income.accountId,
+        // FIX: Use UTC to avoid timezone-dependent expiration
+        'deletedAt': DateTime.now().toUtc().toIso8601String(),
+      });
+      await txn.delete('income', where: 'id = ?', whereArgs: [income.id]);
     });
-    await db.delete('income', where: 'id = ?', whereArgs: [income.id]);
   }
 
   // Move income to deleted by ID (fetches from DB if needed)
-  Future<bool> moveIncomeToDeletedById(int id) async {
+  // Returns the date of the deleted income for carryover recalculation, or null if not found.
+  Future<DateTime?> moveIncomeToDeletedById(int id) async {
     final income = await getIncomeById(id);
-    if (income == null) return false;
+    if (income == null) return null;
     await moveIncomeToDeleted(income);
-    return true;
+    return income.date;
   }
 
   // ============== QUICK TEMPLATE METHODS ==============
@@ -871,6 +899,26 @@ class DatabaseHelper {
       final templates = await db.query('quick_templates', where: 'account_id = ?', whereArgs: [id]);
       sink.write(',"templates":');
       sink.write(jsonEncode(templates));
+
+      // Write tags
+      final tags = await db.query('tags', where: 'account_id = ?', whereArgs: [id]);
+      sink.write(',"tags":');
+      sink.write(jsonEncode(tags));
+
+      // Write transaction_tags for this account's expenses and income
+      final transactionTags = await db.rawQuery(
+        'SELECT tt.* FROM transaction_tags tt '
+        'WHERE (tt.transaction_type = ? AND tt.transaction_id IN (SELECT id FROM expenses WHERE account_id = ?)) '
+        'OR (tt.transaction_type = ? AND tt.transaction_id IN (SELECT id FROM income WHERE account_id = ?))',
+        ['expense', id, 'income', id],
+      );
+      sink.write(',"transactionTags":');
+      sink.write(jsonEncode(transactionTags));
+
+      // Write monthly balances
+      final monthlyBalances = await db.query('monthly_balances', where: 'account_id = ?', whereArgs: [id]);
+      sink.write(',"monthlyBalances":');
+      sink.write(jsonEncode(monthlyBalances));
 
       // Close JSON object
       sink.write('}');
@@ -1093,7 +1141,6 @@ class DatabaseHelper {
     }
 
     final deletedAccount = result.first;
-    final accountName = deletedAccount['name'] as String;
     final filePath = deletedAccount['data'] as String;
 
     // FIX: Read backup data from file instead of database
@@ -1105,79 +1152,148 @@ class DatabaseHelper {
     final jsonString = await backupFile.readAsString();
     final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
 
-    // Create a new account with the same name
-    final newAccountId = await db.insert('accounts', {
-      'name': accountName,
-      'isDefault': 0,
-    });
+    // Restore full account metadata from backup
+    final accountData = backupData['account'] as Map<String, dynamic>?;
 
-    // Restore expenses
-    final expenses = backupData['expenses'] as List<dynamic>? ?? [];
-    for (final expense in expenses) {
-      final expenseMap = Map<String, dynamic>.from(expense as Map);
-      expenseMap.remove('id');
-      expenseMap['account_id'] = newAccountId;
-      await db.insert('expenses', expenseMap);
-    }
-
-    // Restore income
-    final income = backupData['income'] as List<dynamic>? ?? [];
-    for (final inc in income) {
-      final incomeMap = Map<String, dynamic>.from(inc as Map);
-      incomeMap.remove('id');
-      incomeMap['account_id'] = newAccountId;
-      await db.insert('income', incomeMap);
-    }
-
-    // Restore budgets
-    final budgets = backupData['budgets'] as List<dynamic>? ?? [];
-    for (final budget in budgets) {
-      final budgetMap = Map<String, dynamic>.from(budget as Map);
-      budgetMap.remove('id');
-      budgetMap['account_id'] = newAccountId;
-      await db.insert('budgets', budgetMap);
-    }
-
-    // Restore recurring expenses
-    final recurringExpenses = backupData['recurringExpenses'] as List<dynamic>? ?? [];
-    for (final rec in recurringExpenses) {
-      final recMap = Map<String, dynamic>.from(rec as Map);
-      recMap.remove('id');
-      recMap['account_id'] = newAccountId;
-      await db.insert('recurring_expenses', recMap);
-    }
-
-    // Restore recurring income
-    final recurringIncome = backupData['recurringIncome'] as List<dynamic>? ?? [];
-    for (final rec in recurringIncome) {
-      final recMap = Map<String, dynamic>.from(rec as Map);
-      recMap.remove('id');
-      recMap['account_id'] = newAccountId;
-      await db.insert('recurring_income', recMap);
-    }
-
-    // Restore categories (non-default ones)
-    final categories = backupData['categories'] as List<dynamic>? ?? [];
-    for (final cat in categories) {
-      final catMap = Map<String, dynamic>.from(cat as Map);
-      if (catMap['isDefault'] != 1) {
-        catMap.remove('id');
-        catMap['account_id'] = newAccountId;
-        await db.insert('categories', catMap);
+    // Wrap all inserts in a single transaction for atomicity
+    final newAccountId = await db.transaction<int>((txn) async {
+      // Create new account with full metadata from backup
+      final accountInsert = <String, dynamic>{
+        'isDefault': 0,
+      };
+      if (accountData != null) {
+        accountInsert['name'] = accountData['name'] as String? ?? deletedAccount['name'] as String;
+        if (accountData['currencyCode'] != null) accountInsert['currencyCode'] = accountData['currencyCode'];
+        if (accountData['icon'] != null) accountInsert['icon'] = accountData['icon'];
+        if (accountData['color'] != null) accountInsert['color'] = accountData['color'];
+      } else {
+        accountInsert['name'] = deletedAccount['name'] as String;
       }
-    }
+      final newId = await txn.insert('accounts', accountInsert);
 
-    // Restore quick templates
-    final templates = backupData['templates'] as List<dynamic>? ?? [];
-    for (final template in templates) {
-      final templateMap = Map<String, dynamic>.from(template as Map);
-      templateMap.remove('id');
-      templateMap['account_id'] = newAccountId;
-      await db.insert('quick_templates', templateMap);
-    }
+      // Restore expenses — collect old→new ID mapping for transaction_tags
+      final expenseIdMap = <int, int>{};
+      final expenses = backupData['expenses'] as List<dynamic>? ?? [];
+      for (final expense in expenses) {
+        final expenseMap = Map<String, dynamic>.from(expense as Map);
+        final oldId = expenseMap['id'] as int?;
+        expenseMap.remove('id');
+        expenseMap['account_id'] = newId;
+        final newExpenseId = await txn.insert('expenses', expenseMap);
+        if (oldId != null) expenseIdMap[oldId] = newExpenseId;
+      }
 
-    // Remove from deleted_accounts
-    await db.delete('deleted_accounts', where: 'id = ?', whereArgs: [deletedId]);
+      // Restore income — collect old→new ID mapping for transaction_tags
+      final incomeIdMap = <int, int>{};
+      final income = backupData['income'] as List<dynamic>? ?? [];
+      for (final inc in income) {
+        final incomeMap = Map<String, dynamic>.from(inc as Map);
+        final oldId = incomeMap['id'] as int?;
+        incomeMap.remove('id');
+        incomeMap['account_id'] = newId;
+        final newIncomeId = await txn.insert('income', incomeMap);
+        if (oldId != null) incomeIdMap[oldId] = newIncomeId;
+      }
+
+      // Restore budgets
+      final budgets = backupData['budgets'] as List<dynamic>? ?? [];
+      for (final budget in budgets) {
+        final budgetMap = Map<String, dynamic>.from(budget as Map);
+        budgetMap.remove('id');
+        budgetMap['account_id'] = newId;
+        await txn.insert('budgets', budgetMap);
+      }
+
+      // Restore recurring expenses
+      final recurringExpenses = backupData['recurringExpenses'] as List<dynamic>? ?? [];
+      for (final rec in recurringExpenses) {
+        final recMap = Map<String, dynamic>.from(rec as Map);
+        recMap.remove('id');
+        recMap['account_id'] = newId;
+        await txn.insert('recurring_expenses', recMap);
+      }
+
+      // Restore recurring income
+      final recurringIncome = backupData['recurringIncome'] as List<dynamic>? ?? [];
+      for (final rec in recurringIncome) {
+        final recMap = Map<String, dynamic>.from(rec as Map);
+        recMap.remove('id');
+        recMap['account_id'] = newId;
+        await txn.insert('recurring_income', recMap);
+      }
+
+      // Restore categories (non-default ones)
+      final categories = backupData['categories'] as List<dynamic>? ?? [];
+      for (final cat in categories) {
+        final catMap = Map<String, dynamic>.from(cat as Map);
+        if (catMap['isDefault'] != 1) {
+          catMap.remove('id');
+          catMap['account_id'] = newId;
+          await txn.insert('categories', catMap);
+        }
+      }
+
+      // Restore quick templates
+      final templates = backupData['templates'] as List<dynamic>? ?? [];
+      for (final template in templates) {
+        final templateMap = Map<String, dynamic>.from(template as Map);
+        templateMap.remove('id');
+        templateMap['account_id'] = newId;
+        await txn.insert('quick_templates', templateMap);
+      }
+
+      // Restore tags and transaction_tags (if present in backup)
+      final tagIdMap = <int, int>{};
+      final tags = backupData['tags'] as List<dynamic>? ?? [];
+      for (final tag in tags) {
+        final tagMap = Map<String, dynamic>.from(tag as Map);
+        final oldTagId = tagMap['id'] as int?;
+        tagMap.remove('id');
+        tagMap['account_id'] = newId;
+        final newTagId = await txn.insert('tags', tagMap);
+        if (oldTagId != null) tagIdMap[oldTagId] = newTagId;
+      }
+
+      final transactionTags = backupData['transactionTags'] as List<dynamic>? ?? [];
+      for (final tt in transactionTags) {
+        final ttMap = Map<String, dynamic>.from(tt as Map);
+        ttMap.remove('id');
+        final oldTagId = ttMap['tag_id'] as int?;
+        final oldTxnId = ttMap['transaction_id'] as int?;
+        final txnType = ttMap['transaction_type'] as String?;
+        if (oldTagId == null || oldTxnId == null || txnType == null) continue;
+        final newTagId = tagIdMap[oldTagId];
+        if (newTagId == null) continue;
+        final int? newTxnId;
+        if (txnType == 'expense') {
+          newTxnId = expenseIdMap[oldTxnId];
+        } else if (txnType == 'income') {
+          newTxnId = incomeIdMap[oldTxnId];
+        } else {
+          newTxnId = null;
+        }
+        if (newTxnId == null) continue;
+        await txn.insert('transaction_tags', {
+          'transaction_id': newTxnId,
+          'transaction_type': txnType,
+          'tag_id': newTagId,
+        });
+      }
+
+      // Restore monthly balances (if present in backup)
+      final monthlyBalances = backupData['monthlyBalances'] as List<dynamic>? ?? [];
+      for (final mb in monthlyBalances) {
+        final mbMap = Map<String, dynamic>.from(mb as Map);
+        mbMap.remove('id');
+        mbMap['account_id'] = newId;
+        await txn.insert('monthly_balances', mbMap);
+      }
+
+      // Remove from deleted_accounts
+      await txn.delete('deleted_accounts', where: 'id = ?', whereArgs: [deletedId]);
+
+      return newId;
+    });
 
     // FIX: Delete the backup file after successful restore
     if (await backupFile.exists()) {
@@ -1291,27 +1407,30 @@ class DatabaseHelper {
   // Move expense to deleted (for 30-day restore)
   Future<void> moveToDeleted(Expense expense) async {
     final db = await database;
-    await db.insert('deleted_expenses', {
-      'original_id': expense.id,
-      'amount': expense.amount,
-      'category': expense.category,
-      'description': expense.description,
-      'date': expense.date.toIso8601String(),
-      'account_id': expense.accountId,
-      'amountPaid': expense.amountPaid,
-      'paymentMethod': expense.paymentMethod,
-      // FIX: Use UTC to avoid timezone-dependent expiration
-      'deletedAt': DateTime.now().toUtc().toIso8601String(),
+    await db.transaction((txn) async {
+      await txn.insert('deleted_expenses', {
+        'original_id': expense.id,
+        'amount': expense.amount,
+        'category': expense.category,
+        'description': expense.description,
+        'date': expense.date.toIso8601String(),
+        'account_id': expense.accountId,
+        'amountPaid': expense.amountPaid,
+        'paymentMethod': expense.paymentMethod,
+        // FIX: Use UTC to avoid timezone-dependent expiration
+        'deletedAt': DateTime.now().toUtc().toIso8601String(),
+      });
+      await txn.delete('expenses', where: 'id = ?', whereArgs: [expense.id]);
     });
-    await db.delete('expenses', where: 'id = ?', whereArgs: [expense.id]);
   }
 
   // Move expense to deleted by ID (fetches from DB if needed)
-  Future<bool> moveToDeletedById(int id) async {
+  // Returns the date of the deleted expense for carryover recalculation, or null if not found.
+  Future<DateTime?> moveToDeletedById(int id) async {
     final expense = await getExpenseById(id);
-    if (expense == null) return false;
+    if (expense == null) return null;
     await moveToDeleted(expense);
-    return true;
+    return expense.date;
   }
 
   // FIX #2: Get ALL deleted expenses (for trash screen)
@@ -1607,8 +1726,8 @@ class DatabaseHelper {
   /// This is used to compute the carryover for the next month
   Future<double> calculateMonthBalance(int accountId, int year, int month) async {
     final db = await database;
-    final startDate = DateTime(year, month, 1).toIso8601String();
-    final endDate = DateTime(year, month + 1, 0, 23, 59, 59).toIso8601String();
+    final startDate = DateHelper.startOfMonth(DateTime.utc(year, month, 1)).toIso8601String();
+    final endDate = DateHelper.lastDayOfMonth(DateTime.utc(year, month, 1)).toIso8601String();
 
     // Sum income for the month
     final incomeResult = await db.rawQuery(
@@ -2171,10 +2290,22 @@ class DatabaseHelper {
 
   // FIX #9: Close and reopen database after restore
   Future<void> closeDatabase() async {
+    // Wait for in-flight initialization to settle before closing so we don't
+    // race open/close during lifecycle transitions.
+    if (_initCompleter != null && !_initCompleter!.isCompleted) {
+      try {
+        await _initCompleter!.future;
+      } catch (_) {
+        // Ignore init failures while closing and reset state below.
+      }
+    }
+
     if (_database != null) {
       await _database!.close();
       _database = null;
     }
+
+    _initCompleter = null;
   }
 
   // ============== RECURRING INCOME METHODS ==============
@@ -2289,7 +2420,7 @@ class DatabaseHelper {
       'transaction_id': transactionId,
       'transaction_type': transactionType,
       'tag_id': tagId,
-    });
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
   }
 
   Future<void> removeTagFromTransaction(int transactionId, String transactionType, int tagId) async {

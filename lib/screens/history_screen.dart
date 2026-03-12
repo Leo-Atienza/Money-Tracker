@@ -1716,6 +1716,38 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                                     color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
+                                // Show payment method tag
+                                if (expense.paymentMethod.isNotEmpty) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                                    child: Text(
+                                      '•',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: theme.colorScheme.onSurfaceVariant.withAlpha(120),
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: _paymentMethodColor(expense.paymentMethod).withAlpha(20),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: _paymentMethodColor(expense.paymentMethod).withAlpha(60),
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      expense.paymentMethod,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: _paymentMethodColor(expense.paymentMethod),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                                 // Show relative time if available
                                 Builder(
                                   builder: (context) {
@@ -2087,6 +2119,19 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         ),
       ),
     );
+  }
+
+  Color _paymentMethodColor(String method) {
+    switch (method) {
+      case 'Credit':
+        return Colors.purple;
+      case 'Debit':
+        return Colors.blue;
+      case 'Cash':
+        return Colors.teal;
+      default:
+        return Colors.grey;
+    }
   }
 
   Future<bool?> _confirmDelete(
