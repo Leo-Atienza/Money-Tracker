@@ -113,7 +113,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (state == AppLifecycleState.paused) {
       // App going to background - lock if PIN is enabled
       if (mounted && context.mounted) {
-        context.read<AppState>().lock();
+        final appState = context.read<AppState>();
+        appState.lock();
+        // Update home widget so it shows current data on the home screen
+        HomeWidgetHelper.updateWidget(appState);
       }
       // Good time to run cleanup
       _performBackgroundMaintenance();
