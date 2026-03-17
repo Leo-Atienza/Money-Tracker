@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Money Tracker — Expense & Budget Manager</title>
+  <meta name="description" content="A minimalistic expense tracking app with charts, budgets, and export features. Track your spending, manage budgets, and take control of your finances.">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Money Tracker — Expense & Budget Manager">
+  <meta property="og:description" content="Track your expenses, manage budgets, and analyze your spending habits with our minimalistic money tracking app.">
+  <meta property="og:image" content="icons/Icon-512.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f13;
+      --surface: #1a1a24;
+      --surface2: #22222f;
+      --accent: #6c63ff;
+      --accent2: #4fc3f7;
+      --text: #f0f0f5;
+      --text-muted: #8888a8;
+      --green: #4caf50;
+      --radius: 16px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* NAV */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.2rem 2rem;
+      position: sticky;
+      top: 0;
+      background: rgba(15,15,19,0.85);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 700;
+      font-size: 1.15rem;
+    }
+    .nav-logo img { width: 32px; height: 32px; border-radius: 8px; }
+    nav a.btn-nav {
+      background: var(--accent);
+      color: #fff;
+      text-decoration: none;
+      padding: 0.55rem 1.4rem;
+      border-radius: 50px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    nav a.btn-nav:hover { opacity: 0.85; transform: translateY(-1px); }
+
+    /* HERO */
+    .hero {
+      text-align: center;
+      padding: 5rem 1.5rem 4rem;
+      position: relative;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -200px; left: 50%;
+      transform: translateX(-50%);
+      width: 700px; height: 700px;
+      background: radial-gradient(circle, rgba(108,99,255,0.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(108,99,255,0.18);
+      color: var(--accent);
+      border: 1px solid rgba(108,99,255,0.35);
+      border-radius: 50px;
+      padding: 0.35rem 1rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.04em;
+    }
+    .hero h1 {
+      font-size: clamp(2.2rem, 6vw, 3.8rem);
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 1.2rem;
+      background: linear-gradient(135deg, #fff 40%, var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      max-width: 540px;
+      margin: 0 auto 2.5rem;
+      line-height: 1.6;
+    }
+    .hero-cta {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--accent);
+      color: #fff;
+      text-decoration: none;
+      padding: 0.9rem 2rem;
+      border-radius: 50px;
+      font-weight: 700;
+      font-size: 1rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 24px rgba(108,99,255,0.35);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(108,99,255,0.5); }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: transparent;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 0.9rem 2rem;
+      border-radius: 50px;
+      font-weight: 600;
+      font-size: 1rem;
+      border: 1px solid rgba(255,255,255,0.12);
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--text); }
+    .version-note {
+      margin-top: 1.2rem;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    /* FEATURES */
+    .section { padding: 4rem 1.5rem; max-width: 1100px; margin: 0 auto; }
+    .section-title {
+      text-align: center;
+      font-size: 1.9rem;
+      font-weight: 700;
+      margin-bottom: 0.6rem;
+    }
+    .section-sub {
+      text-align: center;
+      color: var(--text-muted);
+      margin-bottom: 3rem;
+      font-size: 1rem;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.2rem;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: var(--radius);
+      padding: 1.6rem;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .feature-card:hover { border-color: rgba(108,99,255,0.4); transform: translateY(-2px); }
+    .feature-icon {
+      font-size: 1.8rem;
+      margin-bottom: 0.9rem;
+    }
+    .feature-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .feature-card p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; }
+
+    /* STATS */
+    .stats-band {
+      background: var(--surface);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .stats-inner {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1.5rem;
+      text-align: center;
+    }
+    .stat-value { font-size: 2rem; font-weight: 800; color: var(--accent); }
+    .stat-label { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+    /* DOWNLOAD */
+    .download-section {
+      text-align: center;
+      padding: 5rem 1.5rem;
+      background: linear-gradient(180deg, transparent, rgba(108,99,255,0.08), transparent);
+    }
+    .download-card {
+      display: inline-block;
+      background: var(--surface);
+      border: 1px solid rgba(108,99,255,0.25);
+      border-radius: 24px;
+      padding: 3rem 3.5rem;
+      max-width: 480px;
+    }
+    .download-card h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.6rem; }
+    .download-card p { color: var(--text-muted); margin-bottom: 2rem; font-size: 0.95rem; }
+    .download-meta {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-top: 1.2rem;
+      flex-wrap: wrap;
+    }
+    .meta-item {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .meta-item span { color: var(--green); }
+    .install-note {
+      margin-top: 1.5rem;
+      background: rgba(255,255,255,0.04);
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-align: left;
+      line-height: 1.6;
+    }
+    .install-note strong { color: var(--text); }
+
+    /* FOOTER */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="nav-logo">
+      <img src="icons/Icon-192.png" alt="Money Tracker">
+      Money Tracker
+    </div>
+    <a class="btn-nav" href="https://github.com/Leo-Atienza/Money-Tracker/releases/download/v4.2.0/app-release.apk" download>
+      Download APK
+    </a>
+  </nav>
+
+  <section class="hero">
+    <div class="badge">v4.2.0 — Free & Open Source</div>
+    <h1>Take Control of<br>Your Finances</h1>
+    <p>A clean, local-first expense tracker for Android. No subscriptions, no cloud sync, no data collection — just you and your money.</p>
+    <div class="hero-cta">
+      <a class="btn-primary" href="https://github.com/Leo-Atienza/Money-Tracker/releases/download/v4.2.0/app-release.apk" download>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download for Android
+      </a>
+      <a class="btn-secondary" href="https://github.com/Leo-Atienza/Money-Tracker" target="_blank">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.49.5.09.66-.22.66-.48v-1.69c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.56 9.56 0 0 1 12 6.8c.85 0 1.71.11 2.51.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.16.58.67.48A10.01 10.01 0 0 0 22 12c0-5.52-4.48-10-10-10z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+    <p class="version-note">v4.2.0 · Android 5.0+ · 58 MB</p>
+  </section>
+
+  <div class="stats-band">
+    <div class="stats-inner">
+      <div>
+        <div class="stat-value">1,529</div>
+        <div class="stat-label">Unit Tests Passing</div>
+      </div>
+      <div>
+        <div class="stat-value">0</div>
+        <div class="stat-label">Analyzer Issues</div>
+      </div>
+      <div>
+        <div class="stat-value">100%</div>
+        <div class="stat-label">Local — No Cloud</div>
+      </div>
+      <div>
+        <div class="stat-value">Free</div>
+        <div class="stat-label">Forever</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Everything you need</div>
+    <div class="section-sub">Built with Material 3 design for a clean, modern experience</div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3>Budgets & Alerts</h3>
+        <p>Set monthly budgets per category and get notified before you overspend — with a configurable warning threshold.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔁</div>
+        <h3>Recurring Transactions</h3>
+        <p>Automate subscriptions, bills, and recurring income. The app catches up automatically when you reopen it.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📈</div>
+        <h3>Spending Charts</h3>
+        <p>Visualize your expenses by category, by month, or over time with clear, interactive charts.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💾</div>
+        <h3>Backup & Restore</h3>
+        <p>Export your entire database to a file and restore it any time. Your data stays with you — always.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🪙</div>
+        <h3>Multi-Currency</h3>
+        <p>Pick any currency. All formatting, notifications, and widgets respect your chosen currency symbol.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📤</div>
+        <h3>CSV Export</h3>
+        <p>Export transactions to CSV with locale-aware decimal formatting and formula injection protection.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🌙</div>
+        <h3>Dark & Light Mode</h3>
+        <p>Automatically follows your system theme. Clean Material 3 design in both modes.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <h3>PIN Protection</h3>
+        <p>Optional PIN lock with salted SHA-256 hashing and rate limiting to protect your financial data.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="download-section">
+    <div class="download-card">
+      <h2>Download Money Tracker</h2>
+      <p>Free forever. No account required. Your data never leaves your device.</p>
+      <a class="btn-primary" style="display:inline-flex; margin: 0 auto;" href="https://github.com/Leo-Atienza/Money-Tracker/releases/download/v4.2.0/app-release.apk" download>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download APK — v4.2.0
+      </a>
+      <div class="download-meta">
+        <span class="meta-item"><span>✓</span> Android 5.0+</span>
+        <span class="meta-item"><span>✓</span> 58 MB</span>
+        <span class="meta-item"><span>✓</span> No ads</span>
+        <span class="meta-item"><span>✓</span> Open source</span>
+      </div>
+      <div class="install-note">
+        <strong>How to install:</strong> After downloading, open the APK file on your device.
+        If prompted, allow installation from unknown sources in your Android settings, then tap Install.
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>Money Tracker is open source — <a href="https://github.com/Leo-Atienza/Money-Tracker" target="_blank">view on GitHub</a></p>
+    <p style="margin-top:0.4rem">Built with Flutter · Material 3</p>
+  </footer>
+
+</body>
+</html>
