@@ -34,20 +34,21 @@ class HomeWidgetHelper {
       final totalExpenses = appState.getExpensesForMonth(now);
       final totalIncome = appState.getIncomeForMonth(now);
       final balance = totalIncome - totalExpenses;
-      final currency = appState.currency;
+      final currencyCode = appState.currencyCode;
+      final currencySymbol = appState.currency;
 
-      // Format the values
+      // Format the values using currencyCode (e.g., 'USD') not symbol (e.g., '$')
       final expensesFormatted = CurrencyHelper.formatAmount(
         totalExpenses,
-        currency,
+        currencyCode,
       );
       final incomeFormatted = CurrencyHelper.formatAmount(
         totalIncome,
-        currency,
+        currencyCode,
       );
       final balanceFormatted = CurrencyHelper.formatAmount(
         balance.abs(),
-        currency,
+        currencyCode,
       );
       final isPositiveBalance = balance >= 0;
 
@@ -77,7 +78,7 @@ class HomeWidgetHelper {
         '${isPositiveBalance ? '+' : '-'}$balanceFormatted',
       );
       await HomeWidget.saveWidgetData<bool>('is_positive', isPositiveBalance);
-      await HomeWidget.saveWidgetData<String>('currency', currency);
+      await HomeWidget.saveWidgetData<String>('currency', currencySymbol);
 
       // Update the widget using qualifiedAndroidName for reliable class resolution
       await HomeWidget.updateWidget(

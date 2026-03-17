@@ -136,7 +136,7 @@ class NotificationHelper {
 
   // ========== BILL REMINDERS ==========
 
-  Future<void> scheduleBillReminder(RecurringExpense expense) async {
+  Future<void> scheduleBillReminder(RecurringExpense expense, {String currencySymbol = '\$'}) async {
     if (!expense.isActive || expense.id == null) return;
 
     await initialize();
@@ -200,7 +200,7 @@ class NotificationHelper {
       await _notifications.zonedSchedule(
         _billReminderIdBase + expenseId,
         '💡 Bill Reminder',
-        '${expense.description} (\$${expense.amount.toStringAsFixed(2)}) due tomorrow',
+        '${expense.description} ($currencySymbol${expense.amount.toStringAsFixed(2)}) due tomorrow',
         tz.TZDateTime.from(reminderDate.copyWith(hour: 9, minute: 0), tz.local),
         billReminderDetails,
         androidScheduleMode: canUseExact
@@ -220,7 +220,7 @@ class NotificationHelper {
       await _notifications.zonedSchedule(
         _billReminderIdBase + expenseId,
         '💡 Bill Reminder',
-        '${expense.description} (\$${expense.amount.toStringAsFixed(2)}) due tomorrow',
+        '${expense.description} ($currencySymbol${expense.amount.toStringAsFixed(2)}) due tomorrow',
         tz.TZDateTime.from(reminderDate.copyWith(hour: 9, minute: 0), tz.local),
         billReminderDetails,
         androidScheduleMode: canUseExact
@@ -241,8 +241,9 @@ class NotificationHelper {
   Future<void> showBudgetAlert(
     Budget budget,
     double spent,
-    double percentage,
-  ) async {
+    double percentage, {
+    String currencySymbol = '\$',
+  }) async {
     await initialize();
 
     String title;
@@ -253,15 +254,15 @@ class NotificationHelper {
     if (percentage >= 1.0) {
       title = '🚨 Budget Exceeded!';
       body =
-          '${budget.category} budget exceeded! Spent: \$${spent.toStringAsFixed(2)} of \$${budget.amount.toStringAsFixed(2)}';
+          '${budget.category} budget exceeded! Spent: $currencySymbol${spent.toStringAsFixed(2)} of $currencySymbol${budget.amount.toStringAsFixed(2)}';
     } else if (percentage >= 0.9) {
       title = '⚠️ Budget Alert';
       body =
-          '${budget.category} at ${(percentage * 100).toInt()}%! Only \$${(budget.amount - spent).toStringAsFixed(2)} left';
+          '${budget.category} at ${(percentage * 100).toInt()}%! Only $currencySymbol${(budget.amount - spent).toStringAsFixed(2)} left';
     } else if (percentage >= 0.8) {
       title = '💡 Budget Warning';
       body =
-          '${budget.category} at ${(percentage * 100).toInt()}%. \$${(budget.amount - spent).toStringAsFixed(2)} remaining';
+          '${budget.category} at ${(percentage * 100).toInt()}%. $currencySymbol${(budget.amount - spent).toStringAsFixed(2)} remaining';
     } else {
       return; // Don't notify if under 80%
     }
@@ -328,7 +329,7 @@ class NotificationHelper {
     await _notifications.cancel(9999);
   }
 
-  Future<void> showMonthlySummary(double totalSpent, double budget) async {
+  Future<void> showMonthlySummary(double totalSpent, double budget, {String currencySymbol = '\$'}) async {
     await initialize();
 
     final percentage = budget > 0 ? (totalSpent / budget * 100).toInt() : 0;
@@ -338,7 +339,7 @@ class NotificationHelper {
     await _notifications.show(
       9999,
       '📊 Monthly Summary',
-      '$status Spent \$${totalSpent.toStringAsFixed(2)} ($percentage% of budget)',
+      '$status Spent $currencySymbol${totalSpent.toStringAsFixed(2)} ($percentage% of budget)',
       NotificationDetails(
         android: AndroidNotificationDetails(
           'monthly_reports',

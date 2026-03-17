@@ -399,7 +399,7 @@ class AppState extends ChangeNotifier {
   Future<void> _scheduleAllBillReminders() async {
     for (final recurring in _recurringExpenses) {
       if (recurring.shouldBeActive && recurring.id != null) {
-        await _notificationHelper.scheduleBillReminder(recurring);
+        await _notificationHelper.scheduleBillReminder(recurring, currencySymbol: currency);
       }
     }
   }
@@ -1084,8 +1084,10 @@ class AppState extends ChangeNotifier {
     final budget = matchingBudgets.first;
     final spent = getBudgetSpent(category);
     final progress = budget.amount > 0 ? spent / budget.amount : 0.0;
-    if (progress >= 0.8) {
-      await _notificationHelper.showBudgetAlert(budget, spent, progress);
+    // FIX C2: Use user's configurable threshold instead of hardcoded 0.8
+    final threshold = await SettingsHelper.getBudgetWarningThreshold();
+    if (progress >= threshold) {
+      await _notificationHelper.showBudgetAlert(budget, spent, progress, currencySymbol: currency);
     }
   }
 
@@ -1596,7 +1598,7 @@ class AppState extends ChangeNotifier {
       final recurringId = recurring.id;
       if (recurringId != null) {
         if (recurring.isActive && _billRemindersEnabled) {
-          await _notificationHelper.scheduleBillReminder(recurring);
+          await _notificationHelper.scheduleBillReminder(recurring, currencySymbol: currency);
         } else {
           await _notificationHelper.cancelBillReminder(recurringId);
         }
@@ -1711,7 +1713,10 @@ class AppState extends ChangeNotifier {
 
   List<T> _processMonthlyRecurring<T>({required DateTime? lastCreated, required int dayOfMonth, required DateTime now, required T Function(DateTime date) createTransaction}) {
     final List<T> transactionsToCreate = [];
-    DateTime currentMonth = lastCreated == null ? (now.day >= dayOfMonth ? DateHelper.startOfMonth(DateHelper.addMonths(now, 1)) : DateHelper.startOfMonth(now)) : DateHelper.addMonths(lastCreated, 1);
+    // FIX H2: When lastCreated is null (new recurring), always start from current month.
+    // The inner condition (now.day >= dayOfMonth) already gates whether to create for current month.
+    // Previously, this skipped to next month when today >= dayOfMonth, missing the first instance.
+    DateTime currentMonth = lastCreated == null ? DateHelper.startOfMonth(now) : DateHelper.addMonths(lastCreated, 1);
     final currentMonthStart = DateHelper.startOfMonth(now);
     while (!DateHelper.normalize(currentMonth).isAfter(currentMonthStart)) {
       if (DateHelper.normalize(currentMonth).isBefore(currentMonthStart) || now.day >= dayOfMonth) {
