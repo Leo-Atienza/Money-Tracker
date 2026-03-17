@@ -696,7 +696,7 @@ class DatabaseHelper {
         'amount': income.amount,
         'category': income.category,
         'description': income.description,
-        'date': income.date.toIso8601String(),
+        'date': DateHelper.toDateString(income.date),
         'account_id': income.accountId,
         // FIX: Use UTC to avoid timezone-dependent expiration
         'deletedAt': DateTime.now().toUtc().toIso8601String(),
@@ -1420,7 +1420,7 @@ class DatabaseHelper {
         'amount': expense.amount,
         'category': expense.category,
         'description': expense.description,
-        'date': expense.date.toIso8601String(),
+        'date': DateHelper.toDateString(expense.date),
         'account_id': expense.accountId,
         'amountPaid': expense.amountPaid,
         'paymentMethod': expense.paymentMethod,
