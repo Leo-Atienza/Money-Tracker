@@ -8,6 +8,10 @@ import '../utils/currency_helper.dart';
 import '../utils/decimal_helper.dart';
 import '../utils/validators.dart';
 import '../utils/date_helper.dart';
+import '../utils/premium_animations.dart';
+import '../utils/haptic_helper.dart';
+import '../constants/spacing.dart';
+import '../main.dart';
 
 class RecurringExpensesScreen extends StatelessWidget {
   const RecurringExpensesScreen({super.key});
@@ -17,9 +21,6 @@ class RecurringExpensesScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.brightness == Brightness.dark
-          ? const Color(0xFF121212)
-          : const Color(0xFFFAFAFA),
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -28,15 +29,13 @@ class RecurringExpensesScreen extends StatelessWidget {
             pinned: true,
             title: Text(
               'Recurring',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w300,
+              style: theme.textTheme.headlineMedium?.copyWith(
                 color: theme.colorScheme.onSurface,
               ),
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(Spacing.screenPadding),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 const _RecurringList(),
@@ -80,130 +79,133 @@ class _RecurringList extends StatelessWidget {
       return _buildEmptyState(theme);
     }
 
-    return Column(
-      children: recurring.map((rec) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: theme.colorScheme.outline),
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 12,
-            ),
-            title: Text(
-              rec.description,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: rec.isActive
-                    ? theme.colorScheme.onSurface
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Row(
-                children: [
-                  Text(
-                    rec.category,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  Text(
-                    ' • Day ${rec.dayOfMonth}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${appState.currency}${rec.amount.toStringAsFixed(0)}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: rec.isActive
-                        ? theme.colorScheme.onSurface
-                        : theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Switch(
-                  value: rec.isActive,
-                  onChanged: (value) async {
-                    final updated = rec.copyWith(isActive: value);
-                    await context.read<AppState>().updateRecurringExpense(
-                          updated,
-                        );
-                  },
-                  activeTrackColor: theme.colorScheme.onSurface,
-                ),
-              ],
-            ),
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: recurring.length,
+      itemBuilder: (context, index) {
+        final rec = recurring[index];
+        return StaggeredListItem(
+          index: index,
+          child: AnimatedPressCard(
             onTap: () => _showEditRecurring(context, rec),
             onLongPress: () {
               final id = rec.id;
               if (id == null) return;
               _confirmDelete(context, id);
             },
+            borderRadius: BorderRadius.circular(Spacing.radiusLarge),
+            border: Border.all(color: theme.colorScheme.outline),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: Spacing.md),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: Spacing.cardPadding,
+                  vertical: Spacing.sm,
+                ),
+                title: Text(
+                  rec.description,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: rec.isActive
+                        ? theme.colorScheme.onSurface
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: Spacing.xxs),
+                  child: Row(
+                    children: [
+                      Text(
+                        rec.category,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      Text(
+                        ' • Day ${rec.dayOfMonth}',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${appState.currency}${rec.amount.toStringAsFixed(0)}',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: rec.isActive
+                            ? theme.colorScheme.onSurface
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(width: Spacing.xs),
+                    Switch(
+                      value: rec.isActive,
+                      onChanged: (value) async {
+                        HapticHelper.selectionClick();
+                        final updated = rec.copyWith(isActive: value);
+                        await context.read<AppState>().updateRecurringExpense(
+                              updated,
+                            );
+                      },
+                      activeTrackColor: theme.colorScheme.onSurface,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         );
-      }).toList(),
+      },
     );
   }
 
   Widget _buildEmptyState(ThemeData theme) {
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(Spacing.xxl),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
         border: Border.all(color: theme.colorScheme.outline),
       ),
       child: Column(
         children: [
-          Icon(
-            Icons.repeat,
-            size: 48,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No recurring expenses',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface,
+          BounceAnimation(
+            child: Icon(
+              Icons.repeat,
+              size: 48,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: Spacing.md),
+          FadeInOnLoad(
+            delay: const Duration(milliseconds: 200),
+            child: Text(
+              'No recurring expenses',
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ),
+          const SizedBox(height: Spacing.sm),
           // FIX #5: Add descriptive explanation of recurring expenses feature
           Text(
             'Automate monthly or weekly expenses like rent, subscriptions, and bills',
-            style: TextStyle(
-              fontSize: 14,
+            style: theme.textTheme.bodyLarge?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Spacing.md),
           // FIX #5: Example use cases to help users understand
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(Spacing.sm),
             decoration: BoxDecoration(
               color: theme.colorScheme.errorContainer.withAlpha(30),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(Spacing.radiusSmall),
             ),
             child: Column(
               children: [
@@ -215,12 +217,10 @@ class _RecurringList extends StatelessWidget {
                       size: 16,
                       color: theme.colorScheme.error,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: Spacing.xs),
                     Text(
                       'Examples',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                      style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.error,
                       ),
                     ),
@@ -230,21 +230,18 @@ class _RecurringList extends StatelessWidget {
                 Text(
                   'Netflix \$15 on day 1 • Rent \$1200 on day 5',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Spacing.md),
           Text(
             'Tap + to add your first recurring expense',
-            style: TextStyle(
-              fontSize: 14,
+            style: theme.textTheme.labelLarge?.copyWith(
               color: theme.colorScheme.primary,
-              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -263,11 +260,14 @@ class _RecurringList extends StatelessWidget {
 
   void _confirmDelete(BuildContext context, int id) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Spacing.radiusXLarge),
+        ),
         title: Text(
           'Delete Recurring Expense?',
           style: TextStyle(color: theme.colorScheme.onSurface),
@@ -278,23 +278,22 @@ class _RecurringList extends StatelessWidget {
           children: [
             Text(
               'This will stop creating future expenses.',
-              style: TextStyle(
-                fontSize: 14,
+              style: theme.textTheme.bodyLarge?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Spacing.md),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(Spacing.sm),
               decoration: BoxDecoration(
-                color: Colors.blue.withAlpha(20),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.withAlpha(100)),
+                color: appColors.infoBlue.withAlpha(20),
+                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                border: Border.all(color: appColors.infoBlue.withAlpha(100)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, color: Colors.blue, size: 20),
-                  const SizedBox(width: 12),
+                  Icon(Icons.info_outline, color: appColors.infoBlue, size: 20),
+                  const SizedBox(width: Spacing.sm),
                   Expanded(
                     child: Text(
                       'Past transactions will NOT be deleted and will remain in your history.',
@@ -319,7 +318,9 @@ class _RecurringList extends StatelessWidget {
               await context.read<AppState>().deleteRecurringExpense(id);
               if (context.mounted) Navigator.pop(context);
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -430,9 +431,11 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
       child: Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(Spacing.radiusXLarge),
+          ),
         ),
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(Spacing.screenPadding),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -440,13 +443,12 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
             children: [
               Text(
                 widget.recurring != null ? 'Edit Recurring' : 'Add Recurring',
-                style: TextStyle(
-                  fontSize: 20,
+                style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w400,
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: Spacing.screenPadding),
               TextFormField(
                 controller: _descriptionController,
                 autofocus: true,
@@ -455,11 +457,11 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
                   labelText: 'Description',
                   hintText: 'e.g., Netflix, Rent, Gym',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: Spacing.md),
               TextFormField(
                 controller: _amountController,
                 keyboardType: TextInputType.number,
@@ -470,17 +472,17 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
                   labelText: 'Amount',
                   prefixText: '${appState.currency} ',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: Spacing.md),
               DropdownButtonFormField<String>(
                 initialValue: _selectedCategory,
                 decoration: InputDecoration(
                   labelText: 'Category',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                   ),
                 ),
                 items: categories.map((cat) {
@@ -488,19 +490,16 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
                 }).toList(),
                 onChanged: (value) => setState(() => _selectedCategory = value),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: Spacing.screenPadding),
 
               // FIX: Frequency selector
               Text(
                 'FREQUENCY',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
+                style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: Spacing.sm),
               Row(
                 children: [
                   _buildFrequencyChip(
@@ -509,14 +508,14 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
                     'Monthly',
                     Icons.calendar_month,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: Spacing.xs),
                   _buildFrequencyChip(
                     theme,
                     RecurringExpenseFrequency.weekly,
                     'Weekly',
                     Icons.calendar_today,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: Spacing.xs),
                   _buildFrequencyChip(
                     theme,
                     RecurringExpenseFrequency.biweekly,
@@ -525,35 +524,31 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: Spacing.screenPadding),
 
               // FIX: Conditional day selector based on frequency
               _buildDaySelector(theme),
-              const SizedBox(height: 8),
+              const SizedBox(height: Spacing.xs),
               Text(
                 _selectedFrequency == RecurringExpenseFrequency.monthly
                     ? 'Expense will auto-create on this day each month'
                     : _selectedFrequency == RecurringExpenseFrequency.weekly
                         ? 'Expense will auto-create every week'
                         : 'Expense will auto-create every two weeks',
-                style: TextStyle(
-                  fontSize: 12,
+                style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: Spacing.screenPadding),
 
               // FIX: Optional end conditions
               Text(
                 'END CONDITIONS (OPTIONAL)',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
+                style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: Spacing.sm),
 
               // End Date checkbox and picker
               CheckboxListTile(
@@ -617,13 +612,13 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
                       labelText: 'Number of occurrences',
                       hintText: 'e.g., 12 for one year',
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                       ),
                     ),
                   ),
                 ),
               ],
-              const SizedBox(height: 24),
+              const SizedBox(height: Spacing.screenPadding),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -631,9 +626,9 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.onSurface,
                     foregroundColor: theme.colorScheme.surface,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: Spacing.md),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                     ),
                   ),
                   child: _isSaving
@@ -754,11 +749,12 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
   // FIX: Removed unused _showMissedMonthDialog method (legacy code no longer needed)
 
   void _showError(String message) {
+    final appColors = Theme.of(context).extension<AppColors>()!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.red,
+        backgroundColor: appColors.expenseRed,
       ),
     );
   }
@@ -804,26 +800,28 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
   /// FIX #4: Show warning dialog when duplicate recurring transaction is detected
   Future<bool> _showDuplicateWarning(RecurringExpense duplicate) async {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
     final currencySymbol = context.read<AppState>().currency;
 
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Spacing.radiusXLarge),
+        ),
         title: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.warning_amber_rounded,
-              color: Colors.orange,
+              color: appColors.warningOrange,
               size: 28,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: Spacing.sm),
             Text(
               'Similar Transaction Found',
-              style: TextStyle(
+              style: theme.textTheme.titleLarge?.copyWith(
                 color: theme.colorScheme.onSurface,
-                fontSize: 18,
               ),
             ),
           ],
@@ -834,45 +832,43 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
           children: [
             Text(
               'You already have a similar recurring expense:',
-              style: TextStyle(
-                fontSize: 14,
+              style: theme.textTheme.bodyLarge?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: Spacing.sm),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(Spacing.sm),
               decoration: BoxDecoration(
-                color: Colors.orange.withAlpha(20),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withAlpha(100)),
+                color: appColors.warningOrange.withAlpha(20),
+                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                border: Border.all(color: appColors.warningOrange.withAlpha(100)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     duplicate.description,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                    style: theme.textTheme.titleSmall?.copyWith(
                       color: theme.colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     '$currencySymbol${duplicate.amount.toStringAsFixed(2)} • ${duplicate.category} • Day ${duplicate.dayOfMonth}',
-                    style: TextStyle(
-                      fontSize: 13,
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: Spacing.sm),
             Text(
               'Creating this will result in duplicate expenses every ${duplicate.frequency == RecurringExpenseFrequency.monthly ? 'month' : 'week'}.',
-              style: TextStyle(fontSize: 13, color: theme.colorScheme.error),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.error,
+              ),
             ),
           ],
         ),
@@ -883,7 +879,7 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.orange),
+            style: TextButton.styleFrom(foregroundColor: appColors.warningOrange),
             child: const Text('Create Anyway'),
           ),
         ],
@@ -904,14 +900,14 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
     return Expanded(
       child: InkWell(
         onTap: () => setState(() => _selectedFrequency = frequency),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Spacing.radiusMedium),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
           decoration: BoxDecoration(
             color: isSelected
                 ? theme.colorScheme.primaryContainer
                 : theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(Spacing.radiusMedium),
             border: Border.all(
               color: isSelected
                   ? theme.colorScheme.primary
@@ -928,7 +924,7 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
                     : theme.colorScheme.onSurfaceVariant,
                 size: 24,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: Spacing.xxs),
               Text(
                 label,
                 style: TextStyle(
@@ -959,7 +955,9 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
           helperText:
               'Enter a day between 1-31. For 29-31, months without those days will use the last day.',
           helperMaxLines: 2,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+          ),
         ),
         // FIX #24: Add real-time validation for day of month
         autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -981,27 +979,28 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
       // FIX #22: Add visible warning for days 29-31
       final dayValue = int.tryParse(_dayController.text);
       if (dayValue != null && dayValue >= 29 && dayValue <= 31) {
+        final appColors = Theme.of(context).extension<AppColors>()!;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             dayField,
-            const SizedBox(height: 8),
+            const SizedBox(height: Spacing.xs),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(Spacing.sm),
               decoration: BoxDecoration(
-                color: Colors.orange.withAlpha(20),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withAlpha(100)),
+                color: appColors.warningOrange.withAlpha(20),
+                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                border: Border.all(color: appColors.warningOrange.withAlpha(100)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.info_outline,
-                    color: Colors.orange,
+                    color: appColors.warningOrange,
                     size: 20,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: Spacing.xs),
                   Expanded(
                     child: Text(
                       dayValue == 31
@@ -1033,17 +1032,14 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
         children: [
           Text(
             'DAY OF WEEK',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.2,
+            style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: Spacing.xs),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: Spacing.xs,
+            runSpacing: Spacing.xs,
             children: List.generate(7, (index) {
               final isSelected = _selectedDayOfWeek == index;
               return ChoiceChip(
@@ -1069,11 +1065,10 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
             }),
           ),
           if (isBiweekly) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: Spacing.sm),
             Text(
               'Starting from ${DateFormat.yMMMd().format(_startDate)}',
-              style: TextStyle(
-                fontSize: 12,
+              style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),

@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../models/expense_model.dart';
 import '../utils/currency_helper.dart';
+import '../constants/spacing.dart';
+import '../main.dart';
 
 class AddPaymentDialog extends StatefulWidget {
   final Expense expense;
@@ -47,12 +49,13 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
         );
         if (paymentAmount > availableIncome) {
           if (mounted) {
+            final appColors = Theme.of(context).extension<AppColors>()!;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
                   'Insufficient income balance. Available: ${appState.currency}${availableIncome.toStringAsFixed(2)}',
                 ),
-                backgroundColor: Colors.red,
+                backgroundColor: appColors.expenseRed,
               ),
             );
           }
@@ -67,22 +70,24 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
         if (mounted) {
           Navigator.pop(context);
           if (_useIncomeBalance) {
+            final appColors = Theme.of(context).extension<AppColors>()!;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
                   'Payment of ${appState.currency}${paymentAmount.toStringAsFixed(2)} recorded from income',
                 ),
-                backgroundColor: Colors.green,
+                backgroundColor: appColors.incomeGreen,
               ),
             );
           }
         }
       } catch (e) {
         if (mounted) {
+          final appColors = Theme.of(context).extension<AppColors>()!;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error recording payment: $e'),
-              backgroundColor: Colors.red,
+              backgroundColor: appColors.expenseRed,
             ),
           );
         }
@@ -95,20 +100,21 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
   }
 
   Widget _buildIncomePaymentOption(AppState appState, ThemeData theme) {
+    final appColors = Theme.of(context).extension<AppColors>()!;
     final availableIncome = appState.getAvailableIncomeForMonth(
       widget.expense.date,
     );
     final hasIncome = availableIncome > 0;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Spacing.md),
       decoration: BoxDecoration(
         color: _useIncomeBalance
-            ? Colors.green.withAlpha(20)
+            ? appColors.incomeGreen.withAlpha(20)
             : theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Spacing.radiusMedium),
         border: Border.all(
-          color: _useIncomeBalance ? Colors.green : theme.colorScheme.outline,
+          color: _useIncomeBalance ? appColors.incomeGreen : theme.colorScheme.outline,
           width: _useIncomeBalance ? 2 : 1,
         ),
       ),
@@ -121,18 +127,17 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                 Icons.account_balance_wallet,
                 size: 20,
                 color: hasIncome
-                    ? Colors.green
+                    ? appColors.incomeGreen
                     : theme.colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: Spacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Pay from Income',
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: theme.textTheme.labelLarge?.copyWith(
                         fontWeight: FontWeight.w500,
                         color: theme.colorScheme.onSurface,
                       ),
@@ -142,10 +147,9 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                       hasIncome
                           ? 'Available: ${appState.currency}${availableIncome.toStringAsFixed(2)}'
                           : 'No income available this month',
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: theme.textTheme.bodySmall?.copyWith(
                         color: hasIncome
-                            ? Colors.green
+                            ? appColors.incomeGreen
                             : theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
@@ -157,28 +161,27 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                 onChanged: hasIncome
                     ? (value) => setState(() => _useIncomeBalance = value)
                     : null,
-                activeTrackColor: Colors.green.withAlpha(150),
-                activeThumbColor: Colors.green,
+                activeTrackColor: appColors.incomeGreen.withAlpha(150),
+                activeThumbColor: appColors.incomeGreen,
               ),
             ],
           ),
           if (_useIncomeBalance && hasIncome) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: Spacing.sm),
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.green.withAlpha(10),
-                borderRadius: BorderRadius.circular(8),
+                color: appColors.incomeGreen.withAlpha(10),
+                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, size: 16, color: Colors.green),
-                  const SizedBox(width: 8),
+                  Icon(Icons.info_outline, size: 16, color: appColors.incomeGreen),
+                  const SizedBox(width: Spacing.xs),
                   Expanded(
                     child: Text(
                       'This payment will be deducted from your available income balance.',
-                      style: TextStyle(
-                        fontSize: 11,
+                      style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
@@ -197,14 +200,16 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
     final remaining = widget.expense.remainingAmount;
     final progress = widget.expense.paymentProgress;
     final theme = Theme.of(context);
-    final appState = context.watch<AppState>();
+    // Select only the fields rendered in this build method
+    final (currency, availableIncome) =
+        context.select<AppState, (String, double)>(
+      (s) => (s.currency, s.getAvailableIncomeForMonth(widget.expense.date)),
+    );
+    final appState = context.read<AppState>();
 
     // FIX: Check if payment amount exceeds available balance
     final paymentAmount =
         CurrencyHelper.parseDecimal(_paymentController.text) ?? 0.0;
-    final availableIncome = appState.getAvailableIncomeForMonth(
-      widget.expense.date,
-    );
     final hasInsufficientBalance =
         _useIncomeBalance && paymentAmount > availableIncome;
     final isPaymentValid = paymentAmount > 0 &&
@@ -213,12 +218,12 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
 
     return Dialog(
       backgroundColor: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Spacing.radiusLarge)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: Spacing.screenPadding, vertical: Spacing.screenPadding),
       child: SingleChildScrollView(
         child: Container(
           constraints: const BoxConstraints(maxWidth: 400),
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(Spacing.screenPadding),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,28 +231,26 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
               // Header
               Text(
                 widget.expense.description,
-                style: TextStyle(
-                  fontSize: 20,
+                style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w400,
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: Spacing.xxs),
               Text(
                 widget.expense.category,
-                style: TextStyle(
-                  fontSize: 13,
+                style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: Spacing.screenPadding),
 
               // Progress Section
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(Spacing.cardPadding),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                 ),
                 child: Column(
                   children: [
@@ -259,18 +262,15 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                           children: [
                             Text(
                               'PAID',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
+                              style: theme.textTheme.labelSmall?.copyWith(
                                 letterSpacing: 1,
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: Spacing.xxs),
                             Text(
-                              '${appState.currency}${widget.expense.amountPaid.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontSize: 18,
+                              '$currency${widget.expense.amountPaid.toStringAsFixed(2)}',
+                              style: theme.textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.w500,
                                 color: theme.colorScheme.onSurface,
                               ),
@@ -282,18 +282,15 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                           children: [
                             Text(
                               'TOTAL',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
+                              style: theme.textTheme.labelSmall?.copyWith(
                                 letterSpacing: 1,
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: Spacing.xxs),
                             Text(
-                              '${appState.currency}${widget.expense.amount.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontSize: 18,
+                              '$currency${widget.expense.amount.toStringAsFixed(2)}',
+                              style: theme.textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.w500,
                                 color: theme.colorScheme.onSurface,
                               ),
@@ -303,17 +300,16 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                       ],
                     ),
                     if (remaining > 0) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: Spacing.sm),
                       Text(
-                        'Remaining: ${appState.currency}${remaining.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 13,
+                        'Remaining: $currency${remaining.toStringAsFixed(2)}',
+                        style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w500,
                           color: theme.colorScheme.onSurface,
                         ),
                       ),
                     ],
-                    const SizedBox(height: 16),
+                    const SizedBox(height: Spacing.md),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(2),
                       child: LinearProgressIndicator(
@@ -323,11 +319,10 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: Spacing.xs),
                     Text(
                       '${(progress * 100).toStringAsFixed(0)}% paid',
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w500,
                         color: theme.colorScheme.onSurface,
                       ),
@@ -335,7 +330,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: Spacing.screenPadding),
 
               if (remaining > 0) ...[
                 // Payment Input
@@ -346,38 +341,34 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                     children: [
                       Text(
                         'PAYMENT AMOUNT',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.2,
+                        style: theme.textTheme.labelSmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: Spacing.xs),
                       Row(
                         children: [
                           Expanded(
                             child: TextFormField(
                               controller: _paymentController,
-                              style: TextStyle(
-                                fontSize: 15,
+                              style: theme.textTheme.bodyLarge?.copyWith(
                                 color: theme.colorScheme.onSurface,
                               ),
                               decoration: InputDecoration(
-                                prefixText: '${appState.currency} ',
+                                prefixText: '$currency ',
                                 hintText: '0.00',
                                 hintStyle: TextStyle(
                                   color: theme.colorScheme.onSurfaceVariant
                                       .withAlpha(128),
                                 ),
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                                   borderSide: BorderSide(
                                     color: theme.colorScheme.outline,
                                   ),
                                 ),
                                 enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                                   borderSide: BorderSide(
                                     color: theme.colorScheme.outline,
                                   ),
@@ -409,7 +400,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                               autofocus: true,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: Spacing.xs),
                           TextButton(
                             onPressed: () {
                               _paymentController.text =
@@ -419,7 +410,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: Spacing.md),
                       // Pay from Income Option
                       _buildIncomePaymentOption(appState, theme),
                     ],
@@ -428,10 +419,10 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
               ] else ...[
                 // Fully Paid
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(Spacing.cardPadding),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                   ),
                   child: Row(
                     children: [
@@ -440,12 +431,11 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                         color: theme.colorScheme.onSurface,
                         size: 24,
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: Spacing.sm),
                       Expanded(
                         child: Text(
                           'Fully Paid',
-                          style: TextStyle(
-                            fontSize: 15,
+                          style: theme.textTheme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w500,
                             color: theme.colorScheme.onSurface,
                           ),
@@ -455,7 +445,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                   ),
                 ),
               ],
-              const SizedBox(height: 24),
+              const SizedBox(height: Spacing.screenPadding),
 
               // Action Buttons
               Row(
@@ -470,7 +460,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                     ),
                   ),
                   if (remaining > 0) ...[
-                    const SizedBox(width: 12),
+                    const SizedBox(width: Spacing.sm),
                     Expanded(
                       flex: 2,
                       child: FilledButton(
@@ -487,7 +477,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                               theme.colorScheme.onSurfaceVariant,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                           ),
                         ),
                         child: _isSaving

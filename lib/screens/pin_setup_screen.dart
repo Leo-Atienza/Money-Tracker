@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../utils/pin_security_helper.dart';
 import '../utils/haptic_helper.dart';
+import '../constants/spacing.dart';
+import '../main.dart';
 
 /// Screen for setting up a new PIN or changing an existing PIN
 class PinSetupScreen extends StatefulWidget {
@@ -26,9 +28,6 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.brightness == Brightness.dark
-          ? const Color(0xFF121212)
-          : const Color(0xFFFAFAFA),
       appBar: AppBar(
         backgroundColor: theme.colorScheme.surface,
         elevation: 0,
@@ -47,49 +46,43 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(Spacing.screenPadding),
           child: Column(
             children: [
-              const SizedBox(height: 32),
+              const SizedBox(height: Spacing.xxl),
               // Title and instruction
               Text(
                 _isConfirmMode ? 'Confirm your PIN' : 'Create a PIN',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface,
-                ),
+                style: theme.textTheme.titleLarge,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: Spacing.xs),
               Text(
                 _isConfirmMode
                     ? 'Enter your PIN again to confirm'
                     : 'Enter a $_pinLength-digit PIN to secure your app',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
+                style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: Spacing.huge),
 
               // PIN length selector (only in first step)
               if (!_isConfirmMode) ...[
                 Text(
                   'PIN Length',
-                  style: TextStyle(
-                    fontSize: 13,
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w500,
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: Spacing.md),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [4, 5, 6].map((length) {
                     final isSelected = _pinLength == length;
                     return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: Spacing.xs),
                       child: InkWell(
                         onTap: () {
                           setState(() {
@@ -98,7 +91,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                           });
                           HapticHelper.lightImpact();
                         },
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                         child: Container(
                           width: 60,
                           height: 60,
@@ -106,14 +99,12 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                             color: isSelected
                                 ? theme.colorScheme.primary
                                 : theme.colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                           ),
                           child: Center(
                             child: Text(
                               '$length',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w600,
+                              style: theme.textTheme.headlineMedium?.copyWith(
                                 color: isSelected
                                     ? theme.colorScheme.onPrimary
                                     : theme.colorScheme.onSurface,
@@ -125,7 +116,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                     );
                   }).toList(),
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: Spacing.huge),
               ],
 
               // PIN dots indicator
@@ -135,7 +126,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                   final currentPin = _isConfirmMode ? _confirmPin : _firstPin;
                   final isFilled = index < currentPin.length;
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
                     child: Container(
                       width: 16,
                       height: 16,
@@ -158,32 +149,36 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
 
               // Error message
               if (_errorMessage != null) ...[
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        color: Colors.red,
-                        size: 20,
+                const SizedBox(height: Spacing.xl),
+                Builder(
+                  builder: (context) {
+                    final appColors = Theme.of(context).extension<AppColors>()!;
+                    return Container(
+                      padding: const EdgeInsets.all(Spacing.sm),
+                      decoration: BoxDecoration(
+                        color: appColors.expenseRed.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Colors.red,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            color: appColors.expenseRed,
+                            size: 20,
                           ),
-                        ),
+                          const SizedBox(width: Spacing.xs),
+                          Expanded(
+                            child: Text(
+                              _errorMessage!,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: appColors.expenseRed,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ],
 
@@ -192,7 +187,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
               // Number pad
               _buildNumberPad(theme),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: Spacing.xl),
             ],
           ),
         ),
@@ -206,7 +201,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
         // Rows 1-3
         for (var row = 0; row < 3; row++)
           Padding(
-            padding: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.only(bottom: Spacing.md),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(3, (col) {
@@ -230,7 +225,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
 
   Widget _buildNumberButton(String number, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
       child: InkWell(
         onTap: _isLoading ? null : () => _onNumberPressed(number),
         borderRadius: BorderRadius.circular(40),
@@ -244,8 +239,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
           child: Center(
             child: Text(
               number,
-              style: TextStyle(
-                fontSize: 28,
+              style: theme.textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w500,
                 color: theme.colorScheme.onSurface,
               ),
@@ -258,7 +252,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
 
   Widget _buildBackspaceButton(ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
       child: InkWell(
         onTap: _isLoading ? null : _onBackspacePressed,
         borderRadius: BorderRadius.circular(40),

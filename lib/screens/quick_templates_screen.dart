@@ -5,6 +5,10 @@ import '../models/quick_template_model.dart';
 import '../models/category_model.dart';
 import '../utils/currency_helper.dart';
 import '../utils/decimal_helper.dart';
+import '../utils/premium_animations.dart';
+import '../utils/haptic_helper.dart';
+import '../constants/spacing.dart';
+import '../main.dart';
 
 class QuickTemplatesScreen extends StatelessWidget {
   const QuickTemplatesScreen({super.key});
@@ -24,8 +28,7 @@ class QuickTemplatesScreen extends StatelessWidget {
         elevation: 0,
         title: Text(
           'Quick Templates',
-          style: TextStyle(
-            fontSize: 20,
+          style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w400,
             color: theme.colorScheme.onSurface,
           ),
@@ -41,19 +44,17 @@ class QuickTemplatesScreen extends StatelessWidget {
                     size: 64,
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: Spacing.md),
                   Text(
                     'No templates yet',
-                    style: TextStyle(
-                      fontSize: 16,
+                    style: theme.textTheme.titleMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: Spacing.xs),
                   Text(
                     'Create templates for quick adding',
-                    style: TextStyle(
-                      fontSize: 13,
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant.withAlpha(
                         (255 * 0.6).round(),
                       ),
@@ -63,11 +64,14 @@ class QuickTemplatesScreen extends StatelessWidget {
               ),
             )
           : ListView.builder(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(Spacing.screenPadding),
               itemCount: templates.length,
               itemBuilder: (context, index) {
                 final template = templates[index];
-                return _TemplateCard(template: template);
+                return StaggeredListItem(
+                  index: index,
+                  child: _TemplateCard(template: template),
+                );
               },
             ),
       floatingActionButton: FloatingActionButton.extended(
@@ -96,47 +100,49 @@ class _TemplateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final appColors = Theme.of(context).extension<AppColors>()!;
     final appState = context.read<AppState>();
     final isIncome = template.type == 'income';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+    return AnimatedPressCard(
+      borderRadius: BorderRadius.circular(Spacing.radiusLarge),
+      border: Border.all(color: theme.colorScheme.outline),
+      child: Container(
+      margin: const EdgeInsets.only(bottom: Spacing.sm),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
         border: Border.all(color: theme.colorScheme.outline),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 12,
+          horizontal: Spacing.cardPadding,
+          vertical: Spacing.sm,
         ),
         leading: Container(
           width: 48,
           height: 48,
           decoration: BoxDecoration(
             color: isIncome
-                ? Colors.green.withAlpha((255 * 0.1).round())
+                ? appColors.incomeGreen.withAlpha((255 * 0.1).round())
                 : theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(Spacing.radiusMedium),
           ),
           child: Icon(
             isIncome ? Icons.arrow_downward : Icons.arrow_upward,
-            color: isIncome ? Colors.green : theme.colorScheme.onSurface,
+            color: isIncome ? appColors.incomeGreen : theme.colorScheme.onSurface,
           ),
         ),
         title: Text(
           template.name,
-          style: TextStyle(
-            fontSize: 15,
+          style: theme.textTheme.bodyLarge?.copyWith(
             fontWeight: FontWeight.w600,
             color: theme.colorScheme.onSurface,
           ),
         ),
         subtitle: Text(
           '${template.category} • ${template.paymentMethod}',
-          style: TextStyle(
-            fontSize: 13,
+          style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
@@ -145,10 +151,9 @@ class _TemplateCard extends StatelessWidget {
           children: [
             Text(
               '${appState.currency}${template.amount.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontSize: 16,
+              style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: isIncome ? Colors.green : theme.colorScheme.onSurface,
+                color: isIncome ? appColors.incomeGreen : theme.colorScheme.onSurface,
               ),
             ),
             PopupMenuButton(
@@ -162,7 +167,7 @@ class _TemplateCard extends StatelessWidget {
                   child: Row(
                     children: [
                       Icon(Icons.flash_on),
-                      SizedBox(width: 12),
+                      SizedBox(width: Spacing.sm),
                       Text('Use Template'),
                     ],
                   ),
@@ -172,24 +177,25 @@ class _TemplateCard extends StatelessWidget {
                   child: Row(
                     children: [
                       Icon(Icons.edit),
-                      SizedBox(width: 12),
+                      SizedBox(width: Spacing.sm),
                       Text('Edit'),
                     ],
                   ),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'delete',
                   child: Row(
                     children: [
-                      Icon(Icons.delete, color: Colors.red),
-                      SizedBox(width: 12),
-                      Text('Delete', style: TextStyle(color: Colors.red)),
+                      Icon(Icons.delete, color: appColors.expenseRed),
+                      const SizedBox(width: Spacing.sm),
+                      Text('Delete', style: TextStyle(color: appColors.expenseRed)),
                     ],
                   ),
                 ),
               ],
               onSelected: (value) async {
                 if (value == 'use') {
+                  HapticHelper.lightImpact();
                   await appState.useTemplate(template);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -221,12 +227,17 @@ class _TemplateCard extends StatelessWidget {
                           onPressed: () => Navigator.pop(context, false),
                           child: const Text('Cancel'),
                         ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.red,
-                          ),
-                          child: const Text('Delete'),
+                        Builder(
+                          builder: (context) {
+                            final dialogAppColors = Theme.of(context).extension<AppColors>()!;
+                            return FilledButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: dialogAppColors.expenseRed,
+                              ),
+                              child: const Text('Delete'),
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -248,6 +259,7 @@ class _TemplateCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -336,7 +348,7 @@ class _AddTemplateDialogState extends State<_AddTemplateDialog> {
                   });
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: Spacing.md),
 
               // Name
               TextFormField(
@@ -378,8 +390,8 @@ class _AddTemplateDialogState extends State<_AddTemplateDialog> {
                 decoration: const InputDecoration(
                   labelText: 'Category',
                   contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+                    horizontal: Spacing.sm,
+                    vertical: Spacing.xs,
                   ),
                 ),
                 child: DropdownButtonHideUnderline(
@@ -407,8 +419,8 @@ class _AddTemplateDialogState extends State<_AddTemplateDialog> {
                 decoration: const InputDecoration(
                   labelText: 'Payment Method',
                   contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+                    horizontal: Spacing.sm,
+                    vertical: Spacing.xs,
                   ),
                 ),
                 child: DropdownButtonHideUnderline(

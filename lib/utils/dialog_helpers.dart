@@ -1,5 +1,7 @@
 // FIX #9, #16, #50: Comprehensive dialog helpers for confirmations and warnings
 import 'package:flutter/material.dart';
+import '../constants/spacing.dart';
+import '../main.dart';
 import 'haptic_helper.dart';
 
 class DialogHelpers {
@@ -15,14 +17,16 @@ class DialogHelpers {
 
     if (!context.mounted) return false;
 
+    final appColors = Theme.of(context).extension<AppColors>()!;
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
-          children: const [
-            Icon(Icons.warning, color: Colors.orange),
-            SizedBox(width: 12),
-            Text('Delete Budget?'),
+          children: [
+            Icon(Icons.warning, color: appColors.warningOrange),
+            SizedBox(width: Spacing.sm),
+            const Text('Delete Budget?'),
           ],
         ),
         content: Column(
@@ -30,13 +34,13 @@ class DialogHelpers {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('You are about to delete the budget for "$categoryName".'),
-            const SizedBox(height: 16),
+            SizedBox(height: Spacing.md),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(Spacing.sm),
               decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange),
+                color: appColors.warningOrange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                border: Border.all(color: appColors.warningOrange),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,10 +49,10 @@ class DialogHelpers {
                     'Current Status:',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: Spacing.xs),
                   Text('Budget: $currency${budgetAmount.toStringAsFixed(2)}'),
                   Text('Spent: $currency${currentSpending.toStringAsFixed(2)}'),
-                  const SizedBox(height: 8),
+                  SizedBox(height: Spacing.xs),
                   const Text(
                     '⚠️ Deleting this budget will:',
                     style: TextStyle(fontWeight: FontWeight.w600),
@@ -68,7 +72,7 @@ class DialogHelpers {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: appColors.expenseRed),
             child: const Text('Delete Budget'),
           ),
         ],
@@ -89,14 +93,16 @@ class DialogHelpers {
 
     if (!context.mounted) return null;
 
+    final appColors = Theme.of(context).extension<AppColors>()!;
+
     return await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
-          children: const [
-            Icon(Icons.warning, color: Colors.orange),
-            SizedBox(width: 12),
-            Text('Change Currency?'),
+          children: [
+            Icon(Icons.warning, color: appColors.warningOrange),
+            SizedBox(width: Spacing.sm),
+            const Text('Change Currency?'),
           ],
         ),
         content: Column(
@@ -106,29 +112,29 @@ class DialogHelpers {
             Text(
               'You are changing currency from $oldCurrency to $newCurrency.',
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: Spacing.md),
             Text('You have $transactionCount existing transactions.'),
-            const SizedBox(height: 16),
+            SizedBox(height: Spacing.md),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(Spacing.sm),
               decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue),
+                color: appColors.infoBlue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                border: Border.all(color: appColors.infoBlue),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
+                children: [
+                  const Text(
                     'Choose how to handle existing amounts:',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 12),
-                  Text('1. Keep amounts as-is (Recommended)'),
-                  Text('   Example: \$100 becomes ₹100'),
-                  SizedBox(height: 8),
-                  Text('2. Clear all data and start fresh'),
-                  Text('   Permanently deletes all transactions'),
+                  SizedBox(height: Spacing.sm),
+                  const Text('1. Keep amounts as-is (Recommended)'),
+                  const Text('   Example: \$100 becomes ₹100'),
+                  SizedBox(height: Spacing.xs),
+                  const Text('2. Clear all data and start fresh'),
+                  const Text('   Permanently deletes all transactions'),
                 ],
               ),
             ),
@@ -141,7 +147,7 @@ class DialogHelpers {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, 'clear'),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: appColors.expenseRed),
             child: const Text('Clear All Data'),
           ),
           FilledButton(
@@ -167,17 +173,19 @@ class DialogHelpers {
 
     if (!context.mounted) return false;
 
+    final appColors = Theme.of(context).extension<AppColors>()!;
+
     bool dontAskAgain = false;
 
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.calendar_today, color: Colors.blue),
-              SizedBox(width: 12),
-              Text('Future Date'),
+              Icon(Icons.calendar_today, color: appColors.infoBlue),
+              SizedBox(width: Spacing.sm),
+              const Text('Future Date'),
             ],
           ),
           content: Column(
@@ -185,11 +193,11 @@ class DialogHelpers {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('You selected a future date: ${_formatDate(selectedDate)}'),
-              const SizedBox(height: 16),
+              SizedBox(height: Spacing.md),
               const Text(
                 'This transaction will be created with a future date.',
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: Spacing.md),
               CheckboxListTile(
                 value: dontAskAgain,
                 onChanged: (value) {
@@ -264,6 +272,8 @@ class DialogHelpers {
 
     if (!context.mounted) return false;
 
+    final appColors = Theme.of(context).extension<AppColors>()!;
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -277,7 +287,7 @@ class DialogHelpers {
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
             style: isDangerous
-                ? FilledButton.styleFrom(backgroundColor: Colors.red)
+                ? FilledButton.styleFrom(backgroundColor: appColors.expenseRed)
                 : null,
             child: Text(confirmText),
           ),

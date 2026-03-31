@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 import '../providers/app_state.dart';
+import '../constants/spacing.dart';
+import '../main.dart'; // for AppColors
 import '../utils/csv_exporter.dart';
 import '../utils/pdf_exporter.dart';
 import '../utils/haptic_helper.dart';
@@ -37,24 +39,23 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
         elevation: 0,
         title: Text(
           'Export Data',
-          style: TextStyle(
-            fontSize: 20,
+          style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w400,
             color: theme.colorScheme.onSurface,
           ),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(Spacing.screenPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Info card
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(Spacing.md),
               decoration: BoxDecoration(
                 color: theme.colorScheme.primaryContainer.withAlpha(50),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                 border: Border.all(
                   color: theme.colorScheme.primary.withAlpha(50),
                 ),
@@ -62,12 +63,11 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               child: Row(
                 children: [
                   Icon(Icons.info_outline, color: theme.colorScheme.primary),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: Spacing.sm),
                   Expanded(
                     child: Text(
                       'Export your transactions as a CSV file that can be opened in Excel, Google Sheets, or other spreadsheet applications.',
-                      style: TextStyle(
-                        fontSize: 13,
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
@@ -76,19 +76,18 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               ),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: Spacing.xxl),
 
             // Data Type Section
             Text(
               'DATA TO EXPORT',
-              style: TextStyle(
-                fontSize: 11,
+              style: theme.textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.2,
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: Spacing.sm),
             _buildOptionCard(
               theme: theme,
               title: 'All Transactions',
@@ -97,7 +96,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               isSelected: _exportType == 'all',
               onTap: () => setState(() => _exportType = 'all'),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: Spacing.xs),
             _buildOptionCard(
               theme: theme,
               title: 'Expenses Only',
@@ -106,30 +105,29 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               isSelected: _exportType == 'expenses',
               onTap: () => setState(() => _exportType = 'expenses'),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: Spacing.xs),
             _buildOptionCard(
               theme: theme,
               title: 'Income Only',
               subtitle: 'Only income transactions',
               icon: Icons.arrow_downward,
-              iconColor: Colors.green,
+              iconColor: theme.extension<AppColors>()!.incomeGreen,
               isSelected: _exportType == 'income',
               onTap: () => setState(() => _exportType = 'income'),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: Spacing.xxl),
 
             // Date Range Section
             Text(
               'DATE RANGE',
-              style: TextStyle(
-                fontSize: 11,
+              style: theme.textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.2,
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: Spacing.sm),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -144,7 +142,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
             // Custom date range picker
             if (_dateRange == 'custom') ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: Spacing.md),
               Row(
                 children: [
                   Expanded(
@@ -155,7 +153,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                       onTap: () => _selectDate(isStart: true),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: Spacing.sm),
                   Expanded(
                     child: _buildDateButton(
                       theme: theme,
@@ -168,7 +166,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               ),
             ],
 
-            const SizedBox(height: 48),
+            const SizedBox(height: Spacing.huge),
 
             // Export buttons
             SizedBox(
@@ -187,15 +185,15 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                     : const Icon(Icons.file_download),
                 label: Text(_isExporting ? 'Exporting...' : 'Export to CSV'),
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.symmetric(vertical: Spacing.md),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                   ),
                 ),
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: Spacing.sm),
 
             // PDF Export button
             SizedBox(
@@ -214,22 +212,21 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                     : const Icon(Icons.picture_as_pdf),
                 label: Text(_isExporting ? 'Exporting...' : 'Export to PDF'),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.symmetric(vertical: Spacing.md),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                   ),
                 ),
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: Spacing.md),
 
             // Note about formats
             Center(
               child: Text(
                 'CSV for spreadsheets • PDF for professional reports',
-                style: TextStyle(
-                  fontSize: 12,
+                style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
@@ -254,14 +251,14 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
         HapticHelper.lightImpact();
         onTap();
       },
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(Spacing.radiusMedium),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Spacing.md),
         decoration: BoxDecoration(
           color: isSelected
               ? theme.colorScheme.primary.withAlpha(20)
               : theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(Spacing.radiusMedium),
           border: Border.all(
             color: isSelected
                 ? theme.colorScheme.primary
@@ -288,15 +285,14 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                         : theme.colorScheme.onSurface),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: Spacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
-                      fontSize: 15,
+                    style: theme.textTheme.bodyLarge?.copyWith(
                       fontWeight:
                           isSelected ? FontWeight.w600 : FontWeight.w500,
                       color: theme.colorScheme.onSurface,
@@ -304,8 +300,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                   ),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
@@ -337,7 +332,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       },
       backgroundColor: theme.colorScheme.surfaceContainerHighest,
       selectedColor: theme.colorScheme.primary.withAlpha(30),
-      labelStyle: TextStyle(
+      labelStyle: theme.textTheme.bodyMedium?.copyWith(
         color: isSelected
             ? theme.colorScheme.primary
             : theme.colorScheme.onSurface,
@@ -358,24 +353,23 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(Spacing.radiusMedium),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Spacing.md),
         decoration: BoxDecoration(
           border: Border.all(color: theme.colorScheme.outline),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(Spacing.radiusMedium),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               label,
-              style: TextStyle(
-                fontSize: 11,
+              style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: Spacing.xxs),
             Row(
               children: [
                 Icon(
@@ -383,13 +377,12 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                   size: 16,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: Spacing.xs),
                 Text(
                   date != null
                       ? DateFormat.yMMMd().format(date)
                       : 'Select date',
-                  style: TextStyle(
-                    fontSize: 14,
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     color: date != null
                         ? theme.colorScheme.onSurface
                         : theme.colorScheme.onSurfaceVariant,
@@ -453,6 +446,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
     try {
       final appState = context.read<AppState>();
+      final appColors = Theme.of(context).extension<AppColors>()!;
 
       // Get date range
       final DateTimeRange? dateFilter = _getDateRange();
@@ -527,17 +521,18 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
           SnackBar(
             content: Text(exportMessage),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.green,
+            backgroundColor: appColors.incomeGreen,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
+        final appColors = Theme.of(context).extension<AppColors>()!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Export failed: $e'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
+            backgroundColor: appColors.expenseRed,
           ),
         );
       }
@@ -567,6 +562,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
     try {
       final appState = context.read<AppState>();
+      final appColors = Theme.of(context).extension<AppColors>()!;
 
       // Get date range
       final DateTimeRange? dateFilter = _getDateRange();
@@ -661,17 +657,18 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
           SnackBar(
             content: Text(exportMessage),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.green,
+            backgroundColor: appColors.incomeGreen,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
+        final appColors = Theme.of(context).extension<AppColors>()!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('PDF export failed: $e'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
+            backgroundColor: appColors.expenseRed,
           ),
         );
       }

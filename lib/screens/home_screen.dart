@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../constants/spacing.dart';
+import '../main.dart';
 import '../providers/app_state.dart';
 import '../models/expense_model.dart';
 import '../utils/accessibility_helper.dart';
@@ -46,10 +48,6 @@ class HomeScreen extends StatelessWidget {
     final statusBarHeight = MediaQuery.of(context).padding.top;
 
     return Scaffold(
-      // FIX: Use Material standard dark background to prevent OLED smearing
-      backgroundColor: theme.brightness == Brightness.dark
-          ? const Color(0xFF121212)
-          : const Color(0xFFFAFAFA),
       // FIX: Wrap body in GestureDetector for month swiping, but exclude horizontal scrollables
       body: GestureDetector(
         onHorizontalDragEnd: (details) {
@@ -84,10 +82,10 @@ class HomeScreen extends StatelessWidget {
                 flexibleSpace: FlexibleSpaceBar(
                   background: Padding(
                     padding: EdgeInsets.fromLTRB(
-                      24,
+                      Spacing.screenPadding,
                       _contentTopPadding + statusBarHeight,
-                      24,
-                      16,
+                      Spacing.screenPadding,
+                      Spacing.md,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,7 +135,7 @@ class HomeScreen extends StatelessWidget {
 
               // Financial Summary Card
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+                padding: const EdgeInsets.fromLTRB(Spacing.screenPadding, Spacing.xs, Spacing.screenPadding, 0),
                 sliver: SliverToBoxAdapter(
                   child: Semantics(
                     label: 'Financial summary card',
@@ -151,7 +149,7 @@ class HomeScreen extends StatelessWidget {
                 (s) => s.getUpcomingBillsThisMonth().isNotEmpty,
               ))
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+                  padding: const EdgeInsets.fromLTRB(Spacing.screenPadding, Spacing.md, Spacing.screenPadding, 0),
                   sliver: SliverToBoxAdapter(
                     child: Semantics(
                       label: 'Upcoming bills section',
@@ -166,7 +164,7 @@ class HomeScreen extends StatelessWidget {
                 (s) => s.quickTemplates.isNotEmpty,
               ))
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+                  padding: const EdgeInsets.fromLTRB(Spacing.screenPadding, Spacing.md, Spacing.screenPadding, 0),
                   sliver: SliverToBoxAdapter(
                     child: Semantics(
                       label: 'Quick add templates section',
@@ -178,14 +176,11 @@ class HomeScreen extends StatelessWidget {
 
               // Recent Transactions Header
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+                padding: const EdgeInsets.fromLTRB(Spacing.screenPadding, Spacing.xl, Spacing.screenPadding, Spacing.sm),
                 sliver: SliverToBoxAdapter(
                   child: Text(
                     'RECENT TRANSACTIONS',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
+                    style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
@@ -217,7 +212,7 @@ class HomeScreen extends StatelessWidget {
                                   size: 64,
                                   color: theme.colorScheme.onSurfaceVariant,
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: Spacing.md),
                                 Text(
                                   'No transactions this month',
                                   style: TextStyle(
@@ -225,7 +220,7 @@ class HomeScreen extends StatelessWidget {
                                     color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: Spacing.xs),
                                 Text(
                                   'Tap to add your first expense',
                                   style: TextStyle(
@@ -240,7 +235,7 @@ class HomeScreen extends StatelessWidget {
                       ),
                     )
                   : SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 160),
+                      padding: const EdgeInsets.fromLTRB(Spacing.screenPadding, 0, Spacing.screenPadding, 160),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate((context, index) {
                           final expense = expenses[index];
@@ -277,12 +272,12 @@ class HomeScreen extends StatelessWidget {
           height: 350,
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(Spacing.radiusXLarge)),
           ),
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(Spacing.md),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -331,12 +326,12 @@ class HomeScreen extends StatelessWidget {
               ),
               Expanded(
                 child: GridView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
                     childAspectRatio: 2,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
+                    crossAxisSpacing: Spacing.xs,
+                    mainAxisSpacing: Spacing.xs,
                   ),
                   itemCount: 12,
                   itemBuilder: (context, index) {
@@ -381,7 +376,7 @@ class HomeScreen extends StatelessWidget {
                             color: isSelected
                                 ? theme.colorScheme.primary
                                 : theme.colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                             // FIX #13: Add border for current month
                             border: isCurrentMonth && !isSelected
                                 ? Border.all(
@@ -404,7 +399,7 @@ class HomeScreen extends StatelessWidget {
                                       shape: BoxShape.circle,
                                     ),
                                   ),
-                                  const SizedBox(width: 4),
+                                  const SizedBox(width: Spacing.xxs),
                                 ],
                                 Text(
                                   months[index],
@@ -470,6 +465,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
     // Optimize: Only watch the specific financial data needed
     final financialData = context
         .select<AppState, (double, double, double, double, double, double)>(
@@ -492,10 +488,10 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
     return ScaleTransition(
       scale: _scaleAnimation,
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(Spacing.screenPadding),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(Spacing.radiusXLarge),
           border: Border.all(color: theme.colorScheme.outline),
         ),
         child: Column(
@@ -517,13 +513,13 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                               child: Container(
                                 width: 8,
                                 height: 8,
-                                decoration: const BoxDecoration(
-                                  color: Colors.green,
+                                decoration: BoxDecoration(
+                                  color: appColors.incomeGreen,
                                   shape: BoxShape.circle,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: Spacing.xs),
                             Text(
                               'INCOME',
                               style: TextStyle(
@@ -535,7 +531,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: Spacing.xxs),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
@@ -544,10 +540,8 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                             prefix: appState.currency,
                             compact: totalIncome > 100000,
                             decimalPlaces: totalIncome > 100000 ? 1 : 2,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.green,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: appColors.incomeGreen,
                             ),
                           ),
                         ),
@@ -567,7 +561,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                     label:
                         'Expenses: ${appState.formatWithCurrency(totalSpent)}',
                     child: Padding(
-                      padding: const EdgeInsets.only(left: 24),
+                      padding: const EdgeInsets.only(left: Spacing.screenPadding),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -583,7 +577,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: Spacing.xs),
                               Text(
                                 'EXPENSES',
                                 style: TextStyle(
@@ -595,7 +589,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                               ),
                             ],
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: Spacing.xxs),
                           FittedBox(
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
@@ -604,9 +598,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                               prefix: appState.currency,
                               compact: totalSpent > 100000,
                               decimalPlaces: totalSpent > 100000 ? 1 : 2,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
+                              style: theme.textTheme.titleMedium?.copyWith(
                                 color: theme.colorScheme.onSurface,
                               ),
                             ),
@@ -619,7 +611,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
               ],
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: Spacing.lg),
 
             // PRIMARY: Available Balance & Remaining - Large and prominent
             Row(
@@ -633,16 +625,16 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                     liveRegion:
                         true, // Announces balance changes to screen readers
                     child: Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(Spacing.md),
                       decoration: BoxDecoration(
                         color: availableIncomeBalance >= 0
-                            ? Colors.green.withAlpha(20)
-                            : Colors.red.withAlpha(20),
-                        borderRadius: BorderRadius.circular(16),
+                            ? appColors.incomeGreen.withAlpha(20)
+                            : appColors.expenseRed.withAlpha(20),
+                        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
                         border: Border.all(
                           color: availableIncomeBalance >= 0
-                              ? Colors.green.withAlpha(50)
-                              : Colors.red.withAlpha(50),
+                              ? appColors.incomeGreen.withAlpha(50)
+                              : appColors.expenseRed.withAlpha(50),
                         ),
                       ),
                       child: Column(
@@ -655,11 +647,11 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                                   Icons.account_balance_wallet,
                                   size: 18,
                                   color: availableIncomeBalance >= 0
-                                      ? Colors.green
-                                      : Colors.red,
+                                      ? appColors.incomeGreen
+                                      : appColors.expenseRed,
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: Spacing.xs),
                               Text(
                                 'AVAILABLE',
                                 style: TextStyle(
@@ -671,7 +663,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: Spacing.xs),
                           FittedBox(
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
@@ -687,12 +679,12 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                                 fontSize: 22,
                                 fontWeight: FontWeight.w700,
                                 color: availableIncomeBalance >= 0
-                                    ? Colors.green
-                                    : Colors.red,
+                                    ? appColors.incomeGreen
+                                    : appColors.expenseRed,
                               ),
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: Spacing.xxs),
                           Text(
                             'Income - Paid',
                             style: TextStyle(
@@ -706,7 +698,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                   ),
                 ),
 
-                const SizedBox(width: 12),
+                const SizedBox(width: Spacing.sm),
 
                 // Remaining Balance - Primary metric
                 // FIX P3-18: Added liveRegion for screen reader announcements when balance changes
@@ -717,16 +709,16 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                     liveRegion:
                         true, // Announces balance changes to screen readers
                     child: Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(Spacing.md),
                       decoration: BoxDecoration(
                         color: totalRemaining > 0
-                            ? Colors.orange.withAlpha(20)
-                            : Colors.green.withAlpha(20),
-                        borderRadius: BorderRadius.circular(16),
+                            ? appColors.warningOrange.withAlpha(20)
+                            : appColors.incomeGreen.withAlpha(20),
+                        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
                         border: Border.all(
                           color: totalRemaining > 0
-                              ? Colors.orange.withAlpha(50)
-                              : Colors.green.withAlpha(50),
+                              ? appColors.warningOrange.withAlpha(50)
+                              : appColors.incomeGreen.withAlpha(50),
                         ),
                       ),
                       child: Column(
@@ -741,11 +733,11 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                                       : Icons.check_circle,
                                   size: 18,
                                   color: totalRemaining > 0
-                                      ? Colors.orange
-                                      : Colors.green,
+                                      ? appColors.warningOrange
+                                      : appColors.incomeGreen,
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: Spacing.xs),
                               Text(
                                 'REMAINING',
                                 style: TextStyle(
@@ -757,7 +749,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: Spacing.xs),
                           FittedBox(
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
@@ -770,12 +762,12 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                                 fontSize: 22,
                                 fontWeight: FontWeight.w700,
                                 color: totalRemaining > 0
-                                    ? Colors.orange
-                                    : Colors.green,
+                                    ? appColors.warningOrange
+                                    : appColors.incomeGreen,
                               ),
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: Spacing.xxs),
                           Text(
                             totalRemaining > 0 ? 'To pay' : 'All paid!',
                             style: TextStyle(
@@ -803,6 +795,7 @@ class _UpcomingBillsBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
     // Optimize: Only watch currency and bills list, read appState for methods
     final billsAndCurrency =
         context.select<AppState, (List<Map<String, dynamic>>, String)>(
@@ -820,11 +813,11 @@ class _UpcomingBillsBanner extends StatelessWidget {
     );
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Spacing.md),
       decoration: BoxDecoration(
-        color: Colors.orange.withAlpha(20),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.orange.withAlpha(100)),
+        color: appColors.warningOrange.withAlpha(20),
+        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
+        border: Border.all(color: appColors.warningOrange.withAlpha(100)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -834,30 +827,26 @@ class _UpcomingBillsBanner extends StatelessWidget {
               Icon(
                 Icons.notifications_active,
                 size: 18,
-                color: Colors.orange.shade700,
+                color: appColors.warningOrange,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: Spacing.xs),
               Text(
                 'UPCOMING BILLS',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
-                  color: Colors.orange.shade700,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: appColors.warningOrange,
                 ),
               ),
               const Spacer(),
               Text(
                 '${appState.currency}${totalDue.toStringAsFixed(0)} due',
-                style: TextStyle(
-                  fontSize: 13,
+                style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: Colors.orange.shade700,
+                  color: appColors.warningOrange,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: Spacing.sm),
           // Show up to 3 upcoming bills
           ...bills.take(3).map((bill) {
             final dueDate = bill['dueDate'] as DateTime;
@@ -882,7 +871,7 @@ class _UpcomingBillsBanner extends StatelessWidget {
               label:
                   '${bill['description']}, ${appState.currency}${(bill['amount'] as double).toStringAsFixed(0)}, $dueText',
               child: Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: Spacing.xs),
                 child: Row(
                   children: [
                     ExcludeSemantics(
@@ -891,7 +880,7 @@ class _UpcomingBillsBanner extends StatelessWidget {
                         height: 6,
                         decoration: BoxDecoration(
                           color: daysUntilDue != null && daysUntilDue <= 2
-                              ? Colors.orange
+                              ? appColors.warningOrange
                               : theme.colorScheme.onSurfaceVariant,
                           shape: BoxShape.circle,
                         ),
@@ -908,7 +897,7 @@ class _UpcomingBillsBanner extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: Spacing.xs),
                     Text(
                       '${appState.currency}${(bill['amount'] as double).toStringAsFixed(0)}',
                       style: TextStyle(
@@ -917,15 +906,15 @@ class _UpcomingBillsBanner extends StatelessWidget {
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: Spacing.xs),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
+                        horizontal: Spacing.xs,
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
                         color: daysUntilDue != null && daysUntilDue <= 2
-                            ? Colors.orange.withAlpha(30)
+                            ? appColors.warningOrange.withAlpha(30)
                             : theme.colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(4),
                       ),
@@ -935,7 +924,7 @@ class _UpcomingBillsBanner extends StatelessWidget {
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
                           color: daysUntilDue != null && daysUntilDue <= 2
-                              ? Colors.orange.shade700
+                              ? appColors.warningOrange
                               : theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
@@ -947,7 +936,7 @@ class _UpcomingBillsBanner extends StatelessWidget {
           }),
           if (bills.length > 3)
             Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(top: Spacing.xxs),
               child: Text(
                 '+${bills.length - 3} more bills',
                 style: TextStyle(
@@ -968,6 +957,7 @@ class _QuickAddBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
     // Optimize: Only watch quickTemplates list and currency, read for methods
     final templatesAndCurrency =
         context.select<AppState, (List<dynamic>, String)>(
@@ -982,14 +972,11 @@ class _QuickAddBar extends StatelessWidget {
       children: [
         Text(
           'QUICK ADD',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 1.2,
+          style: theme.textTheme.labelSmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: Spacing.xs),
         // FIX: Wrap in GestureDetector to prevent month swipe when scrolling templates
         GestureDetector(
           onHorizontalDragStart: (_) {}, // Absorb horizontal gestures
@@ -1003,7 +990,7 @@ class _QuickAddBar extends StatelessWidget {
                 final isIncome = template.type == 'income';
 
                 return Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.only(right: Spacing.xs),
                   child: Semantics(
                     label:
                         '${template.name}, $currency${template.amount.toStringAsFixed(0)}, ${isIncome ? 'income' : 'expense'}',
@@ -1022,15 +1009,15 @@ class _QuickAddBar extends StatelessWidget {
                         }
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
                         decoration: BoxDecoration(
                           color: isIncome
-                              ? Colors.green.withAlpha((255 * 0.1).round())
+                              ? appColors.incomeGreen.withAlpha((255 * 0.1).round())
                               : theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(Spacing.radiusXLarge),
                           border: Border.all(
                             color: isIncome
-                                ? Colors.green
+                                ? appColors.incomeGreen
                                 : theme.colorScheme.outline,
                           ),
                         ),
@@ -1043,17 +1030,17 @@ class _QuickAddBar extends StatelessWidget {
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                                 color: isIncome
-                                    ? Colors.green
+                                    ? appColors.incomeGreen
                                     : theme.colorScheme.onSurface,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: Spacing.xs),
                             Text(
                               '$currency${template.amount.toStringAsFixed(0)}',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: isIncome
-                                    ? Colors.green
+                                    ? appColors.incomeGreen
                                     : theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
@@ -1077,15 +1064,16 @@ class _ExpenseCard extends StatelessWidget {
 
   const _ExpenseCard({required this.expense});
 
-  Color _getStatusColor() {
-    if (expense.isPaid) return Colors.green;
-    if (expense.amountPaid > 0) return Colors.orange;
-    return Colors.red;
+  Color _getStatusColor(AppColors appColors) {
+    if (expense.isPaid) return appColors.incomeGreen;
+    if (expense.amountPaid > 0) return appColors.warningOrange;
+    return appColors.expenseRed;
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
     final appState = context.read<AppState>();
 
     final statusText = expense.isPaid
@@ -1100,7 +1088,7 @@ class _ExpenseCard extends StatelessWidget {
         .firstOrNull;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: Spacing.sm),
       child: Semantics(
         label:
             '${expense.description}, ${expense.category}, ${appState.currency}${expense.amount.toStringAsFixed(2)}, $statusText',
@@ -1121,7 +1109,7 @@ class _ExpenseCard extends StatelessWidget {
               PremiumPageRoute(page: AddExpenseScreen(expense: expense)),
             );
           },
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(Spacing.radiusLarge),
           color: theme.colorScheme.surface,
           border: Border.all(
             color: theme.brightness == Brightness.dark
@@ -1130,7 +1118,7 @@ class _ExpenseCard extends StatelessWidget {
             width: 1,
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: 14),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1154,15 +1142,13 @@ class _ExpenseCard extends StatelessWidget {
                             expense.description.isEmpty
                                 ? '${expense.category} expense'
                                 : expense.description,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
+                            style: theme.textTheme.titleSmall?.copyWith(
                               color: theme.colorScheme.onSurface,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: Spacing.xxs),
                           Row(
                             children: [
                               Text(
@@ -1220,49 +1206,44 @@ class _ExpenseCard extends StatelessWidget {
                       children: [
                         Text(
                           '${appState.currency}${expense.amount.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 16,
+                          style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: theme.brightness == Brightness.dark
-                                ? const Color(
-                                    0xFFF87171,
-                                  ) // Softer red for dark mode
-                                : const Color(0xFFDC2626), // Tailwind red-600
+                            color: appColors.expenseRed,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: Spacing.xxs),
                         if (!expense.isPaid)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
+                              horizontal: Spacing.xs,
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.orange.withAlpha(20),
+                              color: appColors.warningOrange.withAlpha(20),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               expense.amountPaid > 0
                                   ? '${appState.currency}${expense.remainingAmount.toStringAsFixed(2)} left'
                                   : 'UNPAID',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,
-                                color: Colors.orange,
+                                color: appColors.warningOrange,
                               ),
                             ),
                           )
                         else
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
+                              horizontal: Spacing.xs,
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.green.withAlpha(20),
+                              color: appColors.incomeGreen.withAlpha(20),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: Colors.green.withAlpha(60),
+                                color: appColors.incomeGreen.withAlpha(60),
                                 width: 0.5,
                               ),
                             ),
@@ -1272,7 +1253,7 @@ class _ExpenseCard extends StatelessWidget {
                                 Icon(
                                   Icons.check_circle,
                                   size: 10,
-                                  color: Colors.green.shade700,
+                                  color: appColors.incomeGreen,
                                 ),
                                 const SizedBox(width: 3),
                                 Text(
@@ -1280,7 +1261,7 @@ class _ExpenseCard extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.green.shade700,
+                                    color: appColors.incomeGreen,
                                     letterSpacing: 0.5,
                                   ),
                                 ),
@@ -1292,7 +1273,7 @@ class _ExpenseCard extends StatelessWidget {
                   ],
                 ),
                 if (expense.amountPaid > 0 && !expense.isPaid) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Spacing.sm),
                   Semantics(
                     label: AccessibilityHelper.getPaymentProgressLabel(
                       expense.amountPaid,
@@ -1307,7 +1288,7 @@ class _ExpenseCard extends StatelessWidget {
                             : 0.0,
                         backgroundColor:
                             theme.colorScheme.surfaceContainerHighest,
-                        color: _getStatusColor(),
+                        color: _getStatusColor(appColors),
                         minHeight: 4,
                       ),
                     ),
@@ -1368,6 +1349,7 @@ class _FloatingActionButtonsState extends State<_FloatingActionButtons>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
     // FIX #25: Add extra bottom padding for accessibility (text scaling) and bottom nav
     final textScaler = MediaQuery.textScalerOf(context);
     final extraBottomPadding =
@@ -1400,14 +1382,14 @@ class _FloatingActionButtonsState extends State<_FloatingActionButtons>
                           PremiumPageRoute(page: const AddIncomeScreen()),
                         );
                       },
-                      backgroundColor: Colors.green,
+                      backgroundColor: appColors.incomeGreen,
                       foregroundColor: Colors.white,
                       icon: const Icon(Icons.arrow_downward),
                       label: const Text('Income'),
                       heroTag: 'income',
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Spacing.sm),
 
                   // Add Budget Button
                   Semantics(
@@ -1418,14 +1400,14 @@ class _FloatingActionButtonsState extends State<_FloatingActionButtons>
                         _toggle();
                         BudgetScreen.showAddBudget(context);
                       },
-                      backgroundColor: Colors.blue,
+                      backgroundColor: appColors.infoBlue,
                       foregroundColor: Colors.white,
                       icon: const Icon(Icons.account_balance_wallet),
                       label: const Text('Budget'),
                       heroTag: 'budget',
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Spacing.sm),
 
                   // Add Expense Button
                   Semantics(
@@ -1446,7 +1428,7 @@ class _FloatingActionButtonsState extends State<_FloatingActionButtons>
                       heroTag: 'expense',
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Spacing.sm),
                 ],
               ),
             ),

@@ -31,6 +31,10 @@ class CurrencyHelper {
     'HKD': 'zh_HK',
   };
 
+  /// Cache of NumberFormat instances keyed by "$locale:$decimalDigits" to avoid
+  /// recreating formatters on every call — NumberFormat construction is expensive.
+  static final Map<String, NumberFormat> _formatterCache = {};
+
   /// Format a number according to the currency's locale
   /// e.g., formatAmount(1234.56, 'EUR') -> "1.234,56"
   /// e.g., formatAmount(1234.56, 'USD') -> "1,234.56"
@@ -40,10 +44,14 @@ class CurrencyHelper {
     int decimalDigits = 2,
   }) {
     final locale = currencyLocales[currencyCode] ?? 'en_US';
+    final cacheKey = '$locale:$decimalDigits';
     try {
-      final formatter = NumberFormat.decimalPatternDigits(
-        locale: locale,
-        decimalDigits: decimalDigits,
+      final formatter = _formatterCache.putIfAbsent(
+        cacheKey,
+        () => NumberFormat.decimalPatternDigits(
+          locale: locale,
+          decimalDigits: decimalDigits,
+        ),
       );
       return formatter.format(amount);
     } catch (e) {

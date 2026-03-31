@@ -4,9 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 import 'providers/app_state.dart';
+import 'utils/color_contrast_helper.dart';
 import 'screens/home_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/settings_screen.dart';
@@ -18,6 +17,117 @@ import 'services/onboarding_service.dart';
 import 'utils/notification_helper.dart';
 import 'utils/notification_payload_store.dart';
 import 'utils/home_widget_helper.dart';
+
+/// Semantic color extension for expense/income/warning/info colors.
+/// Uses WCAG-compliant colors from ColorContrastHelper.
+@immutable
+class AppColors extends ThemeExtension<AppColors> {
+  final Color expenseRed;
+  final Color incomeGreen;
+  final Color warningOrange;
+  final Color infoBlue;
+
+  const AppColors({
+    required this.expenseRed,
+    required this.incomeGreen,
+    required this.warningOrange,
+    required this.infoBlue,
+  });
+
+  factory AppColors.fromBrightness(Brightness brightness) {
+    final status = ColorContrastHelper.getStatusColors(brightness);
+    return AppColors(
+      expenseRed: status.error,
+      incomeGreen: status.success,
+      warningOrange: status.warning,
+      infoBlue: status.info,
+    );
+  }
+
+  @override
+  AppColors copyWith({
+    Color? expenseRed,
+    Color? incomeGreen,
+    Color? warningOrange,
+    Color? infoBlue,
+  }) {
+    return AppColors(
+      expenseRed: expenseRed ?? this.expenseRed,
+      incomeGreen: incomeGreen ?? this.incomeGreen,
+      warningOrange: warningOrange ?? this.warningOrange,
+      infoBlue: infoBlue ?? this.infoBlue,
+    );
+  }
+
+  @override
+  AppColors lerp(AppColors? other, double t) {
+    if (other is! AppColors) return this;
+    return AppColors(
+      expenseRed: Color.lerp(expenseRed, other.expenseRed, t)!,
+      incomeGreen: Color.lerp(incomeGreen, other.incomeGreen, t)!,
+      warningOrange: Color.lerp(warningOrange, other.warningOrange, t)!,
+      infoBlue: Color.lerp(infoBlue, other.infoBlue, t)!,
+    );
+  }
+}
+
+TextTheme _buildTextTheme(Brightness brightness) {
+  final baseColor =
+      brightness == Brightness.dark ? Colors.white : Colors.black;
+  return TextTheme(
+    displayLarge: TextStyle(
+      fontSize: 34,
+      fontWeight: FontWeight.w300,
+      color: baseColor,
+    ),
+    headlineMedium: TextStyle(
+      fontSize: 28,
+      fontWeight: FontWeight.w300,
+      color: baseColor,
+    ),
+    titleLarge: TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.w600,
+      color: baseColor,
+    ),
+    titleMedium: TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w500,
+      color: baseColor,
+    ),
+    titleSmall: TextStyle(
+      fontSize: 15,
+      fontWeight: FontWeight.w500,
+      color: baseColor,
+    ),
+    bodyLarge: TextStyle(
+      fontSize: 15,
+      fontWeight: FontWeight.w400,
+      color: baseColor,
+    ),
+    bodyMedium: TextStyle(
+      fontSize: 13,
+      fontWeight: FontWeight.w400,
+      color: baseColor,
+    ),
+    bodySmall: TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w400,
+      color: baseColor,
+    ),
+    labelLarge: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      color: baseColor,
+    ),
+    labelSmall: TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 1.2,
+      color: baseColor,
+    ),
+  );
+}
 
 // Top-level function for notification tap handling
 @pragma('vm:entry-point')
@@ -34,15 +144,6 @@ void notificationTapBackground(NotificationResponse notificationResponse) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Firebase
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (e) {
-    if (kDebugMode) debugPrint('Firebase initialization failed: $e');
-  }
 
   // Set preferred orientation
   await SystemChrome.setPreferredOrientations([
@@ -159,7 +260,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final themeMode = context.select<AppState, String>((s) => s.themeMode);
 
     return MaterialApp(
       title: 'Money Tracker',
@@ -171,12 +272,34 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           seedColor: const Color(0xFF1E1E1E),
           brightness: Brightness.light,
         ),
+        textTheme: _buildTextTheme(Brightness.light),
         scaffoldBackgroundColor: const Color(0xFFFAFAFA),
         appBarTheme: const AppBarTheme(
           systemOverlayStyle: SystemUiOverlayStyle.dark,
           backgroundColor: Colors.transparent,
           elevation: 0,
         ),
+        cardTheme: CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          surfaceTintColor: Colors.transparent,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+        ),
+        extensions: <ThemeExtension<dynamic>>[
+          AppColors.fromBrightness(Brightness.light),
+        ],
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
@@ -186,16 +309,38 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           brightness: Brightness.dark,
           surface: const Color(0xFF121212),
         ),
+        textTheme: _buildTextTheme(Brightness.dark),
         scaffoldBackgroundColor: const Color(0xFF121212),
         appBarTheme: const AppBarTheme(
           systemOverlayStyle: SystemUiOverlayStyle.light,
           backgroundColor: Colors.transparent,
           elevation: 0,
         ),
+        cardTheme: CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          surfaceTintColor: Colors.transparent,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+        ),
+        extensions: <ThemeExtension<dynamic>>[
+          AppColors.fromBrightness(Brightness.dark),
+        ],
       ),
-      themeMode: appState.themeMode == 'light'
+      themeMode: themeMode == 'light'
           ? ThemeMode.light
-          : appState.themeMode == 'dark'
+          : themeMode == 'dark'
               ? ThemeMode.dark
               : ThemeMode.system,
       home: FutureBuilder<bool>(
@@ -203,8 +348,28 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         builder: (context, snapshot) {
           // Show loading while checking onboarding status
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
+            return Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.account_balance_wallet_outlined,
+                      size: 48,
+                      color: Theme.of(context).colorScheme.onSurface.withAlpha(100),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha(100),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             );
           }
 
@@ -329,22 +494,29 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final appState = context.watch<AppState>();
+    final accountJustSwitched = context.select<AppState, bool>(
+      (s) => s.accountJustSwitched,
+    );
+    final lastAutoCreatedCount = context.select<AppState, int>(
+      (s) => s.lastAutoCreatedCount,
+    );
 
     // FIX #8: Check if account was switched and reset navigation to home
-    if (appState.accountJustSwitched) {
-      appState.clearAccountSwitchFlag();
+    if (accountJustSwitched) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _currentIndex != 0) {
-          setState(() => _currentIndex = 0);
+        if (mounted) {
+          context.read<AppState>().clearAccountSwitchFlag();
+          if (_currentIndex != 0) {
+            setState(() => _currentIndex = 0);
+          }
         }
       });
     }
 
-    if (!_hasShownRecurringSnackbar && appState.lastAutoCreatedCount > 0) {
+    if (!_hasShownRecurringSnackbar && lastAutoCreatedCount > 0) {
       _hasShownRecurringSnackbar = true;
-      final count = appState.lastAutoCreatedCount;
-      appState.clearAutoCreatedCount();
+      final count = lastAutoCreatedCount;
+      context.read<AppState>().clearAutoCreatedCount();
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {

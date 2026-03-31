@@ -7,6 +7,8 @@ import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import '../utils/backup_helper.dart';
 import '../providers/app_state.dart';
+import '../constants/spacing.dart';
+import '../main.dart'; // for AppColors
 
 class BackupRestoreScreen extends StatefulWidget {
   const BackupRestoreScreen({super.key});
@@ -143,7 +145,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const CircularProgressIndicator(),
-                const SizedBox(width: 20),
+                const SizedBox(width: Spacing.lg),
                 Expanded(child: Text(message)),
               ],
             ),
@@ -168,12 +170,12 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     } catch (e) {
       if (timedOut && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
+          SnackBar(
+            content: const Text(
               'Operation took too long and was cancelled. Your data is safe. Please try again.',
             ),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 5),
+            backgroundColor: Theme.of(context).extension<AppColors>()!.warningOrange,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -301,7 +303,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(_getFriendlyErrorMessage(e)),
-              backgroundColor: Colors.red,
+              backgroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
               duration: const Duration(seconds: 4),
             ),
           );
@@ -341,7 +343,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       CircularProgressIndicator(),
-                      SizedBox(width: 20),
+                      SizedBox(width: Spacing.lg),
                       Expanded(child: Text('Creating backup...')),
                     ],
                   ),
@@ -378,10 +380,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           debugPrint('Backup successful, showing success message');
         }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Backup saved successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
+          SnackBar(
+            content: const Text('Backup saved successfully!'),
+            backgroundColor: Theme.of(context).extension<AppColors>()!.incomeGreen,
+            duration: const Duration(seconds: 3),
           ),
         );
         if (kDebugMode) debugPrint('Reloading backup list...');
@@ -410,7 +412,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
             duration: const Duration(seconds: 5),
           ),
         );
@@ -447,7 +449,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       CircularProgressIndicator(),
-                      SizedBox(width: 20),
+                      SizedBox(width: Spacing.lg),
                       Expanded(child: Text('Creating backup for sharing...')),
                     ],
                   ),
@@ -475,10 +477,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Backup created and ready to share!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
+          SnackBar(
+            content: const Text('Backup created and ready to share!'),
+            backgroundColor: Theme.of(context).extension<AppColors>()!.incomeGreen,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -491,7 +493,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_getFriendlyErrorMessage(e)),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
             duration: const Duration(seconds: 4),
           ),
         );
@@ -504,64 +506,74 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     // FIX: Prevent multiple simultaneous restores
     if (_isRestoring) return;
 
-    final theme = Theme.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Restore Backup'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Restore from "${backupFile.path.split(Platform.pathSeparator).last}"?',
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.withAlpha(20),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.withAlpha(100)),
+      builder: (context) {
+        final dialogTheme = Theme.of(context);
+        final dialogAppColors = dialogTheme.extension<AppColors>()!;
+        return AlertDialog(
+          title: const Text('Restore Backup'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Restore from "${backupFile.path.split(Platform.pathSeparator).last}"?',
+                style: dialogTheme.textTheme.titleSmall,
               ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, size: 20, color: Colors.blue),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'A safety backup of your current data will be created before restoring.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.onSurface,
+              const SizedBox(height: Spacing.md),
+              Container(
+                padding: const EdgeInsets.all(Spacing.sm),
+                decoration: BoxDecoration(
+                  color: dialogAppColors.infoBlue.withAlpha(20),
+                  borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                  border: Border.all(
+                    color: dialogAppColors.infoBlue.withAlpha(100),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 20,
+                      color: dialogAppColors.infoBlue,
+                    ),
+                    const SizedBox(width: Spacing.sm),
+                    Expanded(
+                      child: Text(
+                        'A safety backup of your current data will be created before restoring.',
+                        style: dialogTheme.textTheme.bodySmall?.copyWith(
+                          color: dialogTheme.colorScheme.onSurface,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(height: Spacing.sm),
+              Text(
+                'This will replace all current data.',
+                style: dialogTheme.textTheme.bodyMedium?.copyWith(
+                  color: dialogTheme.colorScheme.error,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
             ),
-            const SizedBox(height: 12),
-            Text(
-              'This will replace all current data.',
-              style: TextStyle(fontSize: 13, color: theme.colorScheme.error),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: TextButton.styleFrom(
+                foregroundColor: dialogAppColors.warningOrange,
+              ),
+              child: const Text('Restore'),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Restore',
-              style: TextStyle(color: Colors.orange),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
 
     if (confirmed != true) return;
@@ -615,7 +627,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         CircularProgressIndicator(),
-                        SizedBox(width: 20),
+                        SizedBox(width: Spacing.lg),
                         Expanded(child: Text('Restoring backup...')),
                       ],
                     ),
@@ -658,7 +670,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(message),
-                backgroundColor: Colors.green,
+                backgroundColor:
+                    Theme.of(context).extension<AppColors>()!.incomeGreen,
                 duration: const Duration(seconds: 4),
               ),
             );
@@ -683,12 +696,13 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           await appState.reloadAfterRestore();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
+              SnackBar(
+                content: const Text(
                   'Invalid backup file. Please select a valid database backup.',
                 ),
-                backgroundColor: Colors.red,
-                duration: Duration(seconds: 4),
+                backgroundColor:
+                    Theme.of(context).extension<AppColors>()!.expenseRed,
+                duration: const Duration(seconds: 4),
               ),
             );
           }
@@ -699,12 +713,13 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           await appState.reloadAfterRestore();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
+              SnackBar(
+                content: const Text(
                   'Backup file not found. It may have been moved or deleted.',
                 ),
-                backgroundColor: Colors.red,
-                duration: Duration(seconds: 4),
+                backgroundColor:
+                    Theme.of(context).extension<AppColors>()!.expenseRed,
+                duration: const Duration(seconds: 4),
               ),
             );
           }
@@ -715,12 +730,13 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           await appState.reloadAfterRestore();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
+              SnackBar(
+                content: const Text(
                   'Error restoring backup. Your data is safe. Please try again.',
                 ),
-                backgroundColor: Colors.red,
-                duration: Duration(seconds: 4),
+                backgroundColor:
+                    Theme.of(context).extension<AppColors>()!.expenseRed,
+                duration: const Duration(seconds: 4),
               ),
             );
           }
@@ -741,7 +757,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(_getFriendlyErrorMessage(e)),
-              backgroundColor: Colors.red,
+              backgroundColor:
+                  Theme.of(context).extension<AppColors>()!.expenseRed,
               duration: const Duration(seconds: 4),
             ),
           );
@@ -808,7 +825,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor:
+                  Theme.of(context).extension<AppColors>()!.expenseRed,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -843,7 +863,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               content: Text(
                 'Deleted $deleted backup${deleted > 1 ? 's' : ''} successfully',
               ),
-              backgroundColor: Colors.green,
+              backgroundColor:
+                  Theme.of(context).extension<AppColors>()!.incomeGreen,
               duration: const Duration(seconds: 2),
             ),
           );
@@ -854,7 +875,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_getFriendlyErrorMessage(e)),
-            backgroundColor: Colors.red,
+            backgroundColor:
+                Theme.of(context).extension<AppColors>()!.expenseRed,
             duration: const Duration(seconds: 4),
           ),
         );
@@ -881,8 +903,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           _isSelectionMode
               ? '${_selectedBackups.length} selected'
               : 'Backup & Restore',
-          style: TextStyle(
-            fontSize: 20,
+          style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w400,
             color: theme.colorScheme.onSurface,
           ),
@@ -896,7 +917,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   ),
                 if (_selectedBackups.isNotEmpty)
                   IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
+                    icon: Icon(
+                      Icons.delete,
+                      color: theme.extension<AppColors>()!.expenseRed,
+                    ),
                     onPressed: _deleteSelectedBackups,
                   ),
               ]
@@ -907,7 +931,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           : RefreshIndicator(
               onRefresh: _loadBackups, // FIX: Pull-to-refresh capability
               child: ListView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(Spacing.screenPadding),
                 children: [
                   // Export Section
                   _SectionCard(
@@ -917,7 +941,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     color: theme.colorScheme.primary,
                     child: Column(
                       children: [
-                        const SizedBox(height: 12),
+                        const SizedBox(height: Spacing.sm),
                         // CRITICAL FIX: Clarify that Save Backup lets user choose location
                         ElevatedButton.icon(
                           onPressed: (_isExporting || _isRestoring)
@@ -946,19 +970,18 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
+                            horizontal: Spacing.sm,
+                            vertical: Spacing.xxs,
                           ),
                           child: Text(
                             'Choose where to save the backup file',
-                            style: TextStyle(
-                              fontSize: 11,
+                            style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
                             textAlign: TextAlign.center,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: Spacing.xs),
                         // CRITICAL FIX: Clarify that Share creates backup in app folder AND opens share menu
                         OutlinedButton.icon(
                           onPressed: (_isExporting || _isRestoring)
@@ -972,13 +995,12 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
+                            horizontal: Spacing.sm,
+                            vertical: Spacing.xxs,
                           ),
                           child: Text(
                             'Create backup and share via apps (also saved to Recent Backups)',
-                            style: TextStyle(
-                              fontSize: 11,
+                            style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
                             textAlign: TextAlign.center,
@@ -988,7 +1010,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: Spacing.xl),
 
                   // Restore Section
                   _SectionCard(
@@ -998,7 +1020,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     color: theme.colorScheme.tertiary,
                     child: Column(
                       children: [
-                        const SizedBox(height: 12),
+                        const SizedBox(height: Spacing.sm),
                         ElevatedButton.icon(
                           onPressed: (_isExporting || _isRestoring)
                               ? null
@@ -1026,11 +1048,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                             minimumSize: const Size(double.infinity, 48),
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: Spacing.xs),
                         Text(
                           '⚠️ Warning: This will replace all current data',
-                          style: TextStyle(
-                            fontSize: 12,
+                          style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.error,
                           ),
                         ),
@@ -1038,15 +1059,14 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: Spacing.xl),
 
                   // FIX: Recent Backups header with bulk select button
                   Row(
                     children: [
                       Text(
                         'RECENT BACKUPS',
-                        style: TextStyle(
-                          fontSize: 11,
+                        style: theme.textTheme.labelSmall?.copyWith(
                           fontWeight: FontWeight.w600,
                           letterSpacing: 1.2,
                           color: theme.colorScheme.onSurfaceVariant,
@@ -1060,7 +1080,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                           label: const Text('Select'),
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
+                              horizontal: Spacing.sm,
                               vertical: 6,
                             ),
                             minimumSize: Size.zero,
@@ -1069,19 +1089,19 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Spacing.sm),
 
                   if (_backupsWithInfo.isEmpty)
                     Container(
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(Spacing.xl),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
                       ),
                       child: Center(
                         child: Text(
                           'No backups found',
-                          style: TextStyle(
+                          style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
@@ -1122,7 +1142,9 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(_getFriendlyErrorMessage(e)),
-                                backgroundColor: Colors.red,
+                                backgroundColor: Theme.of(context)
+                                    .extension<AppColors>()!
+                                    .expenseRed,
                                 duration: const Duration(seconds: 4),
                               ),
                             );
@@ -1133,24 +1155,24 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 
                     // FIX: Show "Load More" button if there are more backups to load
                     if (_backupsWithInfo.length < _allBackupFiles.length) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: Spacing.sm),
                       Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(Spacing.md),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius:
+                              BorderRadius.circular(Spacing.radiusMedium),
                           border: Border.all(color: theme.colorScheme.outline),
                         ),
                         child: Column(
                           children: [
                             Text(
                               'Showing ${_backupsWithInfo.length} of ${_allBackupFiles.length} backups',
-                              style: TextStyle(
-                                fontSize: 13,
+                              style: theme.textTheme.bodyMedium?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: Spacing.sm),
                             OutlinedButton.icon(
                               onPressed: _loadingMore
                                   ? null
@@ -1205,10 +1227,10 @@ class _SectionCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(Spacing.cardPadding),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
         border: Border.all(color: theme.colorScheme.outline),
       ),
       child: Column(
@@ -1217,30 +1239,27 @@ class _SectionCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(Spacing.sm),
                 decoration: BoxDecoration(
                   color: color.withAlpha((255 * 0.1).round()),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                 ),
                 child: Icon(icon, color: color, size: 24),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: Spacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                      style: theme.textTheme.titleMedium?.copyWith(
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
@@ -1280,13 +1299,15 @@ class _BackupTile extends StatelessWidget {
     final theme = Theme.of(context);
     final formattedSize = BackupHelper().formatFileSize(size);
 
+    final appColors = theme.extension<AppColors>()!;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: Spacing.xs),
       decoration: BoxDecoration(
         color: isSelected
             ? theme.colorScheme.primaryContainer.withAlpha(100)
             : theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Spacing.radiusMedium),
         border: Border.all(
           color: isSelected
               ? theme.colorScheme.primary
@@ -1303,7 +1324,9 @@ class _BackupTile extends StatelessWidget {
           DateFormat.yMMMd().add_jm().format(
                 date,
               ), // FIX: Locale-aware date/time
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          style: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
         ),
         subtitle: Text(
           isSelectionMode ? formattedSize : '$formattedSize • Tap to restore',
@@ -1311,7 +1334,10 @@ class _BackupTile extends StatelessWidget {
         trailing: isSelectionMode
             ? null
             : IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                icon: Icon(
+                  Icons.delete_outline,
+                  color: appColors.expenseRed,
+                ),
                 onPressed: () async {
                   // FIX: Show backup date/time in delete confirmation
                   final formattedDate = DateFormat.yMMMd().add_jm().format(
@@ -1319,25 +1345,29 @@ class _BackupTile extends StatelessWidget {
                       ); // FIX: Locale-aware
                   final confirmed = await showDialog<bool>(
                     context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Delete Backup'),
-                      content: Text(
-                        'Delete backup from $formattedDate?\n\nThis cannot be undone.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancel'),
+                    builder: (context) {
+                      final dialogAppColors =
+                          Theme.of(context).extension<AppColors>()!;
+                      return AlertDialog(
+                        title: const Text('Delete Backup'),
+                        content: Text(
+                          'Delete backup from $formattedDate?\n\nThis cannot be undone.',
                         ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text(
-                            'Delete',
-                            style: TextStyle(color: Colors.red),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancel'),
                           ),
-                        ),
-                      ],
-                    ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: TextButton.styleFrom(
+                              foregroundColor: dialogAppColors.expenseRed,
+                            ),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      );
+                    },
                   );
                   if (confirmed == true) {
                     onDelete();

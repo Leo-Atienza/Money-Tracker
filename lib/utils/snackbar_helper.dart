@@ -1,5 +1,7 @@
 // FIX #27: Consistent SnackBar styling across the app
 import 'package:flutter/material.dart';
+import '../constants/spacing.dart';
+import '../main.dart';
 
 class SnackBarHelper {
   /// Show success message
@@ -7,19 +9,22 @@ class SnackBarHelper {
   static void showSuccess(BuildContext context, String message) {
     if (!context.mounted) return;
 
+    final appColors = Theme.of(context).extension<AppColors>()!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
             const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 12),
+            SizedBox(width: Spacing.sm),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: Colors.green[700],
+        backgroundColor: appColors.incomeGreen,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+        ),
       ),
     );
   }
@@ -29,19 +34,22 @@ class SnackBarHelper {
   static void showError(BuildContext context, String message) {
     if (!context.mounted) return;
 
+    final appColors = Theme.of(context).extension<AppColors>()!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
             const Icon(Icons.error, color: Colors.white),
-            const SizedBox(width: 12),
+            SizedBox(width: Spacing.sm),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: Colors.red[700],
+        backgroundColor: appColors.expenseRed,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 4),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+        ),
       ),
     );
   }
@@ -51,19 +59,22 @@ class SnackBarHelper {
   static void showWarning(BuildContext context, String message) {
     if (!context.mounted) return;
 
+    final appColors = Theme.of(context).extension<AppColors>()!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
             const Icon(Icons.warning, color: Colors.white),
-            const SizedBox(width: 12),
+            SizedBox(width: Spacing.sm),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: Colors.orange[700],
+        backgroundColor: appColors.warningOrange,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+        ),
       ),
     );
   }
@@ -73,19 +84,22 @@ class SnackBarHelper {
   static void showInfo(BuildContext context, String message) {
     if (!context.mounted) return;
 
+    final appColors = Theme.of(context).extension<AppColors>()!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
             const Icon(Icons.info, color: Colors.white),
-            const SizedBox(width: 12),
+            SizedBox(width: Spacing.sm),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: Colors.blue[700],
+        backgroundColor: appColors.infoBlue,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+        ),
       ),
     );
   }
@@ -104,7 +118,9 @@ class SnackBarHelper {
         content: Text(message),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+        ),
         action: SnackBarAction(
           label: 'UNDO',
           textColor: Colors.yellow[700],

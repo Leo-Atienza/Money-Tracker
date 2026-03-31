@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../utils/pin_security_helper.dart';
 import '../utils/haptic_helper.dart';
+import '../constants/spacing.dart';
+import '../main.dart';
 
 /// Screen for unlocking the app with PIN
 class PinUnlockScreen extends StatefulWidget {
@@ -80,12 +82,9 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.brightness == Brightness.dark
-          ? const Color(0xFF121212)
-          : const Color(0xFFFAFAFA),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(Spacing.screenPadding),
           child: Column(
             children: [
               const Spacer(),
@@ -96,7 +95,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                 height: 80,
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primary,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(Spacing.radiusXLarge),
                 ),
                 child: Icon(
                   Icons.account_balance_wallet,
@@ -105,13 +104,12 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: Spacing.screenPadding),
 
               // Title
               Text(
                 'Money Tracker',
-                style: TextStyle(
-                  fontSize: 28,
+                style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: theme.colorScheme.onSurface,
                 ),
@@ -122,13 +120,12 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
               // Instruction
               Text(
                 'Enter your PIN to unlock',
-                style: TextStyle(
-                  fontSize: 16,
+                style: theme.textTheme.titleMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: Spacing.xxl),
 
               // PIN dots indicator
               Row(
@@ -136,7 +133,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                 children: List.generate(_pinLength, (index) {
                   final isFilled = index < _enteredPin.length;
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       width: 16,
@@ -160,34 +157,38 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
 
               // Error message
               if (_errorMessage != null) ...[
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        color: Colors.red,
-                        size: 20,
+                const SizedBox(height: Spacing.screenPadding),
+                Builder(
+                  builder: (context) {
+                    final appColors = Theme.of(context).extension<AppColors>()!;
+                    return Container(
+                      padding: const EdgeInsets.all(Spacing.sm),
+                      decoration: BoxDecoration(
+                        color: appColors.expenseRed.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                       ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Colors.red,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            color: appColors.expenseRed,
+                            size: 20,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
+                          const SizedBox(width: Spacing.xs),
+                          Flexible(
+                            child: Text(
+                              _errorMessage!,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: appColors.expenseRed,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ],
 
@@ -196,7 +197,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
               // Number pad
               _buildNumberPad(theme),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: Spacing.screenPadding),
 
               // Forgot PIN hint - show after multiple failed attempts
               // FIX: Use global remaining attempts from PinSecurityHelper
@@ -207,14 +208,13 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                   },
                   child: Text(
                     'Forgot PIN?',
-                    style: TextStyle(
-                      fontSize: 14,
+                    style: theme.textTheme.labelLarge?.copyWith(
                       color: theme.colorScheme.primary,
                     ),
                   ),
                 ),
 
-              const SizedBox(height: 8),
+              const SizedBox(height: Spacing.xs),
             ],
           ),
         ),
@@ -228,7 +228,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
         // Rows 1-3
         for (var row = 0; row < 3; row++)
           Padding(
-            padding: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.only(bottom: Spacing.md),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(3, (col) {
@@ -252,7 +252,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
 
   Widget _buildNumberButton(String number, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
       child: InkWell(
         onTap: _isLoading ? null : () => _onNumberPressed(number),
         borderRadius: BorderRadius.circular(40),
@@ -266,8 +266,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
           child: Center(
             child: Text(
               number,
-              style: TextStyle(
-                fontSize: 28,
+              style: theme.textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w500,
                 color: theme.colorScheme.onSurface,
               ),
@@ -280,7 +279,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
 
   Widget _buildBackspaceButton(ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
       child: InkWell(
         onTap: _isLoading ? null : _onBackspacePressed,
         borderRadius: BorderRadius.circular(40),

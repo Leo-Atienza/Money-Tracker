@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/biometric_service.dart';
+import '../constants/spacing.dart';
+import '../main.dart';
 
 class BiometricLockScreen extends StatefulWidget {
   final VoidCallback onAuthenticated;
@@ -87,7 +89,7 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
       body: SafeArea(
         child: Center(
           child: Padding(
-            padding: const EdgeInsets.all(32.0),
+            padding: const EdgeInsets.all(Spacing.xxl),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -97,7 +99,7 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                   height: 100,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(Spacing.screenPadding),
                   ),
                   child: Icon(
                     Icons.account_balance_wallet,
@@ -106,25 +108,23 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: Spacing.xxl),
 
                 // Title
                 Text(
                   'Expense Tracker',
-                  style: TextStyle(
-                    fontSize: 28,
+                  style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w300,
                     color: theme.colorScheme.onSurface,
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: Spacing.md),
 
                 // Subtitle
                 Text(
                   'Your data is protected',
-                  style: TextStyle(
-                    fontSize: 14,
+                  style: theme.textTheme.labelLarge?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
@@ -133,7 +133,7 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
 
                 // Biometric Icon
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(Spacing.screenPadding),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: _isAuthenticating
@@ -149,49 +149,52 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: Spacing.xxl),
 
                 // Status Message
                 if (_isAuthenticating)
                   Text(
                     'Authenticating...',
-                    style: TextStyle(
-                      fontSize: 16,
+                    style: theme.textTheme.titleMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
 
                 // Error Message
                 if (_errorMessage.isNotEmpty && !_isAuthenticating)
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withAlpha(20),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red.withAlpha(50)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          color: Colors.red,
-                          size: 24,
+                  Builder(
+                    builder: (context) {
+                      final appColors = Theme.of(context).extension<AppColors>()!;
+                      return Container(
+                        padding: const EdgeInsets.all(Spacing.md),
+                        decoration: BoxDecoration(
+                          color: appColors.expenseRed.withAlpha(20),
+                          borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                          border: Border.all(color: appColors.expenseRed.withAlpha(50)),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            _errorMessage,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: theme.colorScheme.onSurface,
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: appColors.expenseRed,
+                              size: 24,
                             ),
-                          ),
+                            const SizedBox(width: Spacing.sm),
+                            Expanded(
+                              child: Text(
+                                _errorMessage,
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: Spacing.xxl),
 
                 // Retry Button
                 if (!_isAuthenticating && _errorMessage.isNotEmpty)
@@ -201,13 +204,13 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                     label: const Text('Try Again'),
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
+                        horizontal: Spacing.xxl,
+                        vertical: Spacing.md,
                       ),
                     ),
                   ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: Spacing.md),
 
                 // Use PIN Fallback Button
                 if (!_isAuthenticating)
@@ -238,13 +241,12 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
       barrierDismissible: true,
       builder: (context) => AlertDialog(
         backgroundColor: theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Spacing.radiusXLarge)),
         title: const Text('PIN Not Available'),
         content: Text(
           'Device credential authentication requires the local_auth package. '
           'Please use biometric authentication or contact support.',
-          style: TextStyle(
-            fontSize: 14,
+          style: theme.textTheme.labelLarge?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),

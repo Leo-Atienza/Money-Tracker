@@ -4,11 +4,15 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/app_state.dart';
 import '../models/income_model.dart';
+import '../models/category_model.dart';
+import '../models/tag_model.dart';
 import '../utils/currency_helper.dart';
 import '../utils/decimal_helper.dart';
 import '../utils/validators.dart';
 import '../utils/dialog_helpers.dart';
 import '../utils/date_helper.dart';
+import '../constants/spacing.dart';
+import '../main.dart';
 
 class AddIncomeScreen extends StatefulWidget {
   final Income? income; // For editing
@@ -225,7 +229,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error saving income: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
           ),
         );
       }
@@ -254,7 +258,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text('Delete', style: TextStyle(color: Theme.of(context).extension<AppColors>()!.expenseRed)),
           ),
         ],
       ),
@@ -369,8 +373,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
               hintText: 'Category name',
               border: const OutlineInputBorder(),
               helperText: 'Max 50 characters',
-              helperStyle: TextStyle(
-                fontSize: 11,
+              helperStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
@@ -431,11 +434,16 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final appState = context.watch<AppState>();
+    final appColors = theme.extension<AppColors>()!;
+    // Select only the display fields needed in this build method
+    final (incomeCategories, currency, allTags) =
+        context.select<AppState, (List<Category>, String, List<Tag>)>(
+      (s) => (s.incomeCategories, s.currency, s.allTags),
+    );
+    final appState = context.read<AppState>();
 
     // FIX #1: Set default category to first available if not set (prevents ghost categories)
-    final availableCategories =
-        appState.categories.where((c) => c.type == 'income').toList();
+    final availableCategories = incomeCategories;
     if (_selectedCategory == null && availableCategories.isNotEmpty) {
       _selectedCategory = availableCategories[0].name;
       _initialCategory = _selectedCategory;
@@ -461,7 +469,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                style: TextButton.styleFrom(foregroundColor: appColors.expenseRed),
                 child: const Text('Discard'),
               ),
             ],
@@ -497,17 +505,13 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                   : null,
             ),
             body: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              padding: const EdgeInsets.fromLTRB(Spacing.screenPadding, 0, Spacing.screenPadding, Spacing.screenPadding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     widget.income == null ? 'Add Income' : 'Edit Income',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w300,
-                      color: theme.colorScheme.onSurface,
-                    ),
+                    style: theme.textTheme.headlineMedium?.copyWith(color: theme.colorScheme.onSurface),
                   ),
                   const SizedBox(height: 40),
                   Form(
@@ -518,14 +522,9 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                         // Amount
                         Text(
                           'AMOUNT',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.2,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+                          style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: Spacing.sm),
                         TextFormField(
                           controller: _amountController,
                           autofocus: true,
@@ -537,7 +536,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                           style: const TextStyle(
                               fontSize: 32, fontWeight: FontWeight.w300),
                           decoration: InputDecoration(
-                            prefixText: appState.currency,
+                            prefixText: currency,
                             prefixStyle: const TextStyle(
                                 fontSize: 32, fontWeight: FontWeight.w300),
                             hintText: '0.00',
@@ -563,32 +562,27 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                         ),
 
                         Divider(color: theme.colorScheme.outline),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: Spacing.xxl),
 
                         // Category
                         Text(
                           'CATEGORY',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.2,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+                          style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: Spacing.sm),
                         // FIX: Improved scrollable category selection for better UX with many categories
                         ConstrainedBox(
                           constraints: const BoxConstraints(maxHeight: 220),
                           child: SingleChildScrollView(
                             physics: const BouncingScrollPhysics(),
                             child: Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
+                              spacing: Spacing.xs,
+                              runSpacing: Spacing.xs,
                               children: [
                                 // FIX #12: Show deleted/archived category if editing income with deleted category (with tooltip)
                                 if (widget.income != null &&
                                     _selectedCategory != null &&
-                                    !appState.incomeCategories.any(
+                                    !incomeCategories.any(
                                         (cat) => cat.name == _selectedCategory))
                                   Tooltip(
                                     message:
@@ -600,9 +594,9 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                                           Icon(Icons.archive_outlined,
                                               size: 16,
                                               color: theme.colorScheme.error),
-                                          const SizedBox(width: 4),
+                                          const SizedBox(width: Spacing.xxs),
                                           Text('$_selectedCategory (Archived)'),
-                                          const SizedBox(width: 4),
+                                          const SizedBox(width: Spacing.xxs),
                                           Icon(Icons.info_outline,
                                               size: 14,
                                               color: theme.colorScheme.error),
@@ -620,7 +614,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                                     ),
                                   ),
                                 // Regular category chips
-                                ...appState.incomeCategories.map((cat) {
+                                ...incomeCategories.map((cat) {
                                   final isSelected =
                                       _selectedCategory == cat.name;
                                   return ChoiceChip(
@@ -632,11 +626,11 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                                     },
                                     backgroundColor: theme
                                         .colorScheme.surfaceContainerHighest,
-                                    selectedColor: Colors.green
+                                    selectedColor: appColors.incomeGreen
                                         .withAlpha((255 * 0.2).round()),
                                     labelStyle: TextStyle(
                                       color: isSelected
-                                          ? Colors.green
+                                          ? appColors.incomeGreen
                                           : theme.colorScheme.onSurface,
                                       fontWeight: isSelected
                                           ? FontWeight.w600
@@ -644,7 +638,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                                     ),
                                     side: BorderSide(
                                       color: isSelected
-                                          ? Colors.green
+                                          ? appColors.incomeGreen
                                           : theme.colorScheme.outline,
                                     ),
                                   );
@@ -665,19 +659,14 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                           ),
                         ),
 
-                        const SizedBox(height: 32),
+                        const SizedBox(height: Spacing.xxl),
 
                         // Description
                         Text(
                           'DESCRIPTION (OPTIONAL)',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.2,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+                          style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: Spacing.sm),
                         // FIX #1 & #9: Add character counter, show truncation warning
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -693,19 +682,19 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                               decoration: InputDecoration(
                                 hintText: 'Add notes (optional)',
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                                   borderSide: BorderSide(
                                       color: theme.colorScheme.outline),
                                 ),
                                 enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                                   borderSide: BorderSide(
                                       color: theme.colorScheme.outline),
                                 ),
                                 focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(
-                                      color: Colors.green, width: 2),
+                                  borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                                  borderSide: BorderSide(
+                                      color: appColors.incomeGreen, width: 2),
                                 ),
                                 // FIX #9: Character counter
                                 counterText:
@@ -713,7 +702,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                                 counterStyle: TextStyle(
                                   color:
                                       _descriptionController.text.length > 180
-                                          ? Colors.orange
+                                          ? appColors.warningOrange
                                           : theme.colorScheme.onSurfaceVariant,
                                 ),
                               ),
@@ -723,21 +712,20 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                             if (_descriptionController.text.length > 180)
                               Padding(
                                 padding:
-                                    const EdgeInsets.only(top: 8, left: 12),
+                                    const EdgeInsets.only(top: Spacing.xs, left: Spacing.sm),
                                 child: Row(
                                   children: [
-                                    const Icon(
+                                    Icon(
                                       Icons.warning_amber_rounded,
                                       size: 16,
-                                      color: Colors.orange,
+                                      color: appColors.warningOrange,
                                     ),
                                     const SizedBox(width: 6),
                                     Expanded(
                                       child: Text(
                                         'Approaching character limit (${200 - _descriptionController.text.length} remaining)',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.orange,
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          color: appColors.warningOrange,
                                         ),
                                       ),
                                     ),
@@ -747,19 +735,14 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                           ],
                         ),
 
-                        const SizedBox(height: 32),
+                        const SizedBox(height: Spacing.xxl),
 
                         // Date
                         Text(
                           'DATE',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.2,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+                          style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: Spacing.sm),
                         InkWell(
                           onTap: () async {
                             // FIX #3: Limit date range to 5 years past, 1 year future
@@ -791,14 +774,14 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                                     backgroundColor: theme.colorScheme.surface,
                                     shape: RoundedRectangleBorder(
                                         borderRadius:
-                                            BorderRadius.circular(20)),
+                                            BorderRadius.circular(Spacing.radiusXLarge)),
                                     title: Row(
                                       children: [
                                         Icon(
                                           Icons.event_available,
-                                          color: Colors.orange,
+                                          color: appColors.warningOrange,
                                         ),
-                                        const SizedBox(width: 12),
+                                        const SizedBox(width: Spacing.sm),
                                         const Text('Future Date Selected'),
                                       ],
                                     ),
@@ -813,39 +796,37 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                                               color: theme.colorScheme
                                                   .onSurfaceVariant),
                                         ),
-                                        const SizedBox(height: 16),
+                                        const SizedBox(height: Spacing.md),
                                         Container(
-                                          padding: const EdgeInsets.all(12),
+                                          padding: const EdgeInsets.all(Spacing.sm),
                                           decoration: BoxDecoration(
-                                            color: Colors.orange.withAlpha(30),
+                                            color: appColors.warningOrange.withAlpha(30),
                                             borderRadius:
-                                                BorderRadius.circular(8),
+                                                BorderRadius.circular(Spacing.radiusSmall),
                                             border: Border.all(
-                                                color: Colors.orange
+                                                color: appColors.warningOrange
                                                     .withAlpha(100)),
                                           ),
                                           child: Row(
                                             children: [
                                               Icon(Icons.info_outline,
-                                                  color: Colors.orange,
+                                                  color: appColors.warningOrange,
                                                   size: 20),
-                                              const SizedBox(width: 8),
+                                              const SizedBox(width: Spacing.xs),
                                               Expanded(
                                                 child: Text(
                                                   'This income will appear in ${DateFormat.MMMM().format(date)}\'s transactions, not in the current month.',
-                                                  style: TextStyle(
-                                                      fontSize: 13,
-                                                      color: theme.colorScheme
-                                                          .onSurface),
+                                                  style: theme.textTheme.bodySmall?.copyWith(
+                                                      color: theme.colorScheme.onSurface),
                                                 ),
                                               ),
                                             ],
                                           ),
                                         ),
-                                        const SizedBox(height: 12),
+                                        const SizedBox(height: Spacing.sm),
                                         Text(
                                           'Do you want to continue?',
-                                          style: TextStyle(
+                                          style: theme.textTheme.bodyLarge?.copyWith(
                                             fontWeight: FontWeight.w600,
                                             color: theme.colorScheme.onSurface,
                                           ),
@@ -862,7 +843,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                                         onPressed: () =>
                                             Navigator.pop(context, true),
                                         style: TextButton.styleFrom(
-                                          foregroundColor: Colors.orange,
+                                          foregroundColor: appColors.warningOrange,
                                         ),
                                         child: const Text('Continue'),
                                       ),
@@ -879,24 +860,23 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                               setState(() => _selectedDate = DateHelper.normalize(date));
                             }
                           },
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                           child: Container(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(Spacing.md),
                             decoration: BoxDecoration(
                               border:
                                   Border.all(color: theme.colorScheme.outline),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                             ),
                             child: Row(
                               children: [
                                 Icon(Icons.calendar_today,
                                     color: theme.colorScheme.onSurfaceVariant),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: Spacing.sm),
                                 Text(
                                   DateFormat.yMMMMEEEEd().format(
                                       _selectedDate), // FIX: Locale-aware long date
-                                  style: TextStyle(
-                                    fontSize: 15,
+                                  style: theme.textTheme.bodyLarge?.copyWith(
                                     color: theme.colorScheme.onSurface,
                                   ),
                                 ),
@@ -905,24 +885,19 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                           ),
                         ),
 
-                        const SizedBox(height: 32),
+                        const SizedBox(height: Spacing.xxl),
 
                         // FIX #1: Tags Section
                         Text(
                           'TAGS (OPTIONAL)',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.2,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+                          style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: Spacing.sm),
                         Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
+                          spacing: Spacing.xs,
+                          runSpacing: Spacing.xs,
                           children: [
-                            ...appState.allTags.map((tag) {
+                            ...allTags.map((tag) {
                               final isSelected =
                                   _selectedTagIds.contains(tag.id);
                               return FilterChip(
@@ -940,10 +915,10 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                                 backgroundColor:
                                     theme.colorScheme.surfaceContainerHighest,
                                 selectedColor:
-                                    Colors.green.withAlpha((255 * 0.2).round()),
+                                    appColors.incomeGreen.withAlpha((255 * 0.2).round()),
                                 labelStyle: TextStyle(
                                   color: isSelected
-                                      ? Colors.green
+                                      ? appColors.incomeGreen
                                       : theme.colorScheme.onSurface,
                                   fontWeight: isSelected
                                       ? FontWeight.w600
@@ -951,7 +926,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                                 ),
                                 side: BorderSide(
                                   color: isSelected
-                                      ? Colors.green
+                                      ? appColors.incomeGreen
                                       : theme.colorScheme.outline,
                                 ),
                               );
@@ -971,7 +946,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                         ),
 
                         // Extra padding at bottom
-                        const SizedBox(height: 24),
+                        const SizedBox(height: Spacing.xl),
                       ],
                     ),
                   ),
@@ -980,7 +955,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
             ),
             // FIX #4: Use bottomNavigationBar instead of Positioned widget
             bottomNavigationBar: Container(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(Spacing.screenPadding),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
                 border: Border(
@@ -992,11 +967,11 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                 child: ElevatedButton(
                   onPressed: _isSaving ? null : _saveIncome,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
+                    backgroundColor: appColors.incomeGreen,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: Spacing.md),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                     ),
                     elevation: 0,
                   ),
@@ -1014,10 +989,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                           widget.income == null
                               ? 'Add Income'
                               : 'Update Income',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: theme.textTheme.titleMedium,
                         ),
                 ),
               ),
@@ -1042,9 +1014,9 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
             return Transform.scale(
               scale: value,
               child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: const BoxDecoration(
-                  color: Colors.green,
+                padding: const EdgeInsets.all(Spacing.screenPadding),
+                decoration: BoxDecoration(
+                  color: theme.extension<AppColors>()!.incomeGreen,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(

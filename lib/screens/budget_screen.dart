@@ -5,6 +5,8 @@ import '../utils/currency_helper.dart';
 import '../utils/accessibility_helper.dart';
 import '../utils/dialog_helpers.dart';
 import '../utils/haptic_helper.dart';
+import '../constants/spacing.dart';
+import '../main.dart';
 
 class BudgetScreen extends StatelessWidget {
   const BudgetScreen({super.key});
@@ -33,9 +35,6 @@ class BudgetScreen extends StatelessWidget {
         (textScaler.scale(_textScaleMultiplier) * _textScaleFactor);
 
     return Scaffold(
-      backgroundColor: theme.brightness == Brightness.dark
-          ? const Color(0xFF121212)
-          : const Color(0xFFFAFAFA),
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -45,9 +44,7 @@ class BudgetScreen extends StatelessWidget {
             toolbarHeight: toolbarHeight,
             title: Text(
               'Budgets',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w300,
+              style: theme.textTheme.headlineMedium?.copyWith(
                 color: theme.colorScheme.onSurface,
               ),
             ),
@@ -67,17 +64,16 @@ class BudgetScreen extends StatelessWidget {
                   onLongPress: () => context.read<AppState>().goToToday(),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: Spacing.xs,
+                      vertical: Spacing.xxs,
                     ),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                     ),
                     child: Text(
                       selectedMonthName,
-                      style: TextStyle(
-                        fontSize: 13,
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w500,
                         color: theme.colorScheme.onSurface,
                       ),
@@ -93,11 +89,11 @@ class BudgetScreen extends StatelessWidget {
             ],
           ),
           SliverPadding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(Spacing.screenPadding),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 const _MonthlySummaryCard(),
-                const SizedBox(height: 16),
+                const SizedBox(height: Spacing.md),
                 const _BudgetList(),
                 const SizedBox(height: 100),
               ]),
@@ -144,12 +140,14 @@ class BudgetScreen extends StatelessWidget {
           height: 350,
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(Spacing.radiusXLarge),
+            ),
           ),
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(Spacing.md),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -161,9 +159,7 @@ class BudgetScreen extends StatelessWidget {
                     ),
                     Text(
                       '$displayYear',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
+                      style: theme.textTheme.titleLarge?.copyWith(
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
@@ -238,7 +234,7 @@ class BudgetScreen extends StatelessWidget {
                           color: isSelected
                               ? theme.colorScheme.primary
                               : theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                           // FIX #13: Add border for current month
                           border: isCurrentMonth && !isSelected
                               ? Border.all(
@@ -299,21 +295,38 @@ class _MonthlySummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final appState = context.watch<AppState>();
+    final appColors = theme.extension<AppColors>()!;
     final screenWidth = MediaQuery.of(context).size.width;
 
     // Responsive padding: reduce on smaller screens
     final cardPadding = screenWidth < 360 ? 16.0 : 20.0;
 
-    final currency = appState.currency;
-    final totalBudget = appState.totalMonthlyBudget;
-    final totalSpent = appState.totalExpensesThisMonth;
-    final totalIncome = appState.totalIncomeThisMonth;
-    final carryover = appState.carryoverForSelectedMonth;
-    final hasCarryover = appState.hasCarryover;
-    final projectedBalance = appState.projectedEndOfMonthBalance;
-    final hasOverallBudget = appState.hasOverallMonthlyBudget;
-    final categoryBudgetTotal = appState.totalCategoryBudget;
+    // Select only the summary fields rendered in this card to avoid unnecessary rebuilds
+    final (
+      currency,
+      totalBudget,
+      totalSpent,
+      totalIncome,
+      carryover,
+      hasCarryover,
+      projectedBalance,
+      hasOverallBudget,
+      categoryBudgetTotal,
+    ) = context.select<AppState,
+        (String, double, double, double, double, bool, double, bool, double)>(
+      (s) => (
+        s.currency,
+        s.totalMonthlyBudget,
+        s.totalExpensesThisMonth,
+        s.totalIncomeThisMonth,
+        s.carryoverForSelectedMonth,
+        s.hasCarryover,
+        s.projectedEndOfMonthBalance,
+        s.hasOverallMonthlyBudget,
+        s.totalCategoryBudget,
+      ),
+    );
+    final appState = context.read<AppState>();
 
     // Calculate budget progress
     final budgetProgress =
@@ -321,13 +334,13 @@ class _MonthlySummaryCard extends StatelessWidget {
     final budgetPercentage = (budgetProgress * 100).clamp(0.0, 150.0);
 
     // Determine status color based on budget usage
-    Color budgetStatusColor = Colors.green;
+    Color budgetStatusColor = appColors.incomeGreen;
     IconData budgetStatusIcon = Icons.check_circle;
     if (budgetPercentage >= 95) {
-      budgetStatusColor = Colors.red;
+      budgetStatusColor = appColors.expenseRed;
       budgetStatusIcon = Icons.error;
     } else if (budgetPercentage >= 85) {
-      budgetStatusColor = Colors.orange;
+      budgetStatusColor = appColors.warningOrange;
       budgetStatusIcon = Icons.warning;
     } else if (budgetPercentage >= 75) {
       budgetStatusColor = Colors.amber;
@@ -338,7 +351,7 @@ class _MonthlySummaryCard extends StatelessWidget {
       padding: EdgeInsets.all(cardPadding),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
         border: Border.all(color: theme.colorScheme.outline),
       ),
       child: Column(
@@ -350,10 +363,7 @@ class _MonthlySummaryCard extends StatelessWidget {
             children: [
               Text(
                 'MONTHLY OVERVIEW',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
+                style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
@@ -384,7 +394,7 @@ class _MonthlySummaryCard extends StatelessWidget {
                   label: 'Income',
                   value:
                       '$currency${appState.formatAmount(totalIncome, decimalDigits: 0)}',
-                  valueColor: Colors.green,
+                  valueColor: appColors.incomeGreen,
                   icon: Icons.arrow_downward,
                 ),
               ),
@@ -399,7 +409,9 @@ class _MonthlySummaryCard extends StatelessWidget {
                     label: 'Carryover',
                     value:
                         '${carryover >= 0 ? '+' : ''}$currency${appState.formatAmount(carryover, decimalDigits: 0)}',
-                    valueColor: carryover >= 0 ? Colors.blue : Colors.red,
+                    valueColor: carryover >= 0
+                        ? appColors.infoBlue
+                        : appColors.expenseRed,
                     icon: carryover >= 0
                         ? Icons.trending_up
                         : Icons.trending_down,
@@ -410,21 +422,27 @@ class _MonthlySummaryCard extends StatelessWidget {
           ),
 
           if (hasCarryover) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: Spacing.xs),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Spacing.sm,
+                vertical: Spacing.xs,
+              ),
               decoration: BoxDecoration(
-                color: (carryover >= 0 ? Colors.blue : Colors.red).withValues(
-                  alpha: 0.1,
-                ),
-                borderRadius: BorderRadius.circular(8),
+                color: (carryover >= 0
+                        ? appColors.infoBlue
+                        : appColors.expenseRed)
+                    .withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.account_balance_wallet,
                     size: 16,
-                    color: carryover >= 0 ? Colors.blue : Colors.red,
+                    color: carryover >= 0
+                        ? appColors.infoBlue
+                        : appColors.expenseRed,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -513,7 +531,7 @@ class _MonthlySummaryCard extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                     color: totalBudget - totalSpent >= 0
                         ? theme.colorScheme.onSurfaceVariant
-                        : Colors.red,
+                        : appColors.expenseRed,
                   ),
                 ),
               ],
@@ -535,7 +553,9 @@ class _MonthlySummaryCard extends StatelessWidget {
                     Icon(
                       projectedBalance >= 0 ? Icons.savings : Icons.warning,
                       size: 18,
-                      color: projectedBalance >= 0 ? Colors.green : Colors.red,
+                      color: projectedBalance >= 0
+                          ? appColors.incomeGreen
+                          : appColors.expenseRed,
                     ),
                     const SizedBox(width: 8),
                     Flexible(
@@ -559,7 +579,9 @@ class _MonthlySummaryCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: projectedBalance >= 0 ? Colors.green : Colors.red,
+                    color: projectedBalance >= 0
+                        ? appColors.incomeGreen
+                        : appColors.expenseRed,
                   ),
                   textAlign: TextAlign.end,
                   overflow: TextOverflow.ellipsis,
@@ -882,9 +904,11 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
       child: Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(Spacing.radiusXLarge),
+          ),
         ),
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(Spacing.screenPadding),
         child: Form(
           key: _formKey,
           child: Column(
@@ -938,7 +962,7 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: Spacing.screenPadding),
               TextFormField(
                 controller: _amountController,
                 keyboardType: const TextInputType.numberWithOptions(
@@ -950,7 +974,7 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
                   labelText: 'Monthly Budget Amount',
                   prefixText: '$currency ',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                   ),
                 ),
                 validator: (value) {
@@ -961,7 +985,7 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
                   return null;
                 },
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: Spacing.screenPadding),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -969,9 +993,9 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.onSurface,
                     foregroundColor: theme.colorScheme.surface,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: Spacing.md),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                     ),
                   ),
                   child: _isSaving
@@ -1007,11 +1031,12 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
+        final appColors = Theme.of(context).extension<AppColors>()!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to save budget: $e'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
+            backgroundColor: appColors.expenseRed,
           ),
         );
       }
@@ -1079,6 +1104,7 @@ class _BudgetList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
     // Optimize: Select only budgets and currency, read appState for methods
     final budgetsAndCurrency =
         context.select<AppState, (List<dynamic>, String)>(
@@ -1108,14 +1134,14 @@ class _BudgetList extends StatelessWidget {
         final remaining = (budgetAmount ?? 0.0) - spent;
 
         // FIX: Change red threshold from 100% to 95% for earlier warning
-        Color statusColor = Colors.green;
+        Color statusColor = appColors.incomeGreen;
         IconData statusIcon = Icons.check_circle;
         if (percentage >= 95) {
-          statusColor = Colors.red;
+          statusColor = appColors.expenseRed;
           statusIcon =
               Icons.error; // CRITICAL FIX: Add icon for color-blind users
         } else if (percentage >= 85) {
-          statusColor = Colors.orange;
+          statusColor = appColors.warningOrange;
           statusIcon =
               Icons.warning; // CRITICAL FIX: Add icon for color-blind users
         } else if (percentage >= 75) {
@@ -1133,11 +1159,11 @@ class _BudgetList extends StatelessWidget {
           label: statusLabel,
           container: true,
           child: Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            padding: const EdgeInsets.all(20),
+            margin: const EdgeInsets.only(bottom: Spacing.md),
+            padding: const EdgeInsets.all(Spacing.cardPadding),
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(Spacing.radiusLarge),
               border: Border.all(color: theme.colorScheme.outline),
             ),
             child: Column(
@@ -1148,10 +1174,7 @@ class _BudgetList extends StatelessWidget {
                   children: [
                     Text(
                       budget.category.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.2,
+                      style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
@@ -1314,7 +1337,7 @@ class _BudgetList extends StatelessWidget {
                           fontSize: 13,
                           color: remaining >= 0
                               ? theme.colorScheme.onSurfaceVariant
-                              : Colors.red,
+                              : appColors.expenseRed,
                         ),
                       ),
                     ],
@@ -1336,10 +1359,10 @@ class _BudgetList extends StatelessWidget {
     return GestureDetector(
       onTap: () => BudgetScreen.showAddBudget(context),
       child: Container(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(Spacing.xxl),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(Spacing.radiusLarge),
           border: Border.all(color: theme.colorScheme.outline),
         ),
         child: Column(
@@ -1529,9 +1552,11 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
       child: Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(Spacing.radiusXLarge),
+          ),
         ),
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(Spacing.screenPadding),
         child: Form(
           key: _formKey,
           child: Column(
@@ -1540,21 +1565,19 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
             children: [
               Text(
                 widget.initialCategory != null ? 'Edit Budget' : 'Set Budget',
-                style: TextStyle(
-                  fontSize: 20,
+                style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w400,
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: Spacing.xs),
               Text(
                 'For $selectedMonthName',
-                style: TextStyle(
-                  fontSize: 13,
+                style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: Spacing.screenPadding),
               // Fixed dropdown using InputDecorator pattern to avoid deprecation
               InputDecorator(
                 decoration: InputDecoration(
@@ -1578,7 +1601,7 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: Spacing.md),
               TextFormField(
                 controller: _amountController,
                 keyboardType: const TextInputType.numberWithOptions(
@@ -1589,7 +1612,7 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
                   labelText: 'Monthly Budget',
                   prefixText: '$currency ',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                   ),
                 ),
                 validator: (value) {
@@ -1601,7 +1624,7 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
                   return null;
                 },
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: Spacing.screenPadding),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -1609,9 +1632,9 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.onSurface,
                     foregroundColor: theme.colorScheme.surface,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: Spacing.md),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                     ),
                   ),
                   child: _isSaving
@@ -1659,11 +1682,12 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
   }
 
   void _showError(String message) {
+    final appColors = Theme.of(context).extension<AppColors>()!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.red,
+        backgroundColor: appColors.expenseRed,
       ),
     );
   }

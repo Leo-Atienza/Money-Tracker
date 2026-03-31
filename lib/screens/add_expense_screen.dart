@@ -9,6 +9,8 @@ import '../utils/decimal_helper.dart';
 import '../utils/validators.dart';
 import '../utils/dialog_helpers.dart';
 import '../utils/date_helper.dart';
+import '../constants/spacing.dart';
+import '../main.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   final Expense? expense;
@@ -152,6 +154,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     if (!mounted) return;
 
     final appState = context.read<AppState>();
+    final appColors = Theme.of(context).extension<AppColors>()!;
     final amount = CurrencyHelper.parseDecimal(_amountController.text)!;
 
     // Check budget before saving (for both new and edited expenses)
@@ -175,7 +178,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('Please select a valid category. The selected category may have been deleted.'),
-              backgroundColor: Colors.red,
+              backgroundColor: appColors.expenseRed,
               action: SnackBarAction(
                 label: 'Add Category',
                 textColor: Colors.white,
@@ -246,11 +249,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             content: Row(
               children: [
                 const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 12),
+                const SizedBox(width: Spacing.sm),
                 Text(widget.expense == null ? 'Expense added successfully' : 'Expense updated successfully'),
               ],
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: appColors.incomeGreen,
             duration: const Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
           ),
@@ -286,7 +289,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error saving expense: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: appColors.expenseRed,
           ),
         );
       }
@@ -356,6 +359,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   Future<bool> _showBudgetWarningDialog(Map<String, dynamic> warning) async {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
     final appState = context.read<AppState>();
     final isExceed = warning['type'] == 'exceed';
     final categoryName = warning['category'] as String;
@@ -364,7 +368,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Spacing.radiusXLarge)),
         // FIX #16: Make category name prominent in title
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -373,32 +377,31 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               children: [
                 Icon(
                   isExceed ? Icons.warning_amber_rounded : Icons.info_outline,
-                  color: isExceed ? Colors.orange : Colors.blue,
+                  color: isExceed ? appColors.warningOrange : appColors.infoBlue,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: Spacing.sm),
                 Text(
                   isExceed ? 'Budget Exceeded' : 'Budget Warning',
-                  style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 20),
+                  style: theme.textTheme.titleLarge?.copyWith(color: theme.colorScheme.onSurface),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: Spacing.xs),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 6),
               decoration: BoxDecoration(
-                color: (isExceed ? Colors.orange : Colors.blue).withAlpha(30),
-                borderRadius: BorderRadius.circular(8),
+                color: (isExceed ? appColors.warningOrange : appColors.infoBlue).withAlpha(30),
+                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                 border: Border.all(
-                  color: (isExceed ? Colors.orange : Colors.blue).withAlpha(100),
+                  color: (isExceed ? appColors.warningOrange : appColors.infoBlue).withAlpha(100),
                 ),
               ),
               child: Text(
                 categoryName.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 13,
+                style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.2,
-                  color: isExceed ? Colors.orange : Colors.blue,
+                  color: isExceed ? appColors.warningOrange : appColors.infoBlue,
                 ),
               ),
             ),
@@ -411,27 +414,26 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             // CRITICAL FIX: Clarify which month's budget is being checked
             Text(
               'For ${DateFormat.MMMM().format(_selectedDate)}:',
-              style: TextStyle(
-                fontSize: 12,
+              style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: Spacing.xs),
             if (isExceed) ...[
               Text(
                 'This expense will exceed your ${warning['category']} budget by ${appState.currency}${(warning['overBy'] as double).toStringAsFixed(2)}',
-                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
-              const SizedBox(height: 16),
-              _buildBudgetProgressBar(warning, theme, appState),
+              const SizedBox(height: Spacing.md),
+              _buildBudgetProgressBar(warning, theme, appColors, appState),
             ] else ...[
               Text(
                 'This expense will use ${warning['percentage']}% of your ${warning['category']} budget.',
-                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
-              const SizedBox(height: 16),
-              _buildBudgetProgressBar(warning, theme, appState),
+              const SizedBox(height: Spacing.md),
+              _buildBudgetProgressBar(warning, theme, appColors, appState),
             ],
           ],
         ),
@@ -443,7 +445,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
-              foregroundColor: isExceed ? Colors.orange : theme.colorScheme.primary,
+              foregroundColor: isExceed ? appColors.warningOrange : theme.colorScheme.primary,
             ),
             child: Text(isExceed ? 'Add Anyway' : 'Continue'),
           ),
@@ -454,7 +456,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     return result ?? false;
   }
 
-  Widget _buildBudgetProgressBar(Map<String, dynamic> warning, ThemeData theme, AppState appState) {
+  Widget _buildBudgetProgressBar(Map<String, dynamic> warning, ThemeData theme, AppColors appColors, AppState appState) {
     final budgetAmount = warning['budgetAmount'] as double;
     final newTotal = warning['newTotal'] as double;
     final progress = (newTotal / budgetAmount).clamp(0.0, 1.5);
@@ -468,33 +470,32 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           children: [
             Text(
               'After this expense:',
-              style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             Text(
               '${appState.currency}${newTotal.toStringAsFixed(2)} / ${appState.currency}${budgetAmount.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontSize: 12,
+              style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: isExceed ? Colors.orange : theme.colorScheme.onSurface,
+                color: isExceed ? appColors.warningOrange : theme.colorScheme.onSurface,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: Spacing.xs),
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
             value: progress > 1 ? 1 : progress,
             minHeight: 8,
             backgroundColor: theme.colorScheme.surfaceContainerHighest,
-            color: isExceed ? Colors.orange : Colors.blue,
+            color: isExceed ? appColors.warningOrange : appColors.infoBlue,
           ),
         ),
         if (isExceed) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: Spacing.xxs),
           Text(
             '${((progress) * 100).round()}% of budget',
-            style: const TextStyle(fontSize: 11, color: Colors.orange),
+            style: theme.textTheme.labelSmall?.copyWith(color: appColors.warningOrange),
           ),
         ],
       ],
@@ -519,7 +520,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text('Delete', style: TextStyle(color: Theme.of(context).extension<AppColors>()!.expenseRed)),
           ),
         ],
       ),
@@ -572,11 +573,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 counterText: '${tagNameController.text.length}/50',
                 counterStyle: TextStyle(
                   color: tagNameController.text.length > 45
-                      ? Colors.orange
+                      ? Theme.of(context).extension<AppColors>()!.warningOrange
                       : null,
                 ),
                 helperText: 'Max 50 characters',
-                helperStyle: const TextStyle(fontSize: 11),
+                helperStyle: Theme.of(context).textTheme.bodySmall,
               ),
               textCapitalization: TextCapitalization.words,
               validator: (value) {
@@ -645,8 +646,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               hintText: 'Category name',
               border: const OutlineInputBorder(),
               helperText: 'Max 50 characters',
-              helperStyle: TextStyle(
-                fontSize: 11,
+              helperStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
@@ -706,6 +706,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
 
     // CRITICAL FIX: Optimize rebuilds - only watch specific fields needed
     final expenseCategories = context.select<AppState, List<dynamic>>((s) => s.expenseCategories);
@@ -738,7 +739,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                style: TextButton.styleFrom(foregroundColor: appColors.expenseRed),
                 child: const Text('Discard'),
               ),
             ],
@@ -776,17 +777,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             : null,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+        padding: const EdgeInsets.fromLTRB(Spacing.screenPadding, 0, Spacing.screenPadding, Spacing.screenPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               widget.expense == null ? 'Add Expense' : 'Edit Expense',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w300,
-                color: theme.colorScheme.onSurface,
-              ),
+              style: theme.textTheme.headlineMedium?.copyWith(color: theme.colorScheme.onSurface),
             ),
             const SizedBox(height: 40),
 
@@ -798,14 +795,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   // Amount
                   Text(
                     'AMOUNT',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Spacing.sm),
                   TextFormField(
                     controller: _amountController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -837,27 +829,22 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   ),
 
                   Divider(color: theme.colorScheme.outline),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: Spacing.xxl),
 
                   // Category
                   Text(
                     'CATEGORY',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Spacing.sm),
                   // FIX: Improved scrollable category selection for better UX with many categories
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 220),
                     child: SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
                       child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                        spacing: Spacing.xs,
+                        runSpacing: Spacing.xs,
                         children: [
                           // FIX: Show deleted/archived category if editing expense with deleted category
                           // FIX #9: Add tooltip explaining what "Archived" means
@@ -871,9 +858,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(Icons.archive_outlined, size: 16, color: theme.colorScheme.error),
-                                    const SizedBox(width: 4),
+                                    const SizedBox(width: Spacing.xxs),
                                     Text('$_selectedCategory (Archived)'),
-                                    const SizedBox(width: 4),
+                                    const SizedBox(width: Spacing.xxs),
                                     Icon(Icons.info_outline, size: 14, color: theme.colorScheme.error),
                                   ],
                                 ),
@@ -913,7 +900,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(Icons.add_circle_outline, size: 16, color: theme.colorScheme.primary),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: Spacing.xxs),
                                 const Text('New Category'),
                               ],
                             ),
@@ -930,22 +917,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: Spacing.xxl),
 
                   // Payment Method
                   Text(
                     'PAYMENT METHOD',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Spacing.sm),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: Spacing.xs,
+                    runSpacing: Spacing.xs,
                     children: ['Cash', 'Credit', 'Debit', 'Other'].map((method) {
                       final isSelected = _paymentMethod == method;
                       return ChoiceChip(
@@ -971,19 +953,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     }).toList(),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: Spacing.xxl),
 
                   // Description
                   Text(
                     'DESCRIPTION (OPTIONAL)',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Spacing.sm),
                   // FIX #29: Add character counter, FIX #30: Show truncation warning
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -999,22 +976,22 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         decoration: InputDecoration(
                           hintText: 'Add notes (optional)',
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                             borderSide: BorderSide(color: theme.colorScheme.outline),
                           ),
                           enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                             borderSide: BorderSide(color: theme.colorScheme.outline),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                             borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
                           ),
                           // FIX #29: Character counter
                           counterText: '${_descriptionController.text.length}/200',
                           counterStyle: TextStyle(
                             color: _descriptionController.text.length > 180
-                                ? Colors.orange
+                                ? appColors.warningOrange
                                 : theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
@@ -1023,22 +1000,19 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       // FIX #30: Show warning when approaching limit
                       if (_descriptionController.text.length > 180)
                         Padding(
-                          padding: const EdgeInsets.only(top: 8, left: 12),
+                          padding: const EdgeInsets.only(top: Spacing.xs, left: Spacing.sm),
                           child: Row(
                             children: [
                               Icon(
                                 Icons.warning_amber_rounded,
                                 size: 16,
-                                color: Colors.orange,
+                                color: appColors.warningOrange,
                               ),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
                                   'Approaching character limit (${200 - _descriptionController.text.length} remaining)',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.orange,
-                                  ),
+                                  style: theme.textTheme.bodyMedium?.copyWith(color: appColors.warningOrange),
                                 ),
                               ),
                             ],
@@ -1047,19 +1021,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: Spacing.xxl),
 
                   // Date
                   Text(
                     'DATE',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Spacing.sm),
                   InkWell(
                     onTap: () async {
                       // CRITICAL FIX: Use centralized date range helpers for consistency
@@ -1088,14 +1057,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                             context: context,
                             builder: (context) => AlertDialog(
                               backgroundColor: theme.colorScheme.surface,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Spacing.radiusXLarge)),
                               title: Row(
                                 children: [
                                   Icon(
                                     Icons.event_available,
-                                    color: Colors.orange,
+                                    color: appColors.warningOrange,
                                   ),
-                                  const SizedBox(width: 12),
+                                  const SizedBox(width: Spacing.sm),
                                   const Text('Future Date Selected'),
                                 ],
                               ),
@@ -1107,31 +1076,31 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                                     'You selected ${DateFormat.yMMMMd().format(date)}, which is in the future.',
                                     style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
                                   ),
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: Spacing.md),
                                   Container(
-                                    padding: const EdgeInsets.all(12),
+                                    padding: const EdgeInsets.all(Spacing.sm),
                                     decoration: BoxDecoration(
-                                      color: Colors.orange.withAlpha(30),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: Colors.orange.withAlpha(100)),
+                                      color: appColors.warningOrange.withAlpha(30),
+                                      borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                                      border: Border.all(color: appColors.warningOrange.withAlpha(100)),
                                     ),
                                     child: Row(
                                       children: [
-                                        Icon(Icons.info_outline, color: Colors.orange, size: 20),
-                                        const SizedBox(width: 8),
+                                        Icon(Icons.info_outline, color: appColors.warningOrange, size: 20),
+                                        const SizedBox(width: Spacing.xs),
                                         Expanded(
                                           child: Text(
                                             'This expense will appear in ${DateFormat.MMMM().format(date)}\'s transactions, not in the current month.',
-                                            style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface),
+                                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface),
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: Spacing.sm),
                                   Text(
                                     'Do you want to continue?',
-                                    style: TextStyle(
+                                    style: theme.textTheme.bodyLarge?.copyWith(
                                       fontWeight: FontWeight.w600,
                                       color: theme.colorScheme.onSurface,
                                     ),
@@ -1146,7 +1115,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                                 TextButton(
                                   onPressed: () => Navigator.pop(context, true),
                                   style: TextButton.styleFrom(
-                                    foregroundColor: Colors.orange,
+                                    foregroundColor: appColors.warningOrange,
                                   ),
                                   child: const Text('Continue'),
                                 ),
@@ -1164,45 +1133,37 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         setState(() => _selectedDate = DateHelper.normalize(date));
                       }
                     },
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                     child: Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(Spacing.md),
                       decoration: BoxDecoration(
                         border: Border.all(color: theme.colorScheme.outline),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                       ),
                       child: Row(
                         children: [
                           Icon(Icons.calendar_today, color: theme.colorScheme.onSurfaceVariant),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: Spacing.sm),
                           Text(
                             DateFormat.yMMMMEEEEd().format(_selectedDate), // FIX: Locale-aware long date
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: theme.colorScheme.onSurface,
-                            ),
+                            style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface),
                           ),
                         ],
                       ),
                     ),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: Spacing.xxl),
 
                   // FIX: Tags Section
                   Text(
                     'TAGS (OPTIONAL)',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Spacing.sm),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: Spacing.xs,
+                    runSpacing: Spacing.xs,
                     children: [
                       ...appState.allTags.map((tag) {
                         final isSelected = _selectedTagIds.contains(tag.id);
@@ -1239,7 +1200,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: Spacing.xxl),
 
                   // Quick "Mark as Paid" button for editing unpaid expenses
                   // FIX #5: Auto-save when Mark as Fully Paid is clicked
@@ -1266,10 +1227,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                             if (!mounted) return;
                             navigator.pop();
                             messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text('Marked as fully paid'),
-                                backgroundColor: Colors.green,
-                                duration: Duration(seconds: 2),
+                              SnackBar(
+                                content: const Text('Marked as fully paid'),
+                                backgroundColor: appColors.incomeGreen,
+                                duration: const Duration(seconds: 2),
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
@@ -1279,7 +1240,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('Error: $e'),
-                                backgroundColor: Colors.red,
+                                backgroundColor: appColors.expenseRed,
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
@@ -1291,17 +1252,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         },
                         icon: Icon(
                           Icons.check_circle_outline,
-                          color: Colors.green.shade600,
+                          color: appColors.incomeGreen,
                         ),
                         label: Text(
                           'Mark as Fully Paid',
-                          style: TextStyle(color: Colors.green.shade600),
+                          style: TextStyle(color: appColors.incomeGreen),
                         ),
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: Colors.green.shade400),
-                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                          side: BorderSide(color: appColors.incomeGreen),
+                          padding: const EdgeInsets.symmetric(vertical: Spacing.sm, horizontal: Spacing.md),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                           ),
                         ),
                       ),
@@ -1310,23 +1271,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   // Amount Paid (Optional)
                   Text(
                     'AMOUNT PAID (OPTIONAL)',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: Spacing.xxs),
                   // CRITICAL FIX: Clarify the difference between empty and 0
                   Text(
                     'Track partial payments (e.g., credit card). Leave at 0 if unpaid.',
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant.withAlpha(150),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Spacing.sm),
                   TextFormField(
                     controller: _amountPaidController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -1336,15 +1291,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       prefixText: appState.currency,
                       hintText: '0.00',
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                         borderSide: BorderSide(color: theme.colorScheme.outline),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                         borderSide: BorderSide(color: theme.colorScheme.outline),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                         borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
                       ),
                     ),
@@ -1368,7 +1323,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   ),
 
                   // Extra padding at bottom for keyboard
-                  const SizedBox(height: 24),
+                  const SizedBox(height: Spacing.xl),
                 ],
               ),
             ),
@@ -1378,7 +1333,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       // FIX #4: Use bottomNavigationBar instead of Positioned widget
       // This properly handles keyboard appearance and safe area
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(Spacing.screenPadding),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           border: Border(
@@ -1392,9 +1347,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.colorScheme.onSurface,
               foregroundColor: theme.colorScheme.surface,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: Spacing.md),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(Spacing.radiusMedium),
               ),
               elevation: 0,
             ),
@@ -1409,10 +1364,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             )
                 : Text(
               widget.expense == null ? 'Add Expense' : 'Update Expense',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: theme.textTheme.titleMedium,
             ),
           ),
         ),

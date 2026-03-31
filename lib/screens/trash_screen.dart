@@ -3,6 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/app_state.dart';
 import '../utils/date_helper.dart';
+import '../utils/premium_animations.dart';
+import '../constants/spacing.dart';
+import '../widgets/loading_skeleton.dart';
+import '../main.dart';
 
 class TrashScreen extends StatefulWidget {
   const TrashScreen({super.key});
@@ -63,6 +67,8 @@ class _TrashScreenState extends State<TrashScreen>
     final currency = context.select<AppState, String>((s) => s.currency);
     final appState = context.read<AppState>();
 
+    final appColors = theme.extension<AppColors>()!;
+
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
@@ -70,8 +76,7 @@ class _TrashScreenState extends State<TrashScreen>
         elevation: 0,
         title: Text(
           'Trash',
-          style: TextStyle(
-            fontSize: 20,
+          style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w400,
             color: theme.colorScheme.onSurface,
           ),
@@ -82,7 +87,7 @@ class _TrashScreenState extends State<TrashScreen>
             IconButton(
               onPressed: () => _showEmptyTrashDialog(context),
               tooltip: 'Empty Trash',
-              icon: const Icon(Icons.delete_forever, color: Colors.red),
+              icon: Icon(Icons.delete_forever, color: appColors.expenseRed),
             ),
         ],
         bottom: TabBar(
@@ -97,23 +102,22 @@ class _TrashScreenState extends State<TrashScreen>
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const TransactionListSkeleton()
           : Column(
               children: [
                 // Info banner
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(Spacing.md),
                   color: theme.colorScheme.surfaceContainerHighest,
                   child: Row(
                     children: [
                       const Icon(Icons.info_outline, size: 20),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: Spacing.sm),
                       Expanded(
                         child: Text(
                           'Items are permanently deleted after 30 days',
-                          style: TextStyle(
-                            fontSize: 13,
+                          style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
@@ -150,14 +154,13 @@ class _TrashScreenState extends State<TrashScreen>
         children: [
           Icon(
             Icons.delete_outline,
-            size: 64,
+            size: Spacing.iconSizeHuge,
             color: theme.colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Spacing.md),
           Text(
             message,
-            style: TextStyle(
-              fontSize: 16,
+            style: theme.textTheme.titleMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
@@ -171,18 +174,25 @@ class _TrashScreenState extends State<TrashScreen>
     AppState appState,
     String currency,
   ) {
+    final appColors = theme.extension<AppColors>()!;
+
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Spacing.md),
       itemCount: _deletedExpenses.length,
       itemBuilder: (context, index) {
         final item = _deletedExpenses[index];
         final daysRemaining = _getDaysRemaining(item['deletedAt'] as String);
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
+        return StaggeredListItem(
+          index: index,
+          child: Card(
+          margin: const EdgeInsets.only(bottom: Spacing.xs),
           color: theme.colorScheme.surfaceContainerHighest,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Spacing.md,
+              vertical: Spacing.sm,
+            ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -192,46 +202,41 @@ class _TrashScreenState extends State<TrashScreen>
                     children: [
                       Text(
                         item['description'] as String? ?? 'Expense',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
+                        style: theme.textTheme.titleMedium?.copyWith(
                           color: theme.colorScheme.onSurface,
-                          fontSize: 16,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: Spacing.xxs),
                       Text(
                         '${item['category']} • ${DateFormat('MMM d, yyyy').format(DateTime.parse(item['date'] as String))}',
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: Spacing.xxs),
                       Text(
                         '$daysRemaining days until permanent deletion',
-                        style: TextStyle(
-                          fontSize: 11,
+                        style: theme.textTheme.labelSmall?.copyWith(
                           color: daysRemaining <= 7
-                              ? Colors.red
+                              ? appColors.expenseRed
                               : theme.colorScheme.onSurfaceVariant,
+                          letterSpacing: 0,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: Spacing.md),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
                       '$currency${(item['amount'] as double).toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
+                      style: theme.textTheme.labelLarge?.copyWith(
                         color: theme.colorScheme.onSurface,
-                        fontSize: 14,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: Spacing.xs),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -245,15 +250,15 @@ class _TrashScreenState extends State<TrashScreen>
                             padding: EdgeInsets.zero,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: Spacing.xs),
                         SizedBox(
                           width: 32,
                           height: 32,
                           child: IconButton(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.delete_forever,
                               size: 20,
-                              color: Colors.red,
+                              color: appColors.expenseRed,
                             ),
                             onPressed: () =>
                                 _permanentlyDeleteExpense(item['id'] as int),
@@ -268,24 +273,32 @@ class _TrashScreenState extends State<TrashScreen>
               ],
             ),
           ),
+        ),
         );
       },
     );
   }
 
   Widget _buildIncomeList(ThemeData theme, AppState appState, String currency) {
+    final appColors = theme.extension<AppColors>()!;
+
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Spacing.md),
       itemCount: _deletedIncome.length,
       itemBuilder: (context, index) {
         final item = _deletedIncome[index];
         final daysRemaining = _getDaysRemaining(item['deletedAt'] as String);
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
+        return StaggeredListItem(
+          index: index,
+          child: Card(
+          margin: const EdgeInsets.only(bottom: Spacing.xs),
           color: theme.colorScheme.surfaceContainerHighest,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Spacing.md,
+              vertical: Spacing.sm,
+            ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -295,46 +308,41 @@ class _TrashScreenState extends State<TrashScreen>
                     children: [
                       Text(
                         item['description'] as String? ?? 'Income',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
+                        style: theme.textTheme.titleMedium?.copyWith(
                           color: theme.colorScheme.onSurface,
-                          fontSize: 16,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: Spacing.xxs),
                       Text(
                         '${item['category']} • ${DateFormat('MMM d, yyyy').format(DateTime.parse(item['date'] as String))}',
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: Spacing.xxs),
                       Text(
                         '$daysRemaining days until permanent deletion',
-                        style: TextStyle(
-                          fontSize: 11,
+                        style: theme.textTheme.labelSmall?.copyWith(
                           color: daysRemaining <= 7
-                              ? Colors.red
+                              ? appColors.expenseRed
                               : theme.colorScheme.onSurfaceVariant,
+                          letterSpacing: 0,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: Spacing.md),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
                       '$currency${(item['amount'] as double).toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.green,
-                        fontSize: 14,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: appColors.incomeGreen,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: Spacing.xs),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -348,15 +356,15 @@ class _TrashScreenState extends State<TrashScreen>
                             padding: EdgeInsets.zero,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: Spacing.xs),
                         SizedBox(
                           width: 32,
                           height: 32,
                           child: IconButton(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.delete_forever,
                               size: 20,
-                              color: Colors.red,
+                              color: appColors.expenseRed,
                             ),
                             onPressed: () =>
                                 _permanentlyDeleteIncome(item['id'] as int),
@@ -371,6 +379,7 @@ class _TrashScreenState extends State<TrashScreen>
               ],
             ),
           ),
+        ),
         );
       },
     );
@@ -430,7 +439,9 @@ class _TrashScreenState extends State<TrashScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -461,7 +472,9 @@ class _TrashScreenState extends State<TrashScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -479,6 +492,7 @@ class _TrashScreenState extends State<TrashScreen>
   Future<void> _showEmptyTrashDialog(BuildContext context) async {
     final appState = context.read<AppState>();
     final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final errorColor = Theme.of(context).extension<AppColors>()!.expenseRed;
 
     // FIX: Require typing "DELETE" to prevent accidental deletion
     final totalItems = _deletedExpenses.length + _deletedIncome.length;
@@ -522,7 +536,7 @@ class _TrashScreenState extends State<TrashScreen>
           SnackBar(
             content: Text('Error emptying trash: $e'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
+            backgroundColor: errorColor,
           ),
         );
       }
@@ -552,6 +566,9 @@ class _EmptyTrashConfirmDialogState extends State<_EmptyTrashConfirmDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
+
     return AlertDialog(
       title: const Text('Empty Trash?'),
       content: Column(
@@ -560,13 +577,15 @@ class _EmptyTrashConfirmDialogState extends State<_EmptyTrashConfirmDialog> {
         children: [
           Text(
             'This will permanently delete ${widget.totalItems} item${widget.totalItems == 1 ? '' : 's'}.',
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: theme.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: Spacing.xs),
           const Text('This action cannot be undone.'),
-          const SizedBox(height: 16),
+          const SizedBox(height: Spacing.md),
           const Text('Type DELETE to confirm:'),
-          const SizedBox(height: 8),
+          const SizedBox(height: Spacing.xs),
           TextField(
             controller: _textController,
             autofocus: true,
@@ -589,7 +608,9 @@ class _EmptyTrashConfirmDialogState extends State<_EmptyTrashConfirmDialog> {
             final isValid = value.text.trim().toUpperCase() == 'DELETE';
             return TextButton(
               onPressed: isValid ? () => Navigator.pop(context, true) : null,
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              style: TextButton.styleFrom(
+                foregroundColor: appColors.expenseRed,
+              ),
               child: const Text('Empty Trash'),
             );
           },

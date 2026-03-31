@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../models/account_model.dart';
 import '../utils/progress_indicator_helper.dart';
+import '../utils/premium_animations.dart';
+import '../constants/spacing.dart';
+import '../main.dart';
 
 class AccountManagerScreen extends StatelessWidget {
   const AccountManagerScreen({super.key});
@@ -12,9 +15,6 @@ class AccountManagerScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.brightness == Brightness.dark
-          ? const Color(0xFF121212)
-          : const Color(0xFFFAFAFA),
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -23,15 +23,13 @@ class AccountManagerScreen extends StatelessWidget {
             pinned: true,
             title: Text(
               'Accounts',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w300,
+              style: theme.textTheme.headlineMedium?.copyWith(
                 color: theme.colorScheme.onSurface,
               ),
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(Spacing.screenPadding),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 const _AccountList(),
@@ -65,6 +63,7 @@ class _AccountList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
     // Optimize: Watch specific data, read for methods
     final accountsData = context.select<AppState, (List<Account>, int?)>(
       (s) => (s.accounts, s.currentAccount?.id),
@@ -77,19 +76,25 @@ class _AccountList extends StatelessWidget {
       return _buildEmptyState(theme);
     }
 
-    return Column(
-      children: accounts.map((account) {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: accounts.length,
+      itemBuilder: (context, index) {
+        final account = accounts[index];
         final isCurrent = account.id == currentAccountId;
 
-        return Semantics(
+        return StaggeredListItem(
+          index: index,
+          child: Semantics(
           label:
               '${account.name}${account.isDefault ? ', default account' : ''}${isCurrent ? ', currently active' : ', tap to view options'}',
           button: !isCurrent,
           child: Container(
-            margin: const EdgeInsets.only(bottom: 16),
+            margin: const EdgeInsets.only(bottom: Spacing.md),
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(Spacing.radiusLarge),
               border: Border.all(
                 color: isCurrent
                     ? theme.colorScheme.onSurface
@@ -100,8 +105,8 @@ class _AccountList extends StatelessWidget {
             child: ExcludeSemantics(
               child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
+                  horizontal: Spacing.cardPadding,
+                  vertical: Spacing.sm,
                 ),
                 leading: Container(
                   width: 48,
@@ -112,7 +117,7 @@ class _AccountList extends StatelessWidget {
                             (255 * 0.1).round(),
                           )
                         : theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                   ),
                   child: Icon(
                     Icons.account_balance_wallet,
@@ -141,12 +146,12 @@ class _AccountList extends StatelessWidget {
                 trailing: isCurrent
                     ? Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
+                          horizontal: Spacing.sm,
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.onSurface,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                         ),
                         child: Text(
                           'Active',
@@ -185,17 +190,22 @@ class _AccountList extends StatelessWidget {
                               ),
                             ),
                           if (!account.isDefault)
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'delete',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.delete, color: Colors.red),
-                                  SizedBox(width: 12),
-                                  Text(
-                                    'Delete',
-                                    style: TextStyle(color: Colors.red),
-                                  ),
-                                ],
+                              child: Builder(
+                                builder: (context) {
+                                  final appColors = Theme.of(context).extension<AppColors>()!;
+                                  return Row(
+                                    children: [
+                                      Icon(Icons.delete, color: appColors.expenseRed),
+                                      const SizedBox(width: Spacing.sm),
+                                      Text(
+                                        'Delete',
+                                        style: TextStyle(color: appColors.expenseRed),
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
                             ),
                         ],
@@ -227,20 +237,20 @@ class _AccountList extends StatelessWidget {
                                     Container(
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
-                                        color: Colors.blue.withAlpha(20),
-                                        borderRadius: BorderRadius.circular(8),
+                                        color: appColors.infoBlue.withAlpha(20),
+                                        borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                                         border: Border.all(
-                                          color: Colors.blue.withAlpha(100),
+                                          color: appColors.infoBlue.withAlpha(100),
                                         ),
                                       ),
                                       child: Row(
                                         children: [
-                                          const Icon(
+                                          Icon(
                                             Icons.info_outline,
-                                            color: Colors.blue,
+                                            color: appColors.infoBlue,
                                             size: 20,
                                           ),
-                                          const SizedBox(width: 12),
+                                          const SizedBox(width: Spacing.sm),
                                           Expanded(
                                             child: Text(
                                               'You\'ll see transactions and budgets for this account.',
@@ -333,34 +343,39 @@ class _AccountList extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(height: 12),
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.withAlpha(20),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: Colors.blue.withAlpha(100),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.info_outline,
-                                        color: Colors.blue,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          'You\'ll see transactions and budgets for this account.',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: theme.colorScheme.onSurface,
-                                          ),
+                                Builder(
+                                  builder: (context) {
+                                    final appColors = Theme.of(context).extension<AppColors>()!;
+                                    return Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: appColors.infoBlue.withAlpha(20),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: appColors.infoBlue.withAlpha(100),
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.info_outline,
+                                            color: appColors.infoBlue,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Text(
+                                              'You\'ll see transactions and budgets for this account.',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: theme.colorScheme.onSurface,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
                                 ),
                               ],
                             ),
@@ -395,8 +410,9 @@ class _AccountList extends StatelessWidget {
               ),
             ),
           ),
+        ),
         );
-      }).toList(),
+      },
     );
   }
 
@@ -435,6 +451,7 @@ class _AccountList extends StatelessWidget {
 
   void _confirmDelete(BuildContext context, int id) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
     final appState = context.read<AppState>();
 
     // FIX #1: Get transaction count before showing dialog
@@ -446,15 +463,17 @@ class _AccountList extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Spacing.radiusXLarge),
+        ),
         title: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.warning_amber_rounded,
-              color: Colors.red,
+              color: appColors.expenseRed,
               size: 28,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: Spacing.sm),
             Text(
               'Delete Account?',
               style: TextStyle(color: theme.colorScheme.onSurface),
@@ -473,18 +492,18 @@ class _AccountList extends StatelessWidget {
                 color: theme.colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Spacing.md),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(Spacing.sm),
               decoration: BoxDecoration(
-                color: Colors.red.withAlpha(20),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red.withAlpha(100)),
+                color: appColors.expenseRed.withAlpha(20),
+                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                border: Border.all(color: appColors.expenseRed.withAlpha(100)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.delete_forever, color: Colors.red, size: 24),
-                  const SizedBox(width: 12),
+                  Icon(Icons.delete_forever, color: appColors.expenseRed, size: 24),
+                  const SizedBox(width: Spacing.sm),
                   Expanded(
                     child: Text(
                       'All transactions, budgets, and data in this account will be permanently deleted.',
@@ -532,7 +551,7 @@ class _AccountList extends StatelessWidget {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Account "${account.name}" moved to trash'),
-                    backgroundColor: Colors.green,
+                    backgroundColor: appColors.incomeGreen,
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
@@ -540,15 +559,15 @@ class _AccountList extends StatelessWidget {
                 if (!context.mounted) return;
                 ProgressIndicatorHelper.hide(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Cannot delete default account'),
-                    backgroundColor: Colors.red,
+                  SnackBar(
+                    content: const Text('Cannot delete default account'),
+                    backgroundColor: appColors.expenseRed,
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
               }
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: appColors.expenseRed),
             child: const Text('Delete Permanently'),
           ),
         ],
@@ -652,11 +671,12 @@ class _AddAccountDialogState extends State<_AddAccountDialog> {
   }
 
   void _showError(String message) {
+    final appColors = Theme.of(context).extension<AppColors>()!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.red,
+        backgroundColor: appColors.expenseRed,
       ),
     );
   }
@@ -722,10 +742,7 @@ class _DeletedAccountsSectionState extends State<_DeletedAccountsSection> {
                 const SizedBox(width: 8),
                 Text(
                   'RECENTLY DELETED',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.2,
+                  style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
@@ -772,12 +789,13 @@ class _DeletedAccountsSectionState extends State<_DeletedAccountsSection> {
             final daysRemaining =
                 30 - DateTime.now().difference(deletedAt).inDays;
 
+            final appColors = theme.extension<AppColors>()!;
             return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: Spacing.sm),
+              padding: const EdgeInsets.all(Spacing.md),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                 border: Border.all(color: theme.colorScheme.outline),
               ),
               child: Row(
@@ -802,10 +820,9 @@ class _DeletedAccountsSectionState extends State<_DeletedAccountsSection> {
                         const SizedBox(height: 2),
                         Text(
                           '$daysRemaining days remaining',
-                          style: TextStyle(
-                            fontSize: 12,
+                          style: theme.textTheme.bodySmall?.copyWith(
                             color: daysRemaining <= 7
-                                ? Colors.orange
+                                ? appColors.warningOrange
                                 : theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
@@ -835,23 +852,25 @@ class _DeletedAccountsSectionState extends State<_DeletedAccountsSection> {
     try {
       await appState.restoreDeletedAccount(deletedId);
       if (!mounted) return;
+      final appColors = Theme.of(context).extension<AppColors>()!;
       ProgressIndicatorHelper.hide(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account restored successfully'),
+        SnackBar(
+          content: const Text('Account restored successfully'),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.green,
+          backgroundColor: appColors.incomeGreen,
         ),
       );
       await _loadDeletedAccounts();
     } catch (e) {
       if (!mounted) return;
+      final appColors = Theme.of(context).extension<AppColors>()!;
       ProgressIndicatorHelper.hide(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to restore account: $e'),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red,
+          backgroundColor: appColors.expenseRed,
         ),
       );
     }

@@ -19,6 +19,8 @@ import 'budget_screen.dart';
 import 'pin_setup_screen.dart';
 import 'export_data_screen.dart';
 import '../utils/pin_security_helper.dart';
+import '../constants/spacing.dart';
+import '../main.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -31,12 +33,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final appState = context.watch<AppState>();
+    final appColors = theme.extension<AppColors>()!;
+
+    // Select only the fields rendered in this build method to avoid unnecessary rebuilds
+    final (
+      currentAccountName,
+      themeMode,
+      showTransactionColors,
+      transactionColorIntensity,
+      currencyCode,
+      currency,
+    ) = context.select<AppState, (String, String, bool, double, String, String)>(
+      (s) => (
+        s.currentAccount?.name ?? 'Main Account',
+        s.themeMode,
+        s.showTransactionColors,
+        s.transactionColorIntensity,
+        s.currencyCode,
+        s.currency,
+      ),
+    );
+    final appState = context.read<AppState>();
 
     return Scaffold(
-      backgroundColor: theme.brightness == Brightness.dark
-          ? const Color(0xFF121212)
-          : const Color(0xFFFAFAFA),
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -45,25 +64,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             pinned: true,
             title: Text(
               'Settings',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w300,
+              style: theme.textTheme.headlineMedium?.copyWith(
                 color: theme.colorScheme.onSurface,
               ),
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(Spacing.screenPadding),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 // ACCOUNTS
                 const _SectionHeader(title: 'ACCOUNTS'),
-                const SizedBox(height: 12),
+                const SizedBox(height: Spacing.sm),
                 _SettingsCard(
                   children: [
                     _SettingsTile(
                       title: 'Current Account',
-                      subtitle: appState.currentAccount?.name ?? 'Main Account',
+                      subtitle: currentAccountName,
                       icon: Icons.account_balance_wallet_outlined,
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => _showAccountPicker(context),
@@ -71,24 +88,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: Spacing.xxl),
 
                 // APPEARANCE
                 const _SectionHeader(title: 'APPEARANCE'),
-                const SizedBox(height: 12),
+                const SizedBox(height: Spacing.sm),
                 _SettingsCard(
                   children: [
                     // FIX: Theme mode picker with tri-state (Light, Dark, System)
                     _SettingsTile(
                       title: 'Theme',
-                      subtitle: appState.themeMode == 'light'
+                      subtitle: themeMode == 'light'
                           ? 'Light'
-                          : appState.themeMode == 'dark'
+                          : themeMode == 'dark'
                               ? 'Dark'
                               : 'Follow System',
-                      icon: appState.themeMode == 'light'
+                      icon: themeMode == 'light'
                           ? Icons.light_mode
-                          : appState.themeMode == 'dark'
+                          : themeMode == 'dark'
                               ? Icons.dark_mode
                               : Icons.brightness_auto,
                       trailing: const Icon(Icons.chevron_right),
@@ -97,23 +114,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const _Divider(),
                     _SettingsTile(
                       title: 'Transaction Colors',
-                      subtitle: appState.showTransactionColors
+                      subtitle: showTransactionColors
                           ? 'Category colors shown on cards'
                           : 'Clean white/dark cards',
                       icon: Icons.palette_outlined,
                       trailing: Switch(
-                        value: appState.showTransactionColors,
+                        value: showTransactionColors,
                         onChanged: (value) =>
                             appState.toggleShowTransactionColors(value),
                       ),
                     ),
                     // Show intensity slider when transaction colors are enabled
-                    if (appState.showTransactionColors) ...[
+                    if (showTransactionColors) ...[
                       const _Divider(),
                       Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
+                          horizontal: Spacing.md,
+                          vertical: Spacing.sm,
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,28 +142,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   size: 20,
                                   color: theme.colorScheme.primary,
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: Spacing.sm),
                                 Expanded(
                                   child: Text(
                                     'Color Intensity',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w500,
+                                    style: theme.textTheme.titleSmall?.copyWith(
                                       color: theme.colorScheme.onSurface,
                                     ),
                                   ),
                                 ),
                                 Text(
-                                  '${(appState.transactionColorIntensity * 100).round()}%',
-                                  style: TextStyle(
-                                    fontSize: 13,
+                                  '${(transactionColorIntensity * 100).round()}%',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
                                     color: theme.colorScheme.primary,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: Spacing.xs),
                             SliderTheme(
                               data: SliderTheme.of(context).copyWith(
                                 trackHeight: 4,
@@ -155,7 +169,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                               ),
                               child: Slider(
-                                value: appState.transactionColorIntensity,
+                                value: transactionColorIntensity,
                                 min: 0.1,
                                 max: 1.0,
                                 divisions: 9,
@@ -168,15 +182,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               children: [
                                 Text(
                                   'Subtle',
-                                  style: TextStyle(
-                                    fontSize: 11,
+                                  style: theme.textTheme.bodySmall?.copyWith(
                                     color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                                 Text(
                                   'Vivid',
-                                  style: TextStyle(
-                                    fontSize: 11,
+                                  style: theme.textTheme.bodySmall?.copyWith(
                                     color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
@@ -193,20 +205,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 // SECURITY
                 const _SectionHeader(title: 'SECURITY'),
-                const SizedBox(height: 12),
+                const SizedBox(height: Spacing.sm),
                 _PinSecurityCard(),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: Spacing.xxl),
 
                 // PREFERENCES
                 const _SectionHeader(title: 'PREFERENCES'),
-                const SizedBox(height: 12),
+                const SizedBox(height: Spacing.sm),
                 _SettingsCard(
                   children: [
                     _SettingsTile(
                       title: 'Currency',
                       subtitle:
-                          '${CurrencyHelper.getName(appState.currencyCode)} (${appState.currency})',
+                          '${CurrencyHelper.getName(currencyCode)} ($currency)',
                       icon: Icons.attach_money,
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => _showCurrencyPicker(context),
@@ -231,7 +243,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: 'Recurring Income',
                       subtitle: 'Auto-create monthly income',
                       icon: Icons.repeat,
-                      iconColor: Colors.green,
+                      iconColor: appColors.incomeGreen,
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () {
                         Navigator.push(
@@ -269,11 +281,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: Spacing.xxl),
 
                 // INSIGHTS
                 const _SectionHeader(title: 'INSIGHTS'),
-                const SizedBox(height: 12),
+                const SizedBox(height: Spacing.sm),
                 _SettingsCard(
                   children: [
                     _SettingsTile(
@@ -304,11 +316,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: Spacing.xxl),
 
                 // DATA & BACKUP
                 const _SectionHeader(title: 'DATA & BACKUP'),
-                const SizedBox(height: 12),
+                const SizedBox(height: Spacing.sm),
                 _SettingsCard(
                   children: [
                     _SettingsTile(
@@ -352,11 +364,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: Spacing.xxl),
 
                 // NOTIFICATIONS
                 const _SectionHeader(title: 'NOTIFICATIONS'),
-                const SizedBox(height: 12),
+                const SizedBox(height: Spacing.sm),
                 _SettingsCard(
                   children: [
                     _SettingsTile(
@@ -376,7 +388,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: Spacing.xxl),
 
                 // APP INFO
                 Center(
@@ -384,16 +396,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       Text(
                         'Money Tracker',
-                        style: TextStyle(
-                          fontSize: 13,
+                        style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: Spacing.xxs),
                       Text(
                         'Made by Leo Atienza',
-                        style: TextStyle(
-                          fontSize: 11,
+                        style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant.withAlpha(
                             (255 * 0.6).round(),
                           ),
@@ -423,26 +433,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required VoidCallback onTap,
   }) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.xs),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Spacing.radiusMedium),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(Spacing.sm),
           decoration: BoxDecoration(
             border: Border.all(
-              color: isSelected ? Colors.blue : theme.colorScheme.outline,
+              color: isSelected ? appColors.infoBlue : theme.colorScheme.outline,
               width: isSelected ? 2 : 1,
             ),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(Spacing.radiusMedium),
           ),
           child: Row(
             children: [
               Icon(
                 icon,
-                color: isSelected ? Colors.blue : theme.colorScheme.onSurface,
+                color: isSelected ? appColors.infoBlue : theme.colorScheme.onSurface,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -451,8 +462,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     Text(
                       title,
-                      style: TextStyle(
-                        fontSize: 16,
+                      style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight:
                             isSelected ? FontWeight.w600 : FontWeight.normal,
                         color: theme.colorScheme.onSurface,
@@ -461,8 +471,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     if (subtitle != null)
                       Text(
                         subtitle,
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
@@ -470,14 +479,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               if (previewColors != null) ...[
-                const SizedBox(width: 12),
+                const SizedBox(width: Spacing.sm),
                 // Preview card showing theme colors
                 Container(
                   width: 60,
                   height: 40,
                   decoration: BoxDecoration(
                     color: previewColors['surface'],
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(Spacing.radiusSmall - 2),
                     border: Border.all(
                       color: theme.colorScheme.outline.withAlpha(50),
                     ),
@@ -507,8 +516,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
               if (isSelected) ...[
-                const SizedBox(width: 12),
-                const Icon(Icons.check_circle, color: Colors.blue),
+                const SizedBox(width: Spacing.sm),
+                Icon(Icons.check_circle, color: appColors.infoBlue),
               ],
             ],
           ),
@@ -520,6 +529,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // FIX: Theme picker with tri-state options
   void _showThemePicker(BuildContext context) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
     final appState = context.read<AppState>();
 
     showModalBottomSheet(
@@ -528,12 +538,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) => Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(Spacing.radiusXLarge)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 16),
+            const SizedBox(height: Spacing.md),
             Container(
               height: 4,
               width: 40,
@@ -542,16 +552,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: Spacing.xl),
             Text(
               'Choose Theme',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+              style: theme.textTheme.titleLarge?.copyWith(
                 color: theme.colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Spacing.md),
             // FIX #32: Theme option with preview card
             _buildThemeOption(
               context,
@@ -561,7 +569,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               previewColors: {
                 'surface': const Color(0xFFFAFAFA),
                 'onSurface': const Color(0xFF000000),
-                'primary': Colors.blue,
+                'primary': appColors.infoBlue,
               },
               onTap: () {
                 appState.setThemeMode('light');
@@ -576,7 +584,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               previewColors: {
                 'surface': const Color(0xFF121212),
                 'onSurface': const Color(0xFFFFFFFF),
-                'primary': Colors.blue,
+                'primary': appColors.infoBlue,
               },
               onTap: () {
                 appState.setThemeMode('dark');
@@ -595,7 +603,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Navigator.pop(context);
               },
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: Spacing.xl),
           ],
         ),
       ),
@@ -614,20 +622,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
         height: MediaQuery.of(context).size.height * 0.6,
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(Spacing.radiusXLarge)),
         ),
         child: Column(
           children: [
             // Header
             Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(Spacing.screenPadding),
               child: Row(
                 children: [
                   Expanded(
                     child: Text(
                       'Select Currency',
-                      style: TextStyle(
-                        fontSize: 20,
+                      style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w400,
                         color: theme.colorScheme.onSurface,
                       ),
@@ -656,7 +663,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       height: 40,
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                       ),
                       child: Center(
                         child: Text(
@@ -741,10 +748,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await appState.changeCurrency(newCode);
 
         if (context.mounted) {
+          final appColors = Theme.of(context).extension<AppColors>()!;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Currency changed'),
-              backgroundColor: Colors.green,
+            SnackBar(
+              content: const Text('Currency changed'),
+              backgroundColor: appColors.incomeGreen,
             ),
           );
         }
@@ -764,20 +772,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
         height: MediaQuery.of(context).size.height * 0.5,
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(Spacing.radiusXLarge)),
         ),
         child: Column(
           children: [
             // Header
             Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(Spacing.screenPadding),
               child: Row(
                 children: [
                   Expanded(
                     child: Text(
                       'Select Account',
-                      style: TextStyle(
-                        fontSize: 20,
+                      style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w400,
                         color: theme.colorScheme.onSurface,
                       ),
@@ -812,7 +819,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       height: 40,
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                       ),
                       child: Center(
                         child: Icon(
@@ -945,6 +952,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showAccountOptionsMenu(BuildContext context, Account account) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
 
     showModalBottomSheet(
       context: context,
@@ -952,26 +960,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) => Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(Spacing.radiusXLarge)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             // Header
             Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(Spacing.screenPadding),
               child: Row(
                 children: [
                   Icon(
                     Icons.account_balance_wallet,
                     color: theme.colorScheme.onSurface,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: Spacing.sm),
                   Expanded(
                     child: Text(
                       account.name,
-                      style: TextStyle(
-                        fontSize: 20,
+                      style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w400,
                         color: theme.colorScheme.onSurface,
                       ),
@@ -991,10 +998,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Colors.orange.withAlpha(30),
-                  borderRadius: BorderRadius.circular(8),
+                  color: appColors.warningOrange.withAlpha(30),
+                  borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                 ),
-                child: const Icon(Icons.refresh, color: Colors.orange),
+                child: Icon(Icons.refresh, color: appColors.warningOrange),
               ),
               title: const Text('Reset Account'),
               subtitle: const Text('Delete all data but keep account'),
@@ -1010,10 +1017,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Colors.red.withAlpha(30),
-                  borderRadius: BorderRadius.circular(8),
+                  color: appColors.expenseRed.withAlpha(30),
+                  borderRadius: BorderRadius.circular(Spacing.radiusSmall),
                 ),
-                child: const Icon(Icons.delete_forever, color: Colors.red),
+                child: Icon(Icons.delete_forever, color: appColors.expenseRed),
               ),
               title: const Text('Delete Account'),
               subtitle: const Text('Permanently delete account and all data'),
@@ -1023,7 +1030,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: Spacing.xl),
           ],
         ),
       ),
@@ -1032,21 +1039,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showResetAccountDialog(BuildContext context, Account account) async {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
     final appState = context.read<AppState>();
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Spacing.radiusXLarge)),
         title: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.warning_amber_rounded,
-              color: Colors.orange,
+              color: appColors.warningOrange,
               size: 28,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: Spacing.sm),
             Text(
               'Reset Account?',
               style: TextStyle(color: theme.colorScheme.onSurface),
@@ -1059,15 +1067,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Text(
               'Reset "${account.name}"?',
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Spacing.md),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(Spacing.md),
               decoration: BoxDecoration(
-                color: Colors.orange.withAlpha(30),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.withAlpha(100)),
+                color: appColors.warningOrange.withAlpha(30),
+                borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                border: Border.all(color: appColors.warningOrange.withAlpha(100)),
               ),
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1090,10 +1098,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            const Text(
+            const SizedBox(height: Spacing.md),
+            Text(
               'This action cannot be undone.',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+              style: TextStyle(color: appColors.expenseRed, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -1104,7 +1112,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.orange),
+            style: TextButton.styleFrom(foregroundColor: appColors.warningOrange),
             child: const Text('Reset Account'),
           ),
         ],
@@ -1123,7 +1131,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Account "${account.name}" has been reset'),
-            backgroundColor: Colors.green,
+            backgroundColor: Theme.of(context).extension<AppColors>()!.incomeGreen,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1133,7 +1141,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error resetting account: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1143,21 +1151,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showDeleteAccountDialog(BuildContext context, Account account) async {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
     final appState = context.read<AppState>();
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Spacing.radiusXLarge)),
         title: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.warning_amber_rounded,
-              color: Colors.red,
+              color: appColors.expenseRed,
               size: 28,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: Spacing.sm),
             Text(
               'Delete Account?',
               style: TextStyle(color: theme.colorScheme.onSurface),
@@ -1170,15 +1179,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Text(
               'Delete "${account.name}"?',
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Spacing.md),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(Spacing.md),
               decoration: BoxDecoration(
-                color: Colors.red.withAlpha(30),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.red.withAlpha(100)),
+                color: appColors.expenseRed.withAlpha(30),
+                borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                border: Border.all(color: appColors.expenseRed.withAlpha(100)),
               ),
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1196,10 +1205,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            const Text(
+            const SizedBox(height: Spacing.md),
+            Text(
               'This action cannot be undone.',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+              style: TextStyle(color: appColors.expenseRed, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -1210,7 +1219,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: appColors.expenseRed),
             child: const Text('Delete Permanently'),
           ),
         ],
@@ -1229,7 +1238,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Account "${account.name}" has been deleted'),
-            backgroundColor: Colors.green,
+            backgroundColor: appColors.incomeGreen,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1239,7 +1248,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error deleting account: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: appColors.expenseRed,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1255,13 +1264,11 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Text(
       title,
-      style: TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 1.2,
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      style: theme.textTheme.labelSmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
       ),
     );
   }
@@ -1277,7 +1284,7 @@ class _SettingsCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
         border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
       child: Column(children: children),
@@ -1306,44 +1313,44 @@ class _SettingsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return InkWell(
+    // ScaleTapAnimation provides scale press feedback; InkWell handles ripple and callback.
+    return ScaleTapAnimation(
+      enableHaptic: onTap != null,
+      child: InkWell(
       onTap: onTap, // Can be null
       borderRadius: BorderRadius.circular(
-        16,
+        Spacing.radiusLarge,
       ), // Match container radius for ripples
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.cardPadding, vertical: Spacing.md),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(Spacing.xs),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
               ),
               child: Icon(
                 icon,
                 color: iconColor ?? theme.colorScheme.onSurface,
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: Spacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
+                    style: theme.textTheme.titleSmall?.copyWith(
                       color: theme.colorScheme.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: Spacing.tiny),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                     maxLines: 3,
@@ -1355,6 +1362,7 @@ class _SettingsTile extends StatelessWidget {
             if (trailing != null) ...[const SizedBox(width: 16), trailing!],
           ],
         ),
+      ),
       ),
     );
   }
@@ -1492,9 +1500,9 @@ class _PinSecurityCardState extends State<_PinSecurityCard> {
       }
     } else if (verified == false && mounted && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Incorrect PIN'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('Incorrect PIN'),
+          backgroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -1568,9 +1576,9 @@ class _PinSecurityCardState extends State<_PinSecurityCard> {
       }
     } else if (verified == false && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Incorrect PIN'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('Incorrect PIN'),
+          backgroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -1588,7 +1596,7 @@ class _PinSecurityCardState extends State<_PinSecurityCard> {
         children: [
           const Center(
             child: Padding(
-              padding: EdgeInsets.all(16),
+              padding: EdgeInsets.all(Spacing.md),
               child: CircularProgressIndicator(),
             ),
           ),
@@ -1626,7 +1634,7 @@ class _PinSecurityCardState extends State<_PinSecurityCard> {
           ),
           const _Divider(),
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(Spacing.md),
             child: Row(
               children: [
                 Icon(
@@ -1634,12 +1642,11 @@ class _PinSecurityCardState extends State<_PinSecurityCard> {
                   size: 16,
                   color: theme.colorScheme.primary,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: Spacing.sm),
                 Expanded(
                   child: Text(
                     'App locks after 3 minutes of inactivity',
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),

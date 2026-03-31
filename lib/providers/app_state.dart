@@ -1270,17 +1270,16 @@ class AppState extends ChangeNotifier {
     });
   }
 
+  /// Sets the default account using a single atomic DB transaction.
+  ///
+  /// Replaces the previous O(n) loop of individual updateAccount calls with
+  /// one round-trip via [DatabaseHelper.setDefaultAccountById].
   Future<void> setDefaultAccount(int accountId) async {
     await _writeMutex.synchronized(() async {
-      for (final account in _accounts) {
-        if (account.isDefault && account.id != accountId) {
-          await _db.updateAccount(account.copyWith(isDefault: false));
-        }
-      }
       final accountIndex = _accounts.indexWhere((a) => a.id == accountId);
-      if (accountIndex == -1) return; // Account not found, do nothing
-      final newDefault = _accounts[accountIndex];
-      await _db.updateAccount(newDefault.copyWith(isDefault: true));
+      if (accountIndex == -1) return; // Account not found, do nothing.
+
+      await _db.setDefaultAccountById(accountId);
       await _loadAccounts();
       notifyListeners();
     });
@@ -1386,15 +1385,20 @@ class AppState extends ChangeNotifier {
   void clearAccountSwitchFlag() => _accountJustSwitched = false;
 
   Future<void> _reloadAccountData() async {
-    await _loadCategories();
-    await _loadExpenses();
-    await _loadIncomes();
-    await _loadBudgets();
-    await _loadQuickTemplates();
-    await _loadRecurringExpenses();
-    await _loadRecurringIncomes();
-    await _loadTags();
-    await _loadMonthlyBalances();
+    // Run all independent data loads in parallel for faster account switching.
+    // _calculateAndStoreCarryover must run after _loadMonthlyBalances since it
+    // writes to the monthly balances that were just loaded.
+    await Future.wait([
+      _loadCategories(),
+      _loadExpenses(),
+      _loadIncomes(),
+      _loadBudgets(),
+      _loadQuickTemplates(),
+      _loadRecurringExpenses(),
+      _loadRecurringIncomes(),
+      _loadTags(),
+      _loadMonthlyBalances(),
+    ]);
     await _calculateAndStoreCarryover();
   }
 

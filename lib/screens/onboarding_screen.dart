@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../services/onboarding_service.dart';
 import '../utils/date_helper.dart';
+import '../utils/premium_animations.dart';
+import '../constants/spacing.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -149,7 +151,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(3, (index) {
                 return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  margin: const EdgeInsets.symmetric(horizontal: Spacing.xxs),
                   width: _currentPage == index ? 24 : 8,
                   height: 8,
                   decoration: BoxDecoration(
@@ -162,11 +164,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               }),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: Spacing.xxl),
 
             // Action buttons
             Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(Spacing.screenPadding),
               child: Column(
                 children: [
                   SizedBox(
@@ -183,34 +185,33 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: theme.colorScheme.primary,
                         foregroundColor: theme.colorScheme.onPrimary,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: const EdgeInsets.symmetric(vertical: Spacing.md),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                         ),
                       ),
                       child: Text(
                         _currentPage == 2 ? 'Get Started' : 'Next',
-                        style: const TextStyle(
-                          fontSize: 16,
+                        style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Spacing.sm),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
                       onPressed: _loadSampleData,
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: const EdgeInsets.symmetric(vertical: Spacing.md),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(Spacing.radiusMedium),
                         ),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Load Sample Data',
-                        style: TextStyle(fontSize: 16),
+                        style: theme.textTheme.titleMedium,
                       ),
                     ),
                   ),
@@ -234,34 +235,41 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(30),
+          FadeInOnLoad(
+            delay: Duration.zero,
+            child: Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Icon(icon, size: 60, color: theme.colorScheme.primary),
             ),
-            child: Icon(icon, size: 60, color: theme.colorScheme.primary),
           ),
           const SizedBox(height: 40),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface,
+          FadeInOnLoad(
+            delay: const Duration(milliseconds: 150),
+            child: Text(
+              title,
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
-          Text(
-            description,
-            style: TextStyle(
-              fontSize: 16,
-              color: theme.colorScheme.onSurfaceVariant,
-              height: 1.5,
+          const SizedBox(height: Spacing.md),
+          FadeInOnLoad(
+            delay: const Duration(milliseconds: 300),
+            child: Text(
+              description,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),

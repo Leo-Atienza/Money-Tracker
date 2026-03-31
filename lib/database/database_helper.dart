@@ -761,7 +761,15 @@ class DatabaseHelper {
   Future<List<Account>> readAllAccounts() async {
     final db = await database;
     final result = await db.query('accounts', orderBy: 'isDefault DESC, name ASC');
-    return result.map((map) => Account.fromMap(map)).toList();
+    // Skip corrupted rows rather than crashing the entire account load.
+    return result.map((map) {
+      try {
+        return Account.fromMap(map);
+      } catch (e) {
+        if (kDebugMode) debugPrint('Skipping corrupted account row: $e');
+        return null;
+      }
+    }).whereType<Account>().toList();
   }
 
   Future<int> updateAccount(Account account) async {
@@ -772,6 +780,25 @@ class DatabaseHelper {
       where: 'id = ?',
       whereArgs: [account.id],
     );
+  }
+
+  /// Atomically clears all default flags and sets a new default account.
+  ///
+  /// Uses a single transaction instead of N individual updates, reducing DB
+  /// round-trips from O(n) to O(1) regardless of account count.
+  Future<void> setDefaultAccountById(int accountId) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      // Clear all existing defaults in one statement.
+      await txn.update('accounts', {'isDefault': 0});
+      // Set the chosen account as default.
+      await txn.update(
+        'accounts',
+        {'isDefault': 1},
+        where: 'id = ?',
+        whereArgs: [accountId],
+      );
+    });
   }
 
   // FIX #3: Soft delete account - move to trash for 30-day restore
@@ -2203,7 +2230,15 @@ class DatabaseHelper {
       whereArgs: [accountId, start.toIso8601String(), end.toIso8601String()],
       orderBy: 'date DESC',
     );
-    return result.map((map) => Income.fromMap(map)).toList();
+    // Skip corrupted rows rather than crashing the entire income load.
+    return result.map((map) {
+      try {
+        return Income.fromMap(map);
+      } catch (e) {
+        if (kDebugMode) debugPrint('Skipping corrupted income row: $e');
+        return null;
+      }
+    }).whereType<Income>().toList();
   }
 
   /// Get expense count for performance monitoring

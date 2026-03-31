@@ -5,6 +5,9 @@ import '../models/category_model.dart';
 import '../widgets/color_picker.dart';
 import '../widgets/category_tile.dart';
 import '../utils/category_icons.dart';
+import '../utils/premium_animations.dart';
+import '../constants/spacing.dart';
+import '../main.dart';
 
 class CategoryManagerScreen extends StatelessWidget {
   const CategoryManagerScreen({super.key});
@@ -14,9 +17,6 @@ class CategoryManagerScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.brightness == Brightness.dark
-          ? const Color(0xFF121212)
-          : const Color(0xFFFAFAFA),
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -25,15 +25,13 @@ class CategoryManagerScreen extends StatelessWidget {
             pinned: true,
             title: Text(
               'Categories',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w300,
+              style: theme.textTheme.headlineMedium?.copyWith(
                 color: theme.colorScheme.onSurface,
               ),
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(Spacing.screenPadding),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 const _CategoryList(),
@@ -86,13 +84,10 @@ class _CategoryList extends StatelessWidget {
         // Expense Categories
         if (expenseCategories.isNotEmpty) ...[
           Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(bottom: Spacing.sm),
             child: Text(
               'EXPENSE CATEGORIES',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.2,
+              style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
@@ -100,60 +95,63 @@ class _CategoryList extends StatelessWidget {
           Container(
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(Spacing.radiusLarge),
               border: Border.all(color: theme.colorScheme.outline),
             ),
-            child: Column(
-              children: expenseCategories.asMap().entries.map((entry) {
-                final category = entry.value;
-                final isLast = entry.key == expenseCategories.length - 1;
-                return _CategoryTileRow(
-                  category: category.name,
-                  categoryId: category.id,
-                  categoryType: category.type,
-                  categoryColor: category.color,
-                  categoryIcon: category.icon,
-                  isDefault: category.isDefault,
-                  isLast: isLast,
-                  theme: theme,
-                  onEdit: () {
-                    final id = category.id;
-                    if (id == null) return;
-                    _showEditCategory(
-                      context,
-                      id,
-                      category.name,
-                      category.type,
-                    );
-                  },
-                  onDelete: category.isDefault
-                      ? null
-                      : () {
-                          final id = category.id;
-                          if (id == null) return;
-                          _confirmDelete(
-                            context,
-                            id,
-                            category.name,
-                          );
-                        },
+            child: ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: expenseCategories.length,
+              itemBuilder: (context, index) {
+                final category = expenseCategories[index];
+                final isLast = index == expenseCategories.length - 1;
+                return StaggeredListItem(
+                  index: index,
+                  child: _CategoryTileRow(
+                    category: category.name,
+                    categoryId: category.id,
+                    categoryType: category.type,
+                    categoryColor: category.color,
+                    categoryIcon: category.icon,
+                    isDefault: category.isDefault,
+                    isLast: isLast,
+                    theme: theme,
+                    onEdit: () {
+                      final id = category.id;
+                      if (id == null) return;
+                      _showEditCategory(
+                        context,
+                        id,
+                        category.name,
+                        category.type,
+                      );
+                    },
+                    onDelete: category.isDefault
+                        ? null
+                        : () {
+                            final id = category.id;
+                            if (id == null) return;
+                            _confirmDelete(
+                              context,
+                              id,
+                              category.name,
+                            );
+                          },
+                  ),
                 );
-              }).toList(),
+              },
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: Spacing.screenPadding),
         ],
 
         // Income Categories
         if (incomeCategories.isNotEmpty) ...[
           Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(bottom: Spacing.sm),
             child: Text(
               'INCOME CATEGORIES',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.2,
+              style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
@@ -161,45 +159,51 @@ class _CategoryList extends StatelessWidget {
           Container(
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(Spacing.radiusLarge),
               border: Border.all(color: theme.colorScheme.outline),
             ),
-            child: Column(
-              children: incomeCategories.asMap().entries.map((entry) {
-                final category = entry.value;
-                final isLast = entry.key == incomeCategories.length - 1;
-                return _CategoryTileRow(
-                  category: category.name,
-                  categoryId: category.id,
-                  categoryType: category.type,
-                  categoryColor: category.color,
-                  categoryIcon: category.icon,
-                  isDefault: category.isDefault,
-                  isLast: isLast,
-                  theme: theme,
-                  onEdit: () {
-                    final id = category.id;
-                    if (id == null) return;
-                    _showEditCategory(
-                      context,
-                      id,
-                      category.name,
-                      category.type,
-                    );
-                  },
-                  onDelete: category.isDefault
-                      ? null
-                      : () {
-                          final id = category.id;
-                          if (id == null) return;
-                          _confirmDelete(
-                            context,
-                            id,
-                            category.name,
-                          );
-                        },
+            child: ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: incomeCategories.length,
+              itemBuilder: (context, index) {
+                final category = incomeCategories[index];
+                final isLast = index == incomeCategories.length - 1;
+                return StaggeredListItem(
+                  index: index,
+                  child: _CategoryTileRow(
+                    category: category.name,
+                    categoryId: category.id,
+                    categoryType: category.type,
+                    categoryColor: category.color,
+                    categoryIcon: category.icon,
+                    isDefault: category.isDefault,
+                    isLast: isLast,
+                    theme: theme,
+                    onEdit: () {
+                      final id = category.id;
+                      if (id == null) return;
+                      _showEditCategory(
+                        context,
+                        id,
+                        category.name,
+                        category.type,
+                      );
+                    },
+                    onDelete: category.isDefault
+                        ? null
+                        : () {
+                            final id = category.id;
+                            if (id == null) return;
+                            _confirmDelete(
+                              context,
+                              id,
+                              category.name,
+                            );
+                          },
+                  ),
                 );
-              }).toList(),
+              },
             ),
           ),
         ],
@@ -214,22 +218,27 @@ class _CategoryList extends StatelessWidget {
         padding: const EdgeInsets.all(60),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(Spacing.radiusLarge),
           border: Border.all(color: theme.colorScheme.outline),
         ),
         child: Column(
           children: [
-            Icon(
-              Icons.category_outlined,
-              size: 48,
-              color: theme.colorScheme.onSurfaceVariant,
+            BounceAnimation(
+              child: Icon(
+                Icons.category_outlined,
+                size: 48,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 16),
-            Text(
-              'No categories',
-              style: TextStyle(
-                fontSize: 16,
-                color: theme.colorScheme.onSurface,
+            FadeInOnLoad(
+              delay: const Duration(milliseconds: 200),
+              child: Text(
+                'No categories',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -467,11 +476,14 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
     final isEditing = widget.categoryId != null;
 
     return AlertDialog(
       backgroundColor: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Spacing.radiusXLarge),
+      ),
       title: Text(
         isEditing ? 'Edit Category' : 'Add Category',
         style: TextStyle(color: theme.colorScheme.onSurface),
@@ -493,48 +505,44 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
             ),
           ),
           if (!isEditing) ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: Spacing.lg),
             Text(
               'Type',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+              style: theme.textTheme.labelLarge?.copyWith(
                 color: theme.colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: Spacing.xs),
             Row(
               children: [
                 Expanded(
                   child: _TypeChip(
                     label: 'Expense',
                     isSelected: _selectedType == 'expense',
-                    color: Colors.red,
+                    color: appColors.expenseRed,
                     onTap: () => setState(() => _selectedType = 'expense'),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: Spacing.sm),
                 Expanded(
                   child: _TypeChip(
                     label: 'Income',
                     isSelected: _selectedType == 'income',
-                    color: Colors.green,
+                    color: appColors.incomeGreen,
                     onTap: () => setState(() => _selectedType = 'income'),
                   ),
                 ),
               ],
             ),
           ],
-          const SizedBox(height: 20),
+          const SizedBox(height: Spacing.lg),
           Text(
             'Color (Optional)',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+            style: theme.textTheme.labelLarge?.copyWith(
               color: theme.colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: Spacing.xs),
           InkWell(
             onTap: () => _showColorPicker(context),
             borderRadius: BorderRadius.circular(12),
@@ -585,16 +593,14 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: Spacing.lg),
           Text(
             'Icon',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+            style: theme.textTheme.labelLarge?.copyWith(
               color: theme.colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: Spacing.xs),
           InkWell(
             onTap: () => _showIconPicker(context),
             borderRadius: BorderRadius.circular(12),
@@ -647,22 +653,21 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
             ),
           ),
           if (isEditing) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: Spacing.md),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(Spacing.sm),
               decoration: BoxDecoration(
-                color: Colors.blue.withAlpha(20),
-                borderRadius: BorderRadius.circular(8),
+                color: appColors.infoBlue.withAlpha(20),
+                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, color: Colors.blue, size: 20),
-                  const SizedBox(width: 8),
+                  Icon(Icons.info_outline, color: appColors.infoBlue, size: 20),
+                  const SizedBox(width: Spacing.xs),
                   Expanded(
                     child: Text(
                       'All existing transactions will be updated to the new name.',
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
@@ -781,11 +786,12 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
   }
 
   void _showError(String message) {
+    final appColors = Theme.of(context).extension<AppColors>()!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.red,
+        backgroundColor: appColors.expenseRed,
       ),
     );
   }
@@ -1016,9 +1022,13 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
           .toList();
     });
 
+    final appColors = theme.extension<AppColors>()!;
+
     return AlertDialog(
       backgroundColor: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Spacing.radiusXLarge),
+      ),
       title: Text(
         'Delete Category?',
         style: TextStyle(color: theme.colorScheme.onSurface),
@@ -1041,20 +1051,20 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
               const SizedBox(height: 16),
               // CRITICAL FIX: Make transaction impact more prominent with warning color
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(Spacing.md),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withAlpha(30),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange, width: 2),
+                  color: appColors.warningOrange.withAlpha(30),
+                  borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                  border: Border.all(color: appColors.warningOrange, width: 2),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.warning_amber_rounded,
-                          color: Colors.orange,
+                          color: appColors.warningOrange,
                           size: 24,
                         ),
                         const SizedBox(width: 12),
@@ -1112,7 +1122,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                 subtitle:
                     'All ${widget.existingTransactionCount} transaction${widget.existingTransactionCount > 1 ? 's' : ''} will be moved to trash',
                 icon: Icons.delete_outline,
-                color: Colors.red,
+                color: appColors.expenseRed,
               ),
 
               const SizedBox(height: 8),
@@ -1126,7 +1136,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                     ? 'Will create "Uncategorized" category automatically'
                     : 'Reassign transactions to a different category',
                 icon: Icons.drive_file_move_outlined,
-                color: Colors.green,
+                color: appColors.incomeGreen,
                 isDisabled: false,
               ),
 
@@ -1161,31 +1171,30 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
 
             // Warning for recurring usage
             if (widget.hasRecurringUsage) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: Spacing.md),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(Spacing.sm),
                 decoration: BoxDecoration(
-                  color: Colors.red.withAlpha(20),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.withAlpha(100)),
+                  color: appColors.expenseRed.withAlpha(20),
+                  borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                  border: Border.all(color: appColors.expenseRed.withAlpha(100)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.warning_amber,
-                          color: Colors.red,
+                          color: appColors.expenseRed,
                           size: 20,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: Spacing.xs),
                         Text(
                           'Used by Recurring Transactions',
-                          style: TextStyle(
-                            fontSize: 13,
+                          style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: Colors.red.shade700,
+                            color: appColors.expenseRed,
                           ),
                         ),
                       ],
@@ -1232,7 +1241,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
           // FIX: Allow deletion even without category selection if no categories exist
           // (will create "Uncategorized" automatically)
           onPressed: _isDeleting ? null : _handleDelete,
-          style: TextButton.styleFrom(foregroundColor: Colors.red),
+          style: TextButton.styleFrom(foregroundColor: appColors.expenseRed),
           child: _isDeleting
               ? const SizedBox(
                   width: 20,
@@ -1316,6 +1325,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
 
     try {
       final appState = context.read<AppState>();
+      final appColors = Theme.of(context).extension<AppColors>()!;
 
       switch (_selectedAction) {
         case 'delete':
@@ -1355,9 +1365,9 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
               // This shouldn't happen, but safety fallback
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please select a category'),
-                    backgroundColor: Colors.red,
+                  SnackBar(
+                    content: const Text('Please select a category'),
+                    backgroundColor: appColors.expenseRed,
                   ),
                 );
               }
@@ -1396,7 +1406,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error deleting category: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
           ),
         );
       }
