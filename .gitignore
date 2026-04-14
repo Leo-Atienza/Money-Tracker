@@ -27,3 +27,16 @@ doc/api/
 
 .flutter-plugins
 .flutter-plugins-dependencies
+
+# IDE / editor metadata
+.idea/
+.vscode/
+
+# Firebase CLI cache (project uses local-only storage; no Firebase runtime)
+.firebase/
+
+# Generated knowledge graph artifacts (rebuild with `python -m graphify .`)
+graphify-out/
+
+# Session scratchpad written by hooks — per-session, never worth committing
+session-state.md
