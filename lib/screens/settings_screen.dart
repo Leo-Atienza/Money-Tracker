@@ -18,6 +18,7 @@ import 'backup_restore_screen.dart';
 import 'budget_screen.dart';
 import 'pin_setup_screen.dart';
 import 'export_data_screen.dart';
+import 'crash_log_screen.dart';
 import '../utils/pin_security_helper.dart';
 import '../constants/spacing.dart';
 import '../main.dart';
@@ -382,6 +383,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           PremiumPageRoute(
                             page: const NotificationSettingsScreen(),
                           ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: Spacing.xxl),
+
+                // ADVANCED
+                // FIX Phase 3a: surface the local crash log so users can
+                // view and share recorded errors.
+                const _SectionHeader(title: 'ADVANCED'),
+                const SizedBox(height: Spacing.sm),
+                _SettingsCard(
+                  children: [
+                    _SettingsTile(
+                      icon: Icons.bug_report_outlined,
+                      iconColor: appColors.warningOrange,
+                      title: 'Crash Log',
+                      subtitle: 'View recorded errors and share with the developer',
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        Navigator.push(
+                          context,
+                          PremiumPageRoute(page: const CrashLogScreen()),
                         );
                       },
                     ),

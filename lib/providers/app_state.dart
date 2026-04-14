@@ -1684,7 +1684,7 @@ class AppState extends ChangeNotifier {
           if (lastCreated != null && DateHelper.isSameDay(lastCreated, today)) {
             continue;
           }
-          final expensesToCreate = _processRecurringInstances<Expense>(
+          final expensesToCreate = processRecurringInstances<Expense>(
             lastCreated: lastCreated,
             startDate: recurring.startDate,
             dayOfMonthOrWeek: recurring.dayOfMonth,
@@ -1755,7 +1755,7 @@ class AppState extends ChangeNotifier {
           if (recurring.lastCreated != null && DateHelper.isSameDay(recurring.lastCreated!, today)) {
             continue;
           }
-          final incomesToCreate = _processRecurringInstances<Income>(
+          final incomesToCreate = processRecurringInstances<Income>(
             lastCreated: recurring.lastCreated,
             startDate: recurring.startDate,
             dayOfMonthOrWeek: recurring.dayOfMonth,
@@ -1792,7 +1792,12 @@ class AppState extends ChangeNotifier {
   /// `frequencyIndex` is `RecurringFrequency.index` / `RecurringExpenseFrequency.index`
   /// (both enums share the order: 0=monthly, 1=biweekly, 2=weekly).
   /// `dayOfMonthOrWeek` is 1-31 for monthly, 0-6 (Mon-Sun) for weekly/biweekly.
-  List<T> _processRecurringInstances<T>({
+  ///
+  /// Exposed as `@visibleForTesting` + `static` so integration tests can drive
+  /// the scheduler directly — the algorithm is pure and touches no instance
+  /// state.
+  @visibleForTesting
+  static List<T> processRecurringInstances<T>({
     required DateTime? lastCreated,
     required DateTime? startDate,
     required int dayOfMonthOrWeek,
@@ -1835,7 +1840,7 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  List<T> _processMonthlyRecurring<T>({required DateTime? lastCreated, required int dayOfMonth, required DateTime now, required T Function(DateTime date) createTransaction}) {
+  static List<T> _processMonthlyRecurring<T>({required DateTime? lastCreated, required int dayOfMonth, required DateTime now, required T Function(DateTime date) createTransaction}) {
     final List<T> transactionsToCreate = [];
     // FIX H2: When lastCreated is null (new recurring), always start from current month.
     // The inner condition (now.day >= dayOfMonth) already gates whether to create for current month.
@@ -1862,7 +1867,7 @@ class AppState extends ChangeNotifier {
   ///
   /// [dayOfWeek] is 0-6 (Mon=0..Sun=6) — matches the model convention, which differs
   /// from Dart's DateTime.weekday (1=Mon..7=Sun).
-  List<T> _processIntervalRecurring<T>({
+  static List<T> _processIntervalRecurring<T>({
     required DateTime? lastCreated,
     required DateTime? startDate,
     required int dayOfWeek,
@@ -2217,6 +2222,21 @@ class AppState extends ChangeNotifier {
   void _safeNotify() {
     if (_isDisposed) return;
     notifyListeners();
+  }
+
+  /// Test-only wrapper for `_safeNotify`. Lets integration tests exercise
+  /// the post-dispose short-circuit without depending on a specific
+  /// mutation method.
+  @visibleForTesting
+  void safeNotifyForTesting() => _safeNotify();
+
+  /// Test-only wrapper for `_processRecurringInBackground`. Lets
+  /// integration tests exercise the full recurring pipeline — including
+  /// the Bug #7 counter reset — without calling `initialize()`, which
+  /// touches several platform plugins (notifications, home widget, etc.).
+  @visibleForTesting
+  Future<void> runRecurringProcessingForTesting() async {
+    await _processRecurringInBackground();
   }
 
   @override

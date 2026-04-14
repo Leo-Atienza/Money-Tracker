@@ -423,11 +423,14 @@ void main() {
       expect(RestoreResult.values, contains(RestoreResult.cancelled));
       expect(RestoreResult.values, contains(RestoreResult.fileNotFound));
       expect(RestoreResult.values, contains(RestoreResult.invalidFile));
+      expect(RestoreResult.values, contains(RestoreResult.incompatibleVersion));
       expect(RestoreResult.values, contains(RestoreResult.error));
     });
 
-    test('has exactly 5 values', () {
-      expect(RestoreResult.values.length, 5);
+    test('has exactly 6 values', () {
+      // Bug #9 added `incompatibleVersion` so restores from backups with a
+      // schema newer than the installed app surface a distinct result.
+      expect(RestoreResult.values.length, 6);
     });
   });
 }
