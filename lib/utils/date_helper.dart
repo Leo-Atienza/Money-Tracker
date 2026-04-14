@@ -116,6 +116,12 @@ class DateHelper {
     return addMonths(date, -months);
   }
 
+  /// Adds days to a date, returning a normalized UTC midnight DateTime.
+  /// Used for weekly/biweekly recurring transaction generation.
+  static DateTime addDays(DateTime date, int days) {
+    return normalize(date).add(Duration(days: days));
+  }
+
   /// Gets the number of days between two dates (ignoring time).
   static int daysBetween(DateTime start, DateTime end) {
     final normalizedStart = normalize(start);

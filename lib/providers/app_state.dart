@@ -1663,7 +1663,22 @@ class AppState extends ChangeNotifier {
           if (lastCreated != null && DateHelper.isSameDay(lastCreated, today)) {
             continue;
           }
-          final expensesToCreate = _processMonthlyRecurring<Expense>(lastCreated: lastCreated, dayOfMonth: recurring.dayOfMonth, now: today, createTransaction: (date) => Expense(amount: recurring.amountDecimal, category: recurring.category, description: recurring.description, date: date, accountId: recurring.accountId, amountPaid: Decimal.zero, paymentMethod: recurring.paymentMethod));
+          final expensesToCreate = _processRecurringInstances<Expense>(
+            lastCreated: lastCreated,
+            startDate: recurring.startDate,
+            dayOfMonthOrWeek: recurring.dayOfMonth,
+            frequencyIndex: recurring.frequency.index,
+            now: today,
+            createTransaction: (date) => Expense(
+              amount: recurring.amountDecimal,
+              category: recurring.category,
+              description: recurring.description,
+              date: date,
+              accountId: recurring.accountId,
+              amountPaid: Decimal.zero,
+              paymentMethod: recurring.paymentMethod,
+            ),
+          );
           if (expensesToCreate.isNotEmpty) {
             final updatedRecurring = recurring.copyWith(lastCreated: today, occurrenceCount: recurring.occurrenceCount + expensesToCreate.length);
             await _db.createRecurringExpensesBatch(expenses: expensesToCreate, recurringToUpdate: updatedRecurring);
@@ -1698,7 +1713,20 @@ class AppState extends ChangeNotifier {
           if (recurring.lastCreated != null && DateHelper.isSameDay(recurring.lastCreated!, today)) {
             continue;
           }
-          final incomesToCreate = _processMonthlyRecurring<Income>(lastCreated: recurring.lastCreated, dayOfMonth: recurring.dayOfMonth, now: today, createTransaction: (date) => Income(amount: recurring.amountDecimal, category: recurring.category, description: recurring.description, date: date, accountId: recurring.accountId));
+          final incomesToCreate = _processRecurringInstances<Income>(
+            lastCreated: recurring.lastCreated,
+            startDate: recurring.startDate,
+            dayOfMonthOrWeek: recurring.dayOfMonth,
+            frequencyIndex: recurring.frequency.index,
+            now: today,
+            createTransaction: (date) => Income(
+              amount: recurring.amountDecimal,
+              category: recurring.category,
+              description: recurring.description,
+              date: date,
+              accountId: recurring.accountId,
+            ),
+          );
           if (incomesToCreate.isNotEmpty) {
             final updatedRecurring = recurring.copyWith(lastCreated: today, occurrenceCount: recurring.occurrenceCount + incomesToCreate.length);
             await _db.createRecurringIncomeBatch(incomes: incomesToCreate, recurringToUpdate: updatedRecurring);
@@ -1715,6 +1743,56 @@ class AppState extends ChangeNotifier {
     });
   }
 
+  /// Dispatcher: generates due transactions based on the recurring item's frequency.
+  /// FIX Bug #1: Previously weekly/biweekly frequencies were silently ignored because
+  /// the monthly generator was called unconditionally.
+  ///
+  /// `frequencyIndex` is `RecurringFrequency.index` / `RecurringExpenseFrequency.index`
+  /// (both enums share the order: 0=monthly, 1=biweekly, 2=weekly).
+  /// `dayOfMonthOrWeek` is 1-31 for monthly, 0-6 (Mon-Sun) for weekly/biweekly.
+  List<T> _processRecurringInstances<T>({
+    required DateTime? lastCreated,
+    required DateTime? startDate,
+    required int dayOfMonthOrWeek,
+    required int frequencyIndex,
+    required DateTime now,
+    required T Function(DateTime date) createTransaction,
+  }) {
+    switch (frequencyIndex) {
+      case 0: // monthly
+        return _processMonthlyRecurring<T>(
+          lastCreated: lastCreated,
+          dayOfMonth: dayOfMonthOrWeek,
+          now: now,
+          createTransaction: createTransaction,
+        );
+      case 1: // biweekly (every 14 days)
+        return _processIntervalRecurring<T>(
+          lastCreated: lastCreated,
+          startDate: startDate,
+          dayOfWeek: dayOfMonthOrWeek,
+          stepDays: 14,
+          now: now,
+          createTransaction: createTransaction,
+        );
+      case 2: // weekly (every 7 days)
+        return _processIntervalRecurring<T>(
+          lastCreated: lastCreated,
+          startDate: startDate,
+          dayOfWeek: dayOfMonthOrWeek,
+          stepDays: 7,
+          now: now,
+          createTransaction: createTransaction,
+        );
+      default:
+        // Defensive: unknown frequency index (shouldn't happen — models clamp on load).
+        if (kDebugMode) {
+          debugPrint('Unknown recurring frequency index: $frequencyIndex');
+        }
+        return const [];
+    }
+  }
+
   List<T> _processMonthlyRecurring<T>({required DateTime? lastCreated, required int dayOfMonth, required DateTime now, required T Function(DateTime date) createTransaction}) {
     final List<T> transactionsToCreate = [];
     // FIX H2: When lastCreated is null (new recurring), always start from current month.
@@ -1729,6 +1807,52 @@ class AppState extends ChangeNotifier {
       }
       currentMonth = DateHelper.addMonths(currentMonth, 1);
     }
+    return transactionsToCreate;
+  }
+
+  /// Generates all due transactions for a weekly (stepDays=7) or biweekly (stepDays=14)
+  /// recurring item.
+  ///
+  /// Resume logic:
+  /// - If [lastCreated] is set: next instance is lastCreated + stepDays.
+  /// - Else if [startDate] is set: first instance is startDate itself.
+  /// - Else: back-fill to the most recent matching weekday on or before [now].
+  ///
+  /// [dayOfWeek] is 0-6 (Mon=0..Sun=6) — matches the model convention, which differs
+  /// from Dart's DateTime.weekday (1=Mon..7=Sun).
+  List<T> _processIntervalRecurring<T>({
+    required DateTime? lastCreated,
+    required DateTime? startDate,
+    required int dayOfWeek,
+    required int stepDays,
+    required DateTime now,
+    required T Function(DateTime date) createTransaction,
+  }) {
+    final List<T> transactionsToCreate = [];
+    final normalizedNow = DateHelper.normalize(now);
+
+    DateTime nextDate;
+    if (lastCreated != null) {
+      nextDate = DateHelper.addDays(lastCreated, stepDays);
+    } else if (startDate != null) {
+      nextDate = DateHelper.normalize(startDate);
+    } else {
+      // No anchor — back-fill to the most recent matching weekday.
+      final currentWeekday = normalizedNow.weekday - 1; // 0..6
+      final targetWeekday = dayOfWeek.clamp(0, 6);
+      final daysBack = (currentWeekday - targetWeekday + 7) % 7;
+      nextDate = DateHelper.addDays(normalizedNow, -daysBack);
+    }
+
+    // Safety cap: don't generate more than 520 instances in one run (10 years weekly).
+    // Protects against a malformed lastCreated far in the past.
+    int safetyCounter = 0;
+    while (!nextDate.isAfter(normalizedNow) && safetyCounter < 520) {
+      transactionsToCreate.add(createTransaction(nextDate));
+      nextDate = DateHelper.addDays(nextDate, stepDays);
+      safetyCounter++;
+    }
+
     return transactionsToCreate;
   }
 
