@@ -306,7 +306,7 @@ class AppState extends ChangeNotifier {
     await _calculateAndStoreCarryover();
 
     _isInitialized = true;
-    notifyListeners();
+    _safeNotify();
 
     // Update home screen widget with latest data
     _updateHomeWidget();
@@ -326,7 +326,7 @@ class AppState extends ChangeNotifier {
   Future<void> completeOnboarding() async {
     await _onboardingService.completeOnboarding();
     _isOnboardingComplete = true;
-    notifyListeners();
+    _safeNotify();
   }
 
   Future<void> _processRecurringInBackground() async {
@@ -373,7 +373,7 @@ class AppState extends ChangeNotifier {
     if (_lastAutoCreatedCount > 0 &&
         epochAtStart == _backgroundProcessingEpoch &&
         accountIdAtStart == currentAccountId) {
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -651,7 +651,7 @@ class AppState extends ChangeNotifier {
       await _loadExpensesInternal();
       await _checkBudgetAlerts(expense.category);
       await _recalculateCarryoverAfterTransaction(expense.date);
-      notifyListeners();
+      _safeNotify();
       _updateHomeWidget();
       return expenseId;
     });
@@ -683,7 +683,7 @@ class AppState extends ChangeNotifier {
       await _loadExpensesInternal();
       _invalidateExpenseCache(); // FIX: Invalidate cache to ensure UI updates immediately
       await _recalculateCarryoverAfterTransaction(expense.date);
-      notifyListeners();
+      _safeNotify();
       _updateHomeWidget(); // FIX: Update home widget after expense update
     });
   }
@@ -705,7 +705,7 @@ class AppState extends ChangeNotifier {
       }
       await _loadExpensesInternal();
       await _recalculateCarryoverAfterTransaction(expenseDate);
-      notifyListeners();
+      _safeNotify();
       _updateHomeWidget();
     });
   }
@@ -716,7 +716,7 @@ class AppState extends ChangeNotifier {
       await _loadExpensesInternal();
       _invalidateExpenseCache();
       await _calculateAndStoreCarryover();
-      notifyListeners();
+      _safeNotify();
       _updateHomeWidget();
     });
   }
@@ -742,7 +742,7 @@ class AppState extends ChangeNotifier {
       await _loadExpensesInternal();
       _invalidateExpenseCache(); // FIX: Invalidate cache to ensure UI updates immediately
       await _recalculateCarryoverAfterTransaction(expense.date);
-      notifyListeners();
+      _safeNotify();
       _updateHomeWidget(); // FIX: Update home widget after payment
     });
   }
@@ -801,7 +801,7 @@ class AppState extends ChangeNotifier {
       final incomeId = await _db.createIncome(income);
       await _loadIncomesInternal();
       await _recalculateCarryoverAfterTransaction(income.date);
-      notifyListeners();
+      _safeNotify();
       _updateHomeWidget();
       return incomeId;
     });
@@ -828,7 +828,7 @@ class AppState extends ChangeNotifier {
       await _db.updateIncome(income);
       await _loadIncomesInternal();
       await _recalculateCarryoverAfterTransaction(income.date);
-      notifyListeners();
+      _safeNotify();
       _updateHomeWidget(); // FIX: Update home widget after income update
     });
   }
@@ -850,7 +850,7 @@ class AppState extends ChangeNotifier {
       }
       await _loadIncomesInternal();
       await _recalculateCarryoverAfterTransaction(incomeDate);
-      notifyListeners();
+      _safeNotify();
       _updateHomeWidget();
     });
   }
@@ -871,7 +871,7 @@ class AppState extends ChangeNotifier {
       await _loadExpensesInternal();
       _invalidateExpenseCache();
       await _calculateAndStoreCarryover();
-      notifyListeners();
+      _safeNotify();
       _updateHomeWidget();
     });
   }
@@ -881,7 +881,7 @@ class AppState extends ChangeNotifier {
       await _db.restoreDeletedIncome(deletedId);
       await _loadIncomesInternal();
       await _calculateAndStoreCarryover();
-      notifyListeners();
+      _safeNotify();
       _updateHomeWidget();
     });
   }
@@ -889,21 +889,21 @@ class AppState extends ChangeNotifier {
   Future<void> permanentlyDeleteExpense(int deletedId) async {
     await _writeMutex.synchronized(() async {
       await _db.permanentlyDeleteExpense(deletedId);
-      notifyListeners();
+      _safeNotify();
     });
   }
 
   Future<void> permanentlyDeleteIncome(int deletedId) async {
     await _writeMutex.synchronized(() async {
       await _db.permanentlyDeleteIncome(deletedId);
-      notifyListeners();
+      _safeNotify();
     });
   }
 
   Future<void> emptyTrash() async {
     await _writeMutex.synchronized(() async {
       await _db.emptyTrash(currentAccountId);
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -956,7 +956,7 @@ class AppState extends ChangeNotifier {
         await _db.createBudget(budget);
       }
       await _loadBudgets();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -969,7 +969,7 @@ class AppState extends ChangeNotifier {
       }
       await _db.deleteBudget(id);
       await _loadBudgets();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -989,7 +989,7 @@ class AppState extends ChangeNotifier {
       await _db.createBudget(budget);
       _lastDeletedBudget = null;
       await _loadBudgets();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1205,7 +1205,7 @@ class AppState extends ChangeNotifier {
       }
 
       await _loadMonthlyBalances();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1231,7 +1231,7 @@ class AppState extends ChangeNotifier {
 
       await _db.upsertMonthlyBalance(newBalance);
       _monthlyBalances[monthKey] = newBalance;
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1249,7 +1249,7 @@ class AppState extends ChangeNotifier {
 
         await _db.upsertMonthlyBalance(newBalance);
         _monthlyBalances[monthKey] = newBalance;
-        notifyListeners();
+        _safeNotify();
       }
     });
   }
@@ -1270,7 +1270,7 @@ class AppState extends ChangeNotifier {
       final accountId = await _db.createAccount(account);
       await _createDefaultCategoriesForAccount(accountId);
       await _loadAccounts();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1278,7 +1278,7 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.updateAccount(account);
       await _loadAccounts();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1293,7 +1293,7 @@ class AppState extends ChangeNotifier {
 
       await _db.setDefaultAccountById(accountId);
       await _loadAccounts();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1320,7 +1320,7 @@ class AppState extends ChangeNotifier {
         clearFilters();
         await _reloadAccountData();
       }
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1350,7 +1350,7 @@ class AppState extends ChangeNotifier {
         clearFilters();
         await _reloadAccountData();
       }
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1373,7 +1373,7 @@ class AppState extends ChangeNotifier {
   Future<void> permanentlyDeleteAccount(int deletedId) async {
     await _writeMutex.synchronized(() async {
       await _db.permanentlyDeleteAccount(deletedId);
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1389,7 +1389,7 @@ class AppState extends ChangeNotifier {
       await _createDefaultCategoriesForAccount(accountId);
       await _loadCategories();
     }
-    notifyListeners();
+    _safeNotify();
   }
 
   bool _accountJustSwitched = false;
@@ -1429,7 +1429,7 @@ class AppState extends ChangeNotifier {
     await _loadExpenses();
     await _loadIncomes();
     _invalidateExpenseCache(); // FIX: Invalidate cache after refresh to ensure fresh data is displayed
-    notifyListeners();
+    _safeNotify();
   }
 
   // ============== CATEGORY METHODS ==============
@@ -1457,7 +1457,7 @@ class AppState extends ChangeNotifier {
       final category = Category(name: trimmedName, accountId: currentAccountId, isDefault: false, type: type, color: color, icon: icon);
       await _db.createCategory(category);
       await _loadCategories();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1476,7 +1476,7 @@ class AppState extends ChangeNotifier {
         if (oldName != null && oldName != category.name) {
           await Future.wait([_loadExpensesInternal(), _loadIncomesInternal(), _loadBudgets(), _loadQuickTemplates(), _loadRecurringExpenses()]);
         }
-        notifyListeners();
+        _safeNotify();
       } finally {
         _categoryRenameInProgress = false;
       }
@@ -1487,7 +1487,7 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.deleteCategory(id);
       await _loadCategories();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1495,7 +1495,7 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.bulkReassignCategory(currentAccountId, oldCategory, newCategory, type);
       await Future.wait([_loadExpensesInternal(), _loadIncomesInternal(), _loadBudgets(), _loadQuickTemplates(), _loadRecurringExpenses(), _loadRecurringIncomes()]);
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1503,7 +1503,7 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.bulkDeleteTransactionsByCategory(currentAccountId, category, type);
       await Future.wait([_loadExpensesInternal(), _loadIncomesInternal()]);
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1511,7 +1511,7 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.bulkReassignCategoryAndDelete(currentAccountId, categoryId, oldCategory, newCategory, type);
       await Future.wait([_loadCategories(), _loadExpensesInternal(), _loadIncomesInternal(), _loadBudgets(), _loadQuickTemplates(), _loadRecurringExpenses(), _loadRecurringIncomes()]);
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1519,7 +1519,7 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.bulkDeleteTransactionsAndCategory(currentAccountId, categoryId, category, type);
       await Future.wait([_loadCategories(), _loadExpensesInternal(), _loadIncomesInternal()]);
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1543,7 +1543,7 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.createTemplate(template);
       await _loadQuickTemplates();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1551,7 +1551,7 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.updateTemplate(template);
       await _loadQuickTemplates();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1559,7 +1559,7 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.deleteTemplate(id);
       await _loadQuickTemplates();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1602,7 +1602,7 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.createRecurringExpense(recurring);
       await _loadRecurringExpenses();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1619,7 +1619,7 @@ class AppState extends ChangeNotifier {
           await _notificationHelper.cancelBillReminder(recurringId);
         }
       }
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1628,7 +1628,7 @@ class AppState extends ChangeNotifier {
       await _notificationHelper.cancelBillReminder(id);
       await _db.deleteRecurringExpense(id);
       await _loadRecurringExpenses();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1636,7 +1636,7 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.createRecurringIncome(recurring);
       await _loadRecurringIncomes();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1644,7 +1644,7 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.updateRecurringIncome(recurring);
       await _loadRecurringIncomes();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1652,7 +1652,7 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.deleteRecurringIncome(id);
       await _loadRecurringIncomes();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1874,7 +1874,7 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.createTag(name, currentAccountId, color: color);
       await _loadTags();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1882,7 +1882,7 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.updateTag(id, name, color: color);
       await _loadTags();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1890,21 +1890,21 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.deleteTag(id);
       await _loadTags();
-      notifyListeners();
+      _safeNotify();
     });
   }
 
   Future<void> addTagToTransaction(int transactionId, String transactionType, int tagId) async {
     await _writeMutex.synchronized(() async {
       await _db.addTagToTransaction(transactionId, transactionType, tagId);
-      notifyListeners();
+      _safeNotify();
     });
   }
 
   Future<void> removeTagFromTransaction(int transactionId, String transactionType, int tagId) async {
     await _writeMutex.synchronized(() async {
       await _db.removeTagFromTransaction(transactionId, transactionType, tagId);
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -1987,7 +1987,7 @@ class AppState extends ChangeNotifier {
     await ensureMonthLoaded(newMonth);
     _selectedMonth = newMonth;
     await _ensureCarryoverLoaded(newMonth);
-    notifyListeners();
+    _safeNotify();
   }
 
   Future<void> goToNextMonth() async {
@@ -1995,7 +1995,7 @@ class AppState extends ChangeNotifier {
     await ensureMonthLoaded(newMonth);
     _selectedMonth = newMonth;
     await _ensureCarryoverLoaded(newMonth);
-    notifyListeners();
+    _safeNotify();
   }
 
   Future<void> goToMonth(DateTime month) async {
@@ -2003,7 +2003,7 @@ class AppState extends ChangeNotifier {
     await ensureMonthLoaded(newMonth);
     _selectedMonth = newMonth;
     await _ensureCarryoverLoaded(newMonth);
-    notifyListeners();
+    _safeNotify();
   }
 
   /// Ensure the carryover is loaded for the given month
@@ -2019,26 +2019,26 @@ class AppState extends ChangeNotifier {
     await ensureMonthLoaded(todayMonth);
     _selectedMonth = todayMonth;
     await _ensureCarryoverLoaded(todayMonth);
-    notifyListeners();
+    _safeNotify();
   }
 
   // ============== SETTINGS & FILTERS ==============
 
-  Future<void> toggleDarkMode() async { _isDarkMode = !_isDarkMode; await SettingsHelper.setDarkMode(_isDarkMode); notifyListeners(); }
-  Future<void> setThemeMode(String mode) async { _themeMode = mode; _isDarkMode = mode == 'dark'; await SettingsHelper.setThemeMode(mode); notifyListeners(); }
-  Future<void> changeCurrency(String code) async { await _writeMutex.synchronized(() async { _currencyCode = code; if (_currentAccount != null) await _db.updateAccount(_currentAccount!.copyWith(currencyCode: code)); notifyListeners(); }); }
-  Future<void> toggleBillReminders(bool value) async { _billRemindersEnabled = value; await SettingsHelper.setBillReminders(value); notifyListeners(); }
-  Future<void> toggleBudgetAlerts(bool value) async { _budgetAlertsEnabled = value; await SettingsHelper.setBudgetAlerts(value); notifyListeners(); }
-  Future<void> toggleMonthlySummary(bool value) async { _monthlySummaryEnabled = value; await SettingsHelper.setMonthlySummary(value); notifyListeners(); }
-  Future<void> toggleShowTransactionColors(bool value) async { _showTransactionColors = value; await SettingsHelper.setShowTransactionColors(value); notifyListeners(); }
-  Future<void> setTransactionColorIntensity(double value) async { _transactionColorIntensity = value.clamp(0.0, 1.0); await SettingsHelper.setTransactionColorIntensity(_transactionColorIntensity); notifyListeners(); }
-  Future<void> setReminderTime(TimeOfDay time) async { _reminderTime = time; await SettingsHelper.setReminderHour(time.hour); await SettingsHelper.setReminderMinute(time.minute); notifyListeners(); }
+  Future<void> toggleDarkMode() async { _isDarkMode = !_isDarkMode; await SettingsHelper.setDarkMode(_isDarkMode); _safeNotify(); }
+  Future<void> setThemeMode(String mode) async { _themeMode = mode; _isDarkMode = mode == 'dark'; await SettingsHelper.setThemeMode(mode); _safeNotify(); }
+  Future<void> changeCurrency(String code) async { await _writeMutex.synchronized(() async { _currencyCode = code; if (_currentAccount != null) await _db.updateAccount(_currentAccount!.copyWith(currencyCode: code)); _safeNotify(); }); }
+  Future<void> toggleBillReminders(bool value) async { _billRemindersEnabled = value; await SettingsHelper.setBillReminders(value); _safeNotify(); }
+  Future<void> toggleBudgetAlerts(bool value) async { _budgetAlertsEnabled = value; await SettingsHelper.setBudgetAlerts(value); _safeNotify(); }
+  Future<void> toggleMonthlySummary(bool value) async { _monthlySummaryEnabled = value; await SettingsHelper.setMonthlySummary(value); _safeNotify(); }
+  Future<void> toggleShowTransactionColors(bool value) async { _showTransactionColors = value; await SettingsHelper.setShowTransactionColors(value); _safeNotify(); }
+  Future<void> setTransactionColorIntensity(double value) async { _transactionColorIntensity = value.clamp(0.0, 1.0); await SettingsHelper.setTransactionColorIntensity(_transactionColorIntensity); _safeNotify(); }
+  Future<void> setReminderTime(TimeOfDay time) async { _reminderTime = time; await SettingsHelper.setReminderHour(time.hour); await SettingsHelper.setReminderMinute(time.minute); _safeNotify(); }
 
-  void setFilterCategory(String category) { _filterCategory = category; _invalidateExpenseCache(); notifyListeners(); }
-  void setDateRange(DateTime? start, DateTime? end) { _dateRange = (start != null && end != null) ? DateTimeRange(start: start, end: end) : null; _invalidateExpenseCache(); notifyListeners(); }
-  void setAmountRange(double? min, double? max) { _minAmount = min; _maxAmount = max; _invalidateExpenseCache(); notifyListeners(); }
-  void setPaidStatusFilter(bool? isPaid) { _paidStatusFilter = isPaid; _invalidateExpenseCache(); notifyListeners(); }
-  void clearFilters() { _filterCategory = 'All'; _dateRange = null; _minAmount = null; _maxAmount = null; _paidStatusFilter = null; _invalidateExpenseCache(); notifyListeners(); }
+  void setFilterCategory(String category) { _filterCategory = category; _invalidateExpenseCache(); _safeNotify(); }
+  void setDateRange(DateTime? start, DateTime? end) { _dateRange = (start != null && end != null) ? DateTimeRange(start: start, end: end) : null; _invalidateExpenseCache(); _safeNotify(); }
+  void setAmountRange(double? min, double? max) { _minAmount = min; _maxAmount = max; _invalidateExpenseCache(); _safeNotify(); }
+  void setPaidStatusFilter(bool? isPaid) { _paidStatusFilter = isPaid; _invalidateExpenseCache(); _safeNotify(); }
+  void clearFilters() { _filterCategory = 'All'; _dateRange = null; _minAmount = null; _maxAmount = null; _paidStatusFilter = null; _invalidateExpenseCache(); _safeNotify(); }
 
   // ============== CALCULATIONS & ALIASES ==============
 
@@ -2137,14 +2137,14 @@ class AppState extends ChangeNotifier {
   void unlock() {
     _isLocked = false;
     _startLockTimer();
-    notifyListeners();
+    _safeNotify();
   }
 
   /// Lock the app immediately
   void lock() {
     _cancelLockTimer();
     _isLocked = true;
-    notifyListeners();
+    _safeNotify();
   }
 
   /// Reset the inactivity timer (call this on user interaction)
@@ -2174,6 +2174,19 @@ class AppState extends ChangeNotifier {
   void _cancelLockTimer() {
     _lockTimer?.cancel();
     _lockTimer = null;
+  }
+
+  /// FIX Bug #5: Safely notify listeners — early returns if the provider
+  /// has been disposed. Every mutation method in this class is wrapped in
+  /// `_writeMutex.synchronized` and awaits DB work before calling
+  /// `notifyListeners()`. If the surrounding widget tree is torn down
+  /// during that await (e.g. hot restart, user signs out, test cleanup),
+  /// the old `notifyListeners()` call would throw:
+  /// "A ChangeNotifier was used after being disposed."
+  /// Use this helper instead of calling `notifyListeners()` directly.
+  void _safeNotify() {
+    if (_isDisposed) return;
+    notifyListeners();
   }
 
   @override
