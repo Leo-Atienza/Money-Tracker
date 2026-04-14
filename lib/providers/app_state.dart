@@ -1705,6 +1705,27 @@ class AppState extends ChangeNotifier {
       await _loadExpensesInternal();
       await _loadRecurringExpenses();
     });
+
+    // FIX Bug #6: End-of-month bill reminders (day 29-31) cannot use Android's
+    // monthly repeat mode, so they're scheduled as one-shot notifications. After
+    // the recurring processor runs — which is when any previously fired reminder
+    // has just had its transaction auto-created — re-book the next occurrence.
+    // Idempotent via SharedPreferences marker, so this is a cheap no-op when
+    // nothing has changed.
+    if (_billRemindersEnabled) {
+      try {
+        final activeRecurring =
+            await _db.readActiveRecurringExpenses(currentAccountId);
+        await _notificationHelper.rescheduleEndOfMonthBillReminders(
+          activeRecurring,
+          currencySymbol: currency,
+        );
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('Failed to reschedule end-of-month bill reminders: $e');
+        }
+      }
+    }
   }
 
   /// Process recurring incomes, creating any that are due today.

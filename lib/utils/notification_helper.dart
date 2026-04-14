@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import '../models/recurring_expense_model.dart';
@@ -19,6 +21,14 @@ class NotificationHelper {
   // Monthly summary: 9999 (reserved)
   static const int _billReminderIdBase = 10000;
   static const int _budgetAlertIdBase = 20000;
+
+  // FIX Bug #6: Idempotency marker for end-of-month bill reminders.
+  // Key: '<prefix><recurringId>', value: epoch millis of the scheduled reminder.
+  // If the recurring processor re-runs and the next reminder epoch matches the
+  // stored value, scheduling is skipped.
+  static const String _eomBillKeyPrefix = 'eom_bill_scheduled_';
+
+  String _eomBillKey(int expenseId) => '$_eomBillKeyPrefix$expenseId';
 
   // FIX P3-17: Notification channel configuration for localization support
   // These can be overridden by calling setChannelNames() before scheduling notifications
@@ -196,12 +206,31 @@ class NotificationHelper {
       // One-time notification for next occurrence only
       final expenseId = expense.id;
       if (expenseId == null) return; // Cannot schedule without ID
+
+      // FIX Bug #6: Idempotency — skip if this exact reminder is already
+      // scheduled. `rescheduleEndOfMonthBillReminders` calls this on every
+      // recurring-processor run; without the skip we would cancel+rebook the
+      // same notification on every app start.
+      final reminderTime = reminderDate.copyWith(hour: 9, minute: 0);
+      final reminderEpoch = reminderTime.millisecondsSinceEpoch;
+      final prefs = await SharedPreferences.getInstance();
+      final storedEpoch = prefs.getInt(_eomBillKey(expenseId));
+      if (storedEpoch == reminderEpoch) {
+        // Already booked for this occurrence — nothing to do.
+        return;
+      }
+
+      // Cancel any prior schedule for this recurring (may be stale) before
+      // booking the fresh one. Prevents leftover notifications from an earlier
+      // due date still being delivered.
+      await _notifications.cancel(_billReminderIdBase + expenseId);
+
       // FIX P2-9: Use separate ID range to prevent collision with budget alerts
       await _notifications.zonedSchedule(
         _billReminderIdBase + expenseId,
         '💡 Bill Reminder',
         '${expense.description} ($currencySymbol${expense.amount.toStringAsFixed(2)}) due tomorrow',
-        tz.TZDateTime.from(reminderDate.copyWith(hour: 9, minute: 0), tz.local),
+        tz.TZDateTime.from(reminderTime, tz.local),
         billReminderDetails,
         androidScheduleMode: canUseExact
             ? AndroidScheduleMode.exactAllowWhileIdle
@@ -209,9 +238,9 @@ class NotificationHelper {
         // NO matchDateTimeComponents - this is a one-time notification
       );
 
-      // NOTE: For recurring end-of-month bills, the notification will need to be
-      // rescheduled after each occurrence. This can be done when the app processes
-      // recurring transactions monthly.
+      // Persist the booked reminder epoch so the next call can skip if the
+      // value is unchanged.
+      await prefs.setInt(_eomBillKey(expenseId), reminderEpoch);
     } else {
       // Regular monthly repeating notification (safe for days 1-28)
       final expenseId = expense.id;
@@ -234,6 +263,50 @@ class NotificationHelper {
   Future<void> cancelBillReminder(int expenseId) async {
     // FIX P2-9: Use the correct ID range for bill reminders
     await _notifications.cancel(_billReminderIdBase + expenseId);
+
+    // FIX Bug #6: Also clear the end-of-month idempotency marker so a
+    // subsequent `scheduleBillReminder` call is not short-circuited by a
+    // stale stored epoch.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_eomBillKey(expenseId));
+    } catch (e) {
+      if (kDebugMode) debugPrint('Failed to clear EOM bill marker: $e');
+    }
+  }
+
+  /// FIX Bug #6: Re-book end-of-month (day 29-31) bill reminders.
+  ///
+  /// Android's `DateTimeComponents.dayOfMonthAndTime` cannot repeat for days
+  /// that don't exist in every month, so those bills are scheduled as
+  /// one-shot notifications. Call this after `_processRecurringExpenses`
+  /// completes so that once a scheduled notification has fired (and the
+  /// generator created the corresponding transaction), the next month's
+  /// reminder is queued up.
+  ///
+  /// Idempotent: if `scheduleBillReminder` sees the same reminder epoch
+  /// already stored in SharedPreferences, it no-ops. So calling this on
+  /// every recurring-processor run is safe and cheap.
+  Future<void> rescheduleEndOfMonthBillReminders(
+    List<RecurringExpense> recurringExpenses, {
+    String currencySymbol = '\$',
+  }) async {
+    if (recurringExpenses.isEmpty) return;
+    await initialize();
+    for (final recurring in recurringExpenses) {
+      try {
+        if (!recurring.isActive) continue;
+        if (recurring.id == null) continue;
+        if (recurring.dayOfMonth < 29) continue; // only end-of-month bills
+        await scheduleBillReminder(recurring, currencySymbol: currencySymbol);
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint(
+            'Failed to reschedule EOM reminder for recurring ${recurring.id}: $e',
+          );
+        }
+      }
+    }
   }
 
   // ========== BUDGET ALERTS ==========
