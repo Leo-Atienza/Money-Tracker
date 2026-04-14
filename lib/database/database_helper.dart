@@ -27,17 +27,30 @@ class DatabaseHelper {
   // FIX: Add timeout duration for database operations
   static const Duration _queryTimeout = Duration(seconds: 30);
 
+  /// Test-only override for the database filename. When set, `_initDatabase`
+  /// uses this name instead of the default `expense_tracker_v4.db`. Flutter
+  /// test runs integration test files in parallel isolates that share
+  /// `getDatabasesPath()`; without a per-isolate filename, parallel tests
+  /// collide on `SQLITE_BUSY` / "database is locked". Integration tests set
+  /// a UUID-based name in their `setUp`.
+  @visibleForTesting
+  static String? databaseNameOverride;
+
+  static const String _defaultDatabaseName = 'expense_tracker_v4.db';
+
   factory DatabaseHelper() => _instance;
 
   DatabaseHelper._internal();
 
   /// Test-only hook to drop the cached database and force re-initialization
   /// on the next access. Used by integration tests (Phase 3b) so each test
-  /// starts against a fresh in-memory sqflite_common_ffi database.
+  /// starts against a fresh sqflite_common_ffi database.
   ///
   /// Closes the current database if one is open, nulls `_database` and
-  /// `_initCompleter`, and swallows any close error (a test is already
-  /// about to tear everything down, so there's nothing useful to surface).
+  /// `_initCompleter`, and deletes the underlying file (honoring
+  /// [databaseNameOverride]) so the next `_initDatabase` runs a clean
+  /// `_onCreate`. All errors are swallowed — the test harness is about to
+  /// replace the DB anyway and the file may not exist on the very first call.
   @visibleForTesting
   static Future<void> resetForTesting() async {
     try {
@@ -47,6 +60,16 @@ class DatabaseHelper {
     }
     _database = null;
     _initCompleter = null;
+    try {
+      final databasePath = await getDatabasesPath();
+      final dbPath = path.join(
+        databasePath,
+        databaseNameOverride ?? _defaultDatabaseName,
+      );
+      await deleteDatabase(dbPath);
+    } catch (_) {
+      // Best-effort — file may not exist or be locked briefly on Windows.
+    }
   }
 
   Future<Database> get database async {
@@ -77,7 +100,10 @@ class DatabaseHelper {
 
   Future<Database> _initDatabase() async {
     final databasePath = await getDatabasesPath();
-    final dbPath = path.join(databasePath, 'expense_tracker_v4.db');
+    final dbPath = path.join(
+      databasePath,
+      databaseNameOverride ?? _defaultDatabaseName,
+    );
 
     return await openDatabase(
       dbPath,
