@@ -339,6 +339,15 @@ class AppState extends ChangeNotifier {
     final accountIdAtStart = currentAccountId;
     _processingRecurring = true;
 
+    // FIX Bug #7: Reset the auto-created counter at the start of each run.
+    // Previously `_processRecurringExpenses` / `_processRecurringIncomes`
+    // accumulated (`+=`) without ever resetting, so multiple
+    // foreground→background cycles in one day kept increasing the number —
+    // the UI would report e.g. "6 auto-created" after a single bill had
+    // been generated twice. Each run should report only what it itself
+    // created.
+    _lastAutoCreatedCount = 0;
+
     try {
       if (epochAtStart != _backgroundProcessingEpoch) {
         return;
