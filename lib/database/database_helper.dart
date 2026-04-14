@@ -31,6 +31,24 @@ class DatabaseHelper {
 
   DatabaseHelper._internal();
 
+  /// Test-only hook to drop the cached database and force re-initialization
+  /// on the next access. Used by integration tests (Phase 3b) so each test
+  /// starts against a fresh in-memory sqflite_common_ffi database.
+  ///
+  /// Closes the current database if one is open, nulls `_database` and
+  /// `_initCompleter`, and swallows any close error (a test is already
+  /// about to tear everything down, so there's nothing useful to surface).
+  @visibleForTesting
+  static Future<void> resetForTesting() async {
+    try {
+      await _database?.close();
+    } catch (_) {
+      // Best-effort — the test harness is replacing the DB anyway.
+    }
+    _database = null;
+    _initCompleter = null;
+  }
+
   Future<Database> get database async {
     // FIX: If database already initialized, return immediately
     if (_database != null) return _database!;
