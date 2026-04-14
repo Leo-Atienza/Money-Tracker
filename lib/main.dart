@@ -24,7 +24,7 @@ import 'utils/home_widget_helper.dart';
 /// Current app version. Keep in sync with `pubspec.yaml` → `version:`.
 /// FIX Phase 3a: Passed to [CrashLog.init] so every crash record is tagged
 /// with the build that produced it.
-const String _appVersion = '4.1.0+5';
+const String _appVersion = '4.4.0+6';
 
 /// Semantic color extension for expense/income/warning/info colors.
 /// Uses WCAG-compliant colors from ColorContrastHelper.

@@ -1,6 +1,11 @@
 # Changelog
 
-## 4.1.0+5 — 2026-04-14
+> Note: Earlier commits in this release cycle referenced an incorrect `4.1.0+5`
+> version string. That number was numerically behind the public `v4.3.0` release
+> (L100 Quality Upgrade) and was never shipped. The actual public release of
+> this bug-fix + crash-log pass is `4.4.0+6`.
+
+## 4.4.0+6 — 2026-04-14
 
 ### Fixed
 - **Critical**: Weekly and biweekly recurring transactions now auto-generate correctly — previously only monthly items were materialized, and weekly/biweekly rows stayed dormant in the database forever.
