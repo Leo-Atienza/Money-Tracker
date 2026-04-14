@@ -107,14 +107,16 @@ class PinSecurityHelper {
       return false;
     }
 
-    // Support legacy PINs without salt (migrate on next PIN change)
+    // Support legacy PINs without salt (migrate on next PIN change).
+    // FIX Bug #10: Use a constant-time comparison so an attacker with
+    // precise timing access cannot learn the stored hash byte-by-byte.
     bool isValid;
     if (storedSalt == null) {
       final inputHash = _hashPin(pin);
-      isValid = inputHash == storedHash;
+      isValid = _constantTimeEquals(inputHash, storedHash);
     } else {
       final inputHash = _hashPinWithSalt(pin, storedSalt);
-      isValid = inputHash == storedHash;
+      isValid = _constantTimeEquals(inputHash, storedHash);
     }
 
     // FIX P1-7: Track failed attempts
@@ -232,6 +234,29 @@ class PinSecurityHelper {
     final bytes = utf8.encode(salt + pin);
     final digest = sha256.convert(bytes);
     return digest.toString();
+  }
+
+  /// FIX Bug #10: Constant-time comparison of two hex hash strings.
+  ///
+  /// Dart's `==` on `String` short-circuits on the first differing code
+  /// unit, which leaks the number of matching prefix bytes through the
+  /// wall-clock time of `verifyPin`. For a local PIN check on an app
+  /// binary this is a tiny risk — but the fix is cheap, so we take it.
+  ///
+  /// Both inputs are SHA-256 hex strings, i.e. 64 ASCII characters.
+  /// `codeUnitAt(i)` returns the UTF-16 code unit which is identical to
+  /// the byte value for ASCII, so XORing and OR-accumulating is a valid
+  /// byte-level compare without allocating a `Uint8List`.
+  static bool _constantTimeEquals(String a, String b) {
+    // Length mismatch is unexpected in practice — SHA-256 is always 64
+    // hex chars — but a defensive early-return here leaks only length,
+    // which is a fixed constant anyway.
+    if (a.length != b.length) return false;
+    var result = 0;
+    for (var i = 0; i < a.length; i++) {
+      result |= a.codeUnitAt(i) ^ b.codeUnitAt(i);
+    }
+    return result == 0;
   }
 
   /// Generate a cryptographically secure random salt
