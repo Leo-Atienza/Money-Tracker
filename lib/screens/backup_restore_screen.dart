@@ -708,6 +708,26 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           }
           break;
 
+        case RestoreResult.incompatibleVersion:
+          // FIX Bug #9: Backup was created by a newer app version whose
+          // database schema the installed app cannot open. Tell the user
+          // to update the app rather than silently failing on DB open.
+          await appState.reloadAfterRestore();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text(
+                  'This backup was created with a newer version of Money Tracker. '
+                  'Please update the app before restoring this backup.',
+                ),
+                backgroundColor:
+                    Theme.of(context).extension<AppColors>()!.expenseRed,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+          break;
+
         case RestoreResult.fileNotFound:
           // FIX: Reload DB connection after error
           await appState.reloadAfterRestore();

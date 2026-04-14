@@ -10,23 +10,30 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/expense_model.dart';
-import '../models/income_model.dart';
-import '../models/recurring_expense_model.dart';
-import '../models/recurring_income_model.dart';
-import '../models/quick_template_model.dart';
-import '../models/budget_model.dart';
+import '../constants/database.dart';
+import '../database/database_helper.dart';
 import '../providers/app_state.dart';
 
 /// Result enum for restore operations
-enum RestoreResult { success, cancelled, fileNotFound, invalidFile, error }
+/// Result enum for restore operations.
+/// FIX Bug #9: Adds [incompatibleVersion] so the UI can distinguish a
+/// too-new-to-restore backup from generic errors and show a clear message.
+enum RestoreResult {
+  success,
+  cancelled,
+  fileNotFound,
+  invalidFile,
+  incompatibleVersion,
+  error,
+}
 
 /// Data class for passing parameters to isolate
 class _BackupIsolateParams {
   final String dbPath;
   final Map<String, dynamic> settings;
+  final int schemaVersion;
 
-  _BackupIsolateParams(this.dbPath, this.settings);
+  _BackupIsolateParams(this.dbPath, this.settings, this.schemaVersion);
 }
 
 /// Isolate function to create comprehensive backup (runs off main thread)
@@ -34,6 +41,9 @@ class _BackupIsolateParams {
 /// FIX C1: Read all bytes first, then Base64-encode once to avoid padding corruption
 /// The SQLite DB is small enough for memory; chunked encoding produced invalid
 /// Base64 (each chunk was independently padded with '=' in the middle).
+/// FIX Bug #9: Stamp schema_version in the wrapper so a newer backup
+/// restored on an older app install can be refused before the DB file is
+/// replaced.
 Future<String> _createBackupInIsolate(_BackupIsolateParams params) async {
   // FIX: Removed try-catch to preserve original exception and stack trace
   // FIX C1: Read entire file then encode once (chunked encoding corrupts Base64)
@@ -44,6 +54,7 @@ Future<String> _createBackupInIsolate(_BackupIsolateParams params) async {
   // Create backup data structure
   final backupData = {
     'version': 2,
+    'schema_version': params.schemaVersion,
     'timestamp': DateTime.now().toIso8601String(),
     'database': dbBase64,
     'settings': params.settings,
@@ -64,13 +75,17 @@ class _RestoreIsolateParams {
 class _RestoreIsolateResult {
   final Uint8List dbBytes;
   final Map<String, dynamic>? settings;
+  final int? schemaVersion;
 
-  _RestoreIsolateResult(this.dbBytes, this.settings);
+  _RestoreIsolateResult(this.dbBytes, this.settings, this.schemaVersion);
 }
 
 /// Isolate function to decode comprehensive backup (runs off main thread)
 /// FIX: Prevents OOM and UI freeze during restore
 /// FIX: Returns both DB bytes and settings so main thread avoids double decode
+/// FIX Bug #9: Also surfaces schema_version (null if absent from the wrapper)
+/// so the caller can reject newer-schema backups before the DB file is
+/// replaced.
 Future<_RestoreIsolateResult> _decodeBackupInIsolate(
   _RestoreIsolateParams params,
 ) async {
@@ -78,7 +93,12 @@ Future<_RestoreIsolateResult> _decodeBackupInIsolate(
   final dbBase64 = backupData['database'] as String;
   final dbBytes = base64Decode(dbBase64);
   final settings = backupData['settings'] as Map<String, dynamic>?;
-  return _RestoreIsolateResult(dbBytes, settings);
+  final schemaVersion = backupData['schema_version'];
+  return _RestoreIsolateResult(
+    dbBytes,
+    settings,
+    schemaVersion is int ? schemaVersion : null,
+  );
 }
 
 class BackupHelper {
@@ -102,8 +122,11 @@ class BackupHelper {
       final allIncomes = await appState.getAllIncomesForBackup();
 
       // FIX P2-12: Include ALL data in backup (previously missing budgets, recurring_income, monthly_balances, tags)
+      // FIX Bug #9: Include schema_version so newer backups can be refused by
+      // older app installs before any writes happen.
       final backupData = {
         'version': 2, // Bumped version for expanded backup format
+        'schema_version': DatabaseConstants.databaseVersion,
         'timestamp': DateTime.now().toIso8601String(),
         'currency': appState.currencyCode,
         'accounts': appState.accounts.map((e) => e.toMap()).toList(),
@@ -209,105 +232,47 @@ class BackupHelper {
     );
   }
 
+  /// FIX Bug #3 & Bug #9: Restore a JSON backup by writing directly through
+  /// DatabaseHelper instead of the AppState mutators.
+  ///
+  /// The old implementation looped over each section and called
+  /// appState.addExpense / addIncome / addRecurringExpense / setBudget, all of
+  /// which resolved account_id from the CURRENT UI account (collapsing every
+  /// historical row onto one account) and wrote budgets against _selectedMonth
+  /// (collapsing every historical budget into the current month). Worst: a
+  /// failure mid-restore left the database in a half-restored state because
+  /// each mutator committed its own write.
+  ///
+  /// The new path delegates to DatabaseHelper.restoreFromJsonBackup, which:
+  ///   - Validates the backup's schema_version (Bug #9) before any writes.
+  ///   - Wraps every insert in a single db.transaction so partial failures
+  ///     roll back cleanly.
+  ///   - Preserves original account_id / month / date fields exactly,
+  ///     remapping account_id only when the backup came from a device with
+  ///     different account numbering.
   Future<void> _performRestore(
     BuildContext context,
     Map<String, dynamic> data,
   ) async {
+    final appState = context.read<AppState>();
     try {
-      final appState = context.read<AppState>();
-      int itemsRestored = 0;
+      final stats = await DatabaseHelper().restoreFromJsonBackup(data);
 
-      // Restore Accounts (skip if exists)
-      // Note: In a real app, logic would be more complex to merge/replace
-      // For simplicity, we just add missing accounts or use default
-
-      // Restore Categories
-      if (data['categories'] != null) {
-        for (var item in data['categories']) {
-          // Check if category exists by name to avoid duplicates
-          if (!appState.categories.any(
-            (c) => c.name == item['name'] && c.type == item['type'],
-          )) {
-            await appState.addCategory(
-              item['name'] as String,
-              type: item['type'] as String? ?? 'expense',
-            );
-            itemsRestored++;
-          }
-        }
-      }
-
-      // Restore Expenses
-      if (data['expenses'] != null) {
-        for (var item in data['expenses']) {
-          final expense = Expense.fromMap(item);
-          // Remove ID to let DB generate new unique ID
-          final expenseToSave = expense.copyWith(id: null);
-          // Make sure it has a valid account ID (using current account)
-          // In a real app, we would try to map to the original account
-          await appState.addExpense(expenseToSave);
-          itemsRestored++;
-        }
-      }
-
-      // Restore Incomes
-      if (data['incomes'] != null) {
-        for (var item in data['incomes']) {
-          final income = Income.fromMap(item);
-          // Remove ID
-          final incomeToSave = income.copyWith(id: null);
-          await appState.addIncome(incomeToSave);
-          itemsRestored++;
-        }
-      }
-
-      // Restore Recurring
-      if (data['recurring_expenses'] != null) {
-        for (var item in data['recurring_expenses']) {
-          final recurring = RecurringExpense.fromMap(item);
-          final recurringToSave = recurring.copyWith(id: null);
-          await appState.addRecurringExpense(recurringToSave);
-          itemsRestored++;
-        }
-      }
-
-      // Restore Templates
-      if (data['quick_templates'] != null) {
-        for (var item in data['quick_templates']) {
-          final template = QuickTemplate.fromMap(item);
-          final templateToSave = template.copyWith(id: null);
-          await appState.addTemplate(templateToSave);
-          itemsRestored++;
-        }
-      }
-
-      // FIX P2-12: Restore Recurring Income (v2 backup format)
-      if (data['recurring_income'] != null) {
-        for (var item in data['recurring_income']) {
-          final recurring = RecurringIncome.fromMap(item);
-          final recurringToSave = recurring.copyWith(id: null);
-          await appState.addRecurringIncome(recurringToSave);
-          itemsRestored++;
-        }
-      }
-
-      // FIX P2-12: Restore Budgets (v2 backup format)
-      if (data['budgets'] != null) {
-        for (var item in data['budgets']) {
-          final budget = Budget.fromMap(item);
-          // Use setBudget which handles duplicates
-          await appState.setBudget(budget.category, budget.amount);
-          itemsRestored++;
-        }
-      }
-
-      // Note: monthly_balances and tags are not restored here as they are
-      // automatically calculated/managed by the app based on transaction data.
-      // The comprehensive database backup (.etbackup) handles full data restore.
+      // Reload AppState from the freshly restored database so the UI
+      // reflects the newly inserted rows immediately.
+      await appState.loadData();
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Restored $itemsRestored items successfully')),
+          SnackBar(
+            content: Text('Restored ${stats.total} items successfully'),
+          ),
+        );
+      }
+    } on BackupRestoreException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
         );
       }
     } catch (e) {
@@ -460,7 +425,7 @@ class BackupHelper {
       if (kDebugMode) debugPrint('Creating backup in isolate...');
       final backupJson = await compute(
         _createBackupInIsolate,
-        _BackupIsolateParams(dbPath, settings),
+        _BackupIsolateParams(dbPath, settings, DatabaseConstants.databaseVersion),
       );
       if (kDebugMode) {
         debugPrint(
@@ -585,7 +550,7 @@ class BackupHelper {
       // FIX: Create comprehensive backup in isolate
       final backupJson = await compute(
         _createBackupInIsolate,
-        _BackupIsolateParams(dbPath, settings),
+        _BackupIsolateParams(dbPath, settings, DatabaseConstants.databaseVersion),
       );
 
       final bytes = Uint8List.fromList(utf8.encode(backupJson));
@@ -972,6 +937,22 @@ class BackupHelper {
         _RestoreIsolateParams(backupJson),
       );
       final dbBytes = result.dbBytes;
+
+      // FIX Bug #9: Reject backups created with a newer schema than the
+      // installed app BEFORE any file operations. A too-new DB file would
+      // fail to open (SQLite refuses to downgrade) and leave the user with
+      // no visible database, so catch it here with a clear message.
+      final backupSchemaVersion = result.schemaVersion;
+      if (backupSchemaVersion != null &&
+          backupSchemaVersion > DatabaseConstants.databaseVersion) {
+        if (kDebugMode) {
+          debugPrint(
+            'Refusing backup: schema_version $backupSchemaVersion > '
+            'app databaseVersion ${DatabaseConstants.databaseVersion}',
+          );
+        }
+        return RestoreResult.incompatibleVersion;
+      }
 
       // Get database path
       final dbPath = await _getDatabasePath();

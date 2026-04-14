@@ -14,6 +14,7 @@ import '../models/category_model.dart';
 import '../models/income_model.dart';
 import '../models/quick_template_model.dart';
 import '../models/monthly_balance_model.dart';
+import '../constants/database.dart';
 import '../utils/decimal_helper.dart';
 import '../utils/date_helper.dart';
 
@@ -2821,4 +2822,320 @@ class DatabaseHelper {
       'hasMore': result.length >= limit,
     };
   }
+
+  // ============== JSON BACKUP RESTORE ==============
+
+  /// FIX Bug #3 & Bug #9: Restore a JSON backup directly to the database.
+  ///
+  /// Replaces the old AppState-mutator path that silently collapsed every
+  /// historical record onto the current UI selection:
+  ///   - Expenses/incomes/recurring/templates lost their original account_id
+  ///     because AppState.addExpense() resolved it from currentAccountId.
+  ///   - Budgets lost their original month because AppState.setBudget() wrote
+  ///     against _selectedMonth, collapsing every historical budget into the
+  ///     current month.
+  ///
+  /// This method writes directly through the database, preserving all
+  /// original foreign-key linkages (remapped through the account-name map
+  /// when a device has different account IDs) and wraps everything in one
+  /// transaction so a mid-restore failure rolls back cleanly.
+  ///
+  /// FIX Bug #9: Also validates the backup's `schema_version` (if present)
+  /// against the current [DatabaseConstants.databaseVersion]. Backups from a
+  /// newer schema are rejected with a clear error before any writes occur.
+  /// Older backups without a schema_version field are accepted since the
+  /// backup format predates the check.
+  Future<BackupRestoreStats> restoreFromJsonBackup(
+    Map<String, dynamic> backupData,
+  ) async {
+    // Bug #9: Schema version validation.
+    final backupSchemaVersion = backupData['schema_version'];
+    if (backupSchemaVersion is int &&
+        backupSchemaVersion > DatabaseConstants.databaseVersion) {
+      throw BackupRestoreException(
+        'Backup was created with a newer schema version ($backupSchemaVersion) '
+        'than the installed app (${DatabaseConstants.databaseVersion}). '
+        'Please update Money Tracker before restoring this backup.',
+      );
+    }
+
+    final stats = BackupRestoreStats();
+    final db = await database;
+
+    await db.transaction((txn) async {
+      // 1. Accounts — natural key: name. Build original_id → new_id map.
+      final accountIdMap = <int, int>{};
+      final accountsList = backupData['accounts'];
+      if (accountsList is List) {
+        for (final raw in accountsList) {
+          if (raw is! Map) continue;
+          final map = Map<String, dynamic>.from(raw);
+          final originalId = map['id'];
+          final name = map['name'];
+          if (name is! String || name.isEmpty) continue;
+
+          final existing = await txn.query(
+            DatabaseConstants.tableAccounts,
+            where: 'name = ?',
+            whereArgs: [name],
+            limit: 1,
+          );
+          int newId;
+          if (existing.isNotEmpty) {
+            newId = existing.first['id'] as int;
+          } else {
+            final insertMap = Map<String, dynamic>.from(map)..remove('id');
+            newId = await txn.insert(
+              DatabaseConstants.tableAccounts,
+              insertMap,
+            );
+            stats.accountsAdded++;
+          }
+          if (originalId is int) {
+            accountIdMap[originalId] = newId;
+          }
+        }
+      }
+
+      // Helper: resolve the remapped accountId, falling back to the first
+      // account in the current DB if no mapping exists (protects backups
+      // that came from a device where accounts were wiped out).
+      Future<int?> resolveAccountId(dynamic rawAccountId) async {
+        if (rawAccountId is! int) return null;
+        final mapped = accountIdMap[rawAccountId];
+        if (mapped != null) return mapped;
+        final fallback = await txn.query(
+          DatabaseConstants.tableAccounts,
+          columns: ['id'],
+          limit: 1,
+          orderBy: 'id ASC',
+        );
+        if (fallback.isEmpty) return null;
+        return fallback.first['id'] as int;
+      }
+
+      // 2. Categories — natural key: (account_id, name, type).
+      final categoriesList = backupData['categories'];
+      if (categoriesList is List) {
+        for (final raw in categoriesList) {
+          if (raw is! Map) continue;
+          final map = Map<String, dynamic>.from(raw);
+          final resolvedAccountId = await resolveAccountId(map['account_id']);
+          if (resolvedAccountId == null) continue;
+          final name = map['name'];
+          if (name is! String || name.isEmpty) continue;
+          final type = map['type'] as String? ?? 'expense';
+
+          final existing = await txn.query(
+            DatabaseConstants.tableCategories,
+            where: 'account_id = ? AND name = ? AND type = ?',
+            whereArgs: [resolvedAccountId, name, type],
+            limit: 1,
+          );
+          if (existing.isNotEmpty) continue;
+
+          final insertMap = Map<String, dynamic>.from(map)
+            ..remove('id')
+            ..['account_id'] = resolvedAccountId;
+          await txn.insert(DatabaseConstants.tableCategories, insertMap);
+          stats.categoriesAdded++;
+        }
+      }
+
+      // 3. Expenses — preserve date and account_id, strip id.
+      final expensesList = backupData['expenses'];
+      if (expensesList is List) {
+        for (final raw in expensesList) {
+          if (raw is! Map) continue;
+          final map = Map<String, dynamic>.from(raw);
+          final resolvedAccountId = await resolveAccountId(map['account_id']);
+          if (resolvedAccountId == null) continue;
+          final insertMap = Map<String, dynamic>.from(map)
+            ..remove('id')
+            ..['account_id'] = resolvedAccountId;
+          await txn.insert(DatabaseConstants.tableExpenses, insertMap);
+          stats.expensesAdded++;
+        }
+      }
+
+      // 4. Incomes — same shape as expenses.
+      final incomesList = backupData['incomes'];
+      if (incomesList is List) {
+        for (final raw in incomesList) {
+          if (raw is! Map) continue;
+          final map = Map<String, dynamic>.from(raw);
+          final resolvedAccountId = await resolveAccountId(map['account_id']);
+          if (resolvedAccountId == null) continue;
+          final insertMap = Map<String, dynamic>.from(map)
+            ..remove('id')
+            ..['account_id'] = resolvedAccountId;
+          await txn.insert(DatabaseConstants.tableIncome, insertMap);
+          stats.incomesAdded++;
+        }
+      }
+
+      // 5. Budgets — preserve month, upsert by (account_id, category, month).
+      final budgetsList = backupData['budgets'];
+      if (budgetsList is List) {
+        for (final raw in budgetsList) {
+          if (raw is! Map) continue;
+          final map = Map<String, dynamic>.from(raw);
+          final resolvedAccountId = await resolveAccountId(map['account_id']);
+          if (resolvedAccountId == null) continue;
+          final category = map['category'];
+          final month = map['month'];
+          if (category is! String || month is! String) continue;
+
+          final existing = await txn.query(
+            DatabaseConstants.tableBudgets,
+            where: 'account_id = ? AND category = ? AND month = ?',
+            whereArgs: [resolvedAccountId, category, month],
+            limit: 1,
+          );
+          if (existing.isNotEmpty) {
+            // Update amount on conflict — last-write-wins matches prior behavior.
+            await txn.update(
+              DatabaseConstants.tableBudgets,
+              {'amount': map['amount']},
+              where: 'id = ?',
+              whereArgs: [existing.first['id']],
+            );
+          } else {
+            final insertMap = Map<String, dynamic>.from(map)
+              ..remove('id')
+              ..['account_id'] = resolvedAccountId;
+            await txn.insert(DatabaseConstants.tableBudgets, insertMap);
+            stats.budgetsAdded++;
+          }
+        }
+      }
+
+      // 6. Recurring expenses — natural key: (account_id, description,
+      // frequency, dayOfMonth). Skip exact duplicates.
+      final recurringExpensesList = backupData['recurring_expenses'];
+      if (recurringExpensesList is List) {
+        for (final raw in recurringExpensesList) {
+          if (raw is! Map) continue;
+          final map = Map<String, dynamic>.from(raw);
+          final resolvedAccountId = await resolveAccountId(map['account_id']);
+          if (resolvedAccountId == null) continue;
+          final existing = await txn.query(
+            DatabaseConstants.tableRecurringExpenses,
+            where: 'account_id = ? AND description = ? AND frequency = ? AND dayOfMonth = ?',
+            whereArgs: [
+              resolvedAccountId,
+              map['description'] ?? '',
+              map['frequency'] ?? 0,
+              map['dayOfMonth'] ?? 1,
+            ],
+            limit: 1,
+          );
+          if (existing.isNotEmpty) continue;
+          final insertMap = Map<String, dynamic>.from(map)
+            ..remove('id')
+            ..['account_id'] = resolvedAccountId;
+          await txn.insert(
+            DatabaseConstants.tableRecurringExpenses,
+            insertMap,
+          );
+          stats.recurringExpensesAdded++;
+        }
+      }
+
+      // 7. Recurring incomes — mirror of recurring expenses.
+      final recurringIncomesList = backupData['recurring_income'];
+      if (recurringIncomesList is List) {
+        for (final raw in recurringIncomesList) {
+          if (raw is! Map) continue;
+          final map = Map<String, dynamic>.from(raw);
+          final resolvedAccountId = await resolveAccountId(map['account_id']);
+          if (resolvedAccountId == null) continue;
+          final existing = await txn.query(
+            DatabaseConstants.tableRecurringIncome,
+            where: 'account_id = ? AND description = ? AND frequency = ? AND dayOfMonth = ?',
+            whereArgs: [
+              resolvedAccountId,
+              map['description'] ?? '',
+              map['frequency'] ?? 0,
+              map['dayOfMonth'] ?? 1,
+            ],
+            limit: 1,
+          );
+          if (existing.isNotEmpty) continue;
+          final insertMap = Map<String, dynamic>.from(map)
+            ..remove('id')
+            ..['account_id'] = resolvedAccountId;
+          await txn.insert(
+            DatabaseConstants.tableRecurringIncome,
+            insertMap,
+          );
+          stats.recurringIncomesAdded++;
+        }
+      }
+
+      // 8. Quick templates — natural key: (account_id, name, type).
+      final templatesList = backupData['quick_templates'];
+      if (templatesList is List) {
+        for (final raw in templatesList) {
+          if (raw is! Map) continue;
+          final map = Map<String, dynamic>.from(raw);
+          final resolvedAccountId = await resolveAccountId(map['account_id']);
+          if (resolvedAccountId == null) continue;
+          final name = map['name'];
+          if (name is! String || name.isEmpty) continue;
+          final type = map['type'] as String? ?? 'expense';
+          final existing = await txn.query(
+            DatabaseConstants.tableQuickTemplates,
+            where: 'account_id = ? AND name = ? AND type = ?',
+            whereArgs: [resolvedAccountId, name, type],
+            limit: 1,
+          );
+          if (existing.isNotEmpty) continue;
+          final insertMap = Map<String, dynamic>.from(map)
+            ..remove('id')
+            ..['account_id'] = resolvedAccountId;
+          await txn.insert(DatabaseConstants.tableQuickTemplates, insertMap);
+          stats.templatesAdded++;
+        }
+      }
+    });
+
+    return stats;
+  }
+}
+
+/// Exception raised when a backup cannot be restored safely.
+/// Used by [DatabaseHelper.restoreFromJsonBackup] to surface schema-version
+/// and structural errors to the UI in a way that can be caught and shown
+/// to the user without a stack trace.
+class BackupRestoreException implements Exception {
+  final String message;
+  BackupRestoreException(this.message);
+
+  @override
+  String toString() => message;
+}
+
+/// Counts of items added during a JSON backup restore.
+/// Returned by [DatabaseHelper.restoreFromJsonBackup] so the caller can
+/// show a summary in the UI.
+class BackupRestoreStats {
+  int accountsAdded = 0;
+  int categoriesAdded = 0;
+  int expensesAdded = 0;
+  int incomesAdded = 0;
+  int budgetsAdded = 0;
+  int recurringExpensesAdded = 0;
+  int recurringIncomesAdded = 0;
+  int templatesAdded = 0;
+
+  int get total =>
+      accountsAdded +
+      categoriesAdded +
+      expensesAdded +
+      incomesAdded +
+      budgetsAdded +
+      recurringExpensesAdded +
+      recurringIncomesAdded +
+      templatesAdded;
 }
