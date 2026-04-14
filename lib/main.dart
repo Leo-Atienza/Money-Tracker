@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +8,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'providers/app_state.dart';
 import 'utils/color_contrast_helper.dart';
+import 'utils/crash_log.dart';
 import 'screens/home_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/settings_screen.dart';
@@ -17,6 +20,11 @@ import 'services/onboarding_service.dart';
 import 'utils/notification_helper.dart';
 import 'utils/notification_payload_store.dart';
 import 'utils/home_widget_helper.dart';
+
+/// Current app version. Keep in sync with `pubspec.yaml` → `version:`.
+/// FIX Phase 3a: Passed to [CrashLog.init] so every crash record is tagged
+/// with the build that produced it.
+const String _appVersion = '4.1.0+5';
 
 /// Semantic color extension for expense/income/warning/info colors.
 /// Uses WCAG-compliant colors from ColorContrastHelper.
@@ -142,36 +150,58 @@ void notificationTapBackground(NotificationResponse notificationResponse) {
   }
 }
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+void main() {
+  // FIX Phase 3a: Wrap the entire startup in `runZonedGuarded` so any async
+  // error that escapes the Flutter framework is caught and written to the
+  // local crash log. Without this, a rejected Future in (say) the recurring
+  // processor would print to the debug console and vanish in release.
+  runZonedGuarded<Future<void>>(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
 
-  // Set preferred orientation
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+      // Initialize the crash log and install global error handlers BEFORE
+      // anything else that might throw, so those errors are captured too.
+      await CrashLog.init(appVersion: _appVersion);
 
-  // Initialize notifications with error handling
-  try {
-    await NotificationHelper().initialize();
-  } catch (e) {
-    if (kDebugMode) debugPrint('Notification initialization failed: $e');
-    // App will continue without notifications
-  }
+      // Set preferred orientation
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
 
-  // Initialize home screen widget
-  try {
-    await HomeWidgetHelper.initialize();
-  } catch (e) {
-    if (kDebugMode) debugPrint('Home widget initialization failed: $e');
-    // App will continue without widget support
-  }
+      // Initialize notifications with error handling
+      try {
+        await NotificationHelper().initialize();
+      } catch (e, st) {
+        if (kDebugMode) debugPrint('Notification initialization failed: $e');
+        CrashLog.record(e, stack: st, context: 'notification_init');
+        // App will continue without notifications
+      }
 
-  // Initialize date formatting
-  await initializeDateFormatting();
+      // Initialize home screen widget
+      try {
+        await HomeWidgetHelper.initialize();
+      } catch (e, st) {
+        if (kDebugMode) debugPrint('Home widget initialization failed: $e');
+        CrashLog.record(e, stack: st, context: 'home_widget_init');
+        // App will continue without widget support
+      }
 
-  runApp(
-    ChangeNotifierProvider(create: (_) => AppState(), child: const MyApp()),
+      // Initialize date formatting
+      await initializeDateFormatting();
+
+      runApp(
+        ChangeNotifierProvider(
+          create: (_) => AppState(),
+          child: const MyApp(),
+        ),
+      );
+    },
+    (error, stack) {
+      // Last-resort handler for anything the framework's own handlers
+      // didn't catch. Never throws — CrashLog.record swallows failures.
+      CrashLog.record(error, stack: stack, context: 'zone');
+    },
   );
 }
 
