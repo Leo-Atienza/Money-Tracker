@@ -57,8 +57,16 @@ class DateHelper {
   }
 
   /// Checks if a date is today.
+  ///
+  /// FIX Bug #8: Compare against [today] (UTC-normalized) rather than raw
+  /// `DateTime.now()`. All stored dates in the app are normalized via
+  /// [normalize] to `DateTime.utc(year, month, day)`. Comparing a UTC
+  /// DateTime's getters against a local-time DateTime's getters is a latent
+  /// timezone bug waiting to fire — using [today] keeps the comparison
+  /// consistent with [isPast] and [isFuture], which already delegate
+  /// through [today].
   static bool isToday(DateTime date) {
-    return isSameDay(date, DateTime.now());
+    return isSameDay(date, today());
   }
 
   /// Converts a DateTime to ISO 8601 date string (YYYY-MM-DD).
