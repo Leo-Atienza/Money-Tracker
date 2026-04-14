@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:home_widget/home_widget.dart';
 import 'package:flutter/foundation.dart';
+import '../database/database_helper.dart';
 import '../providers/app_state.dart';
 import 'currency_helper.dart';
 
@@ -24,15 +25,26 @@ class HomeWidgetHelper {
   }
 
   /// Update widget with current data from AppState
-  /// Always uses the actual current month data, not the user's selected month
+  /// Always uses the actual current month data, not the user's selected month.
+  ///
+  /// FIX Bug #4: Reads totals directly from the database via
+  /// [DatabaseHelper.calculateMonthBalance] instead of
+  /// appState.getExpensesForMonth, which only scans the in-memory
+  /// `_expenses` list. The in-memory list is subject to
+  /// `_pruneDistantMonths` — after the user browses history and the app
+  /// is backgrounded, the current month can be evicted from memory, and
+  /// the widget would render `0.00` even though the DB has the data.
   static Future<void> updateWidget(AppState appState) async {
     try {
-      // Get the current month data specifically for the widget
-      // Use getCurrentMonthExpenses/Income instead of totalExpensesThisMonth
-      // which is based on _selectedMonth and may not be the current month
       final now = DateTime.now();
-      final totalExpenses = appState.getExpensesForMonth(now);
-      final totalIncome = appState.getIncomeForMonth(now);
+      final db = DatabaseHelper();
+      final totals = await db.calculateMonthBalance(
+        appState.currentAccountId,
+        now.year,
+        now.month,
+      );
+      final totalExpenses = totals.expenses;
+      final totalIncome = totals.income;
       final balance = totalIncome - totalExpenses;
       final currencyCode = appState.currencyCode;
       final currencySymbol = appState.currency;

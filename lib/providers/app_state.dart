@@ -542,6 +542,12 @@ class AppState extends ChangeNotifier {
       return;
     }
     final now = DateTime.now();
+    // FIX Bug #4 (defense-in-depth): never evict the real current month
+    // from memory. The home-screen widget reads DB directly now, but
+    // keeping the current month resident also avoids spurious zeroes in
+    // any UI that still reads `_expenses` directly.
+    final currentMonthKey =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}';
     int monthScore(String key) {
       final parts = key.split('-');
       if (parts.length < 2) {
@@ -561,7 +567,10 @@ class AppState extends ChangeNotifier {
 
     if (_loadedExpenseMonths.length > _maxMonthsInMemory) {
       final sortedMonths = _loadedExpenseMonths.toList()..sort((a, b) => monthScore(a).compareTo(monthScore(b)));
-      final monthsToRemove = sortedMonths.reversed.take(_loadedExpenseMonths.length - _maxMonthsInMemory).toSet();
+      final monthsToRemove = sortedMonths.reversed
+          .where((key) => key != currentMonthKey)
+          .take(_loadedExpenseMonths.length - _maxMonthsInMemory)
+          .toSet();
       for (final monthKey in monthsToRemove) {
         final parts = monthKey.split('-');
         if (parts.length >= 2) {
@@ -578,7 +587,10 @@ class AppState extends ChangeNotifier {
 
     if (_loadedIncomeMonths.length > _maxMonthsInMemory) {
       final sortedMonths = _loadedIncomeMonths.toList()..sort((a, b) => monthScore(a).compareTo(monthScore(b)));
-      final monthsToRemove = sortedMonths.reversed.take(_loadedIncomeMonths.length - _maxMonthsInMemory).toSet();
+      final monthsToRemove = sortedMonths.reversed
+          .where((key) => key != currentMonthKey)
+          .take(_loadedIncomeMonths.length - _maxMonthsInMemory)
+          .toSet();
       for (final monthKey in monthsToRemove) {
         final parts = monthKey.split('-');
         if (parts.length >= 2) {
