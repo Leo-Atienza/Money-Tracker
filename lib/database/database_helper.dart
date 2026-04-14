@@ -1648,11 +1648,16 @@ class DatabaseHelper {
     List<dynamic> whereArgs = [accountId];
 
     // Add month filter if provided (recommended for most use cases)
+    // FIX Bug #2: `month` column stores 10-char YYYY-MM-DD strings via
+    // DateHelper.toDateString (see Budget.toMap). Previous code used local
+    // DateTime(...) + .toIso8601String() which produced full ISO timestamps
+    // that never compare correctly against the 10-char column values,
+    // silently dropping every historical budget from month-filtered reads.
     if (month != null) {
-      final monthStart = DateTime(month.year, month.month, 1);
-      final monthEnd = DateTime(month.year, month.month + 1, 0);
+      final monthStart = DateHelper.toDateString(DateHelper.startOfMonth(month));
+      final monthEnd = DateHelper.toDateString(DateHelper.lastDayOfMonth(month));
       whereClause += ' AND month >= ? AND month <= ?';
-      whereArgs.addAll([monthStart.toIso8601String(), monthEnd.toIso8601String()]);
+      whereArgs.addAll([monthStart, monthEnd]);
     }
 
     final result = await db.query(
@@ -1762,12 +1767,20 @@ class DatabaseHelper {
     );
   }
 
-  /// Calculate the balance for a specific month (income - expenses)
-  /// Returns both sums separately so the caller can use Decimal arithmetic
+  /// Calculate the balance for a specific month (income - expenses).
+  /// Returns both sums separately so the caller can use Decimal arithmetic.
+  ///
+  /// FIX Bug #2: Previously used DateTime.toIso8601String() which emits
+  /// "YYYY-MM-DDT00:00:00.000Z", but the `date` column stores 10-char
+  /// "YYYY-MM-DD" strings. SQLite string comparison `date >= "YYYY-MM-DDT..."`
+  /// is false for the 1st of the month, so all transactions dated on the 1st
+  /// were silently excluded from every month-balance calculation.
+  /// The identical fix was already applied to getIncomeByMonth (line 645).
   Future<({double income, double expenses})> calculateMonthBalance(int accountId, int year, int month) async {
     final db = await database;
-    final startDate = DateHelper.startOfMonth(DateTime.utc(year, month, 1)).toIso8601String();
-    final endDate = DateHelper.lastDayOfMonth(DateTime.utc(year, month, 1)).toIso8601String();
+    final monthDate = DateTime.utc(year, month, 1);
+    final startDate = DateHelper.toDateString(DateHelper.startOfMonth(monthDate));
+    final endDate = DateHelper.toDateString(DateHelper.lastDayOfMonth(monthDate));
 
     // Sum income for the month
     final incomeResult = await db.rawQuery(
@@ -2209,25 +2222,38 @@ class DatabaseHelper {
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
-  /// Get expenses for a specific date range (for lazy loading)
+  /// Get expenses for a specific date range (for lazy loading).
+  /// FIX Bug #2: `date` column stores 10-char YYYY-MM-DD strings. Previous
+  /// code used .toIso8601String() which emits full ISO timestamps that never
+  /// compare correctly against the 10-char column, silently dropping rows
+  /// dated on the range boundaries during lazy-load pagination.
   Future<List<Expense>> getExpensesInRange(int accountId, DateTime start, DateTime end) async {
     final db = await database;
     final result = await db.query(
       'expenses',
       where: 'account_id = ? AND date >= ? AND date <= ?',
-      whereArgs: [accountId, start.toIso8601String(), end.toIso8601String()],
+      whereArgs: [
+        accountId,
+        DateHelper.toDateString(start),
+        DateHelper.toDateString(end),
+      ],
       orderBy: 'date DESC',
     );
     return result.map((map) => Expense.fromMap(map)).toList();
   }
 
-  /// Get income for a specific date range (for lazy loading)
+  /// Get income for a specific date range (for lazy loading).
+  /// FIX Bug #2: same date-string fix as getExpensesInRange above.
   Future<List<Income>> getIncomeInRange(int accountId, DateTime start, DateTime end) async {
     final db = await database;
     final result = await db.query(
       'income',
       where: 'account_id = ? AND date >= ? AND date <= ?',
-      whereArgs: [accountId, start.toIso8601String(), end.toIso8601String()],
+      whereArgs: [
+        accountId,
+        DateHelper.toDateString(start),
+        DateHelper.toDateString(end),
+      ],
       orderBy: 'date DESC',
     );
     // Skip corrupted rows rather than crashing the entire income load.
