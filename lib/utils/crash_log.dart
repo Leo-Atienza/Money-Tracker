@@ -30,7 +30,7 @@ import 'package:path_provider/path_provider.dart';
 /// void main() {
 ///   runZonedGuarded(() async {
 ///     WidgetsFlutterBinding.ensureInitialized();
-///     await CrashLog.init(appVersion: '4.1.0+5');
+///     await CrashLog.init(appVersion: '4.4.0+6');
 ///     runApp(const MyApp());
 ///   }, (error, stack) {
 ///     CrashLog.record(error, stack: stack, context: 'zone');
@@ -71,7 +71,7 @@ class CrashLog {
   ///
   /// Idempotent: calling twice is a no-op. Safe to call from `main()` before
   /// `runApp()`. [appVersion] should be a compact identifier like
-  /// `"4.1.0+5"` — it's prepended to every crash record so the exported log
+  /// `"4.4.0+6"` — it's prepended to every crash record so the exported log
   /// can be correlated with a specific build.
   static Future<void> init({required String appVersion}) async {
     if (_initialized) return;
