@@ -40,3 +40,6 @@ graphify-out/
 
 # Session scratchpad written by hooks — per-session, never worth committing
 session-state.md
+
+# Claude Code per-user state (scheduled task locks, worktree metadata)
+.claude/
