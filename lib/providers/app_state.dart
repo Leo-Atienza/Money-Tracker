@@ -275,7 +275,27 @@ class AppState extends ChangeNotifier {
   bool get isProcessingRecurring => _processingRecurring;
   int _backgroundProcessingEpoch = 0;
 
-  Future<void> loadData() async {
+  // FIX Phase 1.5: Coalesce concurrent loadData calls. main.dart's
+  // postFrameCallback + the `resumed` lifecycle event + onboarding
+  // completion can all queue a `loadData()` within milliseconds of
+  // each other. Previously every call ran independently — duplicate
+  // DB reads, racing `Future.wait` blocks, and one of them could win
+  // the `_safeNotify()` race with stale data. Now all concurrent
+  // callers share the same in-flight Future.
+  Future<void>? _loadingFuture;
+
+  /// Tracks how many times `_loadDataInternal` actually ran.
+  /// Visible for testing only.
+  @visibleForTesting
+  int loadDataInternalRunCount = 0;
+
+  Future<void> loadData() {
+    return _loadingFuture ??=
+        _loadDataInternal().whenComplete(() => _loadingFuture = null);
+  }
+
+  Future<void> _loadDataInternal() async {
+    loadDataInternalRunCount++;
     _backgroundProcessingEpoch++;
     _categoryRenameInProgress = false;
 
