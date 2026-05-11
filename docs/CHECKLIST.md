@@ -10,7 +10,7 @@ Per-task tracker for [MASTER_PLAN.md](MASTER_PLAN.md). Tick boxes as items land.
 
 - [x] 0.1 Create `release/v5.0.0` branch off `main`
 - [ ] 0.2 Snapshot DB from real device → `dist/baseline/v4.4.0+6.db` *(skipped — no device attached this session)*
-- [ ] 0.3 `flutter test` baseline → `dist/baseline/test-baseline.txt` *(deferred — long run; will capture before Phase 1 ends)*
+- [x] 0.3 `flutter test` post-Phase 1 → `dist/baseline/test-post-phase1.txt` (1,661 pass, +18 from baseline)
 - [x] 0.4 `flutter analyze` baseline → `dist/baseline/analyze-baseline.txt` (No issues found, 257.6s)
 - [ ] 0.5 `flutter build apk --release --analyze-size` → `dist/baseline/size.json` *(deferred — long run)*
 - [ ] 0.6 Performance Overlay screenshots *(manual, skipped)*
@@ -40,7 +40,7 @@ Each lands as its own commit with regression test.
 - [x] 1.9 AndroidManifest hardening — `allowBackup="false"`, `fullBackupContent="false"`, `dataExtractionRules="@xml/data_extraction_rules"` + new `data_extraction_rules.xml` (deny cloud-backup + device-transfer) + 2 structural tests in `test/lint/android_manifest_hardening_test.dart`
 - [x] 1.10 Notification lock-screen redaction — `visibility: NotificationVisibility.private` on all 4 `AndroidNotificationDetails` (bill reminders, budget alerts, scheduled monthly summary, immediate monthly summary) + structural test in `test/lint/notification_visibility_test.dart`
 
-**Phase 1 gate:** all 10 commits land; build green; +10 regression tests.
+**Phase 1 gate:** ✅ all 10 commits land; build green (`flutter analyze` = No issues); +18 regression tests across 9 new test files (1,661 total, up from 1,643).
 
 ---
 

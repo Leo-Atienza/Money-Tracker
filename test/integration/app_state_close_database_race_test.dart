@@ -69,6 +69,9 @@ void main() {
     final errors = <Object>[];
     final futures = <Future<void>>[];
     for (var i = 0; i < 5; i++) {
+      // .then(...)/onError(...) returning void keeps the future type
+      // as Future<void>, avoiding the Future<int> mismatch from
+      // catchError returning a non-int value.
       futures.add(
         appState
             .addExpense(
@@ -81,12 +84,14 @@ void main() {
                 amountPaid: Decimal.zero,
               ),
             )
-            .catchError((Object e) => errors.add(e)),
+            .then<void>((_) {}, onError: (Object e) => errors.add(e)),
       );
     }
     // closeDatabase interleaved with the writes.
     futures.add(
-      appState.closeDatabase().catchError((Object e) => errors.add(e)),
+      appState
+          .closeDatabase()
+          .then<void>((_) {}, onError: (Object e) => errors.add(e)),
     );
 
     await Future.wait(futures);
