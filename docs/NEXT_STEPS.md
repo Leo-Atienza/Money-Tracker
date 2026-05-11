@@ -40,7 +40,7 @@
 | 3 — Race & Lifecycle | 🟡 (3.8 ⏸) | 3.8 `AppPhase` state machine — deferred to v5.1 per master plan. |
 | 4 — Schema v19 + Data Integrity | ✅ | — |
 | 5 — Luminous Design Integration | 🟡 (5.10 ✅; starter ✅) | 5.1–5.9 hero-screen redesigns; 5.11 Spacing removal. See §3 below. |
-| 6 — Security Hardening | 🟡 (6.2/4/5/6 ✅; 6.3 crypto layer ✅) | 6.1 SQLCipher; 6.3 UX wiring (passphrase prompts in `backup_restore_screen.dart`). See §4 below. |
+| 6 — Security Hardening | 🟡 (6.2/3/4/5/6 ✅; 6.3 UX wiring landed session 4) | 6.1 SQLCipher only. See §4 below. |
 | 7 — Test Coverage | 🟡 (7.3/4/5/7/9/10 ✅) | 7.1 rename; 7.2 AppState mutator tests; 7.6 hero-screen widget tests; 7.8 goldens. See §5 below. |
 | 8 — Polish & Ship | 🟡 (8.1/3 ✅) | 8.2 perf pass; 8.4 version bump + tag; 8.5 ship pipeline. See §6 below. |
 
@@ -52,11 +52,11 @@ The plan is sequenced so that:
 
 1. **De-risk first.** Phase 6.2's PIN migration is unit-tested but unproven on a real Keystore. Confirm or revert before any new work piles on top. **Same for Phase 6.4 widget redaction (new this session) and Phase 6.5 FLAG_SECURE.**
 2. **Visual work next.** Phase 5 needs Hanken Grotesk in place (done) and a stable codebase to anchor against. It's the biggest chunk and the headline change for the major-version bump.
-3. **Security in parallel with Phase 5.** 6.3 UX wiring (new) and any 6.4 device tweaks touch surfaces (backup screen, widget) that Phase 5 won't fight with. 6.1 (SQLCipher) is highest data-loss risk and earns its own session at the end of the chain so other code is stable for the smoke test.
+3. **Security in parallel with Phase 5.** 6.3 UX wiring landed session 4; the remaining device smokes (encrypted save round-trip, plaintext-legacy fallback) pair with the Phase 5.9h backup/restore redesign. 6.1 (SQLCipher) is highest data-loss risk and earns its own session at the end of the chain so other code is stable for the smoke test.
 4. **Test coverage last but not least.** Phase 7 is additive — running it before Phase 5 means writing tests against screens about to be deleted. Save 7.6 + 7.8 for after Phase 5's structure settles.
 5. **Ship is a gate, not a step.** Tag `v5.0.0+1` only after every preceding stage is green AND a 5-minute device smoke test passes.
 
-The default linear order is **A → B → C → D → E**. A subset (C.2 UX, C.3, D.2, D.6, D.8) can be picked up in parallel sessions if multiple agents / windows are available.
+The default linear order is **A → B → C → D → E**. A subset (C.3, D.2, D.6, D.8) can be picked up in parallel sessions if multiple agents / windows are available.
 
 ---
 
@@ -294,7 +294,7 @@ A grab-bag of less-trafficked screens. Each is a small commit; group them as `fe
 - **5.9e Export Data** (`lib/screens/export_data_screen.dart`) — `GlassTopAppBar` + `GlassListTile`s for format options. **Note:** share subjects already rebranded (session 3).
 - **5.9f Trash** (`lib/screens/trash_screen.dart`) — `GlassTopAppBar` + segmented Expense / Income + `GlassListTile`.
 - **5.9g Category Manager** (`lib/screens/category_manager_screen.dart`) — `GlassTopAppBar` + grid of category icons in `GlassPanel`.
-- **5.9h Backup/Restore** (`lib/screens/backup_restore_screen.dart`) — `GlassTopAppBar` + `GlassListSection`. **MUST also wire the C.2 passphrase prompts here** — see §4 C.2.
+- **5.9h Backup/Restore** (`lib/screens/backup_restore_screen.dart`) — `GlassTopAppBar` + `GlassListSection`. **Note:** C.2 passphrase prompts already wired here (session 4); the Luminous redesign keeps `_promptForBackupPassphrase` + `_requestRestorePassphrase` intact and re-skins their `AlertDialog` shells.
 - **5.9i Quick Templates** (`lib/screens/quick_templates_screen.dart`) — `GlassTopAppBar` + `GlassListTile`.
 - **5.9j Notification Settings** (`lib/screens/notification_settings_screen.dart`) — `GlassTopAppBar` + `GlassListSection` + toggles.
 
@@ -348,31 +348,29 @@ Two items remain after session 3.
 ### C.1 — 6.4 Home widget redaction ✅ DONE (session 3)
 Landed in commit `5fcff2d`. `lib/utils/widget_payload.dart` + wiring through `home_widget_helper.dart`. 6 unit tests. **Device smoke test remains** — see §2 A.6.
 
-### C.2 — 6.3 Backup AES-GCM (crypto layer ✅; UX wiring ⏳, ≈ 3 hours)
+### C.2 — 6.3 Backup AES-GCM ✅ DONE (sessions 3 + 4)
 
-**What landed in session 3:** `lib/utils/backup_crypto.dart` with `package:cryptography ^2.7.0`. v4 envelope shape, PBKDF2-HMAC-SHA256 @ 100k iterations, GCM tag rejection. 15 tests. The crypto module is independently usable; `BackupCrypto.encrypt(json, passphrase)` returns the v4 envelope string, `decrypt(envelope, passphrase)` returns the plaintext JSON or `null`.
+**Session 3:** `lib/utils/backup_crypto.dart` shipped with `package:cryptography ^2.7.0`. v4 envelope shape, PBKDF2-HMAC-SHA256 @ 100k iterations, GCM tag rejection. 15 tests.
 
-**What's left — UI integration:**
+**Session 4 (this session):** UX wiring landed. The wrap/unwrap pair lives on `BackupHelper` itself as `@visibleForTesting` static methods (`wrapBackupIfNeeded`, `unwrapBackupIfNeeded`), and the production save / share / restore methods now accept the passphrase contract:
 
-- **Files:**
-  - `lib/screens/backup_restore_screen.dart` — add the passphrase prompts.
-  - `lib/utils/backup_helper.dart` — the actual save/restore IO; this is where the wrap/unwrap call lands.
-- **Save flow:**
-  1. After the user picks "Backup" but before writing the file, show a `showDialog` with a two-input passphrase verification ("Passphrase" + "Confirm passphrase"). Copy: "Choose a passphrase. We can't recover this file if you forget it."
-  2. On confirm, build the v3 plaintext JSON exactly as today (`BackupHelper` already does this), then `await BackupCrypto.encrypt(plainJson, passphrase)` and write the resulting envelope string.
-  3. Bump the on-disk write format to v4. The v3 plaintext path stays available for `decrypt` to fall through on restore.
-- **Restore flow:**
-  1. Read the file. Call `BackupCrypto.isEncryptedEnvelope(text)` — if true, prompt for passphrase; if false, fall through to the v3 plaintext restore path that's already there.
-  2. On passphrase entry: `await BackupCrypto.decrypt(text, passphrase)`. If `null`: show `'Wrong passphrase — try again.'` snackbar and let the user retry. If non-null: hand the resulting JSON to the existing `restoreFromJsonBackup` path unchanged.
-- **Acceptance:**
-  - A v4 backup file viewed in a text editor shows only the JSON envelope, never raw expense rows.
-  - Restoring without the passphrase fails cleanly with the "Wrong passphrase" snackbar — no crash.
-  - A v3 plaintext backup file still restores transparently (back-compat).
-- **Tests:**
-  - Already covered (crypto level): `test/utils/backup_crypto_test.dart` (15 tests).
-  - Add (integration, ≈ 1 hour): `test/integration/backup_restore_v4_test.dart` — encrypt a v4 backup via `BackupHelper`, read it back as text, assert it's an envelope, restore it, assert the rows survived.
-- **Verification mode:** `mechanical` (round-trip in unit + integration tests) + `visual` (UX flow on device).
-- **Pair with B.9h** — the backup/restore screen redesign happens in B.9h; do both in the same session so you only touch the file once.
+- `BackupHelper.saveBackupToUserSelectedLocation({passphrase})` — encrypts before bytes hit disk or the system file picker. Encryption stays on the main isolate so `package:cryptography` doesn't have to cross the isolate boundary; the ~250 ms PBKDF2 step runs while the "Creating backup..." dialog is already shown.
+- `BackupHelper.shareDatabase({passphrase})` — same contract for shared-via-system-share-sheet backups, which travel through third-party apps where plaintext exposure is highest.
+- `BackupHelper.restoreDatabase({onPassphraseRequest})` — the callback is invoked only when the picked file is detected as a v4 envelope. The helper loops on wrong passphrases (`isRetry: true` after each miss) until correct or user cancels. Legacy v2/v3 plaintext backups never trigger the callback — `BackupCrypto.isEncryptedEnvelope` gates the branch.
+
+`backup_restore_screen.dart` implements:
+- `_promptForBackupPassphrase()` — confirmation dialog with two obscured TextFields, min-6-char validation, "Choose a passphrase. We cannot recover this file if you forget it." warning copy. Used by both `_exportBackup` and `_shareBackup`.
+- `_requestRestorePassphrase({isRetry})` — single obscured TextField with show/hide toggle, prepends "Wrong passphrase — try again." banner on retry. Used as the callback for `_performRestore`.
+
+**Tests added this session:** 11 in `test/integration/backup_restore_v4_test.dart` — wrap-passes-through-on-null/empty-passphrase, wrap-produces-envelope, wrap-hides-inner-keys, unwrap-plaintext-passthrough, unwrap-null-on-encrypted-with-null/empty/wrong-passphrase, full round-trip preserves comprehensive backup JSON byte-for-byte, two consecutive wraps produce distinct envelopes (proves fresh salt/IV per call survives the integration layer).
+
+**Still requires device verification before v5.0.0+1 tag:**
+- Save: passphrase dialog renders, `.etbackup` file viewed in a text editor shows only the envelope.
+- Restore (encrypted): correct passphrase decrypts; wrong passphrase retries; cancel aborts cleanly.
+- Restore (plaintext, legacy): existing backups in `backups/` restore transparently without the dialog.
+- Share: encrypted file passes through SharePlus, recipient can decrypt with same passphrase.
+
+**Pair with B.9h** — the backup/restore screen redesign happens in B.9h; the visual work and the device smokes for C.2 can be a single session.
 
 ### C.3 — 6.1 SQLCipher migration (≈ 1.5 days, high risk) ⏳
 
@@ -587,7 +585,7 @@ Moved to `TRASH/MainActivity.kt.orphan` in commit `23413e6`. The orphaned `com/e
 | R9 | Removing `google_fonts` breaks something | Very Low | Low | `test/lint/no_forbidden_patterns_test.dart` enforces it (already in place) |
 | R10 | Vercel deploy step fails | Low | Low | `vercel --prod --yes` is the documented workaround in `CLAUDE.md` |
 | R11 | SQLCipher migration corrupts on a partially-encrypted file | Low | High | C.3 step 6 verifies row counts before destroying plaintext |
-| R12 | Backup encryption passphrase forgotten | Medium | High (user-side) | UX wording in C.2 makes this explicit; backup-restore screen warns up front. **Crypto layer ready (session 3); UX wiring still owed.** |
+| R12 | Backup encryption passphrase forgotten | Medium | High (user-side) | UX wording in C.2 makes this explicit; backup-restore screen warns up front. **Crypto layer ready (session 3); UX wiring landed (session 4) with min-6-char passphrase + "we cannot recover this file" copy on both Save and Share.** |
 | **R13** (new) | **`PinSecurityHelper.isPinEnabled()` aborts publish pipelines in tests** | — | — | Tests using `home_widget_helper` or anything else that consults `PinSecurityHelper` must seed `SharedPreferences.setMockInitialValues(<String, Object>{})` in `setUp`. See the fix landed in `test/integration/home_widget_helper_test.dart` (commit `6c56fe2`). |
 
 ---
@@ -615,7 +613,7 @@ All of the following must be true before tagging:
 |---|---|---|---|---|
 | A — De-risk | A.2–A.6 (A.1 ✅) | 45 min – 1 hour | **Yes** | No — gate for everything else |
 | B — Phase 5 design | B.0–B.9, B.11, B.12 (B.10 ✅) | 5–8 days | Yes (visual check per screen) | Internally sequential; B.11/B.12 strict last |
-| C — Phase 6 security | C.2 UX (≈ 3h), C.3 (≈ 1.5 d) | 2–3 days | Yes | C.2 UX pairs with B.9h; C.3 sequential after them |
+| C — Phase 6 security | C.3 (≈ 1.5 d) only | 1.5 days | Yes | C.2 UX landed session 4; C.3 sequential after Stage B |
 | D — Phase 7 tests | D.1 (skip), D.2 (≈ 1d), D.6 (≈ 1d), D.8 (≈ 1d) | 1.5–3 days | No (except D.6 widget tests) | D.6 + D.8 blocked on B; D.2 fully parallel |
 | E — Ship | E.1–E.6 | 1 day | Yes (final smoke) | Strict last |
 
@@ -632,6 +630,8 @@ All of the following must be true before tagging:
 | Brand strings audit | `lib/`, `test/utils/crash_log_test.dart` | `grep -rn "Money Tracker" lib/` = 0 |
 | Orphan native code | `TRASH/MainActivity.kt.orphan` | Only `com/moneytracker/app/MainActivity.kt` is live |
 | Backup crypto | `lib/utils/backup_crypto.dart` | v4 envelope; 15 tests in `test/utils/backup_crypto_test.dart` |
+| Backup helper wrap/unwrap | `lib/utils/backup_helper.dart` (`wrapBackupIfNeeded`, `unwrapBackupIfNeeded`, `PassphraseRequest` typedef) | Helper-layer pair-up with the crypto module; 11 tests in `test/integration/backup_restore_v4_test.dart` |
+| Backup screen passphrase prompts | `lib/screens/backup_restore_screen.dart` (`_promptForBackupPassphrase`, `_requestRestorePassphrase`) | Confirmation + retry dialogs; min-6-char validation; "we cannot recover this file" copy |
 | Widget payload + redactor | `lib/utils/widget_payload.dart` | Pure functions; 6 tests in `test/utils/widget_payload_test.dart` |
 | Widget wiring | `lib/utils/home_widget_helper.dart:90-108` | Calls `PinSecurityHelper.isPinEnabled()` before publishing |
 | Clock abstraction | `lib/utils/clock.dart` | `Clock` (real) + `FakeClock.fixed` + `FakeClock.sequence` |

@@ -312,11 +312,258 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     }
   }
 
+  /// Phase 6.3 — prompts the user for a passphrase to encrypt a new
+  /// backup, with confirmation field and min-length validation.
+  /// Returns the chosen passphrase, or `null` if the user cancels.
+  ///
+  /// New backups are always encrypted in v5.0.0 — the recovery path
+  /// for "I'd rather not encrypt" is the CSV export, which is
+  /// already on this screen. Forgotten-passphrase risk is called out
+  /// explicitly in the dialog copy (R12 in the master plan).
+  Future<String?> _promptForBackupPassphrase() async {
+    final passphraseController = TextEditingController();
+    final confirmController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    String? validationError;
+    bool obscure = true;
+
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final dialogTheme = Theme.of(context);
+            final dialogAppColors = dialogTheme.extension<AppColors>()!;
+            return AlertDialog(
+              title: const Text('Encrypt backup'),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(Spacing.sm),
+                        decoration: BoxDecoration(
+                          color: dialogAppColors.warningOrange.withAlpha(20),
+                          borderRadius:
+                              BorderRadius.circular(Spacing.radiusSmall),
+                          border: Border.all(
+                            color: dialogAppColors.warningOrange.withAlpha(100),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.lock_outline,
+                              size: 20,
+                              color: dialogAppColors.warningOrange,
+                            ),
+                            const SizedBox(width: Spacing.sm),
+                            Expanded(
+                              child: Text(
+                                'Choose a passphrase. We cannot recover '
+                                'this file if you forget it.',
+                                style: dialogTheme.textTheme.bodySmall,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: Spacing.md),
+                      TextFormField(
+                        controller: passphraseController,
+                        obscureText: obscure,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          labelText: 'Passphrase',
+                          suffixIcon: IconButton(
+                            tooltip: obscure ? 'Show' : 'Hide',
+                            icon: Icon(obscure
+                                ? Icons.visibility_off
+                                : Icons.visibility),
+                            onPressed: () => setDialogState(
+                              () => obscure = !obscure,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: Spacing.sm),
+                      TextFormField(
+                        controller: confirmController,
+                        obscureText: obscure,
+                        decoration: const InputDecoration(
+                          labelText: 'Confirm passphrase',
+                        ),
+                      ),
+                      if (validationError != null) ...[
+                        const SizedBox(height: Spacing.sm),
+                        Text(
+                          validationError!,
+                          style: dialogTheme.textTheme.bodySmall?.copyWith(
+                            color: dialogTheme.colorScheme.error,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, null),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    final pw = passphraseController.text;
+                    final confirm = confirmController.text;
+                    if (pw.length < 6) {
+                      setDialogState(() {
+                        validationError =
+                            'Passphrase must be at least 6 characters.';
+                      });
+                      return;
+                    }
+                    if (pw != confirm) {
+                      setDialogState(() {
+                        validationError = 'Passphrases do not match.';
+                      });
+                      return;
+                    }
+                    Navigator.pop(dialogContext, pw);
+                  },
+                  child: const Text('Encrypt & Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    passphraseController.dispose();
+    confirmController.dispose();
+    return result;
+  }
+
+  /// Phase 6.3 — prompts the user for the passphrase when restoring
+  /// an encrypted backup. Used as the `onPassphraseRequest` callback
+  /// on [BackupHelper.restoreDatabase]. Loops until a correct
+  /// passphrase or cancel — on a wrong attempt the helper calls
+  /// again with `isRetry: true` and the dialog prepends the
+  /// "Wrong passphrase" warning.
+  Future<String?> _requestRestorePassphrase({required bool isRetry}) async {
+    if (!mounted) return null;
+    final controller = TextEditingController();
+    bool obscure = true;
+
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final dialogTheme = Theme.of(context);
+            final dialogAppColors = dialogTheme.extension<AppColors>()!;
+            return AlertDialog(
+              title: const Text('Restore encrypted backup'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (isRetry)
+                    Container(
+                      padding: const EdgeInsets.all(Spacing.sm),
+                      margin: const EdgeInsets.only(bottom: Spacing.sm),
+                      decoration: BoxDecoration(
+                        color: dialogAppColors.expenseRed.withAlpha(20),
+                        borderRadius:
+                            BorderRadius.circular(Spacing.radiusSmall),
+                      ),
+                      child: Text(
+                        'Wrong passphrase — try again.',
+                        style: dialogTheme.textTheme.bodySmall?.copyWith(
+                          color: dialogAppColors.expenseRed,
+                        ),
+                      ),
+                    ),
+                  Text(
+                    'Enter the passphrase used when this backup was created.',
+                    style: dialogTheme.textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: Spacing.md),
+                  TextField(
+                    controller: controller,
+                    obscureText: obscure,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: 'Passphrase',
+                      suffixIcon: IconButton(
+                        tooltip: obscure ? 'Show' : 'Hide',
+                        icon: Icon(obscure
+                            ? Icons.visibility_off
+                            : Icons.visibility),
+                        onPressed: () => setDialogState(
+                          () => obscure = !obscure,
+                        ),
+                      ),
+                    ),
+                    onSubmitted: (value) {
+                      if (value.isNotEmpty) Navigator.pop(dialogContext, value);
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, null),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    final pw = controller.text;
+                    if (pw.isEmpty) return;
+                    Navigator.pop(dialogContext, pw);
+                  },
+                  child: const Text('Decrypt'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    controller.dispose();
+    return result;
+  }
+
   Future<void> _exportBackup() async {
     // FIX: Prevent multiple simultaneous exports
     if (_isExporting) return;
 
     if (kDebugMode) debugPrint('_exportBackup called');
+
+    // Phase 6.3 — gate on a passphrase before doing any work. Letting
+    // the user cancel here is a free no-op (no DB read, no temp files,
+    // no isolate spin-up).
+    final passphrase = await _promptForBackupPassphrase();
+    if (passphrase == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Backup cancelled'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+
     setState(() => _isExporting = true);
 
     // FIX: Track if dialog is currently shown to prevent navigation bugs
@@ -329,6 +576,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       if (kDebugMode) debugPrint('Starting backup save process...');
 
       savedPath = await BackupHelper().saveBackupToUserSelectedLocation(
+        passphrase: passphrase,
         onProcessingStart: () {
           // Show loading dialog while creating backup
           if (kDebugMode) debugPrint('Showing loading dialog...');
@@ -432,11 +680,29 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     // FIX: Track dialog state for Share operation
     bool dialogShown = false;
 
+    // Phase 6.3 — shared backups always travel through third-party
+    // apps (mail, drive, messaging), so encryption is mandatory here
+    // for the same reasons it is on Save.
+    final passphrase = await _promptForBackupPassphrase();
+    if (passphrase == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Share cancelled'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+
     try {
       // NOTE: Share creates backup in app's internal storage (no permission needed)
       // then uses system share sheet. No explicit storage permission required.
       // FIX: Add loading feedback for Share operation with timeout protection
       await BackupHelper().shareDatabase(
+        passphrase: passphrase,
         onProcessingStart: () {
           if (mounted) {
             showDialog(
@@ -611,6 +877,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           .restoreDatabase(
         closeDatabase: () => appState.closeDatabase(),
         sourceFile: sourceFile,
+        onPassphraseRequest: _requestRestorePassphrase,
         onStart: () {
           // FIX #1: Show dialog only when file is selected and processing begins
           if (mounted) {

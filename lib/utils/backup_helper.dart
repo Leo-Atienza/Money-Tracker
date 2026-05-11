@@ -13,6 +13,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/database.dart';
 import '../database/database_helper.dart';
 import '../providers/app_state.dart';
+import 'backup_crypto.dart';
+
+/// Phase 6.3 — passphrase request callback for encrypted restores.
+///
+/// The helper invokes this when it discovers the picked file is an
+/// encrypted envelope. Returns the user-supplied passphrase, or `null`
+/// to cancel the restore. [isRetry] is true after at least one wrong
+/// attempt so the UI can prepend an error hint.
+typedef PassphraseRequest = Future<String?> Function({required bool isRetry});
 
 /// Result enum for restore operations
 /// Result enum for restore operations.
@@ -106,6 +115,38 @@ class BackupHelper {
   /// Escapes double quotes by doubling them (RFC 4180 standard)
   static String _escapeCsvField(String field) {
     return field.replaceAll('"', '""');
+  }
+
+  /// Phase 6.3 — wraps the plaintext comprehensive backup [json] in a
+  /// `BackupCrypto` v4 envelope when [passphrase] is non-null and
+  /// non-empty. Otherwise returns [json] unchanged so callers that
+  /// opt out of encryption keep the legacy plaintext path.
+  ///
+  /// Public so the round-trip is exercisable without going through
+  /// `FilePicker` or `SharePlus` in tests.
+  @visibleForTesting
+  static Future<String> wrapBackupIfNeeded(
+    String json,
+    String? passphrase,
+  ) async {
+    if (passphrase == null || passphrase.isEmpty) return json;
+    return BackupCrypto.encrypt(json, passphrase);
+  }
+
+  /// Phase 6.3 — inverse of [wrapBackupIfNeeded]. Returns the plaintext
+  /// JSON when [contents] is already plaintext (legacy v2/v3 backups
+  /// still restore transparently). When [contents] is an encrypted
+  /// envelope, decrypts it with [passphrase] and returns the inner
+  /// JSON, or `null` if the passphrase is wrong / the envelope is
+  /// tampered.
+  @visibleForTesting
+  static Future<String?> unwrapBackupIfNeeded(
+    String contents,
+    String? passphrase,
+  ) async {
+    if (!BackupCrypto.isEncryptedEnvelope(contents)) return contents;
+    if (passphrase == null || passphrase.isEmpty) return null;
+    return BackupCrypto.decrypt(contents, passphrase);
   }
 
   // Export full backup
@@ -382,9 +423,17 @@ class BackupHelper {
   /// Save database backup to user-selected location using SAF (Android 11+)
   /// FIX: Uses isolate to prevent OOM and UI freeze
   /// Returns the saved path or null if cancelled
+  ///
+  /// Phase 6.3 — when [passphrase] is supplied, the backup JSON is wrapped
+  /// in a `BackupCrypto` v4 envelope before the bytes hit disk or the
+  /// system file picker. Encryption runs on the main isolate so the
+  /// `package:cryptography` PBKDF2 step does not need to cross the
+  /// isolate boundary; it adds ~250 ms while the "Creating backup..."
+  /// dialog is already on screen.
   Future<String?> saveBackupToUserSelectedLocation({
     void Function()? onProcessingStart,
     void Function()? onProcessingEnd,
+    String? passphrase,
   }) async {
     try {
       if (kDebugMode) debugPrint('=== BACKUP SAVE START ===');
@@ -440,9 +489,17 @@ class BackupHelper {
         );
       }
 
-      final bytes = Uint8List.fromList(utf8.encode(backupJson));
+      // Phase 6.3 — if a passphrase was supplied, wrap the plaintext
+      // in a v4 envelope before bytes hit disk. Keeps encryption out
+      // of the isolate so `package:cryptography` runs in the main
+      // event loop.
+      final maybeEncrypted = await wrapBackupIfNeeded(backupJson, passphrase);
+      final bytes = Uint8List.fromList(utf8.encode(maybeEncrypted));
       if (kDebugMode) {
-        debugPrint('Encoded to bytes, size: ${bytes.length} bytes');
+        debugPrint(
+          'Encoded to bytes (encrypted=${passphrase != null && passphrase.isNotEmpty}), '
+          'size: ${bytes.length} bytes',
+        );
       }
 
       // Save a local copy in app's backup directory first
@@ -527,7 +584,14 @@ class BackupHelper {
   /// Share comprehensive backup file (.etbackup) via system share sheet
   /// FIX: Now creates .etbackup with settings (consistent with Save Backup)
   /// FIX: Also saves to local backup directory for Recent Backups list
-  Future<void> shareDatabase({void Function()? onProcessingStart}) async {
+  ///
+  /// Phase 6.3 — same passphrase contract as
+  /// [saveBackupToUserSelectedLocation]; when supplied, the shared file
+  /// is a `BackupCrypto` v4 envelope.
+  Future<void> shareDatabase({
+    void Function()? onProcessingStart,
+    String? passphrase,
+  }) async {
     try {
       final dbPath = await _getDatabasePath();
       final dbFile = File(dbPath);
@@ -560,7 +624,12 @@ class BackupHelper {
         _BackupIsolateParams(dbPath, settings, DatabaseConstants.databaseVersion),
       );
 
-      final bytes = Uint8List.fromList(utf8.encode(backupJson));
+      // Phase 6.3 — encrypt the JSON before sharing if a passphrase
+      // was provided. Shared files are higher-risk than local saves
+      // because they cross into third-party apps (email, drive,
+      // messaging) where encryption is what the user expects.
+      final maybeEncrypted = await wrapBackupIfNeeded(backupJson, passphrase);
+      final bytes = Uint8List.fromList(utf8.encode(maybeEncrypted));
 
       // FIX: Save to local backup directory (for Recent Backups list)
       // FIX: Reuse this file for sharing to avoid redundant file operations
@@ -588,10 +657,18 @@ class BackupHelper {
   /// Restore database from user-selected file or specific file
   /// FIX: Uses streaming to avoid OOM and atomic replacement to prevent corruption
   /// FIX: Accepts optional File parameter to restore from Recent Backups list
+  ///
+  /// Phase 6.3 — when the picked file turns out to be a `BackupCrypto`
+  /// v4 envelope, the helper invokes [onPassphraseRequest] to obtain
+  /// the passphrase. The callback is allowed to retry — returning a
+  /// new passphrase after a wrong one keeps the loop going, returning
+  /// `null` cancels the restore. Plaintext backups skip the callback
+  /// entirely, so legacy v2/v3 files still restore transparently.
   Future<RestoreResult> restoreDatabase({
     required Future<void> Function() closeDatabase,
     void Function()? onStart, // FIX: Callback when processing actually starts
     File? sourceFile, // FIX: Optional file parameter for direct restore
+    PassphraseRequest? onPassphraseRequest,
   }) async {
     try {
       File? actualSourceFile;
@@ -645,6 +722,7 @@ class BackupHelper {
           sourceBytes,
           closeDatabase,
           onStart,
+          onPassphraseRequest,
         );
       }
 
@@ -900,11 +978,16 @@ class BackupHelper {
   /// FIX: Restore comprehensive backup (database + settings)
   /// Uses isolate to prevent OOM and UI freeze during decoding
   /// FIX: Uses streaming for large files to avoid memory crashes
+  ///
+  /// Phase 6.3 — handles encrypted v4 envelopes by prompting the
+  /// caller via [onPassphraseRequest] until the right passphrase is
+  /// supplied or the user cancels.
   Future<RestoreResult> _restoreComprehensiveBackup(
     File? sourceFile,
     Uint8List? sourceBytes,
     Future<void> Function() closeDatabase,
     void Function()? onStart,
+    PassphraseRequest? onPassphraseRequest,
   ) async {
     try {
       // FIX: Read backup data using streaming for large files
@@ -927,6 +1010,32 @@ class BackupHelper {
         backupJson = utf8.decode(sourceBytes);
       } else {
         return RestoreResult.fileNotFound;
+      }
+
+      // Phase 6.3 — decrypt v4 envelopes before the cheap validation
+      // below. Encrypted files have no `"database"` substring (it lives
+      // inside the ciphertext), so without this step a v4 envelope
+      // would erroneously fail the contains-check and be flagged
+      // invalid.
+      if (BackupCrypto.isEncryptedEnvelope(backupJson)) {
+        if (onPassphraseRequest == null) {
+          if (kDebugMode) {
+            debugPrint(
+              'Encrypted backup picked but no onPassphraseRequest '
+              'callback provided — cannot prompt user.',
+            );
+          }
+          return RestoreResult.invalidFile;
+        }
+        String? decrypted;
+        var isRetry = false;
+        while (decrypted == null) {
+          final passphrase = await onPassphraseRequest(isRetry: isRetry);
+          if (passphrase == null) return RestoreResult.cancelled;
+          decrypted = await BackupCrypto.decrypt(backupJson, passphrase);
+          isRetry = true;
+        }
+        backupJson = decrypted;
       }
 
       // FIX: Quick validation WITHOUT full JSON parse on main thread.
