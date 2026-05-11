@@ -681,10 +681,24 @@ class AppState extends ChangeNotifier {
     }
 
     return await _writeMutex.synchronized(() async {
-      final expenseId = await _db.createExpense(expense);
+      // FIX Phase 1.6: pre-compute the carryover MonthlyBalance upserts
+      // for next-month + selected-month, then persist EVERYTHING in one
+      // SQLite transaction via createExpenseWithCarryover. Pre-fix, the
+      // INSERT and the UPSERT(s) ran as separate top-level statements;
+      // if the UPSERT failed (locked DB, disk full, app killed) the
+      // user kept the expense row but the next-month carryover was
+      // stale. Now both either commit together or roll back together.
+      final pendingBalances = await _prepareCarryoverUpserts(expense.date);
+      final expenseId = await _db.createExpenseWithCarryover(
+        expense,
+        pendingBalances,
+      );
+      // Refresh in-memory caches after the atomic write succeeds.
+      for (final balance in pendingBalances) {
+        _monthlyBalances[_monthKey(balance.month)] = balance;
+      }
       await _loadExpensesInternal();
       await _checkBudgetAlerts(expense.category);
-      await _recalculateCarryoverAfterTransaction(expense.date);
       _safeNotify();
       _updateHomeWidget();
       return expenseId;
@@ -832,9 +846,16 @@ class AppState extends ChangeNotifier {
     }
 
     return await _writeMutex.synchronized(() async {
-      final incomeId = await _db.createIncome(income);
+      // FIX Phase 1.6: atomic insert + carryover upserts. See addExpense.
+      final pendingBalances = await _prepareCarryoverUpserts(income.date);
+      final incomeId = await _db.createIncomeWithCarryover(
+        income,
+        pendingBalances,
+      );
+      for (final balance in pendingBalances) {
+        _monthlyBalances[_monthKey(balance.month)] = balance;
+      }
       await _loadIncomesInternal();
-      await _recalculateCarryoverAfterTransaction(income.date);
       _safeNotify();
       _updateHomeWidget();
       return incomeId;
@@ -1165,18 +1186,28 @@ class AppState extends ChangeNotifier {
 
   /// Calculate the carryover for a specific month from its previous month
   Future<void> _calculateCarryoverForMonth(DateTime month) async {
+    final newBalance = await _computeCarryoverForMonth(month);
+    if (newBalance != null) {
+      await _db.upsertMonthlyBalance(newBalance);
+      _monthlyBalances[_monthKey(month)] = newBalance;
+    }
+  }
+
+  /// FIX Phase 1.6 — compute the carryover MonthlyBalance for `month`
+  /// WITHOUT writing it. Used by `addExpense` / `addIncome` to prepare
+  /// the upserts that will run atomically alongside the row insert.
+  /// Returns null when the cached value already matches (no write
+  /// needed).
+  Future<MonthlyBalance?> _computeCarryoverForMonth(DateTime month) async {
     final prevMonth = DateHelper.startOfMonth(DateHelper.subtractMonths(month, 1));
     final monthKey = _monthKey(month);
 
-    // Check if we already have a carryover stored for this month
     final existingBalance = _monthlyBalances[monthKey];
 
-    // Get the previous month's carryover (if any)
     final prevMonthKey = _monthKey(prevMonth);
     final prevBalance = _monthlyBalances[prevMonthKey];
     final prevCarryover = prevBalance?.carryoverFromPreviousDecimal ?? Decimal.zero;
 
-    // Calculate previous month's balance using Decimal arithmetic for precision
     final prevMonthSums = await _db.calculateMonthBalance(
       currentAccountId,
       prevMonth.year,
@@ -1184,22 +1215,41 @@ class AppState extends ChangeNotifier {
     );
     final prevMonthBalance = DecimalHelper.fromDouble(prevMonthSums.income) - DecimalHelper.fromDouble(prevMonthSums.expenses);
 
-    // Total carryover = previous month's (balance + carryover)
     final totalCarryover = prevMonthBalance + prevCarryover;
 
-    // Only update if the calculated carryover is different or doesn't exist
     if (existingBalance == null ||
         existingBalance.carryoverFromPreviousDecimal != totalCarryover) {
-      final newBalance = MonthlyBalance(
+      return MonthlyBalance(
         id: existingBalance?.id,
         carryoverFromPrevious: totalCarryover,
         accountId: currentAccountId,
         month: month,
       );
-
-      await _db.upsertMonthlyBalance(newBalance);
-      _monthlyBalances[monthKey] = newBalance;
     }
+    return null;
+  }
+
+  /// FIX Phase 1.6 — collect the carryover MonthlyBalance upserts that
+  /// must run atomically with a transaction-affecting insert. Mirrors
+  /// `_recalculateCarryoverAfterTransaction` but returns the pending
+  /// writes instead of applying them.
+  Future<List<MonthlyBalance>> _prepareCarryoverUpserts(
+    DateTime transactionDate,
+  ) async {
+    final result = <MonthlyBalance>[];
+
+    final transactionMonth = DateHelper.startOfMonth(transactionDate);
+    final nextMonth = DateHelper.addMonths(transactionMonth, 1);
+    final nextBalance = await _computeCarryoverForMonth(nextMonth);
+    if (nextBalance != null) result.add(nextBalance);
+
+    final selectedStart = DateHelper.startOfMonth(_selectedMonth);
+    if (!_isSameMonth(selectedStart, nextMonth)) {
+      final selBalance = await _computeCarryoverForMonth(selectedStart);
+      if (selBalance != null) result.add(selBalance);
+    }
+
+    return result;
   }
 
   /// Get the carryover for a specific month

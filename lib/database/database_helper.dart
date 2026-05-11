@@ -1402,6 +1402,77 @@ class DatabaseHelper {
     return await db.insert('expenses', expense.toMap());
   }
 
+  /// FIX Phase 1.6 — atomic expense insert + monthly_balance carryover upserts.
+  ///
+  /// Previously `AppState.addExpense` did the INSERT and the carryover
+  /// UPSERTs in two separate top-level statements. If the carryover write
+  /// failed (locked DB, disk full, app being killed mid-flow), the user
+  /// ended up with the expense row but a stale next-month carryover —
+  /// the home screen showed wrong totals until the next manual recalc.
+  ///
+  /// This helper runs the INSERT and every supplied `MonthlyBalance`
+  /// UPSERT inside a single `db.transaction`. SQLite rolls back the
+  /// whole batch if any step throws, so the user never observes a
+  /// half-applied transaction. Returns the new expense id.
+  Future<int> createExpenseWithCarryover(
+    Expense expense,
+    List<MonthlyBalance> balanceUpserts,
+  ) async {
+    final db = await database;
+    late int expenseId;
+    await db.transaction((txn) async {
+      expenseId = await txn.insert('expenses', expense.toMap());
+      for (final balance in balanceUpserts) {
+        await _upsertMonthlyBalanceTxn(txn, balance);
+      }
+    });
+    return expenseId;
+  }
+
+  /// FIX Phase 1.6 — atomic income insert + carryover upserts. Symmetric
+  /// to [createExpenseWithCarryover]; same atomicity contract.
+  Future<int> createIncomeWithCarryover(
+    Income income,
+    List<MonthlyBalance> balanceUpserts,
+  ) async {
+    final db = await database;
+    late int incomeId;
+    await db.transaction((txn) async {
+      incomeId = await txn.insert('income', income.toMap());
+      for (final balance in balanceUpserts) {
+        await _upsertMonthlyBalanceTxn(txn, balance);
+      }
+    });
+    return incomeId;
+  }
+
+  /// Internal: upsert a `MonthlyBalance` against an explicit transaction
+  /// or database executor. Mirrors `upsertMonthlyBalance`'s top-level
+  /// logic but works inside an existing transaction so the SQLite
+  /// connection isn't reentered.
+  Future<int> _upsertMonthlyBalanceTxn(
+    DatabaseExecutor exec,
+    MonthlyBalance balance,
+  ) async {
+    final monthString = DateHelper.toDateString(balance.month);
+    final rows = await exec.query(
+      'monthly_balances',
+      columns: ['id'],
+      where: 'account_id = ? AND month = ?',
+      whereArgs: [balance.accountId, monthString],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      return exec.insert('monthly_balances', balance.toMap()..remove('id'));
+    }
+    return exec.update(
+      'monthly_balances',
+      balance.toMap()..remove('id'),
+      where: 'id = ?',
+      whereArgs: [rows.first['id']],
+    );
+  }
+
   Future<List<Expense>> readAllExpenses(int accountId) async {
     final db = await database;
     const orderBy = 'date DESC';

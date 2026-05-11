@@ -34,7 +34,7 @@ Each lands as its own commit with regression test.
   - [x] `test/lint/no_unregistered_pushnamed_test.dart` enforces the rule going forward
 - [x] 1.4 HomeWidget vs DB close lifecycle race — `main.dart` paused-state awaits via `_handlePaused`; `app_state.dart:closeDatabase` now wrapped in `_writeMutex.synchronized` + 2 tests (behavioural smoke + structural guard) in `test/integration/app_state_close_database_race_test.dart`
 - [x] 1.5 Coalesce `loadData()` re-entrancy — `_loadingFuture ??= _loadDataInternal()...whenComplete(...)` + `loadDataInternalRunCount` test seam + 2 tests in `test/integration/app_state_load_data_coalesce_test.dart`
-- [ ] 1.6 Wrap `addExpense` + carryover in single tx (`app_state.dart` + `database_helper.dart`)
+- [x] 1.6 Wrap `addExpense`/`addIncome` + carryover in single tx — new `DatabaseHelper.createExpenseWithCarryover` / `createIncomeWithCarryover` use `db.transaction`; AppState pre-computes balances via new `_computeCarryoverForMonth` / `_prepareCarryoverUpserts`; 3 tests in `test/integration/database_helper_atomic_add_test.dart` (commit-success + rollback-on-FK-fail for both expense and income)
 - [ ] 1.7 Blur sigma 25→15 + RepaintBoundary nav/transactions
 - [ ] 1.8 Mounted check after `_fadeController.reverse` (`main.dart:527`)
 - [ ] 1.9 AndroidManifest hardening (`allowBackup="false"` + dataExtractionRules)
