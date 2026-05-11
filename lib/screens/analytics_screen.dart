@@ -6,6 +6,7 @@ import '../utils/accessibility_helper.dart';
 import '../utils/premium_animations.dart';
 import '../constants/spacing.dart';
 import '../main.dart';
+import 'budget_screen.dart';
 
 class AnalyticsScreen extends StatelessWidget {
   const AnalyticsScreen({super.key});
@@ -931,7 +932,11 @@ class _BudgetProgress extends StatelessWidget {
             const SizedBox(height: Spacing.md),
             ElevatedButton.icon(
               onPressed: () {
-                Navigator.pushNamed(context, '/budgets');
+                // FIX Phase 1.3: typed PremiumPageRoute (was pushNamed).
+                Navigator.push(
+                  context,
+                  PremiumPageRoute(page: const BudgetScreen()),
+                );
               },
               icon: const Icon(Icons.add, size: 18),
               label: const Text('Add Budget'),

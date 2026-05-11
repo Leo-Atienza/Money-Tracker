@@ -2236,7 +2236,13 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                 children: [
                   OutlinedButton.icon(
                     onPressed: () {
-                      Navigator.pushNamed(context, '/add_expense');
+                      // FIX Phase 1.3: `/add_expense` is NOT registered in
+                      // MaterialApp.routes — pushNamed silently fails.
+                      // Use the typed PremiumPageRoute instead.
+                      Navigator.push(
+                        context,
+                        PremiumPageRoute(page: const AddExpenseScreen()),
+                      );
                     },
                     icon: const Icon(Icons.remove_circle_outline, size: 18),
                     label: const Text('Add Expense'),
@@ -2248,7 +2254,11 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                   const SizedBox(width: Spacing.sm),
                   OutlinedButton.icon(
                     onPressed: () {
-                      Navigator.pushNamed(context, '/add_income');
+                      // FIX Phase 1.3: same fix for `/add_income`.
+                      Navigator.push(
+                        context,
+                        PremiumPageRoute(page: const AddIncomeScreen()),
+                      );
                     },
                     icon: const Icon(Icons.add_circle_outline, size: 18),
                     label: const Text('Add Income'),

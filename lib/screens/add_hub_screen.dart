@@ -4,6 +4,7 @@ import '../utils/premium_animations.dart';
 import '../widgets/luminous/glass_surface.dart';
 import 'add_expense_screen.dart';
 import 'add_income_screen.dart';
+import 'budget_screen.dart';
 import 'recurring_expenses_screen.dart';
 
 /// Center tab from the stitch redesign: pick what to add (expense, income, budgets, recurring).
@@ -69,7 +70,12 @@ class AddHubScreen extends StatelessWidget {
                     title: 'Budgets',
                     subtitle: 'Plan monthly limits',
                     tint: cs.secondary,
-                    onTap: () => Navigator.pushNamed(context, '/budgets'),
+                    // FIX Phase 1.3: switch to typed PremiumPageRoute so
+                    // navigation does not depend on the named-routes table.
+                    onTap: () => Navigator.push(
+                      context,
+                      PremiumPageRoute(page: const BudgetScreen()),
+                    ),
                   ),
                   Divider(height: 20, color: Colors.white.withValues(alpha: 0.35)),
                   _HubTile(

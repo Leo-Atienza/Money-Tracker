@@ -26,10 +26,12 @@ Each lands as its own commit with regression test.
 
 - [x] 1.1 useTemplate auto-pay (`app_state.dart:1594` — `amountPaid: Decimal.zero`) + 2 tests in `test/integration/app_state_use_template_test.dart`
 - [x] 1.2 `_pruneDistantMonths` month-key padding (`app_state.dart:558` — use `_monthKey(now)`) + test in `test/integration/app_state_prune_test.dart`
-- [ ] 1.3 Replace `Navigator.pushNamed` to unregistered routes
-  - [ ] `history_screen.dart:2239` `/add_expense`
-  - [ ] `history_screen.dart:2251` `/add_income`
-  - [ ] `add_hub_screen.dart:72` `/budgets`
+- [x] 1.3 Replace `Navigator.pushNamed` to unregistered routes + structural lint test
+  - [x] `history_screen.dart:2239` `/add_expense` → `PremiumPageRoute(page: AddExpenseScreen())`
+  - [x] `history_screen.dart:2251` `/add_income` → `PremiumPageRoute(page: AddIncomeScreen())`
+  - [x] `add_hub_screen.dart:72` `/budgets` → `PremiumPageRoute(page: BudgetScreen())`
+  - [x] `analytics_screen.dart:934` `/budgets` → same (bonus consistency fix)
+  - [x] `test/lint/no_unregistered_pushnamed_test.dart` enforces the rule going forward
 - [ ] 1.4 HomeWidget vs DB close lifecycle race (`main.dart` + `app_state.dart:closeDatabase`)
 - [ ] 1.5 Coalesce `loadData()` re-entrancy (`app_state.dart:278`)
 - [ ] 1.6 Wrap `addExpense` + carryover in single tx (`app_state.dart` + `database_helper.dart`)
