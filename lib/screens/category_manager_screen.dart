@@ -7,7 +7,7 @@ import '../widgets/category_tile.dart';
 import '../utils/category_icons.dart';
 import '../utils/premium_animations.dart';
 import '../constants/spacing.dart';
-import '../main.dart';
+import '../theme/app_colors.dart';
 
 class CategoryManagerScreen extends StatelessWidget {
   const CategoryManagerScreen({super.key});

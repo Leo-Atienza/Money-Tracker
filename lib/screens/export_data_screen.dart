@@ -6,7 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 import '../providers/app_state.dart';
 import '../constants/spacing.dart';
-import '../main.dart'; // for AppColors
+import '../theme/app_colors.dart';
 import '../utils/csv_exporter.dart';
 import '../utils/pdf_exporter.dart';
 import '../utils/haptic_helper.dart';

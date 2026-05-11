@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/spacing.dart';
-import '../main.dart' show AppColors;
+import '../theme/app_colors.dart';
 import '../theme/luminous_app_theme.dart';
 import '../providers/app_state.dart';
 import '../models/expense_model.dart';

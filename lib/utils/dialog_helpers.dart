@@ -1,7 +1,7 @@
 // FIX #9, #16, #50: Comprehensive dialog helpers for confirmations and warnings
 import 'package:flutter/material.dart';
 import '../constants/spacing.dart';
-import '../main.dart';
+import '../theme/app_colors.dart';
 import 'haptic_helper.dart';
 
 class DialogHelpers {

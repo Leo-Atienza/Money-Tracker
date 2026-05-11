@@ -4,7 +4,7 @@ import '../providers/app_state.dart';
 import '../models/expense_model.dart';
 import '../utils/currency_helper.dart';
 import '../constants/spacing.dart';
-import '../main.dart';
+import '../theme/app_colors.dart';
 
 class AddPaymentDialog extends StatefulWidget {
   final Expense expense;

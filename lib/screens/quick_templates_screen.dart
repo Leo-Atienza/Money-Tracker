@@ -8,7 +8,7 @@ import '../utils/decimal_helper.dart';
 import '../utils/premium_animations.dart';
 import '../utils/haptic_helper.dart';
 import '../constants/spacing.dart';
-import '../main.dart';
+import '../theme/app_colors.dart';
 
 class QuickTemplatesScreen extends StatelessWidget {
   const QuickTemplatesScreen({super.key});

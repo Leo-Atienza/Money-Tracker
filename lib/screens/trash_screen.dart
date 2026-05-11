@@ -6,7 +6,7 @@ import '../utils/date_helper.dart';
 import '../utils/premium_animations.dart';
 import '../constants/spacing.dart';
 import '../widgets/loading_skeleton.dart';
-import '../main.dart';
+import '../theme/app_colors.dart';
 
 class TrashScreen extends StatefulWidget {
   const TrashScreen({super.key});

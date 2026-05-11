@@ -5,7 +5,7 @@ import '../models/account_model.dart';
 import '../utils/progress_indicator_helper.dart';
 import '../utils/premium_animations.dart';
 import '../constants/spacing.dart';
-import '../main.dart';
+import '../theme/app_colors.dart';
 
 class AccountManagerScreen extends StatelessWidget {
   const AccountManagerScreen({super.key});

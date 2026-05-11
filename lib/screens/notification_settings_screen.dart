@@ -4,7 +4,7 @@ import 'package:app_settings/app_settings.dart';
 import '../providers/app_state.dart';
 import '../utils/notification_helper.dart';
 import '../constants/spacing.dart';
-import '../main.dart';
+import '../theme/app_colors.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -18,6 +18,12 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     with WidgetsBindingObserver {
   bool _permissionGranted = true;
   bool _checkingPermission = true;
+
+  /// Phase 2.7: resolve the helper once via `AppState` so tests can swap in a
+  /// fake AppState with a mock helper. Lazy initialisation via `didChangeDeps`
+  /// is overkill — the field is read after the first build pump.
+  late final NotificationHelper _helper =
+      context.read<AppState>().notificationHelper;
 
   @override
   void initState() {
@@ -44,7 +50,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   }
 
   Future<void> _checkPermissionStatus() async {
-    final granted = await NotificationHelper().areNotificationsEnabled();
+    final granted = await _helper.areNotificationsEnabled();
     if (mounted) {
       setState(() {
         _permissionGranted = granted;
@@ -60,7 +66,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   ) async {
     if (value && !_permissionGranted) {
       // Request permission first
-      final granted = await NotificationHelper().requestPermissions();
+      final granted = await _helper.requestPermissions();
 
       if (!granted) {
         if (mounted) {
@@ -165,8 +171,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                       TextButton(
                         onPressed: () async {
                           // First try to request permission via the system dialog
-                          final granted =
-                              await NotificationHelper().requestPermissions();
+                          final granted = await _helper.requestPermissions();
                           if (granted) {
                             if (mounted) {
                               setState(() => _permissionGranted = true);
@@ -333,7 +338,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                   onTap: () async {
                     // Send a test notification
                     try {
-                      await NotificationHelper().showMonthlySummary(
+                      await _helper.showMonthlySummary(
                         1234.56,
                         1500.00,
                       );

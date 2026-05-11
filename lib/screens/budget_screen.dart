@@ -6,7 +6,7 @@ import '../utils/accessibility_helper.dart';
 import '../utils/dialog_helpers.dart';
 import '../utils/haptic_helper.dart';
 import '../constants/spacing.dart';
-import '../main.dart';
+import '../theme/app_colors.dart';
 
 class BudgetScreen extends StatelessWidget {
   const BudgetScreen({super.key});

@@ -21,7 +21,7 @@ import 'export_data_screen.dart';
 import 'crash_log_screen.dart';
 import '../utils/pin_security_helper.dart';
 import '../constants/spacing.dart';
-import '../main.dart';
+import '../theme/app_colors.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:budget_tracker/main.dart' show AppColors;
+import 'package:budget_tracker/theme/app_colors.dart';
 import 'package:budget_tracker/utils/snackbar_helper.dart';
 
 /// A known-value AppColors so tests can assert on specific colors without

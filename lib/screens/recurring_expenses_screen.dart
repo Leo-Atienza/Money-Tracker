@@ -11,7 +11,7 @@ import '../utils/date_helper.dart';
 import '../utils/premium_animations.dart';
 import '../utils/haptic_helper.dart';
 import '../constants/spacing.dart';
-import '../main.dart';
+import '../theme/app_colors.dart';
 
 class RecurringExpensesScreen extends StatelessWidget {
   const RecurringExpensesScreen({super.key});

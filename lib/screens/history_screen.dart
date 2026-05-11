@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/app_state.dart';
+import '../models/category_model.dart' as cat_model;
 import '../models/expense_model.dart';
 import '../models/income_model.dart';
 import '../utils/validators.dart';
@@ -17,7 +18,7 @@ import 'add_expense_screen.dart';
 import 'add_income_screen.dart';
 import 'add_payment_dialog.dart';
 import '../constants/spacing.dart';
-import '../main.dart';
+import '../theme/app_colors.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -473,7 +474,27 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final appState = context.watch<AppState>();
+
+    // Phase 2.5: narrow `context.select` calls in place of the previous
+    // global watch on AppState. Each call registers a rebuild trigger on a
+    // single slice — list-typed slices rebuild on identity change (AppState
+    // reassigns `_expenses`/`_incomes`/`_categories` on every mutation via
+    // `_loadExpensesInternal()` and friends), and scalar slices rebuild on
+    // value change. Theme-only state changes (dark mode, currency code) no
+    // longer cause this screen to rebuild.
+    //
+    // The returned values are unused; the side-effect is the dependency
+    // registration. Phase 5.6 will further split the screen into per-section
+    // widgets so the rebuild boundary is even tighter.
+    context.select<AppState, List<Expense>>((s) => s.expenses);
+    context.select<AppState, List<Income>>((s) => s.incomes);
+    context.select<AppState, List<cat_model.Category>>((s) => s.categories);
+    context.select<AppState, DateTime>((s) => s.selectedMonth);
+    context.select<AppState, String>((s) => s.currency);
+    context.select<AppState, bool>((s) => s.showTransactionColors);
+    context.select<AppState, double>((s) => s.transactionColorIntensity);
+
+    final appState = context.read<AppState>();
 
     return Scaffold(
       body: SafeArea(

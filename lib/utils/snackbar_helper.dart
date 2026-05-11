@@ -1,7 +1,7 @@
 // FIX #27: Consistent SnackBar styling across the app
 import 'package:flutter/material.dart';
 import '../constants/spacing.dart';
-import '../main.dart';
+import '../theme/app_colors.dart';
 
 class SnackBarHelper {
   /// Show success message

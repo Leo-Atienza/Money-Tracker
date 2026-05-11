@@ -6,8 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'providers/app_state.dart';
-import 'utils/color_contrast_helper.dart';
+import 'theme/app_colors.dart';
 import 'utils/crash_log.dart';
 import 'screens/home_screen.dart';
 import 'screens/history_screen.dart';
@@ -27,61 +28,22 @@ import 'widgets/luminous/floating_glass_nav_bar.dart';
 import 'widgets/luminous/organic_blob_background.dart';
 import 'utils/premium_animations.dart';
 
-/// Current app version. Keep in sync with `pubspec.yaml` → `version:`.
-/// FIX Phase 3a: Passed to [CrashLog.init] so every crash record is tagged
-/// with the build that produced it.
-const String _appVersion = '4.4.0+6';
-
-/// Semantic color extension for expense/income/warning/info colors.
-/// Uses WCAG-compliant colors from ColorContrastHelper.
-@immutable
-class AppColors extends ThemeExtension<AppColors> {
-  final Color expenseRed;
-  final Color incomeGreen;
-  final Color warningOrange;
-  final Color infoBlue;
-
-  const AppColors({
-    required this.expenseRed,
-    required this.incomeGreen,
-    required this.warningOrange,
-    required this.infoBlue,
-  });
-
-  factory AppColors.fromBrightness(Brightness brightness) {
-    final status = ColorContrastHelper.getStatusColors(brightness);
-    return AppColors(
-      expenseRed: status.error,
-      incomeGreen: status.success,
-      warningOrange: status.warning,
-      infoBlue: status.info,
-    );
-  }
-
-  @override
-  AppColors copyWith({
-    Color? expenseRed,
-    Color? incomeGreen,
-    Color? warningOrange,
-    Color? infoBlue,
-  }) {
-    return AppColors(
-      expenseRed: expenseRed ?? this.expenseRed,
-      incomeGreen: incomeGreen ?? this.incomeGreen,
-      warningOrange: warningOrange ?? this.warningOrange,
-      infoBlue: infoBlue ?? this.infoBlue,
-    );
-  }
-
-  @override
-  AppColors lerp(AppColors? other, double t) {
-    if (other is! AppColors) return this;
-    return AppColors(
-      expenseRed: Color.lerp(expenseRed, other.expenseRed, t)!,
-      incomeGreen: Color.lerp(incomeGreen, other.incomeGreen, t)!,
-      warningOrange: Color.lerp(warningOrange, other.warningOrange, t)!,
-      infoBlue: Color.lerp(infoBlue, other.infoBlue, t)!,
-    );
+/// Resolves the current app version from the native bundle so it stays in
+/// sync with `pubspec.yaml` → `version:`. Falls back to `'unknown'` only when
+/// `PackageInfo` itself throws — every recorded crash should still be tagged
+/// with *something*, even if package_info_plus is broken.
+///
+/// Phase 2.6: replaces the hardcoded `_appVersion` constant.
+Future<String> _resolveAppVersion() async {
+  try {
+    final pkg = await PackageInfo.fromPlatform();
+    return '${pkg.version}+${pkg.buildNumber}';
+  } catch (e, st) {
+    if (kDebugMode) debugPrint('PackageInfo.fromPlatform failed: $e');
+    // Note: CrashLog isn't initialised yet at this call site. The caller is
+    // expected to record the failure once init() succeeds.
+    debugPrintStack(stackTrace: st, label: 'package_info_plus');
+    return 'unknown';
   }
 }
 
@@ -109,7 +71,10 @@ void main() {
 
       // Initialize the crash log and install global error handlers BEFORE
       // anything else that might throw, so those errors are captured too.
-      await CrashLog.init(appVersion: _appVersion);
+      // Version comes from the native bundle (Phase 2.6) so we never drift
+      // from `pubspec.yaml`.
+      final appVersion = await _resolveAppVersion();
+      await CrashLog.init(appVersion: appVersion);
 
       // Set preferred orientation
       await SystemChrome.setPreferredOrientations([

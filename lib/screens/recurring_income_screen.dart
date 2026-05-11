@@ -9,7 +9,7 @@ import '../utils/validators.dart';
 import '../utils/date_helper.dart';
 import '../utils/premium_animations.dart';
 import '../constants/spacing.dart';
-import '../main.dart';
+import '../theme/app_colors.dart';
 
 class RecurringIncomeScreen extends StatelessWidget {
   const RecurringIncomeScreen({super.key});

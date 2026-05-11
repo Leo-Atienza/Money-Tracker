@@ -5,7 +5,7 @@ import '../providers/app_state.dart';
 import '../utils/accessibility_helper.dart';
 import '../utils/premium_animations.dart';
 import '../constants/spacing.dart';
-import '../main.dart';
+import '../theme/app_colors.dart';
 import 'budget_screen.dart';
 
 class AnalyticsScreen extends StatelessWidget {

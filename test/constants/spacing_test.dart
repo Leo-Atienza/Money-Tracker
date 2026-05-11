@@ -50,12 +50,16 @@ void main() {
     });
 
     group('screen and card padding', () {
-      test('screenPadding equals 24.0', () {
-        expect(Spacing.screenPadding, 24.0);
+      // Phase 2.2 realigned these values onto LuminousTokens:
+      //   screenPadding 24 → 20 (matches containerPadding)
+      //   cardPadding   20 → 24 (matches glassPadding)
+      // See docs/MASTER_PLAN.md Phase 2.2 + docs/DESIGN_DEVIATIONS.md DD-002.
+      test('screenPadding equals 20.0 (LuminousTokens.containerPadding)', () {
+        expect(Spacing.screenPadding, 20.0);
       });
 
-      test('cardPadding equals 20.0', () {
-        expect(Spacing.cardPadding, 20.0);
+      test('cardPadding equals 24.0 (LuminousTokens.glassPadding)', () {
+        expect(Spacing.cardPadding, 24.0);
       });
     });
 

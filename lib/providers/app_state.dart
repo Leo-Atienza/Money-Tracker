@@ -28,6 +28,12 @@ class AppState extends ChangeNotifier {
   final NotificationHelper _notificationHelper = NotificationHelper();
   final OnboardingService _onboardingService = OnboardingService();
 
+  /// Public getter for the singleton [NotificationHelper] — exposed so screens
+  /// can dispatch via `context.read<AppState>().notificationHelper` instead of
+  /// calling `NotificationHelper()` directly. Phase 2.7 standardised this so
+  /// future widget tests can swap in a fake `AppState` with a mock helper.
+  NotificationHelper get notificationHelper => _notificationHelper;
+
   final AsyncMutex _writeMutex = AsyncMutex();
 
   // ============== DATA LISTS ==============

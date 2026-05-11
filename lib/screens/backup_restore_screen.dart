@@ -8,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import '../utils/backup_helper.dart';
 import '../providers/app_state.dart';
 import '../constants/spacing.dart';
-import '../main.dart'; // for AppColors
+import '../theme/app_colors.dart';
 
 class BackupRestoreScreen extends StatefulWidget {
   const BackupRestoreScreen({super.key});

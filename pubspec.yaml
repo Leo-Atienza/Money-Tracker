@@ -45,6 +45,9 @@ dependencies:
   decimal: ^3.2.4
   crypto: ^3.0.5
 
+  # Reads version+build from native bundle (instead of hardcoding).
+  package_info_plus: ^8.0.0
+
   # Home Screen Widget (FREE!)
   home_widget: ^0.7.0
 

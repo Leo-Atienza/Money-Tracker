@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../utils/pin_security_helper.dart';
 import '../utils/haptic_helper.dart';
 import '../constants/spacing.dart';
-import '../main.dart';
+import '../theme/app_colors.dart';
 
 /// Screen for setting up a new PIN or changing an existing PIN
 class PinSetupScreen extends StatefulWidget {

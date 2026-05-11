@@ -2,42 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Tokens from `stitch_premium_glassmorphism_ui/luminous_glass_system/DESIGN.md`
-class LuminousTokens {
-  LuminousTokens._();
+import 'luminous_tokens.dart';
 
-  static const Color background = Color(0xFFFCF8FB);
-  static const Color onBackground = Color(0xFF1B1B1D);
-  static const Color primary = Color(0xFF006E28);
-  static const Color onPrimary = Color(0xFFFFFFFF);
-  static const Color primaryContainer = Color(0xFF34C759);
-  static const Color onPrimaryContainer = Color(0xFF004D1A);
-  static const Color secondary = Color(0xFF0058BC);
-  static const Color onSecondary = Color(0xFFFFFFFF);
-  static const Color secondaryContainer = Color(0xFF0070EB);
-  static const Color onSurface = Color(0xFF1B1B1D);
-  static const Color onSurfaceVariant = Color(0xFF3D4A3C);
-  static const Color surfaceContainer = Color(0xFFF0EDEF);
-  static const Color surfaceContainerHigh = Color(0xFFEAE7EA);
-  static const Color surfaceContainerHighest = Color(0xFFE4E2E4);
-  static const Color outline = Color(0xFF6D7B6B);
-  static const Color outlineVariant = Color(0xFFBCCBB8);
-  static const Color error = Color(0xFFBA1A1A);
-  static const Color glassFill = Color(0x73FFFFFF); // ~45% white
-  static const Color glassBorder = Color(0x66FFFFFF); // 40% white stroke
-  // FIX Phase 1.7: blur reduced from 25 → 15 to stay under 8ms per frame
-  // on a Pixel 4a class device. The design spec calls for 25 but on real
-  // hardware the difference is visually negligible at typical viewing
-  // distance while the GPU cost roughly halves. Documented in
-  // `docs/DESIGN_DEVIATIONS.md`.
-  static const double glassBlurSigma = 15;
-  static const double radiusCard = 24;
-  static const double radiusPill = 9999;
-  static const double containerPadding = 20;
-  static const double glassPadding = 24;
-  static const double stackGap = 16;
-  static const double sectionMargin = 32;
-}
+export 'luminous_tokens.dart';
 
 TextTheme _luminousTextTheme(ColorScheme cs) {
   TextStyle hanken(

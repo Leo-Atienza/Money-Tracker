@@ -46,15 +46,15 @@ Each lands as its own commit with regression test.
 
 ## Phase 2 — Architectural Foundations
 
-- [ ] 2.1 Move `AppColors` → `lib/theme/app_colors.dart` (21 import sites updated)
-- [ ] 2.2 Consolidate spacing/sizing tokens → `lib/theme/luminous_tokens.dart` (+deprecate `Spacing.*`)
-- [ ] 2.3 Bundle Hanken Grotesk as asset (remove `google_fonts`)
-- [ ] 2.4 Luminous component library skeleton (`lib/widgets/luminous/`)
-- [ ] 2.5 Kill `history_screen` `context.watch<AppState>` (narrow `select`s)
-- [ ] 2.6 `_appVersion` from `pubspec.yaml` via `package_info_plus`
-- [ ] 2.7 `NotificationHelper` singleton via `AppState`
+- [x] 2.1 Move `AppColors` → `lib/theme/app_colors.dart` (21 lib + 2 test import sites updated)
+- [x] 2.2 Consolidate spacing/sizing tokens → `lib/theme/luminous_tokens.dart` (+`Spacing.*` realigned; `@Deprecated` swap deferred to Phase 5 — see DD-002)
+- [ ] 2.3 Bundle Hanken Grotesk as asset (remove `google_fonts`) — **BLOCKED**: font TTF download from Google Fonts denied by sandbox policy. Authorize the download in `.claude/settings.json` or drop the four TTFs into `assets/fonts/HankenGrotesk/` manually, then re-run this task.
+- [x] 2.4 Luminous component library skeleton (`lib/widgets/luminous/`) — `glass_surface.dart` shimmed to `glass_panel.dart`; 8 new components (top app bar, segmented control, pill chip, list section, list tile, progress bar, donut chart, bar chart, bento grid) with 9 smoke tests
+- [x] 2.5 Kill `history_screen` `context.watch<AppState>` (narrow `select`s) + `test/lint/no_global_appstate_watch_test.dart` enforcement
+- [x] 2.6 `_appVersion` from `pubspec.yaml` via `package_info_plus` — `_resolveAppVersion()` in `main.dart`
+- [x] 2.7 `NotificationHelper` singleton via `AppState` — `AppState.notificationHelper` getter; `notification_settings_screen` rewired; `test/lint/notification_helper_singleton_test.dart` enforcement
 
-**Phase 2 gate:** `grep "import '../main.dart'" lib/` = 0; `grep "GoogleFonts" lib/` = 0; airplane-mode font correct.
+**Phase 2 gate:** `grep "import '../main.dart'" lib/` = 0 ✅; airplane-mode font check deferred with 2.3; `flutter analyze` clean; 1,673 tests pass (+12).
 
 ---
 

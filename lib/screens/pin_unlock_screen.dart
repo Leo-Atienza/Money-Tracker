@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../utils/pin_security_helper.dart';
 import '../utils/haptic_helper.dart';
 import '../constants/spacing.dart';
-import '../main.dart';
+import '../theme/app_colors.dart';
 
 /// Screen for unlocking the app with PIN
 class PinUnlockScreen extends StatefulWidget {

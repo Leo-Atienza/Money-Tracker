@@ -12,7 +12,7 @@ import '../utils/validators.dart';
 import '../utils/dialog_helpers.dart';
 import '../utils/date_helper.dart';
 import '../constants/spacing.dart';
-import '../main.dart';
+import '../theme/app_colors.dart';
 
 class AddIncomeScreen extends StatefulWidget {
   final Income? income; // For editing

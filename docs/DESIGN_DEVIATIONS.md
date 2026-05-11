@@ -34,6 +34,30 @@ ahead of where we measured), the spec value may be reachable.
 
 ---
 
+## DD-002 — Spacing.* deprecation strategy
+
+**Spec:** `docs/MASTER_PLAN.md` Phase 2.2 — "leave `lib/constants/spacing.dart`
+for backward compat with a `@Deprecated('Use LuminousTokens.*')` annotation on
+each constant."
+**Implementation:** Class-level migration note instead of per-constant
+`@Deprecated` annotations.
+**Files:** [lib/constants/spacing.dart](../lib/constants/spacing.dart)
+
+**Reason.** 757 `Spacing.*` call sites across 25 files. Per-constant
+`@Deprecated` would emit ~757 `deprecated_member_use_from_same_package`
+analyzer warnings on every `flutter analyze`, drowning out real signal and
+breaking the Phase 0 "No issues found" baseline. Phase 5 will inline the
+constants screen-by-screen onto `LuminousTokens` and then delete this file.
+
+**Tradeoff.** Developers don't get an IDE strikethrough when typing `Spacing.x`.
+The file's docstring and the `LuminousTokens.*` aliasing make the migration
+intent obvious; Phase 5 task list enumerates every screen.
+
+**Revert path.** When Phase 5 reduces `Spacing.*` usage to a manageable count
+(< 50), re-add the per-constant `@Deprecated` to flush the long tail.
+
+---
+
 ## (template — copy when adding a deviation)
 
 ## DD-NNN — Short description
