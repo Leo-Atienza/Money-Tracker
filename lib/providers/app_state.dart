@@ -1591,7 +1591,13 @@ class AppState extends ChangeNotifier {
         );
         categoryToUse = uncategorized.name;
       }
-      await addExpense(Expense(amount: template.amountDecimal, category: categoryToUse, description: template.name, date: date, accountId: currentAccountId, amountPaid: template.amountDecimal, paymentMethod: template.paymentMethod));
+      // FIX Phase 1.1: templated expense must NOT be marked auto-paid.
+      // Was: amountPaid: template.amountDecimal → flagged the new row as
+      // fully paid before the user could enter an actual partial/full
+      // payment via AddPaymentDialog. Templates only carry the *charge*
+      // amount; payment state starts at zero, same as a manually entered
+      // expense.
+      await addExpense(Expense(amount: template.amountDecimal, category: categoryToUse, description: template.name, date: date, accountId: currentAccountId, amountPaid: Decimal.zero, paymentMethod: template.paymentMethod));
     } else {
       final categoryExists = incomeCategories.any((c) => c.name == template.category);
       if (!categoryExists) {
