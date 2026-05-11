@@ -145,6 +145,12 @@ Each lands as its own commit with regression test.
 
 ---
 
+## Repo / branch sync state (post-session-3)
+
+- [x] `release/v5.0.0` pushed to `origin` (session 3 — first push)
+- [x] `release/v5.0.0` fast-forward-merged into `main`; both `main` and `origin/main` at the same SHA as `release/v5.0.0` (`789c59c`)
+- [ ] Tag `v5.0.0+1` — held until Phase 5 + Stage E version bump
+
 ## Out of v5.0.0 (deferred to v5.1)
 
 - AppState god-object split (TransactionService, BudgetService, SettingsService)

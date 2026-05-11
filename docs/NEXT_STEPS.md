@@ -1,33 +1,48 @@
 # Next Steps Plan — From Here to `v5.0.0+1` Ship
 
-**Author:** Synthesis after session 2 (2026-05-11) of the `release/v5.0.0` arc.
-**Companion:** `docs/MASTER_PLAN.md` (full "why"), `docs/CHECKLIST.md` (per-task tickboxes), `SESSION_HANDOFF.md` ("where we are right now").
-**Purpose:** spell out, with file paths and acceptance criteria, the exact remaining work between commit `4f1d62f` and a tagged `v5.0.0+1` on the landing page. Anything not in this file is out of scope for this release (see `MASTER_PLAN.md` §"Out of v5.0.0").
+**Origin:** synthesis after session 2 (2026-05-11) of the `release/v5.0.0` arc.
+**Revision:** rewritten after session 3 (2026-05-11) — reflects the current branch state, the work that landed in session 3, and the precise remaining work.
+**Companions:** `docs/MASTER_PLAN.md` (full "why"), `docs/CHECKLIST.md` (per-task tickboxes), `SESSION_HANDOFF.md` (snapshot of session 3 close).
+**Purpose:** spell out, with file paths and acceptance criteria, the exact remaining work between commit `789c59c` and a tagged `v5.0.0+1` on the landing page. Anything not in this file is out of scope for this release (see `MASTER_PLAN.md` §"Out of v5.0.0").
 
 ---
 
-## 0. Current state snapshot (2026-05-11, after `4f1d62f`)
+## 0. Current state (2026-05-11, after `789c59c`)
 
 | Surface | State |
 |---|---|
-| Branch | `release/v5.0.0`, **never pushed to origin** |
-| HEAD | `4f1d62f docs(handoff): close-out for session 2` |
-| Commits since `main` diverged | 16 |
+| Branch | `release/v5.0.0`, **pushed to origin** (session 3) |
+| `main` | At `789c59c` — fast-forward-merged from `release/v5.0.0` (session 3) |
+| `origin/main` | Same SHA — `git push origin main` completed (session 3) |
+| HEAD | `789c59c docs(handoff): close-out for session 3 — brand, 6.3/6.4 crypto, 7.3/5/7/9/10` |
+| Commits since the old `main` diverged | 28 |
 | `flutter analyze` | No issues found |
-| `flutter test` | 1,720 pass |
-| `flutter build apk --release` | succeeded, 59.2 MB (verified session 2) |
-| `bash scripts/preflight.sh` | green |
+| `flutter test` | 1,764 pass (was 1,720 at session 2 close) |
+| `flutter build apk --release` | succeeded, 59.2 MB (verified session 3) |
+| `bash scripts/preflight.sh` | green, test-count gate ≥ 1,750 |
 | DB schema version | 19 |
-| `pubspec.yaml` version | `4.4.0+6` (will become `5.0.0+1` at Stage E) |
+| `pubspec.yaml` version | `4.4.0+6` (will become `5.0.0+1` at Stage E **after** Stage B Phase 5 lands) |
+| New deps since session 2 | `cryptography ^2.7.0` (for Phase 6.3 backup envelope) |
 
-**What still has to land** (mapped to checklist):
+**Headline truth: `main` and `release/v5.0.0` are at the same SHA on both local and origin.** Future work continues on `release/v5.0.0`; merge to `main` again at the end of each session that lands ship-worthy work.
 
-- **Phase 5** — 9 screen redesigns + brand alignment + `Spacing.*` removal. (0/10 done — starter commit `a231db4` only wired the 5-tab nav skeleton.)
-- **Phase 6.1, 6.3, 6.4** — SQLCipher, backup AES-GCM + passphrase, widget redaction. (3/6 done.)
-- **Phase 7** — Test coverage rebuild. (0/10 done.)
-- **Phase 8.2, 8.4, 8.5** — Perf pass, version bump, ship pipeline. (2/5 done.)
+### Phase status legend
+- ✅ **Done** — landed, tested, committed.
+- 🟡 **Partial** — some sub-tasks landed; others tracked below.
+- ⏳ **Pending** — nothing started.
+- ⏸ **Deferred** — explicitly out of v5.0.0 scope (see `MASTER_PLAN.md` §"Out of v5.0.0") or out of session-3 scope (resume per per-item notes).
 
-Plus the cross-cutting clean-ups in §6.
+| Phase | Status | What's left |
+|---|---|---|
+| 0 — Pre-flight | ✅ | — |
+| 1 — Stop the Bleeding | ✅ | — |
+| 2 — Architectural Foundations | ✅ | — |
+| 3 — Race & Lifecycle | 🟡 (3.8 ⏸) | 3.8 `AppPhase` state machine — deferred to v5.1 per master plan. |
+| 4 — Schema v19 + Data Integrity | ✅ | — |
+| 5 — Luminous Design Integration | 🟡 (5.10 ✅; starter ✅) | 5.1–5.9 hero-screen redesigns; 5.11 Spacing removal. See §3 below. |
+| 6 — Security Hardening | 🟡 (6.2/4/5/6 ✅; 6.3 crypto layer ✅) | 6.1 SQLCipher; 6.3 UX wiring (passphrase prompts in `backup_restore_screen.dart`). See §4 below. |
+| 7 — Test Coverage | 🟡 (7.3/4/5/7/9/10 ✅) | 7.1 rename; 7.2 AppState mutator tests; 7.6 hero-screen widget tests; 7.8 goldens. See §5 below. |
+| 8 — Polish & Ship | 🟡 (8.1/3 ✅) | 8.2 perf pass; 8.4 version bump + tag; 8.5 ship pipeline. See §6 below. |
 
 ---
 
@@ -35,41 +50,33 @@ Plus the cross-cutting clean-ups in §6.
 
 The plan is sequenced so that:
 
-1. **De-risk first.** Phase 6.2's PIN migration is unit-tested but unproven on a real Keystore. Confirm or revert before any new work piles on top.
+1. **De-risk first.** Phase 6.2's PIN migration is unit-tested but unproven on a real Keystore. Confirm or revert before any new work piles on top. **Same for Phase 6.4 widget redaction (new this session) and Phase 6.5 FLAG_SECURE.**
 2. **Visual work next.** Phase 5 needs Hanken Grotesk in place (done) and a stable codebase to anchor against. It's the biggest chunk and the headline change for the major-version bump.
-3. **Security in parallel with Phase 5.** 6.3 + 6.4 are mechanical and touch surfaces (backup screen, widget) that Phase 5 won't fight with. 6.1 (SQLCipher) is highest data-loss risk and earns its own session at the end of the chain so other code is stable for the smoke test.
-4. **Test coverage last but not least.** Phase 7 is additive — running it before Phase 5 means writing tests against screens about to be deleted. Save it for after Phase 5's structure settles.
+3. **Security in parallel with Phase 5.** 6.3 UX wiring (new) and any 6.4 device tweaks touch surfaces (backup screen, widget) that Phase 5 won't fight with. 6.1 (SQLCipher) is highest data-loss risk and earns its own session at the end of the chain so other code is stable for the smoke test.
+4. **Test coverage last but not least.** Phase 7 is additive — running it before Phase 5 means writing tests against screens about to be deleted. Save 7.6 + 7.8 for after Phase 5's structure settles.
 5. **Ship is a gate, not a step.** Tag `v5.0.0+1` only after every preceding stage is green AND a 5-minute device smoke test passes.
 
-The default linear order is **A → B → C → D → E**. A subset (C.2, C.3, D.1, D.7, D.9, D.10) can be picked up in parallel sessions if multiple agents / windows are available.
+The default linear order is **A → B → C → D → E**. A subset (C.2 UX, C.3, D.2, D.6, D.8) can be picked up in parallel sessions if multiple agents / windows are available.
 
 ---
 
-## 2. Stage A — De-risk what session 2 just landed (≈ 1–2 hours)
+## 2. Stage A — De-risk what session 2 + session 3 just landed (≈ 1–2 hours)
 
-**Goal:** prove the Phase 6.2 PIN migration is safe on real Keystore. If it's not, this stage rolls back `3a290ed` and we re-plan before any new code.
+**Goal:** prove on real Keystore + Recents that the Phase 6 work doesn't regress UX or lock anyone out. If it does, the offending commit is reverted and the release plan is replanned.
 
-### A.1 — Push the branch to origin (5 min)
+### A.1 — Push the branch to origin (DONE in session 3) ✅
+`git push -u origin release/v5.0.0` already ran (session 3). `main` is also at the same SHA on origin. **No-op for the next session.**
 
-The branch has 16 commits but has never been pushed. Lose this laptop and lose the work.
-
+### A.2 — Build a fresh release APK and install it side-by-side (10 min) ⏳
 ```bash
 cd "C:/Users/leooa/Documents/personal-projects/Money-Tracker"
-git push -u origin release/v5.0.0
-```
-
-**Acceptance:** `git status` shows "Your branch is up to date with 'origin/release/v5.0.0'". GitHub web UI lists the branch.
-
-### A.2 — Build a fresh debug APK and install it side-by-side (10 min)
-
-```bash
 flutter build apk --release
 adb install -r build/app/outputs/flutter-apk/app-release.apk
 ```
 
 **Acceptance:** APK installs cleanly. App opens. SHA-1 of the installed APK can be verified later against the landing copy.
 
-### A.3 — Live-fire Phase 6.2 migration test (20 min)
+### A.3 — Live-fire Phase 6.2 PIN migration test (20 min) ⏳
 
 This is the test the master plan called out and that session 2's commit message documented as "device validation required":
 
@@ -94,16 +101,16 @@ This is the test the master plan called out and that session 2's commit message 
 
 **On failure:** `git revert 3a290ed` (the secure-storage commit). Open an issue documenting the device + Android version + actual symptom. Stage B does NOT start until 6.2 is either fixed or removed from the release.
 
-### A.4 — Smoke-test Phase 6.5 FLAG_SECURE (5 min)
+### A.4 — Smoke-test Phase 6.5 FLAG_SECURE (5 min) ⏳
 
 1. With PIN enabled, hit the Recents button on the device.
-2. The thumbnail of Money Tracker should show a black/blank surface, **not** the actual screen contents.
+2. The thumbnail of FinanceFlow should show a black/blank surface, **not** the actual screen contents.
 3. Disable PIN in Settings → Security → no PIN required.
 4. Hit Recents again — thumbnail should now show the real screen.
 
 **Acceptance:** Recents thumbnail toggles based on PIN state. Screenshot attempt with hardware buttons either fails or produces a blank capture while PIN is on.
 
-### A.5 — Smoke-test Phase 6.6 crash redaction (5 min)
+### A.5 — Smoke-test Phase 6.6 crash redaction (5 min) ⏳
 
 1. Trigger a controlled crash (e.g. add a temporary `throw Exception(r'fake $123 leak C:\Users\leooa\fake.db');` to `AppState.loadData()`, build, run, observe).
 2. Open Settings → Crash Log. The latest entry should contain `[user]`, `[amount]`, but **not** the literal username or dollar amount.
@@ -111,13 +118,27 @@ This is the test the master plan called out and that session 2's commit message 
 
 **Acceptance:** PII redactor fires on a real crash record on device.
 
-### A.6 — Push de-risk commit (if any fixes landed) (5 min)
+### A.6 — Smoke-test Phase 6.4 widget PIN redaction (NEW this session, 5 min) ⏳
+
+1. Add the home-screen widget to a launcher (long-press → Widgets → FinanceFlow → drop on home).
+2. Toggle PIN OFF — widget shows current balance / month / income / expenses normally.
+3. Toggle PIN ON — widget should now show `•••` in every monetary field and `Locked` for the month label. Currency symbol stays (e.g. `$ •••` not just `•••`).
+4. Force a widget refresh (the launcher's update-now action, or wait the system refresh interval).
+
+**Acceptance:** widget content matches PIN state on every refresh. No layout shift (width / accent color stable across toggle).
+
+### A.7 — Push de-risk fixes (if any) and stay in sync (5 min) ⏳
 
 ```bash
 git push origin release/v5.0.0
+# Merge fixes to main now so other surfaces stay synced:
+git checkout main
+git merge --ff-only release/v5.0.0
+git push origin main
+git checkout release/v5.0.0
 ```
 
-**Stage A gate:** session 2's three security commits are validated on real hardware. If any of them failed, the offender is reverted and a follow-up issue is filed.
+**Stage A gate:** session 2 + 3's four security commits validated on real hardware. If any failed, the offender is reverted and a follow-up issue is filed. Push and re-sync to main.
 
 ---
 
@@ -144,7 +165,7 @@ Device smoke (Pixel 4a class): scroll, tap, dark/light mode all 60 fps.
 
 **Verification mode per screen:** `mechanical` (passes tests, no visual sanity needed because no widget-tree changes) or `visual` (must be eyeballed on device, can't be unit-tested).
 
-### B.0 — Pre-flight (one-time setup, 30 min)
+### B.0 — Pre-flight (one-time setup, 30 min) ⏳
 
 Before B.1:
 
@@ -160,7 +181,7 @@ Before B.1:
 
 **Acceptance:** smoke tests green, `dist/baseline/size-pre-phase-5.json` saved.
 
-### B.1 — Settings & Security screen (≈ 4 hours)
+### B.1 — Settings & Security screen (≈ 4 hours) ⏳
 - **Files to touch:** `lib/screens/settings_screen.dart`
 - **Components used:** `GlassTopAppBar`, `GlassListSection`, `GlassListTile`, `GlassPanel`
 - **Structural notes:** none — keep the same file name and route.
@@ -176,7 +197,7 @@ Before B.1:
 - **Tests:** 1 widget test asserts the top app bar title is "Settings & Security"; 1 widget test asserts PIN toggle calls `PinSecurityHelper.disablePin` when turned off.
 - **Verification mode:** `visual` — confirm on device that the glass surfaces render with `glassBlurSigma = 15` and the new `GlassListTile` chevrons.
 
-### B.2 — Wallet & Accounts (≈ 5 hours)
+### B.2 — Wallet & Accounts (≈ 5 hours) ⏳
 - **Files:** `lib/screens/account_manager_screen.dart` → **rename** to `lib/screens/wallet_screen.dart`. Update every import (grep `account_manager_screen` in `lib/` + `test/`).
 - **Components:** `GlassTopAppBar`, `GlassListSection`, `GlassListTile`, `GlassPanel` (account card), `GlassPillChip` (account-type filter).
 - **Structural notes:** the class name should become `WalletScreen`. Update `main.dart`'s `_screens` list. Update `MainNavigationScreen._navDestinations[4].label` to "Wallet" (it already is).
@@ -186,7 +207,7 @@ Before B.1:
 - **Tests:** add `test/screens/wallet_screen_test.dart` (rename existing if any) with one widget test per CRUD.
 - **Verification mode:** `visual` — account cards must show balance in `displayLarge` style.
 
-### B.3 — Budgets & Planning (≈ 5 hours)
+### B.3 — Budgets & Planning (≈ 5 hours) ⏳
 - **Files:** `lib/screens/budget_screen.dart`
 - **Components:** `GlassTopAppBar`, `GlassListSection`, `GlassProgressBar` (the hero — one per budget), `GlassPillChip` (period filter).
 - **Acceptance:**
@@ -196,7 +217,7 @@ Before B.1:
 - **Tests:** 1 widget test per budget state (under-budget, at-100%, over-budget).
 - **Verification mode:** `visual` — confirm progress bars animate smoothly when budgets update.
 
-### B.4 — Analytics & Insights (≈ 6 hours)
+### B.4 — Analytics & Insights (≈ 6 hours) ⏳
 - **Files:** `lib/screens/analytics_screen.dart`
 - **Components:** `GlassTopAppBar`, `GlassSegmentedControl` (period: Week/Month/Year), `GlassDonutChart` (category breakdown hero), `GlassBarChart` (monthly comparison), `GlassListSection` (top categories).
 - **Structural notes:** retire the legacy `fl_chart` PieChart + BarChart wrappers. Keep `fl_chart` in `pubspec.yaml` only if any other screen uses it; if not, drop the dep.
@@ -206,26 +227,27 @@ Before B.1:
 - **Tests:** 1 widget test per period selection; 1 test that the donut sum matches `Expense.total` for the selected period.
 - **Verification mode:** `visual` — chart legibility against the glass surface needs eyeballing.
 
-### B.5 — Add Transaction (STRUCTURAL CHANGE, ≈ 8 hours)
+### B.5 — Add Transaction (STRUCTURAL CHANGE, ≈ 8 hours) ⏳
 - **Files:**
-  - **Delete after migration:** `lib/screens/add_hub_screen.dart`, `lib/screens/add_expense_screen.dart`, `lib/screens/add_income_screen.dart`.
+  - **Delete after migration:** `lib/screens/add_hub_screen.dart` (166 lines), `lib/screens/add_expense_screen.dart` (1,381 lines), `lib/screens/add_income_screen.dart` (1,034 lines).
   - **Create:** `lib/screens/add_transaction_screen.dart` (single screen with type segmented control).
 - **Components:** `GlassTopAppBar`, `GlassSegmentedControl` (Expense / Income at the top), `CategoryBentoGrid` (the 4-col category picker — replaces the old vertical category list), `GlassPanel` (form sections), text fields styled by the global `InputDecorationTheme`.
 - **Acceptance:**
   - Toggle between Expense and Income preserves description / amount / date if user filled them; only the category list swaps.
   - Submit goes through `DatabaseHelper.createExpenseWithCarryover` / `createIncomeWithCarryover` (Phase 1.6 atomic helpers).
   - Quick template chips appear above the category grid; tapping one fills the form (`useTemplate` from Phase 1.1 — already correct).
-- **Route migration:**
+- **Route migration (grep first to find call sites, then edit):**
   - Every `PremiumPageRoute(page: const AddExpenseScreen())` → `PremiumPageRoute(page: const AddTransactionScreen(initialType: TransactionType.expense))`.
   - Same for `AddIncomeScreen`.
-  - Same for `AddHubScreen` (the bottom-nav Add tab destination).
+  - Same for `AddHubScreen` (the bottom-nav Add tab destination — `lib/main.dart:371`).
+  - **Known callers at session-3 close:** `lib/screens/history_screen.dart:182, 190, 2265, 2281` (edit + add expense/income); `lib/screens/home_screen.dart:298, 796` (add + edit expense); `lib/main.dart:371` (Add tab destination).
 - **Tests:** 4 widget tests — submit expense, submit income, toggle preserves form, useTemplate fills form.
 - **Verification mode:** `visual` (bento grid layout) + `mechanical` (atomic submission).
 - **Risk note:** R4 in `MASTER_PLAN.md` Risk Register (merged hub may confuse existing users). Add a one-time tooltip on first launch of v5: "Tap to add a transaction" (stored in `OnboardingService` as `seenAddHubTooltip`).
 
-### B.6 — Transaction History (STRUCTURAL CHANGE, ≈ 6 hours)
+### B.6 — Transaction History (STRUCTURAL CHANGE, ≈ 6 hours) ⏳
 - **Files:**
-  - **Split:** `lib/screens/history_screen.dart` (2,200+ lines today) →
+  - **Split:** `lib/screens/history_screen.dart` (2,307 lines today) →
     - `lib/screens/history/history_screen.dart` (composition + top-level state)
     - `lib/screens/history/history_filter_bar.dart` (search + type / category / date filter UI)
     - `lib/screens/history/history_list.dart` (the actual transaction list)
@@ -238,9 +260,9 @@ Before B.1:
 - **Tests:** 3 widget tests (filter combos), 5 unit tests on `history_grouping.dart`.
 - **Verification mode:** `mechanical` (logic correctness — tests) + `visual` (scroll perf — device).
 
-### B.7 — Recurring Items (STRUCTURAL CHANGE, ≈ 5 hours)
+### B.7 — Recurring Items (STRUCTURAL CHANGE, ≈ 5 hours) ⏳
 - **Files:**
-  - **Delete after migration:** `lib/screens/recurring_expenses_screen.dart`, `lib/screens/recurring_income_screen.dart`.
+  - **Delete after migration:** `lib/screens/recurring_expenses_screen.dart` (1,080 lines), `lib/screens/recurring_income_screen.dart` (1,027 lines).
   - **Create:** `lib/screens/recurring_items_screen.dart`.
 - **Components:** `GlassTopAppBar`, `GlassSegmentedControl` (Expense / Income), `GlassListSection` (frequency groupings), `GlassListTile`, swipe-to-delete via the existing `Dismissible` pattern.
 - **Acceptance:**
@@ -249,7 +271,7 @@ Before B.1:
 - **Tests:** 2 widget tests (toggle Expense / Income view, swipe to delete).
 - **Risk note:** R5 (merged recurring may break notifications). Mitigation: don't touch the IDs or the underlying tables.
 
-### B.8 — Home Dashboard polish (≈ 4 hours)
+### B.8 — Home Dashboard polish (≈ 4 hours) ⏳
 - **Files:** `lib/screens/home_screen.dart`
 - **Components:** Already redesigned in the WIP starter (`a231db4`). This task is **polish only**, not a rewrite. Audit:
   - Inline remaining `Spacing.*` → `LuminousTokens.*` calls.
@@ -262,39 +284,26 @@ Before B.1:
 - **Tests:** 1 widget test asserting `RepaintBoundary` wraps the transactions list (already exists via Phase 1.7 — verify it survives the polish).
 - **Verification mode:** `visual` perf check on device.
 
-### B.9 — Secondary screens (≈ 6 hours combined)
+### B.9 — Secondary screens (≈ 6 hours combined) ⏳
 A grab-bag of less-trafficked screens. Each is a small commit; group them as `feat(phase-5.9.N): <screen> Luminous redesign` so they stay reviewable.
 
 - **5.9a Onboarding** (`lib/screens/onboarding_screen.dart`) — `GlassPanel` slides + `GlassPillChip` page indicators.
 - **5.9b PIN Setup** (`lib/screens/pin_setup_screen.dart`) — `GlassTopAppBar` + custom PIN grid.
-- **5.9c PIN Unlock** (`lib/screens/pin_unlock_screen.dart`) — full-bleed glass surface, no app bar.
-- **5.9d Crash Log viewer** (`lib/screens/crash_log_screen.dart`) — `GlassTopAppBar` + monospace text inside `GlassPanel`.
-- **5.9e Export Data** (`lib/screens/export_data_screen.dart`) — `GlassTopAppBar` + `GlassListTile`s for format options.
+- **5.9c PIN Unlock** (`lib/screens/pin_unlock_screen.dart`) — full-bleed glass surface, no app bar. **Note:** brand title is already "FinanceFlow" (session 3, line 111).
+- **5.9d Crash Log viewer** (`lib/screens/crash_log_screen.dart`) — `GlassTopAppBar` + monospace text inside `GlassPanel`. **Note:** share subject is already "FinanceFlow Crash Log" (session 3).
+- **5.9e Export Data** (`lib/screens/export_data_screen.dart`) — `GlassTopAppBar` + `GlassListTile`s for format options. **Note:** share subjects already rebranded (session 3).
 - **5.9f Trash** (`lib/screens/trash_screen.dart`) — `GlassTopAppBar` + segmented Expense / Income + `GlassListTile`.
 - **5.9g Category Manager** (`lib/screens/category_manager_screen.dart`) — `GlassTopAppBar` + grid of category icons in `GlassPanel`.
-- **5.9h Backup/Restore** (`lib/screens/backup_restore_screen.dart`) — `GlassTopAppBar` + `GlassListSection`.
+- **5.9h Backup/Restore** (`lib/screens/backup_restore_screen.dart`) — `GlassTopAppBar` + `GlassListSection`. **MUST also wire the C.2 passphrase prompts here** — see §4 C.2.
 - **5.9i Quick Templates** (`lib/screens/quick_templates_screen.dart`) — `GlassTopAppBar` + `GlassListTile`.
 - **5.9j Notification Settings** (`lib/screens/notification_settings_screen.dart`) — `GlassTopAppBar` + `GlassListSection` + toggles.
 
 **Acceptance per screen:** uses the components above, drops every `Spacing.*` call, every text style routes through `Theme.of(context).textTheme.*`. No new test required unless behavior changes.
 
-### B.10 — Brand alignment "FinanceFlow" (≈ 1 hour)
+### B.10 — Brand alignment "FinanceFlow" ✅ DONE (session 3)
+Landed in commit `23413e6`. AndroidManifest label + every "Money Tracker" string in `lib/` rebranded. `grep -rn "Money Tracker" lib/` now returns 0. Test expectation in `crash_log_test.dart` updated.
 
-Final pass after all screens land:
-
-- `lib/main.dart`: `MaterialApp(title: 'FinanceFlow', ...)` (already done in starter — verify).
-- `android/app/src/main/AndroidManifest.xml`: `android:label="FinanceFlow"` (currently `"Money Tracker"`).
-- `ios/Runner/Info.plist` (if it exists and matters): `CFBundleDisplayName = FinanceFlow`.
-- Every "Money Tracker" string in `lib/` (grep first, then sed) → "FinanceFlow":
-  ```bash
-  grep -rn "Money Tracker" lib/
-  ```
-- `pubspec.yaml`: keep the package name as `budget_tracker` (changing it would force every import to update — out of scope for v5). Display label is the user-facing concern.
-- Update `lib/utils/crash_log.dart` `_formatRecord` — `'App: Money Tracker $_appVersion'` → `'App: FinanceFlow $_appVersion'`. Update the matching expectation in `test/utils/crash_log_test.dart`.
-
-**Acceptance:** `grep -rn "Money Tracker" lib/` returns 0 hits. Manifest label is "FinanceFlow". Test still green.
-
-### B.11 — `Spacing.*` removal (≈ 1 hour)
+### B.11 — `Spacing.*` removal (≈ 1–3 hours, scope-dependent) ⏳
 
 After every Phase 5 screen has dropped its `Spacing.*` calls:
 
@@ -304,13 +313,15 @@ grep -rn "Spacing\." lib/
 
 Should return 0 hits.
 
+**Reality check at session 3 close:** 756 `Spacing.*` call sites remain in lib/. Per the per-screen B.1–B.9 commits, each redesign inlines its own. After Stage B is complete, run:
+
 - Delete `lib/constants/spacing.dart`.
 - Delete `test/constants/spacing_test.dart` if present.
-- Update `analysis_options.yaml` — no change needed; the empty grep at Stage E preflight catches regressions.
+- Verify `flutter analyze` clean, `flutter test` green.
 
-**Acceptance:** `flutter analyze` clean, `flutter test` green, the file is gone.
+**Pragmatic alternative if Stage B partial:** since `Spacing` already aliases `LuminousTokens` (see `lib/constants/spacing.dart:8-9`), leaving the file in place ships fine. The "zero hits" gate only matters at v5.0.0+1 tag time.
 
-### B.12 — Phase 5 close-out commit (≈ 30 min)
+### B.12 — Phase 5 close-out commit (≈ 30 min) ⏳
 
 ```
 chore(phase-5): close-out — clean analyze + <test count> tests pass
@@ -324,60 +335,48 @@ Push the branch.
 **Phase 5 gate:**
 - Every screen uses Luminous components.
 - `grep -rn "Spacing\." lib/` returns 0.
-- `grep -rn "Money Tracker" lib/` returns 0.
+- `grep -rn "Money Tracker" lib/` returns 0 (already true at session 3 close).
 - `bash scripts/preflight.sh` green.
 - APK size delta within ±2 MB of Phase 4 baseline (the redesign should not bloat).
 
 ---
 
-## 4. Stage C — Phase 6 security remainder (≈ 3–5 days)
+## 4. Stage C — Phase 6 security remainder (≈ 1.5–3 days remaining)
 
-These three items round out the Phase 6 security work. **6.1 is the largest and riskiest; sequence it after 6.3 and 6.4 so the device smoke test happens on a fully-up-to-date build.**
+Two items remain after session 3.
 
-### C.1 — 6.4 Home widget redaction when PIN is enabled (≈ 3 hours, low risk)
+### C.1 — 6.4 Home widget redaction ✅ DONE (session 3)
+Landed in commit `5fcff2d`. `lib/utils/widget_payload.dart` + wiring through `home_widget_helper.dart`. 6 unit tests. **Device smoke test remains** — see §2 A.6.
 
-- **File:** `lib/utils/home_widget_helper.dart`
-- **Change:** before writing balance / recent-transaction strings to the widget surface, check `await PinSecurityHelper.isPinEnabled()`. If `true`, replace amounts with `'•••'` and descriptions with `'Locked'`. The widget XML resource (`android/app/src/main/res/xml/budget_widget_info.xml`) doesn't change — only the payload does.
-- **Tests:** 2 unit tests on a new helper `WidgetPayload.redactIfLocked(WidgetData, {required bool pinEnabled})`. Run inside the existing `home_widget_helper_test.dart` (or a new file if none exists).
-- **Acceptance:**
-  - Widget shows `•••` for every monetary value when PIN is enabled, even on the lock screen.
-  - When PIN is disabled, widget shows actual values (same as today).
-- **Verification mode:** `visual` — pin a widget to the launcher, toggle PIN, observe.
+### C.2 — 6.3 Backup AES-GCM (crypto layer ✅; UX wiring ⏳, ≈ 3 hours)
 
-### C.2 — 6.3 Backup file AES-GCM + passphrase (≈ 6 hours, medium risk)
+**What landed in session 3:** `lib/utils/backup_crypto.dart` with `package:cryptography ^2.7.0`. v4 envelope shape, PBKDF2-HMAC-SHA256 @ 100k iterations, GCM tag rejection. 15 tests. The crypto module is independently usable; `BackupCrypto.encrypt(json, passphrase)` returns the v4 envelope string, `decrypt(envelope, passphrase)` returns the plaintext JSON or `null`.
+
+**What's left — UI integration:**
 
 - **Files:**
-  - **Create:** `lib/utils/backup_crypto.dart` — `BackupCrypto.encrypt(String json, String passphrase)` returns base64-encoded `{salt, iv, ciphertext, tag}`. `decrypt` reverses.
-  - **Modify:** `lib/screens/backup_restore_screen.dart` (or wherever the backup save / restore happens) to prompt for a passphrase before save and verify it before restore.
-- **Crypto:** use `package:cryptography: ^2.x` (well-maintained, pub-published). 256-bit AES-GCM, PBKDF2-SHA256 with 100,000 iterations and a 16-byte salt.
-- **Backup file format change:**
-  - Today's backup is plaintext JSON with `version: 3` (Phase 4.9).
-  - New: bump to `version: 4`. Wrap the existing JSON as:
-    ```json
-    {
-      "version": 4,
-      "encrypted": true,
-      "salt": "<base64 16 bytes>",
-      "iv": "<base64 12 bytes>",
-      "ciphertext": "<base64 …>",
-      "tag": "<base64 16 bytes>"
-    }
-    ```
-  - Restore must accept both v3 (plaintext) and v4 (encrypted) — read `version` first, branch.
-- **UX:**
-  - Save: dialog "Choose a passphrase. We can't recover this file if you forget it." Two-input verification.
-  - Restore: dialog "Enter the passphrase for this backup." If decrypt fails: "Wrong passphrase — try again."
-- **Tests:**
-  - Unit: `BackupCrypto.encrypt(...)` round-trips with the same passphrase; fails (returns `null`) with a wrong passphrase; produces different ciphertext on repeated encrypts (IV is fresh each time).
-  - Integration: a v3 backup file still restores; a v4 backup file requires the passphrase.
+  - `lib/screens/backup_restore_screen.dart` — add the passphrase prompts.
+  - `lib/utils/backup_helper.dart` — the actual save/restore IO; this is where the wrap/unwrap call lands.
+- **Save flow:**
+  1. After the user picks "Backup" but before writing the file, show a `showDialog` with a two-input passphrase verification ("Passphrase" + "Confirm passphrase"). Copy: "Choose a passphrase. We can't recover this file if you forget it."
+  2. On confirm, build the v3 plaintext JSON exactly as today (`BackupHelper` already does this), then `await BackupCrypto.encrypt(plainJson, passphrase)` and write the resulting envelope string.
+  3. Bump the on-disk write format to v4. The v3 plaintext path stays available for `decrypt` to fall through on restore.
+- **Restore flow:**
+  1. Read the file. Call `BackupCrypto.isEncryptedEnvelope(text)` — if true, prompt for passphrase; if false, fall through to the v3 plaintext restore path that's already there.
+  2. On passphrase entry: `await BackupCrypto.decrypt(text, passphrase)`. If `null`: show `'Wrong passphrase — try again.'` snackbar and let the user retry. If non-null: hand the resulting JSON to the existing `restoreFromJsonBackup` path unchanged.
 - **Acceptance:**
   - A v4 backup file viewed in a text editor shows only the JSON envelope, never raw expense rows.
   - Restoring without the passphrase fails cleanly with the "Wrong passphrase" snackbar — no crash.
-- **Verification mode:** `mechanical` (round-trip in unit tests) + `visual` (UX flow on device).
+  - A v3 plaintext backup file still restores transparently (back-compat).
+- **Tests:**
+  - Already covered (crypto level): `test/utils/backup_crypto_test.dart` (15 tests).
+  - Add (integration, ≈ 1 hour): `test/integration/backup_restore_v4_test.dart` — encrypt a v4 backup via `BackupHelper`, read it back as text, assert it's an envelope, restore it, assert the rows survived.
+- **Verification mode:** `mechanical` (round-trip in unit + integration tests) + `visual` (UX flow on device).
+- **Pair with B.9h** — the backup/restore screen redesign happens in B.9h; do both in the same session so you only touch the file once.
 
-### C.3 — 6.1 SQLCipher migration (≈ 1.5 days, high risk)
+### C.3 — 6.1 SQLCipher migration (≈ 1.5 days, high risk) ⏳
 
-This is the highest-impact, highest-risk item left in Phase 6. Treat the steps below as **non-negotiable** — skipping any of them risks an unrecoverable rekey failure on a user's device.
+**Unchanged from prior plan.** This is the highest-impact, highest-risk item left in Phase 6. Treat the steps below as **non-negotiable** — skipping any of them risks an unrecoverable rekey failure on a user's device.
 
 - **Files / deps:**
   - `pubspec.yaml`: add `sqflite_sqlcipher: ^3.x` and replace `sqflite: ^2.3.3` everywhere `sqflite` is imported. There are two imports: `package:sqflite/sqflite.dart` → `package:sqflite_sqlcipher/sqflite.dart`. The shape of the API is identical (`openDatabase`, `transaction`, etc.); the only addition is `password:` on `openDatabase`.
@@ -405,8 +404,7 @@ This is the highest-impact, highest-risk item left in Phase 6. Treat the steps b
   - `adb shell run-as com.moneytracker.app sqlite3 databases/database.db ".tables"` on a v5 build returns "file is not a database" (i.e. the file is now encrypted).
 - **Risk:** R1 + R2 in the master plan's risk register. Mitigation already includes Phase 4.1's `.v18-backup`, but for 6.1 we add a `.pre-sqlcipher-backup` of the plaintext file written immediately before the rekey starts. It's deleted only after verification succeeds.
 
-### C.4 — Stage C close-out
-
+### C.4 — Stage C close-out ⏳
 ```bash
 bash scripts/preflight.sh
 flutter build apk --release
@@ -414,9 +412,9 @@ adb install -r build/app/outputs/flutter-apk/app-release.apk
 ```
 
 Then on device:
-- Verify the widget redaction (C.1) by toggling PIN.
-- Verify the encrypted backup (C.2) round-trips: save a backup, open it in a text editor (should be opaque), restore it.
-- Verify the SQLCipher migration (C.3) on a device that already had data: open the app, scroll through history, confirm no data loss.
+- C.1 widget redaction: already covered in §2 A.6.
+- C.2 backup encryption round-trip: save a backup, open it in a text editor (should be opaque), restore it. Test wrong-passphrase rejection.
+- C.3 SQLCipher migration on a device that already had data: open the app, scroll through history, confirm no data loss.
 
 **Stage C gate:**
 - `preflight.sh` green.
@@ -425,59 +423,48 @@ Then on device:
 
 ---
 
-## 5. Stage D — Phase 7 test coverage rebuild (≈ 3–4 days)
+## 5. Stage D — Phase 7 test coverage rebuild (≈ 1–2 days remaining)
 
-These items are additive — they don't change runtime behavior, they expand confidence. They can run in parallel with Stage C if a second window is available.
+5/10 items landed in session 3. The remaining 5 are either deferred (require Stage B) or worth their own focused session.
 
-### D.1 — 7.1 Rename mislabeled `app_state_logic_test.dart` (≈ 30 min)
-- The current `test/logic/app_state_logic_test.dart` tests very little actual AppState logic. Rename to `test/logic/app_state_smoke_test.dart` to reflect what it does, then create a new (empty for now) `app_state_logic_test.dart` that D.2 will populate.
+### D.1 — 7.1 Rename mislabeled `app_state_logic_test.dart` ⏳ (or skip)
+**Discovery from session 3:** the file at `test/logic/app_state_logic_test.dart` actually tests `CurrencyHelper` + `DatabaseConstants` — not AppState at all. The spec's `app_state_smoke_test` rename is misleading. **Recommended approach:** rename to `test/logic/currency_helper_and_constants_test.dart` to match content, and only create a new `app_state_logic_test.dart` placeholder if you're about to do D.2 in the same session.
 
-### D.2 — 7.2 Real AppState logic tests (≈ 1 day)
+### D.2 — 7.2 Real AppState logic tests (≈ 1 day) ⏳
 - One test per public mutator on `AppState`. The mutators (grep them — there are ~30) include `addExpense`, `addIncome`, `useTemplate`, `setActiveAccount`, `toggleDarkMode`, `addBudget`, `markExpensePaid`, etc.
 - Each test: arrange via a fresh `AppState` + in-memory sqflite, act (call the mutator), assert the resulting `notifyListeners` fired AND the persisted DB state matches.
+- **Discovery from session 3:** AppState now uses `Clock.instance.now()` (Phase 7.9), so tests can use `Clock.instance = FakeClock.fixed(...)` to control time-dependent mutator behaviour (template insertion date, prune logic, etc.).
 
-### D.3 — 7.3 Real `OnboardingService` tests (≈ 1 hour)
-- Today's test (if any) is a stub. Cover: `isOnboardingComplete` → `true` after `markComplete`; key persists across `SharedPreferences.getInstance()` calls.
+### D.3 — 7.3 Real `OnboardingService` tests ✅ DONE (session 3)
+Landed at `test/services/onboarding_service_test.dart` (8 tests). Pattern for future tests:
+```dart
+setUp(() async {
+  SharedPreferences.setMockInitialValues(<String, Object>{});
+});
+```
 
-### D.4 — 7.4 Migration test
-- **Already done** in Phase 4.12 (`test/integration/migration_v18_to_v19_test.dart`). Mark complete in checklist.
+### D.4 — 7.4 Migration test ✅ DONE (Phase 4.12)
 
-### D.5 — 7.5 Cascade delete integration test (≈ 2 hours)
-- Seed an account with expenses + incomes + budgets + transaction_tags.
-- Soft-delete the account; assert the trash tables now contain those rows AND `transaction_tags` is cleaned per Phase 4.4's triggers.
-- Hard-delete (empty trash); assert all rows truly gone.
+### D.5 — 7.5 Cascade delete integration test ✅ DONE (session 3)
+Landed at `test/integration/cascade_delete_test.dart` (5 tests). Covers: soft-delete tag scrub, hard-delete triggers, account-scoped `emptyTrash`.
 
-### D.6 — 7.6 8 hero-screen widget tests (≈ 1 day)
-- One widget test per hero screen (the 8 screens redesigned in B.1–B.8): mount the screen with a fake `AppState`, assert key widgets render, exercise one happy-path interaction (tap → state change).
+### D.6 — 7.6 8 hero-screen widget tests (≈ 1 day) ⏳
+**Blocked on Stage B** — testing screens you're about to delete is wasted work. Sequence: Stage B lands → write widget tests against the final screens. One widget test per hero screen (the 8 screens redesigned in B.1–B.8): mount the screen with a fake `AppState`, assert key widgets render, exercise one happy-path interaction (tap → state change).
 
-### D.7 — 7.7 PIN lockout screen test (≈ 1 hour)
-- Mount `PinUnlockScreen` with `PinSecurityHelper` mocked to simulate 5 failed attempts → assert lockout UI shows + countdown ticks.
+### D.7 — 7.7 PIN lockout test ✅ DONE (session 3)
+Landed at `test/utils/pin_lockout_test.dart` (5 tests) — uses `Clock.instance = FakeClock.fixed(...)` to drive the 5-minute window in sub-second wall time. Covers correct PIN clears counter, 5 wrongs arm lockout, countdown reflects clock, isLockedOut self-heals after expiry, mid-streak correct PIN resets.
 
-### D.8 — 7.8 Golden tests for 8 hero screens (≈ 1 day)
+### D.8 — 7.8 Golden tests for 8 hero screens (≈ 1 day) ⏳
+**Blocked on Stage B** — goldens against screens about to change is wasted work.
 - For each hero screen, generate a golden via `flutter test --update-goldens`.
 - CI gate: subsequent runs must pass with 2% pixel-diff tolerance.
 - **Limitation:** goldens are platform-sensitive (font hinting differs on macOS vs Windows vs CI Linux). Lock the goldens to one platform (Windows, since that's where they're run) and document this in `test/golden/README.md`.
 
-### D.9 — 7.9 `Clock` injection (≈ 4 hours)
-- New file: `lib/utils/clock.dart` per `MASTER_PLAN.md` §7.9.
-- Replace every `DateTime.now()` in:
-  - `lib/utils/validators.dart`
-  - `lib/providers/app_state.dart` (recurring logic + lockout)
-  - `lib/utils/notification_helper.dart`
-  - `lib/utils/home_widget_helper.dart`
-  - `lib/utils/pin_security_helper.dart` (rate-limit timestamps)
-- Tests can now control time with `Clock.instance = FakeClock(2026, 6, 1)`.
-- Run `bash scripts/preflight.sh` — flush out any test that relied on wall clock.
+### D.9 — 7.9 `Clock` injection ✅ DONE (session 3)
+Landed in commit `6c56fe2`. `lib/utils/clock.dart` + 20 `DateTime.now()` call sites migrated across the 5 files in spec.
 
-### D.10 — 7.10 CI gates (≈ 1 hour)
-- Update `scripts/preflight.sh` to assert pass count ≥ baseline + 50:
-  ```bash
-  PASS_COUNT=$(flutter test --reporter=expanded 2>&1 | grep -oE 'All tests passed!|\+\K[0-9]+(?=: All)' | tail -1)
-  if [[ -z "$PASS_COUNT" || "$PASS_COUNT" -lt 1750 ]]; then
-    fail "Test count $PASS_COUNT below baseline + 50 (1750)"
-  fi
-  ```
-- Verify: `bash scripts/preflight.sh` still green.
+### D.10 — 7.10 CI gates ✅ DONE (session 3)
+`scripts/preflight.sh` + `.ps1` now parse the test-count trailer and fail if it drops below `$TEST_COUNT_MIN=1750`. **Bump the gate each release** — after Stage B lands its widget tests, raise to `baseline + 50` (whatever the new baseline is).
 
 **Stage D gate:**
 - Behavioral coverage ≥ 70% (measure via `coverage` package + `lcov`: `flutter test --coverage && genhtml coverage/lcov.info -o coverage/html`).
@@ -487,7 +474,9 @@ These items are additive — they don't change runtime behavior, they expand con
 
 ## 6. Stage E — Polish & ship (≈ 1 day)
 
-### E.1 — 8.2 Final perf pass on real device (≈ 2 hours)
+**Cannot start until Stage A, B, and C land.** Version stays at `4.4.0+6` until then — bumping to `5.0.0+1` without the Luminous redesign would misrepresent the release.
+
+### E.1 — 8.2 Final perf pass on real device (≈ 2 hours) ⏳
 - Run DevTools Performance overlay on Pixel 4a (or equivalent) across:
   - Home scroll with 100 expenses
   - History scroll with 500 expenses
@@ -496,7 +485,7 @@ These items are additive — they don't change runtime behavior, they expand con
 - **Pass criteria:** every frame ≤ 16.7 ms in steady state; first-frame ≤ 100 ms.
 - **On a regression:** profile (open `dart:developer.Timeline`), identify the offender, fix. Likely candidates per `MASTER_PLAN.md`: blur sigma drift, missing `RepaintBoundary`, un-virtualized list.
 
-### E.2 — 8.4 Version bump + CHANGELOG + tag (≈ 1 hour)
+### E.2 — 8.4 Version bump + CHANGELOG + tag (≈ 1 hour) ⏳
 - `pubspec.yaml`: `version: 4.4.0+6` → `version: 5.0.0+1`.
 - `CHANGELOG.md`: add an entry summarizing every phase (1–8). Use the per-phase descriptions from `MASTER_PLAN.md` §"Definition of done".
 - Commit:
@@ -512,7 +501,7 @@ These items are additive — they don't change runtime behavior, they expand con
   git push origin release/v5.0.0 --tags
   ```
 
-### E.3 — 8.5 Ship pipeline (≈ 30 min)
+### E.3 — 8.5 Ship pipeline (≈ 30 min) ⏳
 - Run the full pipeline from `CLAUDE.md` § "Shipping the APK":
   ```bash
   flutter build apk --release && \
@@ -529,7 +518,7 @@ These items are additive — they don't change runtime behavior, they expand con
   ```
 - **The user's auto-memory documents that Vercel Git integration is DISCONNECTED for `expense-tracker-landing`.** `vercel --prod --yes` is the *required* deploy command; `git push` alone is not enough.
 
-### E.4 — Cut the GitHub release (≈ 15 min)
+### E.4 — Cut the GitHub release (≈ 15 min) ⏳
 ```bash
 gh release create v5.0.0+1 \
   --title "v5.0.0+1 — FinanceFlow Luminous" \
@@ -537,11 +526,13 @@ gh release create v5.0.0+1 \
   build/app/outputs/flutter-apk/app-release.apk
 ```
 
-### E.5 — Merge `release/v5.0.0` → `main` (≈ 10 min)
+### E.5 — Merge `release/v5.0.0` → `main` (≈ 10 min) ⏳
+**At session 3 close, `main` is already at the same SHA as `release/v5.0.0`.** Future sessions land work on `release/v5.0.0` first, then fast-forward-merge to `main` at the end (same dance session 3 did). At E.5 time the merge is likely already up-to-date; if not:
 ```bash
 git checkout main
 git merge --ff-only release/v5.0.0   # FF only; the branch should be a clean linear history
 git push origin main
+git checkout release/v5.0.0
 ```
 
 If a non-FF merge is needed (someone touched `main` in parallel), open a PR instead:
@@ -551,7 +542,7 @@ gh pr create --base main --head release/v5.0.0 \
   --body-file CHANGELOG.md
 ```
 
-### E.6 — Post-ship verification (≈ 15 min)
+### E.6 — Post-ship verification (≈ 15 min) ⏳
 - Download the APK from the live URL.
 - Install on a previously-unupgraded test device.
 - Open → onboarding → add expense → backup → restore → set PIN → background → resume → unlock. End-to-end smoke per `MASTER_PLAN.md` §8.3.
@@ -566,22 +557,18 @@ gh pr create --base main --head release/v5.0.0 \
 
 ## 7. Cross-cutting clean-ups
 
-These don't block ship but should land somewhere in Stage B or D — they're untracked debris from prior work.
+### 7.1 — Delete orphan `MainActivity.kt` ✅ DONE (session 3)
+Moved to `TRASH/MainActivity.kt.orphan` in commit `23413e6`. The orphaned `com/example/budget_tracker/` directory was also removed (only `com/moneytracker/app/` remains).
 
-### 7.1 — Delete orphan `MainActivity.kt`
-- `android/app/src/main/kotlin/com/example/budget_tracker/MainActivity.kt` is dead code (the manifest's `namespace = "com.moneytracker.app"` makes it unreachable).
-- Action: `mv "android/app/src/main/kotlin/com/example/budget_tracker/MainActivity.kt" TRASH/MainActivity.kt.orphan` (per global rule: never `rm`, always `mv` to trash). Then remove the empty `com/example/budget_tracker/` directory tree if it ends up empty.
-- Commit alongside Stage B (any phase 5 commit).
-
-### 7.2 — Old `dist/baseline/` artifacts
-- `dist/baseline/v4.4.0+6.db` was skipped in session 1 (no device attached). Either populate it now (export a dev DB) or remove the placeholder entry from `docs/CHECKLIST.md`.
+### 7.2 — Old `dist/baseline/` artifacts ⏳
+- `dist/baseline/v4.4.0+6.db` was skipped in session 1 (no device attached). Either populate it now (export a dev DB from the test device used for A.2) or remove the placeholder entry from `docs/CHECKLIST.md`.
 - Same for `dist/baseline/perf/` (Performance Overlay screenshots) — skipped, mark complete or remove.
 
-### 7.3 — Stale `.v18-backup` files
+### 7.3 — Stale `.v18-backup` files ⏳
 - Phase 4.1 leaves `.v18-backup` next to the active DB on a fresh upgrade. After a few launches it should auto-clean. Verify the cleanup path in `DatabaseHelper._cleanV18BackupAfterMigrationSuccess` actually runs on stage A.2's first launch.
 
-### 7.4 — `pubspec.lock` upgrade
-- After Stage C lands new deps (`sqflite_sqlcipher`, `cryptography`), run `flutter pub upgrade --major-versions` once and audit the diff. Don't auto-accept — some transitive bumps will break things.
+### 7.4 — `pubspec.lock` upgrade ⏳
+- After Stage C lands `sqflite_sqlcipher`, run `flutter pub upgrade --major-versions` once and audit the diff. Don't auto-accept — some transitive bumps will break things. **Session-3 note:** `cryptography ^2.7.0` was added cleanly; no transitive surprises in that one.
 
 ---
 
@@ -595,12 +582,13 @@ These don't block ship but should land somewhere in Stage B or D — they're unt
 | R4 | Merged Add hub confuses existing users | Medium | Low | One-time "Tap to add a transaction" tooltip (B.5) |
 | R5 | Recurring merge breaks notifications | Low | Medium | Don't touch IDs (B.7) |
 | R6 | Performance budget not met | Medium | Medium | Phase 8.2 perf gate; rollback option = bump blur back to 10 |
-| R7 | Wall-clock flakes | Medium | Low | Stage D.9 Clock injection |
+| R7 | Wall-clock flakes | Medium | Low | ✅ Stage D.9 Clock injection landed (session 3). Future test failures: prefer `FakeClock` over wall-clock waits. |
 | R8 | PIN secure-storage migration locks user out | Low | Medium | Stage A.3 device test before any further work; revert plan in place |
 | R9 | Removing `google_fonts` breaks something | Very Low | Low | `test/lint/no_forbidden_patterns_test.dart` enforces it (already in place) |
 | R10 | Vercel deploy step fails | Low | Low | `vercel --prod --yes` is the documented workaround in `CLAUDE.md` |
-| **R11** (new) | **SQLCipher migration corrupts on a partially-encrypted file** | Low | High | C.3 step 6 verifies row counts before destroying plaintext |
-| **R12** (new) | **Backup encryption passphrase forgotten** | Medium | High (user-side) | UX wording in C.2 makes this explicit; backup-restore screen warns up front |
+| R11 | SQLCipher migration corrupts on a partially-encrypted file | Low | High | C.3 step 6 verifies row counts before destroying plaintext |
+| R12 | Backup encryption passphrase forgotten | Medium | High (user-side) | UX wording in C.2 makes this explicit; backup-restore screen warns up front. **Crypto layer ready (session 3); UX wiring still owed.** |
+| **R13** (new) | **`PinSecurityHelper.isPinEnabled()` aborts publish pipelines in tests** | — | — | Tests using `home_widget_helper` or anything else that consults `PinSecurityHelper` must seed `SharedPreferences.setMockInitialValues(<String, Object>{})` in `setUp`. See the fix landed in `test/integration/home_widget_helper_test.dart` (commit `6c56fe2`). |
 
 ---
 
@@ -608,8 +596,8 @@ These don't block ship but should land somewhere in Stage B or D — they're unt
 
 All of the following must be true before tagging:
 
-1. **Every checklist item in `docs/CHECKLIST.md` ticked** (except explicit deferrals — currently Phase 3.8 only).
-2. **`bash scripts/preflight.sh` green** on `release/v5.0.0`.
+1. **Every checklist item in `docs/CHECKLIST.md` ticked** (except explicit deferrals — currently 3.8, 7.1/2/6/8).
+2. **`bash scripts/preflight.sh` green** on `release/v5.0.0` (test-count gate ≥ 1750, ratchet after Stage B).
 3. **APK builds clean** (`flutter build apk --release` exits 0, size ≤ 70 MB).
 4. **Device smoke test passes** end-to-end (see `MASTER_PLAN.md` §8.3 — 5-minute manual run).
 5. **`pubspec.yaml` version is `5.0.0+1`.**
@@ -617,23 +605,64 @@ All of the following must be true before tagging:
 7. **`v5.0.0+1` tag exists** on `origin/release/v5.0.0`.
 8. **Landing page serves the APK** at `https://leo-money-tracker.vercel.app/downloads/money-tracker.apk` with a matching SHA-1.
 9. **GitHub release exists** at `Leo-Atienza/Money-Tracker` tagged `v5.0.0+1`.
-10. **`release/v5.0.0` merged into `main`** (fast-forward or PR).
+10. **`release/v5.0.0` merged into `main`** (fast-forward or PR). **Session 3 already did this for the current SHA; redo at ship time.**
 
 ---
 
-## 10. Effort + sequencing summary
+## 10. Effort + sequencing summary (updated post-session-3)
 
-| Stage | Tasks | Effort (linear) | Device required? | Parallelizable? |
+| Stage | Tasks | Effort remaining | Device required? | Parallelizable? |
 |---|---|---|---|---|
-| A — De-risk | A.1–A.6 | 1–2 hours | **Yes** (PIN + FLAG_SECURE + crash redaction) | No — gate for everything else |
-| B — Phase 5 design | B.0–B.12 | 5–8 days | Yes (visual check per screen) | Internally sequential; B.10–B.12 strict last |
-| C — Phase 6 security | C.1–C.4 | 3–5 days | Yes (widget redaction + SQLCipher) | C.1 + C.2 parallel; C.3 sequential after them |
-| D — Phase 7 tests | D.1–D.10 | 3–4 days | No (except D.6 widget tests) | Fully parallel with B and C |
+| A — De-risk | A.2–A.6 (A.1 ✅) | 45 min – 1 hour | **Yes** | No — gate for everything else |
+| B — Phase 5 design | B.0–B.9, B.11, B.12 (B.10 ✅) | 5–8 days | Yes (visual check per screen) | Internally sequential; B.11/B.12 strict last |
+| C — Phase 6 security | C.2 UX (≈ 3h), C.3 (≈ 1.5 d) | 2–3 days | Yes | C.2 UX pairs with B.9h; C.3 sequential after them |
+| D — Phase 7 tests | D.1 (skip), D.2 (≈ 1d), D.6 (≈ 1d), D.8 (≈ 1d) | 1.5–3 days | No (except D.6 widget tests) | D.6 + D.8 blocked on B; D.2 fully parallel |
 | E — Ship | E.1–E.6 | 1 day | Yes (final smoke) | Strict last |
 
-**Realistic total wall-clock with one developer + agent pair:** 10–18 days from `4f1d62f` to a live `v5.0.0+1`.
+**Realistic total wall-clock remaining with one developer + agent pair:** 9–15 days from `789c59c` to a live `v5.0.0+1`.
 
-**Faster path** (multiple parallel agent windows, hands-on developer for device checks): 6–10 days.
+**Faster path** (multiple parallel agent windows, hands-on developer for device checks): 5–8 days.
+
+---
+
+## 11. Where each session-3 piece lives (file map for the next agent)
+
+| Concern | Path | Notes |
+|---|---|---|
+| Brand strings audit | `lib/`, `test/utils/crash_log_test.dart` | `grep -rn "Money Tracker" lib/` = 0 |
+| Orphan native code | `TRASH/MainActivity.kt.orphan` | Only `com/moneytracker/app/MainActivity.kt` is live |
+| Backup crypto | `lib/utils/backup_crypto.dart` | v4 envelope; 15 tests in `test/utils/backup_crypto_test.dart` |
+| Widget payload + redactor | `lib/utils/widget_payload.dart` | Pure functions; 6 tests in `test/utils/widget_payload_test.dart` |
+| Widget wiring | `lib/utils/home_widget_helper.dart:90-108` | Calls `PinSecurityHelper.isPinEnabled()` before publishing |
+| Clock abstraction | `lib/utils/clock.dart` | `Clock` (real) + `FakeClock.fixed` + `FakeClock.sequence` |
+| Clock call sites | `lib/utils/validators.dart`, `lib/utils/notification_helper.dart`, `lib/utils/home_widget_helper.dart`, `lib/utils/pin_security_helper.dart`, `lib/providers/app_state.dart` | UI/export files intentionally left on `DateTime.now()` |
+| PIN lockout coverage | `test/utils/pin_lockout_test.dart` | 5 tests; uses `FakeClock` |
+| Cascade-delete coverage | `test/integration/cascade_delete_test.dart` | 5 tests; uses `makeFreshDb()` from `_test_helpers.dart` |
+| Onboarding coverage | `test/services/onboarding_service_test.dart` | 8 tests; supersedes `services_test.dart` compile-checks |
+| CI test-count gate | `scripts/preflight.sh` + `.ps1` | Hardcoded `$TEST_COUNT_MIN=1750`; bump per release |
+| `cryptography` dep | `pubspec.yaml:48-50` | `^2.7.0` |
+
+---
+
+## 12. First commands the next session should run
+
+```bash
+# 1. Land in the repo and confirm sync.
+cd "C:/Users/leooa/Documents/personal-projects/Money-Tracker"
+git fetch --all
+git status                           # should be clean
+git log --oneline -5                 # last commit is 789c59c
+
+# 2. Verify the safety net before doing anything risky.
+bash scripts/preflight.sh            # green at gate >= 1750
+
+# 3. Read the orientation docs in order.
+cat SESSION_HANDOFF.md
+cat docs/CHECKLIST.md
+cat docs/NEXT_STEPS.md               # this file
+```
+
+If Stage A is feasible this session (device available), start there. Otherwise pick from the mechanical-only remainder (D.2 AppState mutator tests, B.11 Spacing audit if you have a plan for the 756 call sites, or 7.2/7.3 cross-cutting cleanups).
 
 ---
 

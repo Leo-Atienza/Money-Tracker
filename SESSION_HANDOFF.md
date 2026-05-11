@@ -1,11 +1,12 @@
 # Session Handoff — v5.0.0 Release Branch
 
-**Branch**: `release/v5.0.0` (NEVER pushed to origin yet)
+**Branch**: `release/v5.0.0` — pushed to `origin` (session 3) and merged into `main` at the same SHA.
 **Master plan**: `docs/MASTER_PLAN.md`
 **Per-task checklist**: `docs/CHECKLIST.md`
 **Next-steps plan**: `docs/NEXT_STEPS.md`
-**Last commit at handoff**: `b66cdf6 feat(phase-7): cover OnboardingService, cascade deletes, PIN lockout + ratchet CI gate`
-**Paused**: 2026-05-11 (Session 3 — Brand alignment + Phase 6.3/6.4 + Phase 7.3/5/7/9/10)
+**Last commit at handoff**: `789c59c docs(handoff): close-out for session 3 — brand, 6.3/6.4 crypto, 7.3/5/7/9/10`
+**Sync state at handoff**: `main` == `origin/main` == `release/v5.0.0` == `origin/release/v5.0.0` == `789c59c`.
+**Paused**: 2026-05-11 (Session 3 — Brand alignment + Phase 6.3/6.4 + Phase 7.3/5/7/9/10 + push + main merge)
 
 > To resume: `git checkout release/v5.0.0` (already there) and read this file top-to-bottom plus `docs/CHECKLIST.md` and `docs/NEXT_STEPS.md`. The master plan has the full "why" for each phase; this file has "where we are" + "what's left."
 
@@ -30,28 +31,25 @@
 
 ---
 
-## Commits on this branch (20 since main diverged)
+## Session-3 commits (5 new since session 2 close at `4f1d62f`)
 
 ```
+789c59c docs(handoff): close-out for session 3 — brand, 6.3/6.4 crypto, 7.3/5/7/9/10
 b66cdf6 feat(phase-7): cover OnboardingService, cascade deletes, PIN lockout + ratchet CI gate
 6c56fe2 feat(phase-7.9): Clock injection across time-dependent code
+5fcff2d feat(phase-6.3,6.4): widget redaction + backup AES-GCM crypto module
 23413e6 feat(phase-5.10,cleanup): brand alignment FinanceFlow + retire orphan MainActivity
-(C.1+C.2 crypto module commit — see git log for hash)
-47451da docs(plan): add NEXT_STEPS.md — execution plan to v5.0.0+1 ship
-4f1d62f docs(handoff): close-out for session 2 — Phase 2.3 + 6.2/5/6 + 8.1
-eaec0ee feat(phase-8.1): preflight script + forbidden-patterns lint test
-3a290ed feat(phase-6.2): move PIN hash/salt + counters to flutter_secure_storage
-ce637e7 feat(phase-6): FLAG_SECURE + crash log PII redactor (6.5, 6.6)
-d8f67b8 feat(phase-2.3): bundle Hanken Grotesk variable font
-…
 ```
+
+Full branch history (28 commits since main diverged): `git log --oneline release/v5.0.0` or browse on GitHub. After session 3 fast-forward-merged into `main`, those 28 commits are now also on `origin/main`.
 
 ---
 
 ## What landed in session 3 (this session)
 
-### Stage A — De-risk (skipped)
-A.1–A.6 all require a real device for PIN migration / FLAG_SECURE / crash redaction smoke. **Not done this session — no device available.** Resume here when device is back.
+### Stage A — De-risk (partial)
+- **A.1 push branch to origin** ✅ — done at session 3 close after the user authorised it explicitly. Also fast-forward-merged into `main` and pushed `main` (one extra step beyond what A.1 calls for, paid forward to avoid drift). See `docs/NEXT_STEPS.md` §2.A.1.
+- **A.2–A.6 device smokes** — still pending; require real hardware for PIN migration / FLAG_SECURE / crash redaction / widget redaction. Resume here when device is back.
 
 ### Stage B — Phase 5 Luminous (partial)
 - **B.10 Brand alignment** ✅ — AndroidManifest label + every "Money Tracker" string in lib/ → "FinanceFlow". Test expectation in `crash_log_test.dart` updated. Verified by `grep -rn "Money Tracker" lib/` = 0.
@@ -79,9 +77,9 @@ A.1–A.6 all require a real device for PIN migration / FLAG_SECURE / crash reda
 
 | Surface | State |
 |---|---|
-| Branch | `release/v5.0.0`, **still never pushed to origin** |
-| HEAD | `b66cdf6 feat(phase-7): cover OnboardingService, cascade deletes, PIN lockout + ratchet CI gate` |
-| Commits since `main` diverged | 20 |
+| Branch | `release/v5.0.0` — pushed to `origin`; `main` fast-forward-merged to the same SHA on both local and `origin/main` |
+| HEAD | `789c59c docs(handoff): close-out for session 3 — brand, 6.3/6.4 crypto, 7.3/5/7/9/10` |
+| Commits since the pre-v5 `main` (`233134f`) diverged | 28 |
 | `flutter analyze` | No issues found |
 | `flutter test` | 1,764 pass |
 | `flutter build apk --release` | succeeded, 59.2 MB (unchanged from session 2) |
@@ -112,24 +110,23 @@ See `docs/NEXT_STEPS.md` for the full per-task spec. Headline gaps:
 - **D.8** Goldens (depends on Stage B; platform-sensitive).
 - **B.11** `grep -rn "Spacing\." lib/` → 0 hits + delete `lib/constants/spacing.dart`. 756 call sites currently. Pragmatic alternatives discussed in `NEXT_STEPS.md` §3.
 
-### User-confirmation required (ship gates)
-- **A.1** Push `release/v5.0.0` to origin (branch has 20 commits and zero pushes).
-- **E.3** `vercel --prod --yes` from the landing repo.
-- **E.4** `gh release create v5.0.0+1`.
-- **E.5** Merge `release/v5.0.0` → `main`.
+### User-confirmation required (ship gates — none outstanding from session 3)
+- **A.1** Push `release/v5.0.0` to origin ✅ done (session 3).
+- **A.7 / interim sync** Fast-forward-merge `release/v5.0.0` → `main` and push `main` ✅ done (session 3).
+- **E.3** `vercel --prod --yes` from the landing repo — **pending Stage B Phase 5 completion + version bump**.
+- **E.4** `gh release create v5.0.0+1` — **pending E.2 version bump**.
+- **E.5** Final merge — at session 3 close `main` already matches `release/v5.0.0`; re-run after Stage E.2.
 
 ---
 
 ## Pointers for the next session
 
 1. **Re-read** `docs/NEXT_STEPS.md` and this handoff first.
-2. **Plug in a device** if you want to make headway on Phase 5 / 6.1 / 6.3 UX / Stage A smokes.
-3. **Push the branch** early — 20 commits sitting on this laptop is a continuity risk.
-   ```bash
-   git push -u origin release/v5.0.0
-   ```
-4. **Wire the C.2 UX** if device is available — the crypto module is unit-tested and ready; the missing piece is the passphrase dialog in `backup_restore_screen.dart` + the version-4 branch in restore.
+2. **Run `bash scripts/preflight.sh`** as a sanity check — should be green at gate ≥ 1750.
+3. **Plug in a device** if you want to make headway on Stage A device smokes, Phase 5 hero screens, 6.1 SQLCipher, or 6.3 backup-passphrase UX.
+4. **Wire the C.2 UX** when device is available — the crypto module is unit-tested and ready in `lib/utils/backup_crypto.dart`; the missing piece is the passphrase dialog in `backup_restore_screen.dart` + the version-4 branch in restore. See `docs/NEXT_STEPS.md` §4.C.2 for the exact wiring.
 5. **Stage B hero screens** in spec order (B.1 Settings → B.9 secondaries). Each commit per `NEXT_STEPS.md` template.
+6. **At session end**, fast-forward-merge `release/v5.0.0` into `main` and push — keep them in sync so a continuity-loss event still has the work on origin.
 
 ---
 
