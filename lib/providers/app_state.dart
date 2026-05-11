@@ -555,8 +555,13 @@ class AppState extends ChangeNotifier {
     // from memory. The home-screen widget reads DB directly now, but
     // keeping the current month resident also avoids spurious zeroes in
     // any UI that still reads `_expenses` directly.
-    final currentMonthKey =
-        '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    //
+    // FIX Phase 1.2: build this key through `_monthKey` so it matches
+    // the format `_loadedExpenseMonths` / `_loadedIncomeMonths` use
+    // (unpadded `YYYY-M`). The old in-line `padLeft(2, '0')` produced
+    // `2026-05` which never equalled the set's `2026-5` entry, so the
+    // current month was eligible for eviction once memory filled up.
+    final currentMonthKey = _monthKey(now);
     int monthScore(String key) {
       final parts = key.split('-');
       if (parts.length < 2) {

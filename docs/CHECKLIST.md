@@ -25,7 +25,7 @@ Per-task tracker for [MASTER_PLAN.md](MASTER_PLAN.md). Tick boxes as items land.
 Each lands as its own commit with regression test.
 
 - [x] 1.1 useTemplate auto-pay (`app_state.dart:1594` — `amountPaid: Decimal.zero`) + 2 tests in `test/integration/app_state_use_template_test.dart`
-- [ ] 1.2 `_pruneDistantMonths` month-key padding (`app_state.dart:558` — use `_monthKey(now)`)
+- [x] 1.2 `_pruneDistantMonths` month-key padding (`app_state.dart:558` — use `_monthKey(now)`) + test in `test/integration/app_state_prune_test.dart`
 - [ ] 1.3 Replace `Navigator.pushNamed` to unregistered routes
   - [ ] `history_screen.dart:2239` `/add_expense`
   - [ ] `history_screen.dart:2251` `/add_income`
