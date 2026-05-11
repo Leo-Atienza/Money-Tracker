@@ -198,6 +198,13 @@ class NotificationHelper {
         channelDescription: _billRemindersChannelDesc,
         importance: Importance.high,
         priority: Priority.high,
+        // FIX Phase 1.10: redact body text on a secure lock screen so
+        // the bill description + amount aren't shoulder-surfable.
+        // On Android, `visibility: private` defers to the user's
+        // system-wide lock-screen privacy setting — when "Hide
+        // sensitive content" is on the OS shows a generic
+        // placeholder instead of the description + amount.
+        visibility: NotificationVisibility.private,
       ),
       iOS: const DarwinNotificationDetails(),
     );
@@ -352,6 +359,9 @@ class NotificationHelper {
           channelDescription: _budgetAlertsChannelDesc,
           importance: Importance.high,
           priority: Priority.high,
+          // FIX Phase 1.10: see billReminderDetails — redacts the
+          // "spent $X of $Y" body on a secure lock screen.
+          visibility: NotificationVisibility.private,
         ),
         iOS: const DarwinNotificationDetails(),
       ),
@@ -387,6 +397,10 @@ class NotificationHelper {
           _monthlyReportsChannelName,
           channelDescription: _monthlyReportsChannelDesc,
           importance: Importance.defaultImportance,
+          // FIX Phase 1.10: monthly report scheduling carries no
+          // numbers in the body ("Your spending report is ready!")
+          // but redact for consistency in case the body changes.
+          visibility: NotificationVisibility.private,
         ),
         iOS: const DarwinNotificationDetails(),
       ),
@@ -419,6 +433,9 @@ class NotificationHelper {
           _monthlyReportsChannelName,
           channelDescription: _monthlyReportsChannelDesc,
           importance: Importance.defaultImportance,
+          // FIX Phase 1.10: this body has the exact spend + budget
+          // dollar values — strict candidate for lock-screen redaction.
+          visibility: NotificationVisibility.private,
         ),
         iOS: const DarwinNotificationDetails(),
       ),

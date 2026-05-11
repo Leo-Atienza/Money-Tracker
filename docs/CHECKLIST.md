@@ -38,7 +38,7 @@ Each lands as its own commit with regression test.
 - [x] 1.7 Blur sigma 25→15 + RepaintBoundary nav/transactions + `docs/DESIGN_DEVIATIONS.md` DD-001 + 3 structural tests in `test/lint/glass_blur_perf_test.dart`
 - [x] 1.8 Mounted check + generation token after `_fadeController.reverse` (`main.dart`) + structural test in `test/lint/fade_controller_mounted_check_test.dart`
 - [x] 1.9 AndroidManifest hardening — `allowBackup="false"`, `fullBackupContent="false"`, `dataExtractionRules="@xml/data_extraction_rules"` + new `data_extraction_rules.xml` (deny cloud-backup + device-transfer) + 2 structural tests in `test/lint/android_manifest_hardening_test.dart`
-- [ ] 1.10 Notification lock-screen redaction (`notification_helper.dart`)
+- [x] 1.10 Notification lock-screen redaction — `visibility: NotificationVisibility.private` on all 4 `AndroidNotificationDetails` (bill reminders, budget alerts, scheduled monthly summary, immediate monthly summary) + structural test in `test/lint/notification_visibility_test.dart`
 
 **Phase 1 gate:** all 10 commits land; build green; +10 regression tests.
 
