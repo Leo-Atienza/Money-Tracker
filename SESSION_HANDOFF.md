@@ -30,20 +30,19 @@
 
 ---
 
-## Session-4 commits (1 new since session 3 close at `6f4e608`)
+## Session-4 commits (2 new since session 3 close at `6f4e608`)
 
 ```
-<sha-on-commit>  feat(phase-6.3): wire backup encryption UX — passphrase prompts + retry restore
-6f4e608          docs(plan): rewrite NEXT_STEPS for session 4 — precise remaining work
-789c59c          docs(handoff): close-out for session 3 — brand, 6.3/6.4 crypto, 7.3/5/7/9/10
-b66cdf6          feat(phase-7): cover OnboardingService, cascade deletes, PIN lockout + ratchet CI gate
-6c56fe2          feat(phase-7.9): Clock injection across time-dependent code
-5fcff2d          feat(phase-6.3,6.4): widget redaction + backup AES-GCM crypto module
+(this docs commit)  docs(handoff): close-out for session 4 — Phase 6.3 UX wiring + tests
+7a262d3             feat(phase-6.3): wire backup encryption UX — passphrase prompts + retry restore
+6f4e608             docs(plan): rewrite NEXT_STEPS for session 4 — precise remaining work
+789c59c             docs(handoff): close-out for session 3 — brand, 6.3/6.4 crypto, 7.3/5/7/9/10
+b66cdf6             feat(phase-7): cover OnboardingService, cascade deletes, PIN lockout + ratchet CI gate
+6c56fe2             feat(phase-7.9): Clock injection across time-dependent code
+5fcff2d             feat(phase-6.3,6.4): widget redaction + backup AES-GCM crypto module
 ```
 
-(The `<sha-on-commit>` placeholder is replaced by the actual SHA of session 4's commit when the next session reads this file.)
-
-Branch history (29 commits since the pre-v5 `main` diverged): `git log --oneline release/v5.0.0`. After session 4 fast-forward-merged into `main`, those 29 commits are also on `origin/main`.
+Branch history (30 commits since the pre-v5 `main` diverged): `git log --oneline release/v5.0.0`. After session 4 fast-forward-merged into `main`, those 30 commits are also on `origin/main`.
 
 ---
 
