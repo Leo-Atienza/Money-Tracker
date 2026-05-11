@@ -336,21 +336,28 @@ class HomeScreen extends StatelessWidget {
                         140,
                       ),
                       sliver: SliverToBoxAdapter(
-                        child: GlassPanel(
-                          padding: EdgeInsets.zero,
-                          child: Column(
-                            children: [
-                              for (var i = 0; i < expenses.length; i++) ...[
-                                if (i > 0)
-                                  Divider(
-                                    height: 1,
-                                    thickness: 1,
-                                    color:
-                                        Colors.white.withValues(alpha: 0.35),
-                                  ),
-                                _GlassHomeExpenseTile(expense: expenses[i]),
+                        // FIX Phase 1.7: wrap the transactions GlassPanel in
+                        // a RepaintBoundary so the BackdropFilter (15-sigma
+                        // blur) doesn't force a repaint of the surrounding
+                        // CustomScrollView every time an unrelated widget
+                        // updates (e.g. the home-screen header refreshing).
+                        child: RepaintBoundary(
+                          child: GlassPanel(
+                            padding: EdgeInsets.zero,
+                            child: Column(
+                              children: [
+                                for (var i = 0; i < expenses.length; i++) ...[
+                                  if (i > 0)
+                                    Divider(
+                                      height: 1,
+                                      thickness: 1,
+                                      color: Colors.white
+                                          .withValues(alpha: 0.35),
+                                    ),
+                                  _GlassHomeExpenseTile(expense: expenses[i]),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ),
                       ),

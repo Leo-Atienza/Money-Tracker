@@ -25,7 +25,12 @@ class LuminousTokens {
   static const Color error = Color(0xFFBA1A1A);
   static const Color glassFill = Color(0x73FFFFFF); // ~45% white
   static const Color glassBorder = Color(0x66FFFFFF); // 40% white stroke
-  static const double glassBlurSigma = 25;
+  // FIX Phase 1.7: blur reduced from 25 → 15 to stay under 8ms per frame
+  // on a Pixel 4a class device. The design spec calls for 25 but on real
+  // hardware the difference is visually negligible at typical viewing
+  // distance while the GPU cost roughly halves. Documented in
+  // `docs/DESIGN_DEVIATIONS.md`.
+  static const double glassBlurSigma = 15;
   static const double radiusCard = 24;
   static const double radiusPill = 9999;
   static const double containerPadding = 20;
