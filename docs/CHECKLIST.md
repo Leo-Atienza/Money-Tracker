@@ -105,7 +105,7 @@ Each lands as its own commit with regression test.
 - [ ] 5.7 Recurring Items (STRUCTURAL: merge expenses + income)
 - [ ] 5.8 Home Dashboard polish
 - [ ] 5.9 Secondary screens (onboarding, PIN, crash, export, trash, category mgr, etc.)
-- [ ] Brand alignment (FinanceFlow label everywhere)
+- [x] **5.10 Brand alignment** — AndroidManifest `android:label="FinanceFlow"`; every "Money Tracker" string in `lib/` rebranded (backup/CSV/PDF subjects, crash log header, schema-upgrade snackbar, pin unlock title, settings about line); crash_log_test expectation updated. `grep -rn "Money Tracker" lib/` = 0.
 
 ---
 
@@ -113,8 +113,8 @@ Each lands as its own commit with regression test.
 
 - [ ] 6.1 SQLCipher migration (`sqflite_sqlcipher`) — deferred; needs device validation per master plan
 - [x] 6.2 PIN hash + salt + counters → `flutter_secure_storage` via new `SecurePrefs` wrapper; lazy migration from `SharedPreferences` on first read; 16 tests across `secure_prefs_test.dart` + `pin_security_storage_test.dart`
-- [ ] 6.3 Backup file AES-GCM + passphrase
-- [ ] 6.4 Home widget redaction when PIN enabled
+- [x] **6.3 Backup AES-GCM + passphrase (crypto layer)** — `lib/utils/backup_crypto.dart` wraps `package:cryptography ^2.7.0` for 256-bit AES-GCM + PBKDF2-HMAC-SHA256 @ 100k iterations. Produces v4 envelope `{version, encrypted, salt, iv, ciphertext, tag}`. `decrypt` returns null on any failure (wrong passphrase, malformed JSON, tampered ciphertext, wrong salt) — never throws, never silently returns wrong plaintext. 15 tests. **UX wiring (passphrase prompt in backup_restore_screen) deliberately deferred — needs device verification.**
+- [x] **6.4 Home widget redaction when PIN enabled** — `lib/utils/widget_payload.dart` (pure functions); `WidgetPayload.redactIfLocked` swaps monetary fields for `•••` and month label for `Locked`. Currency code + `isPositive` accent stay verbatim so the widget layout doesn't shift on toggle. `home_widget_helper.dart` consults `PinSecurityHelper.isPinEnabled()` before publishing. Side-fix: `home_widget_helper_test.dart` now seeds `SharedPreferences.setMockInitialValues` so the SecurePrefs fallback doesn't `MissingPluginException` the whole pipeline. 6 tests.
 - [x] 6.5 `FLAG_SECURE` via native method channel — `MainActivity` registers `budget_tracker/secure_window`; `SecureWindow` Dart helper toggles the flag; wired from `AppState.initializeLockState` (cold start) + `PinSetupScreen` (after successful setup). No external plugin needed. 6 tests.
 - [x] 6.6 Crash log PII redactor — `CrashLog.redactPii` masks Windows/Unix user paths, emails, currency-tagged amounts, and credit-card-shaped digit runs before every record is persisted. 8 tests.
 
@@ -122,16 +122,16 @@ Each lands as its own commit with regression test.
 
 ## Phase 7 — Test Coverage Rebuild
 
-- [ ] 7.1 Rename mislabeled `app_state_logic_test.dart`
-- [ ] 7.2 Real `app_state_logic_test.dart` (every public mutator)
-- [ ] 7.3 Real `onboarding_service_test.dart`
-- [ ] 7.4 Migration test (covered in 4.12)
-- [ ] 7.5 Cascade delete integration test
-- [ ] 7.6 Screen tests for 8 hero screens
-- [ ] 7.7 PIN lockout screen test
-- [ ] 7.8 Golden tests for 8 hero screens
-- [ ] 7.9 `Clock` injection in time-dependent code
-- [ ] 7.10 CI gates (`flutter test` must pass; pass count ≥ baseline + 50)
+- [ ] 7.1 Rename mislabeled `app_state_logic_test.dart` — DEFERRED. File actually tests `CurrencyHelper` + `DatabaseConstants`; the spec's `app_state_smoke_test` rename is misleading and a no-op without 7.2 brings no value.
+- [ ] 7.2 Real `app_state_logic_test.dart` (every public mutator) — DEFERRED. ~30 mutators, ~1 day of focused work.
+- [x] **7.3 Real `onboarding_service_test.dart`** — new file at `test/services/onboarding_service_test.dart`; 8 tests cover the full SharedPreferences round-trip (fresh-install false, post-complete true, persists across instances, reset works, isFirstLaunch self-extinguishes, completeOnboarding idempotency).
+- [x] 7.4 Migration test (covered in 4.12)
+- [x] **7.5 Cascade delete integration test** — new `test/integration/cascade_delete_test.dart`; 5 tests pin: `moveToDeletedById` scrubs `transaction_tags` before moving (Phase 4.5), same for income, hard-delete triggers fire (Phase 4.4), `emptyTrash` is account-scoped.
+- [ ] 7.6 Screen tests for 8 hero screens — DEFERRED until Stage B hero redesigns land.
+- [x] **7.7 PIN lockout flow under FakeClock** — new `test/utils/pin_lockout_test.dart`; 5 tests drive the 5-minute window in sub-second wall time via Clock injection: correct PIN clears counter, 5 wrongs arm lockout, countdown reflects clock, isLockedOut self-heals after expiry, mid-streak correct PIN resets.
+- [ ] 7.8 Golden tests for 8 hero screens — DEFERRED. Platform-sensitive and depends on Stage B.
+- [x] **7.9 `Clock` injection** — new `lib/utils/clock.dart` (`Clock` + `FakeClock.fixed` + `FakeClock.sequence`). 20 `DateTime.now()` call sites migrated across `validators.dart` (7), `notification_helper.dart` (2), `home_widget_helper.dart` (1), `pin_security_helper.dart` (3), `app_state.dart` (7). UI/export code paths intentionally left on `DateTime.now()` per spec rationale. 5 tests.
+- [x] **7.10 CI test-count gate** — `scripts/preflight.sh` + `.ps1` parse the `+N: All tests passed!` trailer and fail when N drops below `$TEST_COUNT_MIN` (1750). Catches silent coverage drops.
 
 ---
 
