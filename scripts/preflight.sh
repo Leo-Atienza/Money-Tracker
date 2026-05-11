@@ -49,8 +49,28 @@ fi
 
 # 2. Full test suite (includes test/lint/ structural checks).
 section "flutter test"
-if ! flutter test --concurrency=4; then
+# Phase 7.10 (D.10): also gate on the pass count so a silent drop in
+# coverage (test file deleted, expectations weakened) still fails CI
+# even when the remaining tests pass. The floor is the previous-release
+# baseline + 50 — bump it each release to ratchet up coverage.
+TEST_COUNT_MIN=1750
+TEST_OUT=$(mktemp)
+trap 'rm -f "$TEST_OUT"' EXIT
+if ! flutter test --concurrency=4 --reporter=expanded 2>&1 | tee "$TEST_OUT"; then
   fail "flutter test failed"
+fi
+# `--reporter=expanded` prints the final tally as either
+# `+NNNN: All tests passed!` or `+NNNN -M: Some tests failed.`. Parse the
+# `+NNNN` on the last line that contains "All tests passed!" — the
+# previous block has already exited non-zero if any test failed.
+PASS_COUNT=$(grep -oE '\+[0-9]+: All tests passed!' "$TEST_OUT" | tail -1 \
+  | grep -oE '[0-9]+' | head -1)
+if [[ -z "$PASS_COUNT" ]]; then
+  fail "could not parse pass count from flutter test output"
+fi
+printf '\n==> test pass count: %s (gate: >=%s)\n' "$PASS_COUNT" "$TEST_COUNT_MIN"
+if (( PASS_COUNT < TEST_COUNT_MIN )); then
+  fail "test pass count $PASS_COUNT is below gate $TEST_COUNT_MIN"
 fi
 
 # 3. Belt-and-braces grep — duplicates the lint tests' coverage so a

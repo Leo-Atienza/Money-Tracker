@@ -28,8 +28,18 @@ if ($LASTEXITCODE -ne 0) { FailWith 'flutter analyze reported issues' }
 
 # 2. Full test suite (includes test/lint/ structural checks).
 Section 'flutter test'
-& flutter test --concurrency=4
+# Phase 7.10 (D.10): also gate on the pass count so a silent drop in
+# coverage still fails CI. Bump $TestCountMin each release.
+$TestCountMin = 1750
+$TestOutput = & flutter test --concurrency=4 --reporter=expanded 2>&1
+$TestOutput | ForEach-Object { Write-Host $_ }
 if ($LASTEXITCODE -ne 0) { FailWith 'flutter test failed' }
+$PassLine = $TestOutput | Select-String -Pattern '\+\d+: All tests passed!' | Select-Object -Last 1
+if (-not $PassLine) { FailWith 'could not parse pass count from flutter test output' }
+$PassCount = [int]([regex]::Match($PassLine.Line, '\+(\d+):').Groups[1].Value)
+Write-Host ""
+Write-Host "==> test pass count: $PassCount (gate: >=$TestCountMin)" -ForegroundColor Cyan
+if ($PassCount -lt $TestCountMin) { FailWith "test pass count $PassCount is below gate $TestCountMin" }
 
 # 3. Forbidden-pattern sweep.
 Section 'forbidden pattern sweep (lib/)'
