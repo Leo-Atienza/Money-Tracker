@@ -60,14 +60,14 @@ Each lands as its own commit with regression test.
 
 ## Phase 3 — Race & Lifecycle Correctness
 
-- [ ] 3.1 Notification payload queue (TOCTOU)
-- [ ] 3.2 Recurring snackbar flag reset (or one-shot stream)
-- [ ] 3.3 PIN lock timer + FocusManager hook
-- [ ] 3.4 `accountJustSwitched` → one-shot stream
-- [ ] 3.5 HomeWidgetHelper dispose on `paused`
-- [ ] 3.6 `_performBackgroundMaintenance` post-await mounted checks
-- [ ] 3.7 `_checkPendingNotification` re-check before push
-- [ ] 3.8 (Optional, defer) AppPhase state machine
+- [x] 3.1 Notification payload queue (TOCTOU) — `consumePendingPayloads()` drains a JSON-array queue + legacy single-slot migration + de-dup loop in `_checkPendingNotification` + resume-time re-check; 16 unit tests
+- [x] 3.2 Recurring snackbar flag reset → `onRecurringBatch` broadcast stream + subscription in `MainNavigationScreen`; 2 integration tests
+- [x] 3.3 PIN lock timer + `FocusManager.instance.addListener(_onFocusEvent)` in `MainNavigationScreen` covers keyboard focus changes that bypass `GestureDetector`
+- [x] 3.4 `accountJustSwitched` → `onAccountSwitch` broadcast stream + subscription in `MainNavigationScreen` (boolean + `clearAccountSwitchFlag` removed)
+- [x] 3.5 `HomeWidgetHelper.dispose()` moved from `_closeDatabaseSafely` (detached) → `_handlePaused` (paused) + idempotent guard at top of `initialize()`; back-compat call retained in detached for OS variations
+- [x] 3.6 `_performBackgroundMaintenance` + `_handlePaused` post-await `mounted` / `context.mounted` checks
+- [x] 3.7 `_checkPendingNotification` re-check `mounted && context.mounted` immediately before each `Navigator.push`
+- [ ] 3.8 (Optional, deferred to v5.1) `AppPhase` state machine
 
 ---
 

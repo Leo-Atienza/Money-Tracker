@@ -169,6 +169,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       if (mounted && context.mounted) {
         context.read<AppState>().loadData();
       }
+      // Phase 3.1: the navigation screen has its own observer that picks up
+      // resume and re-checks the notification queue.
     }
   }
 
@@ -186,16 +188,31 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       if (kDebugMode) debugPrint('HomeWidget update on paused failed: $e');
       CrashLog.record(e, stack: st, context: 'lifecycle_paused_widget_update');
     }
+    // Phase 3.6: state could be torn down between awaits. Bail out before
+    // touching context/state on every subsequent step.
+    if (!mounted) return;
+    // Phase 3.5: dispose the widget click subscription on `paused` instead of
+    // `detached`. Android often skips `detached` entirely (e.g. when the
+    // system kills the process to reclaim memory), and the leaked stream
+    // subscription would otherwise survive across a hot restart and fire the
+    // click callback twice on the next foreground.
+    await HomeWidgetHelper.dispose();
+    if (!mounted) return;
     // Only NOW close the DB.
     await _performBackgroundMaintenance();
   }
 
   Future<void> _performBackgroundMaintenance() async {
     try {
-      if (mounted && context.mounted) {
-        final appState = context.read<AppState>();
-        await appState.closeDatabase();
-      }
+      // Phase 3.6: mounted check before reading context, AND immediately
+      // after the await so any later `context.read` (added in the future)
+      // can't latch onto a torn-down element.
+      if (!mounted || !context.mounted) return;
+      final appState = context.read<AppState>();
+      await appState.closeDatabase();
+      if (!mounted) return;
+      // Nothing after the await currently — but the guard stays so adding a
+      // subsequent step (cache flush, log rotate, …) is safe by default.
     } catch (e) {
       if (kDebugMode) debugPrint('Error during background maintenance: $e');
     }
@@ -207,7 +224,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         // Close database connection on app termination
         context.read<AppState>().closeDatabase();
       }
-      // FIX: Dispose home widget helper to cancel stream subscription
+      // Phase 3.5: HomeWidgetHelper.dispose() was moved to `_handlePaused`
+      // because Android does not reliably deliver `detached`. The call
+      // remains idempotent so a `detached`-after-`paused` flow re-disposing
+      // is harmless — keep it here as a belt-and-braces guard.
       HomeWidgetHelper.dispose();
     } catch (e) {
       if (kDebugMode) debugPrint('Error closing database: $e');
@@ -294,8 +314,17 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen>
     with WidgetsBindingObserver, TickerProviderStateMixin {
   int _currentIndex = 0;
-  bool _hasShownRecurringSnackbar = false;
   bool _hasCheckedNotificationPayload = false;
+
+  /// Phase 3.2: subscription to the AppState recurring-batch stream. One
+  /// snackbar per emitted batch — no more "first batch wins, second batch
+  /// silent" UX.
+  StreamSubscription<int>? _recurringBatchSubscription;
+
+  /// Phase 3.4: subscription to the AppState account-switch stream. Each
+  /// emission resets navigation to Home — replaces the previous
+  /// `accountJustSwitched` boolean + post-frame clear flag pattern.
+  StreamSubscription<void>? _accountSwitchSubscription;
 
   // Animation controllers for tab transitions
   late AnimationController _fadeController;
@@ -349,6 +378,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
+    // Phase 3.3: also reset the PIN lock timer on every focus change.
+    // GestureDetector only catches taps + pans on the Scaffold's surface;
+    // keyboard focus moves from one TextField to another (or a soft-keyboard
+    // arrow key) don't bubble through it. Without this listener, the user
+    // could sit on a long form and have the lock trip mid-edit.
+    FocusManager.instance.addListener(_onFocusEvent);
+
     // Initialize fade animation for tab transitions
     _fadeController = AnimationController(
       vsync: this,
@@ -362,16 +398,81 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
     // Check for pending notification payload after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _checkPendingNotification();
       _checkPinLock();
+      // Phase 3.2: subscribe to recurring-batch events. The AppState fires
+      // one event per completed batch; we show a snackbar per event.
+      final appState = context.read<AppState>();
+      _recurringBatchSubscription =
+          appState.onRecurringBatch.listen(_onRecurringBatch);
+      // Phase 3.4: subscribe to account-switch events. Each emission resets
+      // navigation back to Home.
+      _accountSwitchSubscription =
+          appState.onAccountSwitch.listen(_onAccountSwitch);
     });
   }
 
   @override
   void dispose() {
+    _recurringBatchSubscription?.cancel();
+    _accountSwitchSubscription?.cancel();
+    FocusManager.instance.removeListener(_onFocusEvent);
     _fadeController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _onAccountSwitch(void _) {
+    if (!mounted) return;
+    if (_currentIndex != 0) {
+      setState(() => _currentIndex = 0);
+    }
+  }
+
+  void _onFocusEvent() {
+    if (!mounted) return;
+    context.read<AppState>().resetLockTimer();
+  }
+
+  void _onRecurringBatch(int count) {
+    if (!mounted) return;
+    // The AppState clears the counter after each run; mirror that on the UI
+    // side so the legacy `lastAutoCreatedCount` getter (still used by tests
+    // for Bug #7) keeps reporting "current run" semantics.
+    context.read<AppState>().clearAutoCreatedCount();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          count == 1
+              ? '1 recurring transaction added'
+              : '$count recurring transactions added',
+        ),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'View',
+          onPressed: () {
+            if (mounted) setState(() => _currentIndex = 1);
+          },
+        ),
+      ),
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Phase 3.1: reset the notification-check guard on resume so payloads
+    // that landed in the background get picked up. The schedule for the
+    // re-check happens after the next frame so it sees the post-resume
+    // BuildContext.
+    if (state == AppLifecycleState.resumed) {
+      _hasCheckedNotificationPayload = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _checkPendingNotification();
+      });
+    }
   }
 
   /// Check if app needs to show PIN unlock screen
@@ -408,68 +509,44 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     if (_hasCheckedNotificationPayload) return;
     _hasCheckedNotificationPayload = true;
 
-    final payload = await NotificationPayloadStore.consumePendingPayload();
-    if (payload == null || !mounted) return;
+    // Phase 3.1: consume the full queue. Multiple notifications can land
+    // between foreground checks (e.g. bill reminder + budget alert), and
+    // dropping any of them silently is the bug we're fixing here.
+    final payloads = await NotificationPayloadStore.consumePendingPayloads();
+    if (payloads.isEmpty) return;
 
-    if (payload == 'recurring_expenses') {
-      if (!mounted) return;
-      Navigator.push(
-        context,
-        PremiumPageRoute(page: const RecurringExpensesScreen()),
-      );
-    } else if (payload.startsWith('budget_alert:')) {
-      setState(() => _currentIndex = 0);
+    // De-duplicate by route so two `recurring_expenses` taps don't stack the
+    // same screen twice. Order is preserved.
+    final seen = <String>{};
+    for (final payload in payloads) {
+      if (!seen.add(payload)) continue;
+      // Phase 3.7: re-check mounted-ness immediately before Navigator.push.
+      // The pre-await guard isn't enough — `consumePendingPayloads()` returns
+      // synchronously here, but a future change that adds an await inside
+      // the loop body could leave a stale BuildContext live until the next
+      // re-check. The `context.mounted` half catches the case where the
+      // surrounding Element was detached while State.mounted was still true.
+      if (!mounted || !context.mounted) return;
+
+      if (payload == 'recurring_expenses') {
+        Navigator.push(
+          context,
+          PremiumPageRoute(page: const RecurringExpensesScreen()),
+        );
+      } else if (payload.startsWith('budget_alert:')) {
+        setState(() => _currentIndex = 0);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final accountJustSwitched = context.select<AppState, bool>(
-      (s) => s.accountJustSwitched,
-    );
-    final lastAutoCreatedCount = context.select<AppState, int>(
-      (s) => s.lastAutoCreatedCount,
-    );
-
-    // FIX #8: Check if account was switched and reset navigation to home
-    if (accountJustSwitched) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          context.read<AppState>().clearAccountSwitchFlag();
-          if (_currentIndex != 0) {
-            setState(() => _currentIndex = 0);
-          }
-        }
-      });
-    }
-
-    if (!_hasShownRecurringSnackbar && lastAutoCreatedCount > 0) {
-      _hasShownRecurringSnackbar = true;
-      final count = lastAutoCreatedCount;
-      context.read<AppState>().clearAutoCreatedCount();
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                count == 1
-                    ? '1 recurring transaction added'
-                    : '$count recurring transactions added',
-              ),
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 3),
-              action: SnackBarAction(
-                label: 'View',
-                onPressed: () {
-                  setState(() => _currentIndex = 1);
-                },
-              ),
-            ),
-          );
-        }
-      });
-    }
+    // Phase 3.2: recurring snackbar moved off `lastAutoCreatedCount` to the
+    // `onRecurringBatch` stream — see `_onRecurringBatch` and the
+    // subscription wired in `initState`.
+    // Phase 3.4: account-switch navigation reset moved off the
+    // `accountJustSwitched` boolean to the `onAccountSwitch` stream — see
+    // `_onAccountSwitch` and the subscription wired in `initState`.
 
     return PopScope(
       canPop: false,

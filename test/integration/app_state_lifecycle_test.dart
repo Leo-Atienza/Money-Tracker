@@ -131,6 +131,49 @@ void main() {
     });
   });
 
+  group('Phase 3.2 — onRecurringBatch stream', () {
+    test('emits one event per batch that creates rows', () async {
+      final db = await DatabaseHelper().database;
+      await seedRecurringDueToday(db, description: 'rent');
+
+      final appState = AppState();
+      final events = <int>[];
+      final sub = appState.onRecurringBatch.listen(events.add);
+
+      // First run creates one row — should emit `1`.
+      await appState.runRecurringProcessingForTesting();
+      // Allow microtasks to drain so the stream event is delivered.
+      await Future<void>.delayed(Duration.zero);
+      expect(events, [1]);
+
+      // Second run on the same day skips (lastCreated == today) — no
+      // emission because the batch created nothing.
+      await appState.runRecurringProcessingForTesting();
+      await Future<void>.delayed(Duration.zero);
+      expect(events, [1]);
+
+      // Add a NEW recurring due today and re-run. Fresh batch → emits
+      // `1` again. Pre-Phase-3.2 the UI would have silently missed
+      // this second batch because `_hasShownRecurringSnackbar` was true.
+      await seedRecurringDueToday(db, description: 'internet');
+      await appState.runRecurringProcessingForTesting();
+      await Future<void>.delayed(Duration.zero);
+      expect(events, [1, 1]);
+
+      await sub.cancel();
+      appState.dispose();
+    });
+
+    test('stream closes on AppState dispose', () async {
+      final appState = AppState();
+      final completer = appState.onRecurringBatch.toList();
+      appState.dispose();
+      // `toList` resolves only when the underlying stream is done — proves
+      // that `dispose()` closed the controller.
+      expect(await completer, isEmpty);
+    });
+  });
+
   group('Bug #5 — _safeNotify short-circuits after dispose', () {
     test('safeNotify after dispose does not throw', () {
       final appState = AppState();

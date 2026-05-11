@@ -60,6 +60,18 @@ class AppState extends ChangeNotifier {
   int get lastAutoCreatedCount => _lastAutoCreatedCount;
   void clearAutoCreatedCount() => _lastAutoCreatedCount = 0;
 
+  /// Phase 3.2: one-shot stream that fires with the batch size every time a
+  /// recurring-expense / recurring-income run finishes and created at least
+  /// one row. UI subscribes (typically from `MainNavigationScreen`) and shows
+  /// a snackbar per event — so two batches in one foreground session produce
+  /// two snackbars instead of the first-one-wins behaviour we had before.
+  ///
+  /// Broadcast so multiple listeners can subscribe (current code has one, but
+  /// future widget tests can subscribe a probe).
+  final StreamController<int> _recurringBatchController =
+      StreamController<int>.broadcast();
+  Stream<int> get onRecurringBatch => _recurringBatchController.stream;
+
   bool _categoryRenameInProgress = false;
 
   // ============== SETTINGS ==============
@@ -409,6 +421,11 @@ class AppState extends ChangeNotifier {
         epochAtStart == _backgroundProcessingEpoch &&
         accountIdAtStart == currentAccountId) {
       _safeNotify();
+      // Phase 3.2: emit the batch event so the UI shows a snackbar even when
+      // a previous batch already fired one this session.
+      if (!_isDisposed && !_recurringBatchController.isClosed) {
+        _recurringBatchController.add(_lastAutoCreatedCount);
+      }
     }
   }
 
@@ -1470,7 +1487,6 @@ class AppState extends ChangeNotifier {
   Future<void> switchAccount(Account account) async {
     _currentAccount = account;
     _currencyCode = account.currencyCode;
-    _accountJustSwitched = true;
     clearFilters();
     await _reloadAccountData();
     // FIX: Simplified null check
@@ -1480,11 +1496,22 @@ class AppState extends ChangeNotifier {
       await _loadCategories();
     }
     _safeNotify();
+    // Phase 3.4: emit on the one-shot stream so the navigation root can
+    // reset to Home. The previous boolean+clearFlag pattern was double-fire
+    // prone because the flag was read in build() and cleared in a
+    // postFrameCallback — a rebuild between read and clear could re-trigger.
+    if (!_isDisposed && !_accountSwitchController.isClosed) {
+      _accountSwitchController.add(null);
+    }
   }
 
-  bool _accountJustSwitched = false;
-  bool get accountJustSwitched => _accountJustSwitched;
-  void clearAccountSwitchFlag() => _accountJustSwitched = false;
+  /// Phase 3.4: one-shot account-switch stream replaces the previous
+  /// `accountJustSwitched` boolean+`clearAccountSwitchFlag()` pattern.
+  /// Subscribers (`MainNavigationScreen`) reset their state in the listener
+  /// rather than reading + clearing a flag inside `build`.
+  final StreamController<void> _accountSwitchController =
+      StreamController<void>.broadcast();
+  Stream<void> get onAccountSwitch => _accountSwitchController.stream;
 
   Future<void> _reloadAccountData() async {
     // Run all independent data loads in parallel for faster account switching.
@@ -2342,6 +2369,10 @@ class AppState extends ChangeNotifier {
   void dispose() {
     _isDisposed = true; // FIX: Set disposed flag before cancelling timer
     _cancelLockTimer();
+    // Phase 3.2: close the batch stream so subscribers complete.
+    _recurringBatchController.close();
+    // Phase 3.4: close the account-switch stream so subscribers complete.
+    _accountSwitchController.close();
     super.dispose();
   }
 }

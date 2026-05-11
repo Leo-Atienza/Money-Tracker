@@ -15,8 +15,13 @@ class HomeWidgetHelper {
   /// Stores the widget click subscription so it can be cancelled
   static StreamSubscription<Uri?>? _widgetClickSubscription;
 
-  /// Initialize home widget
+  /// Initialize home widget.
+  ///
+  /// Phase 3.5: guarded by [dispose] up front so a hot restart / re-init can't
+  /// stack two `widgetClicked` listeners. The previous subscription would
+  /// otherwise leak and dispatch every click twice.
   static Future<void> initialize() async {
+    await dispose();
     try {
       await HomeWidget.setAppGroupId(_appGroupId);
     } catch (e) {
