@@ -336,6 +336,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
+  /// FIX Phase 1.8: generation token that increments on every tab tap.
+  /// The `.then` callback after `_fadeController.reverse()` captures
+  /// the value at tap time and bails out if a later tap has bumped it.
+  /// Prevents rapid taps from racing — the last tap wins and stale
+  /// callbacks become no-ops.
+  int _tabSwitchGeneration = 0;
+
   static const List<FloatingGlassNavDestination> _navDestinations = [
     FloatingGlassNavDestination(
       icon: Icons.home_outlined,
@@ -543,7 +550,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
                         Navigator.of(context)
                             .popUntil((route) => route.isFirst);
                       } else {
+                        // FIX Phase 1.8: guard the post-await callback
+                        // with (a) a generation token so rapid taps
+                        // discard stale fade-in callbacks, and
+                        // (b) `mounted` check so unmounting between
+                        // tap and animation completion doesn't crash.
+                        final gen = ++_tabSwitchGeneration;
                         _fadeController.reverse().then((_) {
+                          if (!mounted || gen != _tabSwitchGeneration) {
+                            return;
+                          }
                           setState(() => _currentIndex = index);
                           _fadeController.forward();
                         });

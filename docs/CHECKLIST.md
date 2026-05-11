@@ -36,7 +36,7 @@ Each lands as its own commit with regression test.
 - [x] 1.5 Coalesce `loadData()` re-entrancy — `_loadingFuture ??= _loadDataInternal()...whenComplete(...)` + `loadDataInternalRunCount` test seam + 2 tests in `test/integration/app_state_load_data_coalesce_test.dart`
 - [x] 1.6 Wrap `addExpense`/`addIncome` + carryover in single tx — new `DatabaseHelper.createExpenseWithCarryover` / `createIncomeWithCarryover` use `db.transaction`; AppState pre-computes balances via new `_computeCarryoverForMonth` / `_prepareCarryoverUpserts`; 3 tests in `test/integration/database_helper_atomic_add_test.dart` (commit-success + rollback-on-FK-fail for both expense and income)
 - [x] 1.7 Blur sigma 25→15 + RepaintBoundary nav/transactions + `docs/DESIGN_DEVIATIONS.md` DD-001 + 3 structural tests in `test/lint/glass_blur_perf_test.dart`
-- [ ] 1.8 Mounted check after `_fadeController.reverse` (`main.dart:527`)
+- [x] 1.8 Mounted check + generation token after `_fadeController.reverse` (`main.dart`) + structural test in `test/lint/fade_controller_mounted_check_test.dart`
 - [ ] 1.9 AndroidManifest hardening (`allowBackup="false"` + dataExtractionRules)
 - [ ] 1.10 Notification lock-screen redaction (`notification_helper.dart`)
 
