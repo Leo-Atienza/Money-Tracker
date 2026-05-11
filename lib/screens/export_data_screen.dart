@@ -513,7 +513,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
       // Share the file
       await SharePlus.instance.share(
-        ShareParams(files: [XFile(file.path)], subject: 'Money Tracker Export'),
+        ShareParams(files: [XFile(file.path)], subject: 'FinanceFlow Export'),
       );
 
       if (mounted) {
@@ -648,7 +648,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
-          subject: 'Money Tracker PDF Report',
+          subject: 'FinanceFlow PDF Report',
         ),
       );
 

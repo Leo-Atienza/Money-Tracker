@@ -108,7 +108,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
 
               // Title
               Text(
-                'Money Tracker',
+                'FinanceFlow',
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: theme.colorScheme.onSurface,
@@ -404,7 +404,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
         content: const Text(
           'To reset your PIN, you will need to clear the app data from your device settings. '
           'This will delete all your data including expenses, budgets, and settings.\n\n'
-          'Go to: Settings > Apps > Money Tracker > Storage > Clear Data',
+          'Go to: Settings > Apps > FinanceFlow > Storage > Clear Data',
         ),
         actions: [
           TextButton(

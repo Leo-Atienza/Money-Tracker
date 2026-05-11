@@ -164,7 +164,7 @@ class BackupHelper {
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
-          subject: 'Money Tracker Backup',
+          subject: 'FinanceFlow Backup',
           text:
               'Backup created on ${DateFormat.yMMMd().format(DateTime.now())}',
         ),
@@ -324,7 +324,7 @@ class BackupHelper {
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
-          subject: 'Money Tracker CSV Export',
+          subject: 'FinanceFlow CSV Export',
         ),
       );
     } catch (e) {
@@ -571,7 +571,7 @@ class BackupHelper {
         await SharePlus.instance.share(
           ShareParams(
             files: [XFile(localBackupPath)],
-            subject: 'Money Tracker Backup',
+            subject: 'FinanceFlow Backup',
             text:
                 'Backup created on ${DateFormat.yMMMd().format(DateTime.now())}',
           ),

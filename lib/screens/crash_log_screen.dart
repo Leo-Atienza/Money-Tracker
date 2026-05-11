@@ -37,7 +37,7 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
   Future<void> _share(String content) async {
     if (content.trim().isEmpty) return;
     await SharePlus.instance.share(
-      ShareParams(text: content, subject: 'Money Tracker Crash Log'),
+      ShareParams(text: content, subject: 'FinanceFlow Crash Log'),
     );
   }
 

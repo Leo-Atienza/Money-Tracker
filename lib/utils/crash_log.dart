@@ -248,7 +248,7 @@ class CrashLog {
     );
     final buffer = StringBuffer()
       ..writeln('===== $timestamp =====')
-      ..writeln('App: Money Tracker $_appVersion')
+      ..writeln('App: FinanceFlow $_appVersion')
       ..writeln('Platform: $platform');
     if (context != null && context.isNotEmpty) {
       buffer.writeln('Context: ${redactPii(context)}');

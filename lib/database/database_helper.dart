@@ -3508,7 +3508,7 @@ class DatabaseHelper {
       throw BackupRestoreException(
         'Backup was created with a newer schema version ($backupSchemaVersion) '
         'than the installed app (${DatabaseConstants.databaseVersion}). '
-        'Please update Money Tracker before restoring this backup.',
+        'Please update FinanceFlow before restoring this backup.',
       );
     }
 

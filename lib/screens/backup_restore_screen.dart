@@ -717,7 +717,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Text(
-                  'This backup was created with a newer version of Money Tracker. '
+                  'This backup was created with a newer version of FinanceFlow. '
                   'Please update the app before restoring this backup.',
                 ),
                 backgroundColor:

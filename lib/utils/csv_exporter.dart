@@ -67,7 +67,7 @@ class CsvExporter {
     final now = DateTime.now();
 
     // Report header
-    csvData.writeln('Money Tracker - Expense Report');
+    csvData.writeln('FinanceFlow - Expense Report');
     csvData.writeln('Generated: ${DateFormat('yyyy-MM-dd HH:mm').format(now)}');
     csvData.writeln('');
 
@@ -196,7 +196,7 @@ class CsvExporter {
     final now = DateTime.now();
 
     // Report header
-    csvData.writeln('Money Tracker - Income Report');
+    csvData.writeln('FinanceFlow - Income Report');
     csvData.writeln('Generated: ${DateFormat('yyyy-MM-dd HH:mm').format(now)}');
     csvData.writeln('');
 
@@ -257,7 +257,7 @@ class CsvExporter {
     final now = DateTime.now();
 
     // Report header
-    csvData.writeln('Money Tracker - All Transactions Report');
+    csvData.writeln('FinanceFlow - All Transactions Report');
     csvData.writeln('Generated: ${DateFormat('yyyy-MM-dd HH:mm').format(now)}');
     csvData.writeln('');
 

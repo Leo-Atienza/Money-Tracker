@@ -422,7 +422,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Column(
                     children: [
                       Text(
-                        'Money Tracker',
+                        'FinanceFlow',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),

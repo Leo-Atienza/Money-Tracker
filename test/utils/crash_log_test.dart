@@ -43,7 +43,7 @@ void main() {
     final content = await CrashLog.readAll();
     expect(content, contains('Exception: boom'));
     expect(content, contains('Context: test'));
-    expect(content, contains('App: Money Tracker test+0'));
+    expect(content, contains('App: FinanceFlow test+0'));
   });
 
   test('rotates when active file exceeds maxLogBytes', () async {

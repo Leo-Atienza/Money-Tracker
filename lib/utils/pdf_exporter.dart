@@ -339,7 +339,7 @@ class PdfExporter {
             pw.Divider(),
             pw.SizedBox(height: 8),
             pw.Text(
-              'Money Tracker - Financial Report',
+              'FinanceFlow - Financial Report',
               style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
               textAlign: pw.TextAlign.center,
             ),
