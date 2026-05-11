@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
+import 'clock.dart';
 import 'secure_prefs.dart';
 
 /// Helper class for PIN-based app security
@@ -58,7 +59,7 @@ class PinSecurityHelper {
     if (lockoutUntil == null) return false;
 
     final lockoutTime = DateTime.fromMillisecondsSinceEpoch(lockoutUntil);
-    if (DateTime.now().isBefore(lockoutTime)) {
+    if (Clock.instance.now().isBefore(lockoutTime)) {
       return true;
     }
 
@@ -75,7 +76,7 @@ class PinSecurityHelper {
     if (lockoutUntil == null) return 0;
 
     final lockoutTime = DateTime.fromMillisecondsSinceEpoch(lockoutUntil);
-    final remaining = lockoutTime.difference(DateTime.now()).inSeconds;
+    final remaining = lockoutTime.difference(Clock.instance.now()).inSeconds;
 
     return remaining > 0 ? remaining : 0;
   }
@@ -136,7 +137,7 @@ class PinSecurityHelper {
 
     if (failedAttempts >= _maxFailedAttempts) {
       // Lock out the user
-      final lockoutUntil = DateTime.now()
+      final lockoutUntil = Clock.instance.now()
           .add(Duration(minutes: _lockoutDurationMinutes))
           .millisecondsSinceEpoch;
       await SecurePrefs.writeInt(_lockoutUntilKey, lockoutUntil);

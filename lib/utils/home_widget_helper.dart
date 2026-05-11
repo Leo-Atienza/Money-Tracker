@@ -3,6 +3,7 @@ import 'package:home_widget/home_widget.dart';
 import 'package:flutter/foundation.dart';
 import '../database/database_helper.dart';
 import '../providers/app_state.dart';
+import 'clock.dart';
 import 'currency_helper.dart';
 import 'pin_security_helper.dart';
 import 'widget_payload.dart';
@@ -43,7 +44,7 @@ class HomeWidgetHelper {
   /// the widget would render `0.00` even though the DB has the data.
   static Future<void> updateWidget(AppState appState) async {
     try {
-      final now = DateTime.now();
+      final now = Clock.instance.now();
       final db = DatabaseHelper();
       final totals = await db.calculateMonthBalance(
         appState.currentAccountId,

@@ -5,6 +5,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import '../models/recurring_expense_model.dart';
 import '../models/budget_model.dart';
+import 'clock.dart';
 
 class NotificationHelper {
   static final NotificationHelper _instance = NotificationHelper._internal();
@@ -154,7 +155,7 @@ class NotificationHelper {
     // Check if we can schedule exact alarms; fall back to inexact if not
     final canUseExact = await canScheduleExactAlarms();
 
-    final now = DateTime.now();
+    final now = Clock.instance.now();
 
     // FIX: For bills on 29th-31st, don't use repeating notifications
     // because DateTimeComponents.dayOfMonthAndTime will silently fail in short months
@@ -377,7 +378,7 @@ class NotificationHelper {
     final canUseExact = await canScheduleExactAlarms();
 
     // Schedule for 1st of next month at 9 AM
-    final now = DateTime.now();
+    final now = Clock.instance.now();
     var scheduledDate = DateTime(now.year, now.month + 1, 1, 9, 0);
 
     // If for some reason that calculation resulted in a past time (unlikely given +1 month), fix it

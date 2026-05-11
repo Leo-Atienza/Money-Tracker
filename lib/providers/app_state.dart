@@ -12,6 +12,7 @@ import '../models/recurring_expense_model.dart';
 import '../models/recurring_income_model.dart';
 import '../models/tag_model.dart';
 import '../models/monthly_balance_model.dart';
+import '../utils/clock.dart';
 import '../utils/settings_helper.dart';
 import '../utils/currency_helper.dart';
 import '../utils/notification_helper.dart';
@@ -51,7 +52,7 @@ class AppState extends ChangeNotifier {
 
   // ============== CURRENT STATE ==============
   Account? _currentAccount;
-  DateTime _selectedMonth = DateHelper.startOfMonth(DateTime.now());
+  DateTime _selectedMonth = DateHelper.startOfMonth(Clock.instance.now());
   bool _isOnboardingComplete = false;
   bool _isInitialized = false;
   bool get isOnboardingComplete => _isOnboardingComplete;
@@ -546,14 +547,14 @@ class AppState extends ChangeNotifier {
   Future<void> ensureMonthLoaded(DateTime month) async {
     final key = _monthKey(month);
     if (_loadedExpenseMonths.contains(key) && _loadedIncomeMonths.contains(key)) {
-      _monthAccessTimes[key] = DateTime.now();
+      _monthAccessTimes[key] = Clock.instance.now();
       return;
     }
 
     await _writeMutex.synchronized(() async {
       // Re-check under lock to avoid redundant work
       if (_loadedExpenseMonths.contains(key) && _loadedIncomeMonths.contains(key)) {
-        _monthAccessTimes[key] = DateTime.now();
+        _monthAccessTimes[key] = Clock.instance.now();
         return;
       }
 
@@ -568,7 +569,7 @@ class AppState extends ChangeNotifier {
           }
         }
         _loadedExpenseMonths.add(key);
-        _monthAccessTimes[key] = DateTime.now();
+        _monthAccessTimes[key] = Clock.instance.now();
       }
 
       if (!_loadedIncomeMonths.contains(key)) {
@@ -582,7 +583,7 @@ class AppState extends ChangeNotifier {
           }
         }
         _loadedIncomeMonths.add(key);
-        _monthAccessTimes[key] = DateTime.now();
+        _monthAccessTimes[key] = Clock.instance.now();
       }
 
       _pruneDistantMonths(month);
@@ -594,7 +595,7 @@ class AppState extends ChangeNotifier {
         _loadedIncomeMonths.length <= _maxMonthsInMemory) {
       return;
     }
-    final now = DateTime.now();
+    final now = Clock.instance.now();
     // FIX Bug #4 (defense-in-depth): never evict the real current month
     // from memory. The home-screen widget reads DB directly now, but
     // keeping the current month resident also avoids spurious zeroes in
@@ -1685,7 +1686,7 @@ class AppState extends ChangeNotifier {
   /// FIX: Validates that the template's category still exists before creating transaction.
   /// If category was deleted, falls back to 'Uncategorized' or first available category.
   Future<void> useTemplate(QuickTemplate template) async {
-    final now = DateTime.now();
+    final now = Clock.instance.now();
     final date = DateHelper.normalize(now);
 
     // FIX: Validate category still exists

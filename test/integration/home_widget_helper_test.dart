@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:budget_tracker/database/database_helper.dart';
 import 'package:budget_tracker/providers/app_state.dart';
@@ -41,6 +42,16 @@ void main() {
       // for the ones we don't exercise here.
       return true;
     });
+
+    // Phase 6.4 — `updateWidget` now consults `PinSecurityHelper.isPinEnabled`
+    // before publishing the payload. `PinSecurityHelper` reads through
+    // `SecurePrefs`, which falls back to `SharedPreferences` when the
+    // platform channel for `flutter_secure_storage` is unavailable (true
+    // in `flutter_test`). Without a SharedPreferences mock the fallback
+    // throws `MissingPluginException` and `updateWidget`'s try/catch
+    // swallows the whole pipeline — these tests would then see null for
+    // every captured payload field.
+    SharedPreferences.setMockInitialValues(<String, Object>{});
 
     await makeFreshDb();
   });

@@ -1,3 +1,4 @@
+import 'clock.dart';
 import 'currency_helper.dart';
 
 /// Comprehensive validation utilities for the app
@@ -170,7 +171,7 @@ class Validators {
 
   /// Check if date is in valid range (5 years past to 1 year future)
   static bool isDateInValidRange(DateTime date) {
-    final now = DateTime.now();
+    final now = Clock.instance.now();
     final fiveYearsAgo = DateTime(now.year - 5, now.month, now.day);
     final oneYearFuture = DateTime(now.year + 1, now.month, now.day);
 
@@ -181,13 +182,13 @@ class Validators {
 
   /// Get the earliest allowed date for transaction entry (5 years ago)
   static DateTime getTransactionMinDate() {
-    final now = DateTime.now();
+    final now = Clock.instance.now();
     return DateTime(now.year - 5, now.month, now.day);
   }
 
   /// Get the latest allowed date for transaction entry (1 year future)
   static DateTime getTransactionMaxDate() {
-    final now = DateTime.now();
+    final now = Clock.instance.now();
     return DateTime(now.year + 1, now.month, now.day);
   }
 
@@ -195,19 +196,19 @@ class Validators {
   static DateTime getFilterMinDate() => getTransactionMinDate();
 
   /// Get the latest allowed date for filtering/history (today)
-  static DateTime getFilterMaxDate() => DateTime.now();
+  static DateTime getFilterMaxDate() => Clock.instance.now();
 
   /// Get the earliest allowed date for recurring transaction end dates (today)
-  static DateTime getRecurringEndMinDate() => DateTime.now();
+  static DateTime getRecurringEndMinDate() => Clock.instance.now();
 
   /// Get the latest allowed date for recurring transaction end dates (10 years future)
   static DateTime getRecurringEndMaxDate() {
-    return DateTime.now().add(const Duration(days: 3650));
+    return Clock.instance.now().add(const Duration(days: 3650));
   }
 
   /// Check if date is in the future
   static bool isFutureDate(DateTime date) {
-    final now = DateTime.now();
+    final now = Clock.instance.now();
     final today = DateTime(now.year, now.month, now.day);
     final dateOnly = DateTime(date.year, date.month, date.day);
 
