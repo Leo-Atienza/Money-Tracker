@@ -243,22 +243,89 @@ class CrashLog {
     String? context,
   }) {
     final timestamp = DateTime.now().toIso8601String();
-    final platform =
-        '${Platform.operatingSystem} ${Platform.operatingSystemVersion}';
+    final platform = redactPii(
+      '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+    );
     final buffer = StringBuffer()
       ..writeln('===== $timestamp =====')
       ..writeln('App: Money Tracker $_appVersion')
       ..writeln('Platform: $platform');
     if (context != null && context.isNotEmpty) {
-      buffer.writeln('Context: $context');
+      buffer.writeln('Context: ${redactPii(context)}');
     }
-    buffer.writeln('Error: $error');
+    buffer.writeln('Error: ${redactPii(error)}');
     if (stack != null) {
       buffer
         ..writeln('Stack:')
-        ..writeln(stack.toString());
+        ..writeln(redactPii(stack.toString()));
     }
     buffer.writeln();
     return buffer.toString();
   }
+
+  // ---------------------------------------------------------------------------
+  // Phase 6.6: PII redaction
+  // ---------------------------------------------------------------------------
+
+  /// Mask the highest-likelihood PII leaks before a record is persisted.
+  /// Targets four classes that show up empirically in this app's logs:
+  ///
+  /// - **User paths.** The build host's username typically appears verbatim
+  ///   in every stack trace as `C:\Users\jane\…` (or `/home/jane/…`).
+  ///   The path *structure* survives; only the username is masked.
+  /// - **Email addresses.** Defensive — the app doesn't handle them today,
+  ///   but a future export-share flow could surface one in a wrapped
+  ///   exception message.
+  /// - **Currency-tagged amounts** (`$`, `€`, `£`, `¥`, `₹`). The app's
+  ///   core data is money; any DB failure message can carry a formatted
+  ///   balance into the error string.
+  /// - **Long digit runs** that look like credit-card numbers (16 digits
+  ///   with optional separators). The app doesn't store cards, but a
+  ///   pasted-in description could.
+  ///
+  /// Pure function — safe to call from any zone, never throws.
+  @visibleForTesting
+  static String redactPii(String input) {
+    if (input.isEmpty) return input;
+    var out = input;
+    out = out.replaceAll(_emailRe, '[email]');
+    out = out.replaceAllMapped(
+      _winUserPathRe,
+      (m) => '${m.group(1)}[user]',
+    );
+    out = out.replaceAllMapped(
+      _unixUserPathRe,
+      (m) => '${m.group(1)}[user]',
+    );
+    out = out.replaceAll(_creditCardRe, '[cc]');
+    out = out.replaceAll(_currencyRe, '[amount]');
+    return out;
+  }
+
+  static final RegExp _emailRe = RegExp(
+    r'\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b',
+  );
+
+  /// `C:\Users\jane\…` or `C:/Users/jane/…` — capture the prefix so the
+  /// path keeps its shape (`C:\Users\[user]\…`).
+  static final RegExp _winUserPathRe = RegExp(
+    r'([A-Za-z]:[\\/]Users[\\/])[^\\/\s\x22\x27]+',
+  );
+
+  /// `/home/jane/…` and `/Users/jane/…` — same shape-preserving capture.
+  static final RegExp _unixUserPathRe = RegExp(
+    r'(/(?:home|Users)/)[^/\s\x22\x27]+',
+  );
+
+  /// 16 digits with optional `-` / space separators (`4111-1111-1111-1111`,
+  /// `4111 1111 1111 1111`, `4111111111111111`). Loose enough to catch
+  /// pasted card numbers, tight enough that an order id rarely matches.
+  static final RegExp _creditCardRe = RegExp(
+    r'\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b',
+  );
+
+  /// Currency-tagged amounts: `$123`, `$1,234.56`, `€5.00`, etc.
+  static final RegExp _currencyRe = RegExp(
+    r'[\$€£¥₹]\s?\d[\d,]*(?:\.\d+)?',
+  );
 }

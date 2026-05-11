@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/pin_security_helper.dart';
 import '../utils/haptic_helper.dart';
+import '../utils/secure_window.dart';
 import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
 
@@ -353,6 +354,10 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
       }
 
       if (success) {
+        // Phase 6.5: with a PIN now set, raise FLAG_SECURE so screenshots
+        // and Recents thumbnails are blocked immediately — no waiting for
+        // the next cold start / resume to pick the change up.
+        await SecureWindow.setSecure(true);
         await HapticHelper.success();
         if (mounted) {
           Navigator.pop(context, true);

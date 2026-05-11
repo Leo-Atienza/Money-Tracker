@@ -74,4 +74,79 @@ void main() {
     final content = await CrashLog.readAll();
     expect(content.trim(), isEmpty);
   });
+
+  // Phase 6.6: PII redactor coverage. Each test exercises one input class
+  // end-to-end via `redactPii`, plus one integration test confirms the
+  // formatter actually invokes the redactor when writing a record.
+
+  group('PII redactor', () {
+    test('masks Windows user paths but keeps the shape', () {
+      const input =
+          r'#0      _RootZone.runUnary (file:///C:/Users/jane.doe/AppData/dart-sdk/foo.dart:42:5)';
+      final out = CrashLog.redactPii(input);
+      expect(out, contains(r'C:/Users/[user]/AppData'));
+      expect(out, isNot(contains('jane.doe')));
+    });
+
+    test('masks Unix /home and /Users paths', () {
+      const input =
+          '#0 main (file:///home/alice/code/app.dart) → /Users/bob/Library/logs';
+      final out = CrashLog.redactPii(input);
+      expect(out, contains('/home/[user]/code'));
+      expect(out, contains('/Users/[user]/Library'));
+      expect(out, isNot(contains('alice')));
+      expect(out, isNot(contains('bob')));
+    });
+
+    test('masks email addresses', () {
+      const input = 'SQLError on user "foo+bar@example.co.uk" insertion';
+      final out = CrashLog.redactPii(input);
+      expect(out, contains('[email]'));
+      expect(out, isNot(contains('@example.co.uk')));
+    });
+
+    test('masks currency-tagged amounts', () {
+      const input = 'Balance overflow: \$1,234.56 + €99.00 + £5 + ¥1000';
+      final out = CrashLog.redactPii(input);
+      expect(out, contains('[amount]'));
+      expect(out, isNot(contains('1,234.56')));
+      expect(out, isNot(contains('€99.00')));
+    });
+
+    test('masks credit card-shaped digit runs', () {
+      const input = 'Bad description: card 4111-1111-1111-1111 was rejected';
+      final out = CrashLog.redactPii(input);
+      expect(out, contains('[cc]'));
+      expect(out, isNot(contains('4111-1111-1111-1111')));
+    });
+
+    test('leaves plain digits and ids untouched', () {
+      const input = 'expense id=12345 month=2026-05 row count=42';
+      final out = CrashLog.redactPii(input);
+      // Plain digits without currency / cc / path / email context are kept
+      // verbatim so debugging stays useful.
+      expect(out, equals(input));
+    });
+
+    test('returns empty string unchanged', () {
+      expect(CrashLog.redactPii(''), equals(''));
+    });
+
+    test('record() persists the redacted form, not the raw', () async {
+      await CrashLog.record(
+        Exception(r'Failed to write C:\Users\leooa\app.db: \$500 overdrawn'),
+        stack: StackTrace.fromString(
+          r'#0 main (file:///C:/Users/leooa/code/main.dart:1:1)',
+        ),
+        context: 'restore_backup user=leo@example.com',
+      );
+      final content = await CrashLog.readAll();
+      expect(content, isNot(contains('leooa')));
+      expect(content, isNot(contains('leo@example.com')));
+      expect(content, isNot(contains(r'$500')));
+      expect(content, contains(r'C:\Users\[user]\app.db'));
+      expect(content, contains('[email]'));
+      expect(content, contains('[amount]'));
+    });
+  });
 }

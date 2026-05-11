@@ -20,6 +20,7 @@ import '../utils/decimal_helper.dart';
 import '../utils/date_helper.dart';
 import '../services/onboarding_service.dart';
 import '../utils/pin_security_helper.dart';
+import '../utils/secure_window.dart';
 import '../utils/home_widget_helper.dart';
 import 'dart:async';
 
@@ -2292,6 +2293,10 @@ class AppState extends ChangeNotifier {
   Future<void> initializeLockState() async {
     final pinEnabled = await PinSecurityHelper.isPinEnabled();
     _isLocked = pinEnabled; // Start locked if PIN is enabled
+    // Phase 6.5: set FLAG_SECURE so screenshots / Recents thumbnails are
+    // blocked from the very first frame when a PIN is configured. Cheap
+    // and idempotent — re-runs on every cold start.
+    unawaited(SecureWindow.setSecure(pinEnabled));
   }
 
   /// Unlock the app (called after successful PIN verification)
