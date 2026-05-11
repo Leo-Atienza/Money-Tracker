@@ -41,6 +41,7 @@ dependencies:
   app_settings: ^7.0.0
 
   cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
   decimal: ^3.2.4
   crypto: ^3.0.5
 

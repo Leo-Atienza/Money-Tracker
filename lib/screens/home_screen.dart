@@ -1,30 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/spacing.dart';
-import '../main.dart';
+import '../main.dart' show AppColors;
+import '../theme/luminous_app_theme.dart';
 import '../providers/app_state.dart';
 import '../models/expense_model.dart';
 import '../utils/accessibility_helper.dart';
 import '../utils/haptic_helper.dart';
 import '../utils/date_helper.dart';
-import '../utils/premium_animations.dart';
+import '../utils/premium_animations.dart' show PremiumPageRoute, AnimatedCounter;
 import '../widgets/category_tile.dart';
+import '../widgets/luminous/glass_surface.dart';
 import 'add_expense_screen.dart';
-import 'add_income_screen.dart';
 import 'add_payment_dialog.dart';
-import 'budget_screen.dart';
+import 'history_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  // FIX #10: Extract magic numbers to named constants for clarity
-  static const double _baseExpandedHeight =
-      100.0; // Base height for expanded app bar
-  static const double _textScaleMultiplier = 16.0; // Base font size for scaling
-  static const double _textScaleFactor =
-      1.5; // Multiplier for text scale adjustment
-  static const double _contentTopPadding =
-      50.0; // Top padding before status bar
   // CRITICAL FIX: Reduced from 1200.0 to 500.0 for better usability
   // 500.0 is responsive enough while still preventing accidental swipes during vertical scrolling
   static const double _swipeVelocityThreshold =
@@ -41,101 +35,179 @@ class HomeScreen extends StatelessWidget {
     final monthName = monthNameAndExpenses.$1;
     final expenses = monthNameAndExpenses.$2;
 
-    // Calculate accessible height based on text scale
-    final textScaler = MediaQuery.textScalerOf(context);
-    final expandedHeight = _baseExpandedHeight +
-        (textScaler.scale(_textScaleMultiplier) * _textScaleFactor);
-    final statusBarHeight = MediaQuery.of(context).padding.top;
-
     return Scaffold(
-      // FIX: Wrap body in GestureDetector for month swiping, but exclude horizontal scrollables
-      body: GestureDetector(
-        onHorizontalDragEnd: (details) {
-          // Swipe right = previous month, Swipe left = next month
-          if (details.primaryVelocity != null) {
-            if (details.primaryVelocity! > _swipeVelocityThreshold) {
-              HapticHelper.selectionClick();
-              context.read<AppState>().goToPreviousMonth();
-            } else if (details.primaryVelocity! < -_swipeVelocityThreshold) {
-              HapticHelper.selectionClick();
-              context.read<AppState>().goToNextMonth();
-            }
-          }
-        },
-        // FIX: Use deferToChild to allow horizontal scrollables (Quick Add) to work
-        behavior: HitTestBehavior.deferToChild,
-        // FIX: Add pull-to-refresh to reload data
-        child: RefreshIndicator(
-          onRefresh: () async {
-            // Reload expenses and income for current month
-            await context.read<AppState>().refreshCurrentMonthData();
-          },
-          child: CustomScrollView(
-            slivers: [
-              // App Bar with Month Navigation
-              SliverAppBar(
-                backgroundColor: theme.colorScheme.surface,
-                elevation: 0,
-                pinned: true,
-                // Use flexible height based on text scale factor for accessibility
-                expandedHeight: expandedHeight,
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      Spacing.screenPadding,
-                      _contentTopPadding + statusBarHeight,
-                      Spacing.screenPadding,
-                      Spacing.md,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Month Navigation
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+      backgroundColor: Colors.transparent,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SafeArea(
+            bottom: false,
+            child: GlassHeaderStrip(
+              child: SizedBox(
+                height: 56,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: LuminousTokens.containerPadding,
+                  ),
+                  child: Row(
+                    children: [
+                      Semantics(
+                        label: 'Open settings',
+                        button: true,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                PremiumPageRoute(page: const SettingsScreen()),
+                              );
+                            },
+                            child: Ink(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color:
+                                      Colors.white.withValues(alpha: 0.4),
+                                ),
+                              ),
+                              child: CircleAvatar(
+                                radius: 20,
+                                backgroundColor:
+                                    theme.colorScheme.surfaceContainer,
+                                child: Icon(
+                                  Icons.person_outline_rounded,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'FinanceFlow',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.displayLarge?.copyWith(
+                            fontSize: 26,
+                            height: 1.1,
+                          ),
+                        ),
+                      ),
+                      AccessibilityHelper.semanticIconButton(
+                        icon: Icons.search_rounded,
+                        label: 'Open transaction history',
+                        color: theme.colorScheme.primary,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            PremiumPageRoute(page: const HistoryScreen()),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onHorizontalDragEnd: (details) {
+                if (details.primaryVelocity != null) {
+                  if (details.primaryVelocity! > _swipeVelocityThreshold) {
+                    HapticHelper.selectionClick();
+                    context.read<AppState>().goToPreviousMonth();
+                  } else if (details.primaryVelocity! <
+                      -_swipeVelocityThreshold) {
+                    HapticHelper.selectionClick();
+                    context.read<AppState>().goToNextMonth();
+                  }
+                }
+              },
+              behavior: HitTestBehavior.deferToChild,
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  await context.read<AppState>().refreshCurrentMonthData();
+                },
+                child: CustomScrollView(
+                  slivers: [
+                    // Month navigation (glass redesign strip)
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(
+                        LuminousTokens.containerPadding,
+                        16,
+                        LuminousTokens.containerPadding,
+                        8,
+                      ),
+                      sliver: SliverToBoxAdapter(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            AccessibilityHelper.semanticIconButton(
-                              icon: Icons.chevron_left,
-                              label: 'Previous month',
-                              onPressed: () =>
-                                  context.read<AppState>().goToPreviousMonth(),
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: () =>
+                                    context.read<AppState>().goToPreviousMonth(),
+                                child: SizedBox(
+                                  width: 40,
+                                  height: 40,
+                                  child: Icon(
+                                    Icons.chevron_left,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
                             ),
                             Semantics(
                               label:
-                                  'Current month: $monthName. Tap to select a different month, long press to go to today.',
+                                  'Current month: $monthName. Tap to pick a month, long press for today.',
                               button: true,
                               child: InkWell(
                                 onTap: () => _showMonthPicker(context),
                                 onLongPress: () =>
                                     context.read<AppState>().goToToday(),
-                                child: Text(
-                                  monthName.toUpperCase(),
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 1.2,
-                                    color: theme.colorScheme.onSurface,
+                                borderRadius: BorderRadius.circular(12),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  child: Text(
+                                    monthName,
+                                    style: theme.textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                            AccessibilityHelper.semanticIconButton(
-                              icon: Icons.chevron_right,
-                              label: 'Next month',
-                              onPressed: () =>
-                                  context.read<AppState>().goToNextMonth(),
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: () =>
+                                    context.read<AppState>().goToNextMonth(),
+                                child: SizedBox(
+                                  width: 40,
+                                  height: 40,
+                                  child: Icon(
+                                    Icons.chevron_right,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-              ),
 
               // Financial Summary Card
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(Spacing.screenPadding, Spacing.xs, Spacing.screenPadding, 0),
+                padding: const EdgeInsets.fromLTRB(LuminousTokens.containerPadding, 0, LuminousTokens.containerPadding, 0),
                 sliver: SliverToBoxAdapter(
                   child: Semantics(
                     label: 'Financial summary card',
@@ -174,23 +246,47 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
 
-              // Recent Transactions Header
+              // Recent Transactions
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(Spacing.screenPadding, Spacing.xl, Spacing.screenPadding, Spacing.sm),
+                padding: const EdgeInsets.fromLTRB(
+                  LuminousTokens.containerPadding,
+                  LuminousTokens.sectionMargin,
+                  LuminousTokens.containerPadding,
+                  LuminousTokens.stackGap,
+                ),
                 sliver: SliverToBoxAdapter(
-                  child: Text(
-                    'RECENT TRANSACTIONS',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Recent Transactions',
+                          style: theme.textTheme.headlineMedium,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            PremiumPageRoute(page: const HistoryScreen()),
+                          );
+                        },
+                        child: Text(
+                          'SEE ALL',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
 
-              // Expenses List
-              // FIX #7: Make empty state clickable to add expense
+              // Expenses list (inside single glass sheet like stitch mock)
               expenses.isEmpty
                   ? SliverFillRemaining(
+                      hasScrollBody: false,
                       child: Semantics(
                         label:
                             'No transactions this month, tap to add your first expense',
@@ -215,16 +311,14 @@ class HomeScreen extends StatelessWidget {
                                 const SizedBox(height: Spacing.md),
                                 Text(
                                   'No transactions this month',
-                                  style: TextStyle(
-                                    fontSize: 16,
+                                  style: theme.textTheme.bodyLarge?.copyWith(
                                     color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                                 const SizedBox(height: Spacing.xs),
                                 Text(
-                                  'Tap to add your first expense',
-                                  style: TextStyle(
-                                    fontSize: 14,
+                                  'Tap to add',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
                                     color: theme.colorScheme.primary,
                                   ),
                                 ),
@@ -235,25 +329,39 @@ class HomeScreen extends StatelessWidget {
                       ),
                     )
                   : SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(Spacing.screenPadding, 0, Spacing.screenPadding, 160),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          final expense = expenses[index];
-                          return StaggeredListItem(
-                            index: index,
-                            delay: const Duration(milliseconds: 30),
-                            child: _ExpenseCard(expense: expense),
-                          );
-                        }, childCount: expenses.length),
+                      padding: const EdgeInsets.fromLTRB(
+                        LuminousTokens.containerPadding,
+                        0,
+                        LuminousTokens.containerPadding,
+                        140,
+                      ),
+                      sliver: SliverToBoxAdapter(
+                        child: GlassPanel(
+                          padding: EdgeInsets.zero,
+                          child: Column(
+                            children: [
+                              for (var i = 0; i < expenses.length; i++) ...[
+                                if (i > 0)
+                                  Divider(
+                                    height: 1,
+                                    thickness: 1,
+                                    color:
+                                        Colors.white.withValues(alpha: 0.35),
+                                  ),
+                                _GlassHomeExpenseTile(expense: expenses[i]),
+                              ],
+                            ],
+                          ),
+                        ),
                       ),
                     ),
             ],
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
-
-      // Floating Action Buttons
-      floatingActionButton: const _FloatingActionButtons(),
     );
   }
 
@@ -465,324 +573,273 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final appColors = theme.extension<AppColors>()!;
-    // Optimize: Only watch the specific financial data needed
-    final financialData = context
-        .select<AppState, (double, double, double, double, double, double)>(
+    final financialData = context.select<AppState, (double, double, double, double)>(
       (s) => (
         s.totalIncome,
         s.totalSpent,
         s.availableIncomeBalance,
-        s.totalPaid,
-        s.totalRemaining,
-        s.currency.length.toDouble(), // Include currency for rebuilding
+        s.currency.length.toDouble(),
       ),
     );
     final totalIncome = financialData.$1;
     final totalSpent = financialData.$2;
-    final availableIncomeBalance = financialData.$3;
-    // totalPaid removed from display per user request
-    final totalRemaining = financialData.$5;
-    final appState = context.read<AppState>(); // For format methods
+    final totalBalance = financialData.$3;
+    final appState = context.read<AppState>();
+
+    BoxDecoration insetTile(BuildContext ctx) => BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Colors.white.withValues(alpha: 0.3),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+        );
 
     return ScaleTransition(
       scale: _scaleAnimation,
-      child: Container(
-        padding: const EdgeInsets.all(Spacing.screenPadding),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(Spacing.radiusXLarge),
-          border: Border.all(color: theme.colorScheme.outline),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: GlassPanel(
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            // Income & Expenses Row (smaller, secondary)
-            Row(
-              children: [
-                Expanded(
-                  child: Semantics(
-                    label:
-                        'Income: ${appState.formatWithCurrency(totalIncome)}',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            ExcludeSemantics(
-                              child: Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: appColors.incomeGreen,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: Spacing.xs),
-                            Text(
-                              'INCOME',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 1.2,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: Spacing.xxs),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerLeft,
-                          child: AnimatedCounter(
-                            value: totalIncome,
-                            prefix: appState.currency,
-                            compact: totalIncome > 100000,
-                            decimalPlaces: totalIncome > 100000 ? 1 : 2,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: appColors.incomeGreen,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+            Positioned(
+              top: -40,
+              right: -40,
+              child: IgnorePointer(
+                child: Container(
+                  width: 128,
+                  height: 128,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: theme.colorScheme.primaryContainer.withValues(alpha: 0.2),
                   ),
                 ),
-                ExcludeSemantics(
-                  child: Container(
-                    width: 1,
-                    height: 40,
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
-                Expanded(
-                  child: Semantics(
-                    label:
-                        'Expenses: ${appState.formatWithCurrency(totalSpent)}',
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: Spacing.screenPadding),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              ExcludeSemantics(
-                                child: Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: theme.colorScheme.onSurface,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: Spacing.xs),
-                              Text(
-                                'EXPENSES',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1.2,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: Spacing.xxs),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: AnimatedCounter(
-                              value: totalSpent,
-                              prefix: appState.currency,
-                              compact: totalSpent > 100000,
-                              decimalPlaces: totalSpent > 100000 ? 1 : 2,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: theme.colorScheme.onSurface,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-
-            const SizedBox(height: Spacing.lg),
-
-            // PRIMARY: Available Balance & Remaining - Large and prominent
-            Row(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Available Balance - Primary metric
-                // FIX P3-18: Added liveRegion for screen reader announcements when balance changes
-                Expanded(
-                  child: Semantics(
-                    label:
-                        'Available balance: ${appState.formatWithCurrency(availableIncomeBalance)}, calculated as income minus paid expenses',
-                    liveRegion:
-                        true, // Announces balance changes to screen readers
-                    child: Container(
-                      padding: const EdgeInsets.all(Spacing.md),
-                      decoration: BoxDecoration(
-                        color: availableIncomeBalance >= 0
-                            ? appColors.incomeGreen.withAlpha(20)
-                            : appColors.expenseRed.withAlpha(20),
-                        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-                        border: Border.all(
-                          color: availableIncomeBalance >= 0
-                              ? appColors.incomeGreen.withAlpha(50)
-                              : appColors.expenseRed.withAlpha(50),
+                Semantics(
+                  label:
+                      'Total balance ${appState.formatWithCurrency(totalBalance)}',
+                  liveRegion: true,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Total Balance',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              ExcludeSemantics(
-                                child: Icon(
-                                  Icons.account_balance_wallet,
-                                  size: 18,
-                                  color: availableIncomeBalance >= 0
-                                      ? appColors.incomeGreen
-                                      : appColors.expenseRed,
-                                ),
-                              ),
-                              const SizedBox(width: Spacing.xs),
-                              Text(
-                                'AVAILABLE',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1.2,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: Spacing.xs),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: AnimatedCounter(
-                              value: availableIncomeBalance,
-                              prefix: availableIncomeBalance < 0
-                                  ? '-${appState.currency}'
-                                  : appState.currency,
-                              compact: availableIncomeBalance.abs() > 100000,
-                              decimalPlaces:
-                                  availableIncomeBalance.abs() > 100000 ? 1 : 2,
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w700,
-                                color: availableIncomeBalance >= 0
-                                    ? appColors.incomeGreen
-                                    : appColors.expenseRed,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: Spacing.xxs),
-                          Text(
-                            'Income - Paid',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 4),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: AnimatedCounter(
+                          value: totalBalance,
+                          prefix: totalBalance < 0
+                              ? '-${appState.currency}'
+                              : appState.currency,
+                          compact: totalBalance.abs() > 100000,
+                          decimalPlaces: totalBalance.abs() > 100000 ? 1 : 2,
+                          style: theme.textTheme.displayLarge
+                              ?.copyWith(fontSize: 34, height: 41 / 34),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
-
-                const SizedBox(width: Spacing.sm),
-
-                // Remaining Balance - Primary metric
-                // FIX P3-18: Added liveRegion for screen reader announcements when balance changes
-                Expanded(
-                  child: Semantics(
-                    label:
-                        'Remaining to pay: ${appState.formatWithCurrency(totalRemaining)}',
-                    liveRegion:
-                        true, // Announces balance changes to screen readers
-                    child: Container(
-                      padding: const EdgeInsets.all(Spacing.md),
-                      decoration: BoxDecoration(
-                        color: totalRemaining > 0
-                            ? appColors.warningOrange.withAlpha(20)
-                            : appColors.incomeGreen.withAlpha(20),
-                        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-                        border: Border.all(
-                          color: totalRemaining > 0
-                              ? appColors.warningOrange.withAlpha(50)
-                              : appColors.incomeGreen.withAlpha(50),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                const SizedBox(height: LuminousTokens.stackGap),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Semantics(
+                        label:
+                            'Income ${appState.formatWithCurrency(totalIncome)}',
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: insetTile(context),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              ExcludeSemantics(
-                                child: Icon(
-                                  totalRemaining > 0
-                                      ? Icons.pending_actions
-                                      : Icons.check_circle,
-                                  size: 18,
-                                  color: totalRemaining > 0
-                                      ? appColors.warningOrange
-                                      : appColors.incomeGreen,
-                                ),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.arrow_downward_rounded,
+                                    size: 18,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Income',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: Spacing.xs),
-                              Text(
-                                'REMAINING',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1.2,
-                                  color: theme.colorScheme.onSurfaceVariant,
+                              const SizedBox(height: 8),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: AnimatedCounter(
+                                  value: totalIncome,
+                                  prefix: appState.currency,
+                                  compact: totalIncome > 100000,
+                                  decimalPlaces: totalIncome > 100000 ? 1 : 2,
+                                  style: theme.textTheme.headlineMedium,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: Spacing.xs),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: AnimatedCounter(
-                              value: totalRemaining,
-                              prefix: appState.currency,
-                              compact: totalRemaining > 100000,
-                              decimalPlaces: totalRemaining > 100000 ? 1 : 2,
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w700,
-                                color: totalRemaining > 0
-                                    ? appColors.warningOrange
-                                    : appColors.incomeGreen,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: Spacing.xxs),
-                          Text(
-                            totalRemaining > 0 ? 'To pay' : 'All paid!',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: LuminousTokens.stackGap),
+                    Expanded(
+                      child: Semantics(
+                        label:
+                            'Expenses ${appState.formatWithCurrency(totalSpent)}',
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: insetTile(context),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.arrow_upward_rounded,
+                                    size: 18,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Expenses',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: AnimatedCounter(
+                                  value: totalSpent,
+                                  prefix: appState.currency,
+                                  compact: totalSpent > 100000,
+                                  decimalPlaces: totalSpent > 100000 ? 1 : 2,
+                                  style: theme.textTheme.headlineMedium,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassHomeExpenseTile extends StatelessWidget {
+  final Expense expense;
+
+  const _GlassHomeExpenseTile({required this.expense});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final appState = context.read<AppState>();
+
+    final category = appState.categories
+        .where((c) => c.name == expense.category && c.type == 'expense')
+        .firstOrNull;
+
+    final statusText = expense.isPaid
+        ? 'Paid'
+        : expense.amountPaid > 0
+            ? 'Partial'
+            : 'Unpaid';
+
+    return Semantics(
+      label:
+          '${expense.description}, ${expense.category}, ${appState.currency}${expense.amount.toStringAsFixed(2)}, $statusText',
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            showDialog<void>(
+              context: context,
+              builder: (BuildContext context) =>
+                  AddPaymentDialog(expense: expense),
+            );
+          },
+          onLongPress: () {
+            Navigator.push(
+              context,
+              PremiumPageRoute(page: AddExpenseScreen(expense: expense)),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                CategoryTile(
+                  categoryName: expense.category,
+                  categoryType: 'expense',
+                  color: category?.color,
+                  icon: category?.icon,
+                  size: 48,
+                  borderRadius: 24,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        expense.description.isEmpty
+                            ? '${expense.category} expense'
+                            : expense.description,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        [
+                          expense.category,
+                          DateHelper.getRelativeTime(expense.date),
+                        ].where((e) => e.isNotEmpty).join(' • '),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '-${appState.currency}${expense.amount.toStringAsFixed(2)}',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -1055,405 +1112,6 @@ class _QuickAddBar extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _ExpenseCard extends StatelessWidget {
-  final Expense expense;
-
-  const _ExpenseCard({required this.expense});
-
-  Color _getStatusColor(AppColors appColors) {
-    if (expense.isPaid) return appColors.incomeGreen;
-    if (expense.amountPaid > 0) return appColors.warningOrange;
-    return appColors.expenseRed;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final appColors = theme.extension<AppColors>()!;
-    final appState = context.read<AppState>();
-
-    final statusText = expense.isPaid
-        ? 'Paid'
-        : expense.amountPaid > 0
-            ? 'Partially paid'
-            : 'Unpaid';
-
-    // Get category for icon styling
-    final category = appState.categories
-        .where((c) => c.name == expense.category && c.type == 'expense')
-        .firstOrNull;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: Spacing.sm),
-      child: Semantics(
-        label:
-            '${expense.description}, ${expense.category}, ${appState.currency}${expense.amount.toStringAsFixed(2)}, $statusText',
-        button: true,
-        child: AnimatedPressCard(
-          onTap: () {
-            // Consistent with History screen: tap to pay
-            showDialog(
-              context: context,
-              builder: (BuildContext context) =>
-                  AddPaymentDialog(expense: expense),
-            );
-          },
-          onLongPress: () {
-            // Long press to edit details
-            Navigator.push(
-              context,
-              PremiumPageRoute(page: AddExpenseScreen(expense: expense)),
-            );
-          },
-          borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-          color: theme.colorScheme.surface,
-          border: Border.all(
-            color: theme.brightness == Brightness.dark
-                ? theme.colorScheme.outline.withAlpha(30)
-                : theme.colorScheme.outline.withAlpha(50),
-            width: 1,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: 14),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    // Premium category tile
-                    CategoryTile(
-                      categoryName: expense.category,
-                      categoryType: 'expense',
-                      color: category?.color,
-                      icon: category?.icon,
-                    ),
-                    const SizedBox(width: 14),
-                    // Details
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            expense.description.isEmpty
-                                ? '${expense.category} expense'
-                                : expense.description,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              color: theme.colorScheme.onSurface,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: Spacing.xxs),
-                          Row(
-                            children: [
-                              Text(
-                                expense.category,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              // Show relative time
-                              Builder(
-                                builder: (context) {
-                                  final relativeTime =
-                                      DateHelper.getRelativeTime(expense.date);
-                                  if (relativeTime.isNotEmpty) {
-                                    return Row(
-                                      children: [
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 6,
-                                          ),
-                                          child: Text(
-                                            '•',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              color: theme
-                                                  .colorScheme.onSurfaceVariant
-                                                  .withAlpha(120),
-                                            ),
-                                          ),
-                                        ),
-                                        Text(
-                                          relativeTime,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: theme
-                                                .colorScheme.onSurfaceVariant
-                                                .withAlpha(150),
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  }
-                                  return const SizedBox.shrink();
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Amount and status
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '${appState.currency}${expense.amount.toStringAsFixed(2)}',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: appColors.expenseRed,
-                          ),
-                        ),
-                        const SizedBox(height: Spacing.xxs),
-                        if (!expense.isPaid)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: Spacing.xs,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: appColors.warningOrange.withAlpha(20),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              expense.amountPaid > 0
-                                  ? '${appState.currency}${expense.remainingAmount.toStringAsFixed(2)} left'
-                                  : 'UNPAID',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: appColors.warningOrange,
-                              ),
-                            ),
-                          )
-                        else
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: Spacing.xs,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: appColors.incomeGreen.withAlpha(20),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: appColors.incomeGreen.withAlpha(60),
-                                width: 0.5,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.check_circle,
-                                  size: 10,
-                                  color: appColors.incomeGreen,
-                                ),
-                                const SizedBox(width: 3),
-                                Text(
-                                  'PAID',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: appColors.incomeGreen,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-                if (expense.amountPaid > 0 && !expense.isPaid) ...[
-                  const SizedBox(height: Spacing.sm),
-                  Semantics(
-                    label: AccessibilityHelper.getPaymentProgressLabel(
-                      expense.amountPaid,
-                      expense.amount,
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: LinearProgressIndicator(
-                        // FIX: Prevent division by zero if expense amount is zero
-                        value: expense.amount > 0
-                            ? expense.amountPaid / expense.amount
-                            : 0.0,
-                        backgroundColor:
-                            theme.colorScheme.surfaceContainerHighest,
-                        color: _getStatusColor(appColors),
-                        minHeight: 4,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FloatingActionButtons extends StatefulWidget {
-  const _FloatingActionButtons();
-
-  @override
-  State<_FloatingActionButtons> createState() => _FloatingActionButtonsState();
-}
-
-class _FloatingActionButtonsState extends State<_FloatingActionButtons>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _expandAnimation;
-  bool _isExpanded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 250),
-    );
-    _expandAnimation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    );
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  void _toggle() {
-    setState(() {
-      _isExpanded = !_isExpanded;
-      if (_isExpanded) {
-        _animationController.forward();
-      } else {
-        _animationController.reverse();
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final appColors = theme.extension<AppColors>()!;
-    // FIX #25: Add extra bottom padding for accessibility (text scaling) and bottom nav
-    final textScaler = MediaQuery.textScalerOf(context);
-    final extraBottomPadding =
-        textScaler.scale(8.0) * 2; // Scale with text size
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: extraBottomPadding),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          // Expandable buttons
-          ScaleTransition(
-            scale: _expandAnimation,
-            child: FadeTransition(
-              opacity: _expandAnimation,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  // Add Income Button
-                  Semantics(
-                    label: 'Add income',
-                    button: true,
-                    child: FloatingActionButton.extended(
-                      onPressed: () {
-                        _toggle();
-                        Navigator.push(
-                          context,
-                          PremiumPageRoute(page: const AddIncomeScreen()),
-                        );
-                      },
-                      backgroundColor: appColors.incomeGreen,
-                      foregroundColor: Colors.white,
-                      icon: const Icon(Icons.arrow_downward),
-                      label: const Text('Income'),
-                      heroTag: 'income',
-                    ),
-                  ),
-                  const SizedBox(height: Spacing.sm),
-
-                  // Add Budget Button
-                  Semantics(
-                    label: 'Add budget',
-                    button: true,
-                    child: FloatingActionButton.extended(
-                      onPressed: () {
-                        _toggle();
-                        BudgetScreen.showAddBudget(context);
-                      },
-                      backgroundColor: appColors.infoBlue,
-                      foregroundColor: Colors.white,
-                      icon: const Icon(Icons.account_balance_wallet),
-                      label: const Text('Budget'),
-                      heroTag: 'budget',
-                    ),
-                  ),
-                  const SizedBox(height: Spacing.sm),
-
-                  // Add Expense Button
-                  Semantics(
-                    label: 'Add expense',
-                    button: true,
-                    child: FloatingActionButton.extended(
-                      onPressed: () {
-                        _toggle();
-                        Navigator.push(
-                          context,
-                          PremiumPageRoute(page: const AddExpenseScreen()),
-                        );
-                      },
-                      backgroundColor: theme.colorScheme.onSurface,
-                      foregroundColor: theme.colorScheme.surface,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Expense'),
-                      heroTag: 'expense',
-                    ),
-                  ),
-                  const SizedBox(height: Spacing.sm),
-                ],
-              ),
-            ),
-          ),
-
-          // Main toggle button
-          Semantics(
-            label: _isExpanded ? 'Close quick actions' : 'Open quick actions',
-            button: true,
-            child: FloatingActionButton(
-              onPressed: _toggle,
-              backgroundColor: theme.colorScheme.primary,
-              foregroundColor: theme.colorScheme.onPrimary,
-              heroTag: 'home_main_fab',
-              child: AnimatedRotation(
-                turns: _isExpanded
-                    ? 0.125
-                    : 0, // 45 degrees rotation when expanded
-                duration: const Duration(milliseconds: 250),
-                child: const Icon(Icons.add),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

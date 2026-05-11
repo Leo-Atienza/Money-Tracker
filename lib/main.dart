@@ -11,8 +11,10 @@ import 'utils/color_contrast_helper.dart';
 import 'utils/crash_log.dart';
 import 'screens/home_screen.dart';
 import 'screens/history_screen.dart';
-import 'screens/settings_screen.dart';
 import 'screens/recurring_expenses_screen.dart';
+import 'screens/add_hub_screen.dart';
+import 'screens/analytics_screen.dart';
+import 'screens/account_manager_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/budget_screen.dart';
 import 'screens/pin_unlock_screen.dart';
@@ -20,6 +22,10 @@ import 'services/onboarding_service.dart';
 import 'utils/notification_helper.dart';
 import 'utils/notification_payload_store.dart';
 import 'utils/home_widget_helper.dart';
+import 'theme/luminous_app_theme.dart';
+import 'widgets/luminous/floating_glass_nav_bar.dart';
+import 'widgets/luminous/organic_blob_background.dart';
+import 'utils/premium_animations.dart';
 
 /// Current app version. Keep in sync with `pubspec.yaml` → `version:`.
 /// FIX Phase 3a: Passed to [CrashLog.init] so every crash record is tagged
@@ -77,64 +83,6 @@ class AppColors extends ThemeExtension<AppColors> {
       infoBlue: Color.lerp(infoBlue, other.infoBlue, t)!,
     );
   }
-}
-
-TextTheme _buildTextTheme(Brightness brightness) {
-  final baseColor =
-      brightness == Brightness.dark ? Colors.white : Colors.black;
-  return TextTheme(
-    displayLarge: TextStyle(
-      fontSize: 34,
-      fontWeight: FontWeight.w300,
-      color: baseColor,
-    ),
-    headlineMedium: TextStyle(
-      fontSize: 28,
-      fontWeight: FontWeight.w300,
-      color: baseColor,
-    ),
-    titleLarge: TextStyle(
-      fontSize: 20,
-      fontWeight: FontWeight.w600,
-      color: baseColor,
-    ),
-    titleMedium: TextStyle(
-      fontSize: 16,
-      fontWeight: FontWeight.w500,
-      color: baseColor,
-    ),
-    titleSmall: TextStyle(
-      fontSize: 15,
-      fontWeight: FontWeight.w500,
-      color: baseColor,
-    ),
-    bodyLarge: TextStyle(
-      fontSize: 15,
-      fontWeight: FontWeight.w400,
-      color: baseColor,
-    ),
-    bodyMedium: TextStyle(
-      fontSize: 13,
-      fontWeight: FontWeight.w400,
-      color: baseColor,
-    ),
-    bodySmall: TextStyle(
-      fontSize: 11,
-      fontWeight: FontWeight.w400,
-      color: baseColor,
-    ),
-    labelLarge: TextStyle(
-      fontSize: 14,
-      fontWeight: FontWeight.w600,
-      color: baseColor,
-    ),
-    labelSmall: TextStyle(
-      fontSize: 11,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 1.2,
-      color: baseColor,
-    ),
-  );
 }
 
 // Top-level function for notification tap handling
@@ -293,80 +241,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final themeMode = context.select<AppState, String>((s) => s.themeMode);
 
     return MaterialApp(
-      title: 'Money Tracker',
+      title: 'FinanceFlow',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
+      theme: buildLuminousTheme(
         brightness: Brightness.light,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1E1E1E),
-          brightness: Brightness.light,
-        ),
-        textTheme: _buildTextTheme(Brightness.light),
-        scaffoldBackgroundColor: const Color(0xFFFAFAFA),
-        appBarTheme: const AppBarTheme(
-          systemOverlayStyle: SystemUiOverlayStyle.dark,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
-        cardTheme: CardThemeData(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          surfaceTintColor: Colors.transparent,
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-        ),
-        extensions: <ThemeExtension<dynamic>>[
-          AppColors.fromBrightness(Brightness.light),
-        ],
+        appColorsExtension: AppColors.fromBrightness(Brightness.light),
       ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
+      darkTheme: buildLuminousTheme(
         brightness: Brightness.dark,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1E1E1E),
-          brightness: Brightness.dark,
-          surface: const Color(0xFF121212),
-        ),
-        textTheme: _buildTextTheme(Brightness.dark),
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        appBarTheme: const AppBarTheme(
-          systemOverlayStyle: SystemUiOverlayStyle.light,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
-        cardTheme: CardThemeData(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          surfaceTintColor: Colors.transparent,
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-        ),
-        extensions: <ThemeExtension<dynamic>>[
-          AppColors.fromBrightness(Brightness.dark),
-        ],
+        appColorsExtension: AppColors.fromBrightness(Brightness.dark),
       ),
       themeMode: themeMode == 'light'
           ? ThemeMode.light
@@ -379,6 +262,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // Show loading while checking onboarding status
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Scaffold(
+              backgroundColor: LuminousTokens.background,
               body: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -439,11 +323,40 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
+  static const List<FloatingGlassNavDestination> _navDestinations = [
+    FloatingGlassNavDestination(
+      icon: Icons.home_outlined,
+      selectedIcon: Icons.home_rounded,
+      label: 'Home',
+    ),
+    FloatingGlassNavDestination(
+      icon: Icons.receipt_long_outlined,
+      selectedIcon: Icons.receipt_long,
+      label: 'History',
+    ),
+    FloatingGlassNavDestination(
+      icon: Icons.add_circle_outline,
+      selectedIcon: Icons.add_circle,
+      label: 'Add',
+    ),
+    FloatingGlassNavDestination(
+      icon: Icons.leaderboard_outlined,
+      selectedIcon: Icons.leaderboard,
+      label: 'Analytics',
+    ),
+    FloatingGlassNavDestination(
+      icon: Icons.account_balance_wallet_outlined,
+      selectedIcon: Icons.account_balance_wallet,
+      label: 'Wallet',
+    ),
+  ];
+
   final List<Widget> _screens = [
     const HomeScreen(),
-    const HistoryScreen(),
-    const RecurringExpensesScreen(),
-    const SettingsScreen(),
+    HistoryScreen(),
+    const AddHubScreen(),
+    const AnalyticsScreen(),
+    const AccountManagerScreen(),
   ];
 
   @override
@@ -514,7 +427,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     if (payload == null || !mounted) return;
 
     if (payload == 'recurring_expenses') {
-      setState(() => _currentIndex = 2);
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        PremiumPageRoute(page: const RecurringExpensesScreen()),
+      );
     } else if (payload.startsWith('budget_alert:')) {
       setState(() => _currentIndex = 0);
     }
@@ -522,8 +439,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final accountJustSwitched = context.select<AppState, bool>(
       (s) => s.accountJustSwitched,
     );
@@ -589,63 +504,35 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
         onPanUpdate: (_) => _onUserInteraction(),
         behavior: HitTestBehavior.translucent,
         child: Scaffold(
-          body: FadeTransition(
-            opacity: _fadeAnimation,
-            child: IndexedStack(index: _currentIndex, children: _screens),
-          ),
-          bottomNavigationBar: Container(
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(
-                  color: theme.colorScheme.outline.withAlpha(isDark ? 50 : 30),
-                  width: 1,
+          backgroundColor: Colors.transparent,
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              const Positioned.fill(child: OrganicBlobBackground()),
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: IndexedStack(index: _currentIndex, children: _screens),
+              ),
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 16 + MediaQuery.paddingOf(context).bottom,
+                child: FloatingGlassNavBar(
+                  currentIndex: _currentIndex,
+                  destinations: _navDestinations,
+                  onTap: (index) {
+                    if (index == _currentIndex) {
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    } else {
+                      _fadeController.reverse().then((_) {
+                        setState(() => _currentIndex = index);
+                        _fadeController.forward();
+                      });
+                    }
+                  },
                 ),
               ),
-              color: theme.colorScheme.surface,
-            ),
-            child: NavigationBar(
-              selectedIndex: _currentIndex,
-              onDestinationSelected: (index) {
-                if (index == _currentIndex) {
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                } else {
-                  // Animate tab transition
-                  _fadeController.reverse().then((_) {
-                    setState(() => _currentIndex = index);
-                    _fadeController.forward();
-                  });
-                  HapticFeedback.selectionClick();
-                }
-              },
-              backgroundColor: Colors.transparent,
-              indicatorColor: theme.colorScheme.onSurface.withAlpha(
-                isDark ? 50 : 30,
-              ),
-              height: 65,
-              labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home),
-                  label: 'Home',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.history_outlined),
-                  selectedIcon: Icon(Icons.history),
-                  label: 'History',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.repeat),
-                  selectedIcon: Icon(Icons.repeat_on_outlined),
-                  label: 'Recurring',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.settings_outlined),
-                  selectedIcon: Icon(Icons.settings),
-                  label: 'Settings',
-                ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
