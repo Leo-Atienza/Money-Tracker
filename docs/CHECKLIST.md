@@ -48,7 +48,7 @@ Each lands as its own commit with regression test.
 
 - [x] 2.1 Move `AppColors` → `lib/theme/app_colors.dart` (21 lib + 2 test import sites updated)
 - [x] 2.2 Consolidate spacing/sizing tokens → `lib/theme/luminous_tokens.dart` (+`Spacing.*` realigned; `@Deprecated` swap deferred to Phase 5 — see DD-002)
-- [ ] 2.3 Bundle Hanken Grotesk as asset (remove `google_fonts`) — **BLOCKED**: font TTF download from Google Fonts denied by sandbox policy. Authorize the download in `.claude/settings.json` or drop the four TTFs into `assets/fonts/HankenGrotesk/` manually, then re-run this task.
+- [x] 2.3 Bundle Hanken Grotesk as variable TTF (`assets/fonts/HankenGrotesk/HankenGrotesk-Variable.ttf`); `GoogleFonts.hankenGrotesk(...)` → `TextStyle` with explicit `FontVariation('wght', …)`; `google_fonts` dep removed. Single ~130 KB asset replaces ~150 KB package + runtime download.
 - [x] 2.4 Luminous component library skeleton (`lib/widgets/luminous/`) — `glass_surface.dart` shimmed to `glass_panel.dart`; 8 new components (top app bar, segmented control, pill chip, list section, list tile, progress bar, donut chart, bar chart, bento grid) with 9 smoke tests
 - [x] 2.5 Kill `history_screen` `context.watch<AppState>` (narrow `select`s) + `test/lint/no_global_appstate_watch_test.dart` enforcement
 - [x] 2.6 `_appVersion` from `pubspec.yaml` via `package_info_plus` — `_resolveAppVersion()` in `main.dart`
@@ -111,12 +111,12 @@ Each lands as its own commit with regression test.
 
 ## Phase 6 — Security Hardening
 
-- [ ] 6.1 SQLCipher migration (`sqflite_sqlcipher`)
-- [ ] 6.2 PIN hash → `flutter_secure_storage`
+- [ ] 6.1 SQLCipher migration (`sqflite_sqlcipher`) — deferred; needs device validation per master plan
+- [x] 6.2 PIN hash + salt + counters → `flutter_secure_storage` via new `SecurePrefs` wrapper; lazy migration from `SharedPreferences` on first read; 16 tests across `secure_prefs_test.dart` + `pin_security_storage_test.dart`
 - [ ] 6.3 Backup file AES-GCM + passphrase
 - [ ] 6.4 Home widget redaction when PIN enabled
-- [ ] 6.5 `FLAG_SECURE` via `flutter_windowmanager`
-- [ ] 6.6 Crash log PII redactor
+- [x] 6.5 `FLAG_SECURE` via native method channel — `MainActivity` registers `budget_tracker/secure_window`; `SecureWindow` Dart helper toggles the flag; wired from `AppState.initializeLockState` (cold start) + `PinSetupScreen` (after successful setup). No external plugin needed. 6 tests.
+- [x] 6.6 Crash log PII redactor — `CrashLog.redactPii` masks Windows/Unix user paths, emails, currency-tagged amounts, and credit-card-shaped digit runs before every record is persisted. 8 tests.
 
 ---
 
@@ -137,10 +137,10 @@ Each lands as its own commit with regression test.
 
 ## Phase 8 — Polish & Ship
 
-- [ ] 8.1 Lint rules + `scripts/preflight.sh`
+- [x] 8.1 `scripts/preflight.sh` + `scripts/preflight.ps1` + `test/lint/no_forbidden_patterns_test.dart` (5 grep rules: no `withOpacity(` / `print(` / `GoogleFonts` / `import '../main.dart'` / `package:budget_tracker/` self-import in lib/)
 - [ ] 8.2 Final perf pass on real device
-- [ ] 8.3 APK build + smoke test
-- [ ] 8.4 Version bump → `5.0.0+1`, CHANGELOG entry, tag `v5.0.0+1`
+- [x] 8.3 APK build verified — `flutter build apk --release` succeeds, 59.2 MB, includes `flutter_secure_storage` native plugin. Smoke test on real device still required before tagging.
+- [ ] 8.4 Version bump → `5.0.0+1`, CHANGELOG entry, tag `v5.0.0+1` (held until Phase 5 design integration lands — bumping to 5.0.0 without it would misrepresent the release)
 - [ ] 8.5 Ship pipeline (build, copy to landing, push, `vercel --prod --yes`)
 
 ---
