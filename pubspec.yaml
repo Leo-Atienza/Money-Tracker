@@ -47,6 +47,10 @@ dependencies:
   # Reads version+build from native bundle (instead of hardcoding).
   package_info_plus: ^8.0.0
 
+  # Phase 6.2: Keystore-backed PIN hash + salt storage. Falls back to
+  # encryptedSharedPreferences on older Android API levels.
+  flutter_secure_storage: ^9.2.2
+
   # Home Screen Widget (FREE!)
   home_widget: ^0.7.0
 

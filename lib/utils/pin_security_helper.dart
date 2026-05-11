@@ -1,12 +1,15 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'secure_prefs.dart';
 
 /// Helper class for PIN-based app security
 /// Stores PIN as a salted hash (SHA-256) for security
 /// Salt prevents rainbow table attacks
 /// FIX P1-7: Added rate limiting to prevent brute-force attacks
+/// Phase 6.2: hash + salt + counters live in Keystore (via [SecurePrefs])
+/// instead of plain-text `SharedPreferences`. Existing prefs entries are
+/// migrated transparently on first read.
 class PinSecurityHelper {
   static const String _pinHashKey = 'app_pin_hash';
   static const String _pinEnabledKey = 'pin_enabled';
@@ -21,14 +24,12 @@ class PinSecurityHelper {
 
   /// Check if PIN protection is enabled
   static Future<bool> isPinEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_pinEnabledKey) ?? false;
+    return await SecurePrefs.readBool(_pinEnabledKey) ?? false;
   }
 
   /// Get the configured PIN length (4-6 digits)
   static Future<int> getPinLength() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_pinLengthKey) ?? 4;
+    return await SecurePrefs.readInt(_pinLengthKey) ?? 4;
   }
 
   /// Set up a new PIN
@@ -38,14 +39,13 @@ class PinSecurityHelper {
       return false;
     }
 
-    final prefs = await SharedPreferences.getInstance();
     final salt = _generateSalt();
     final hashedPin = _hashPinWithSalt(pin, salt);
 
-    await prefs.setString(_pinHashKey, hashedPin);
-    await prefs.setString(_pinSaltKey, salt);
-    await prefs.setBool(_pinEnabledKey, true);
-    await prefs.setInt(_pinLengthKey, pin.length);
+    await SecurePrefs.writeString(_pinHashKey, hashedPin);
+    await SecurePrefs.writeString(_pinSaltKey, salt);
+    await SecurePrefs.writeBool(_pinEnabledKey, true);
+    await SecurePrefs.writeInt(_pinLengthKey, pin.length);
 
     return true;
   }
@@ -53,8 +53,7 @@ class PinSecurityHelper {
   /// Check if the account is currently locked out due to too many failed attempts
   /// FIX P1-7: Added rate limiting
   static Future<bool> isLockedOut() async {
-    final prefs = await SharedPreferences.getInstance();
-    final lockoutUntil = prefs.getInt(_lockoutUntilKey);
+    final lockoutUntil = await SecurePrefs.readInt(_lockoutUntilKey);
 
     if (lockoutUntil == null) return false;
 
@@ -64,15 +63,14 @@ class PinSecurityHelper {
     }
 
     // Lockout expired, clear the data
-    await _clearLockoutData(prefs);
+    await _clearLockoutData();
     return false;
   }
 
   /// Get remaining lockout time in seconds (0 if not locked)
   /// FIX P1-7: Added rate limiting
   static Future<int> getRemainingLockoutSeconds() async {
-    final prefs = await SharedPreferences.getInstance();
-    final lockoutUntil = prefs.getInt(_lockoutUntilKey);
+    final lockoutUntil = await SecurePrefs.readInt(_lockoutUntilKey);
 
     if (lockoutUntil == null) return 0;
 
@@ -85,23 +83,21 @@ class PinSecurityHelper {
   /// Get the number of failed attempts remaining before lockout
   /// FIX P1-7: Added rate limiting
   static Future<int> getRemainingAttempts() async {
-    final prefs = await SharedPreferences.getInstance();
-    final failedAttempts = prefs.getInt(_failedAttemptsKey) ?? 0;
+    final failedAttempts =
+        await SecurePrefs.readInt(_failedAttemptsKey) ?? 0;
     return _maxFailedAttempts - failedAttempts;
   }
 
   /// Verify if the provided PIN matches the stored PIN
   /// FIX P1-7: Now includes rate limiting - returns false if locked out
   static Future<bool> verifyPin(String pin) async {
-    final prefs = await SharedPreferences.getInstance();
-
     // FIX P1-7: Check for lockout first
     if (await isLockedOut()) {
       return false;
     }
 
-    final storedHash = prefs.getString(_pinHashKey);
-    final storedSalt = prefs.getString(_pinSaltKey);
+    final storedHash = await SecurePrefs.readString(_pinHashKey);
+    final storedSalt = await SecurePrefs.readString(_pinSaltKey);
 
     if (storedHash == null) {
       return false;
@@ -122,10 +118,10 @@ class PinSecurityHelper {
     // FIX P1-7: Track failed attempts
     if (isValid) {
       // Successful login - clear failed attempts
-      await _clearLockoutData(prefs);
+      await _clearLockoutData();
     } else {
       // Failed attempt - increment counter
-      await _recordFailedAttempt(prefs);
+      await _recordFailedAttempt();
     }
 
     return isValid;
@@ -133,24 +129,25 @@ class PinSecurityHelper {
 
   /// Record a failed PIN attempt and lock out if necessary
   /// FIX P1-7: Added rate limiting
-  static Future<void> _recordFailedAttempt(SharedPreferences prefs) async {
-    final failedAttempts = (prefs.getInt(_failedAttemptsKey) ?? 0) + 1;
-    await prefs.setInt(_failedAttemptsKey, failedAttempts);
+  static Future<void> _recordFailedAttempt() async {
+    final failedAttempts =
+        (await SecurePrefs.readInt(_failedAttemptsKey) ?? 0) + 1;
+    await SecurePrefs.writeInt(_failedAttemptsKey, failedAttempts);
 
     if (failedAttempts >= _maxFailedAttempts) {
       // Lock out the user
       final lockoutUntil = DateTime.now()
           .add(Duration(minutes: _lockoutDurationMinutes))
           .millisecondsSinceEpoch;
-      await prefs.setInt(_lockoutUntilKey, lockoutUntil);
+      await SecurePrefs.writeInt(_lockoutUntilKey, lockoutUntil);
     }
   }
 
   /// Clear lockout data after successful login or lockout expiry
   /// FIX P1-7: Added rate limiting
-  static Future<void> _clearLockoutData(SharedPreferences prefs) async {
-    await prefs.remove(_failedAttemptsKey);
-    await prefs.remove(_lockoutUntilKey);
+  static Future<void> _clearLockoutData() async {
+    await SecurePrefs.remove(_failedAttemptsKey);
+    await SecurePrefs.remove(_lockoutUntilKey);
   }
 
   /// Change the PIN (requires old PIN for verification)
@@ -166,11 +163,10 @@ class PinSecurityHelper {
 
   /// Disable PIN protection
   static Future<void> disablePin() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_pinHashKey);
-    await prefs.remove(_pinSaltKey);
-    await prefs.setBool(_pinEnabledKey, false);
-    await prefs.remove(_pinLengthKey);
+    await SecurePrefs.remove(_pinHashKey);
+    await SecurePrefs.remove(_pinSaltKey);
+    await SecurePrefs.writeBool(_pinEnabledKey, false);
+    await SecurePrefs.remove(_pinLengthKey);
   }
 
   /// Check if a PIN is valid (4-6 digits only)
@@ -268,13 +264,12 @@ class PinSecurityHelper {
 
   /// Reset all PIN data (for debugging/testing only)
   static Future<void> resetPinData() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_pinHashKey);
-    await prefs.remove(_pinSaltKey);
-    await prefs.remove(_pinEnabledKey);
-    await prefs.remove(_pinLengthKey);
+    await SecurePrefs.remove(_pinHashKey);
+    await SecurePrefs.remove(_pinSaltKey);
+    await SecurePrefs.remove(_pinEnabledKey);
+    await SecurePrefs.remove(_pinLengthKey);
     // FIX P1-7: Also clear rate limiting data
-    await prefs.remove(_failedAttemptsKey);
-    await prefs.remove(_lockoutUntilKey);
+    await SecurePrefs.remove(_failedAttemptsKey);
+    await SecurePrefs.remove(_lockoutUntilKey);
   }
 }
