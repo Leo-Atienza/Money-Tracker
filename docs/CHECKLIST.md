@@ -32,7 +32,7 @@ Each lands as its own commit with regression test.
   - [x] `add_hub_screen.dart:72` `/budgets` → `PremiumPageRoute(page: BudgetScreen())`
   - [x] `analytics_screen.dart:934` `/budgets` → same (bonus consistency fix)
   - [x] `test/lint/no_unregistered_pushnamed_test.dart` enforces the rule going forward
-- [ ] 1.4 HomeWidget vs DB close lifecycle race (`main.dart` + `app_state.dart:closeDatabase`)
+- [x] 1.4 HomeWidget vs DB close lifecycle race — `main.dart` paused-state awaits via `_handlePaused`; `app_state.dart:closeDatabase` now wrapped in `_writeMutex.synchronized` + 2 tests (behavioural smoke + structural guard) in `test/integration/app_state_close_database_race_test.dart`
 - [ ] 1.5 Coalesce `loadData()` re-entrancy (`app_state.dart:278`)
 - [ ] 1.6 Wrap `addExpense` + carryover in single tx (`app_state.dart` + `database_helper.dart`)
 - [ ] 1.7 Blur sigma 25→15 + RepaintBoundary nav/transactions

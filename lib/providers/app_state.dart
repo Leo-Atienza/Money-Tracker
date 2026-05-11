@@ -2150,13 +2150,25 @@ class AppState extends ChangeNotifier {
   Future<List<Expense>> getAllExpensesForBackup() async => await _db.readAllExpenses(currentAccountId);
   Future<List<Income>> getAllIncomesForBackup() async => await _db.readAllIncome(currentAccountId);
   Future<void> closeDatabase() async {
-    // Wait up to 5 seconds for recurring processing to finish
+    // Wait up to 5 seconds for the background recurring pipeline to
+    // finish its top-level loop. `_processingRecurring` covers a
+    // sequence of writes (expenses, incomes, clearOldDeleted,
+    // performMaintenance) that release `_writeMutex` between steps —
+    // the spin keeps us from closing inside that gap.
     var attempts = 0;
     while (_processingRecurring && attempts < 50) {
       await Future.delayed(const Duration(milliseconds: 100));
       attempts++;
     }
-    await _db.closeDatabase();
+    // FIX Phase 1.4: serialize with in-flight writes so the DB is never
+    // closed mid-transaction. Without this, a paused-lifecycle
+    // `HomeWidgetHelper.updateWidget` (which queries the DB) or any
+    // user-initiated `addExpense` running at the same time as
+    // `_performBackgroundMaintenance` could see
+    // `DatabaseException(error database_closed)`.
+    await _writeMutex.synchronized(() async {
+      await _db.closeDatabase();
+    });
   }
   Future<void> reloadAfterRestore() async { await closeDatabase(); await loadData(); }
 

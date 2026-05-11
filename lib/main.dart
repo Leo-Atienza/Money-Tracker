@@ -191,31 +191,44 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     super.didChangeAppLifecycleState(state);
 
     if (state == AppLifecycleState.paused) {
-      // App going to background - lock if PIN is enabled
-      if (mounted && context.mounted) {
-        final appState = context.read<AppState>();
-        appState.lock();
-        // Update home widget so it shows current data on the home screen
-        HomeWidgetHelper.updateWidget(appState);
-      }
-      // Good time to run cleanup
-      _performBackgroundMaintenance();
+      // FIX Phase 1.4: route the paused work through an async helper so
+      // HomeWidget.updateWidget completes BEFORE _performBackgroundMaintenance
+      // closes the DB. The previous version fired updateWidget without
+      // awaiting it and started maintenance immediately, causing
+      // intermittent `DatabaseException(error database_closed)` during
+      // widget rendering.
+      unawaited(_handlePaused());
     } else if (state == AppLifecycleState.detached) {
-      // App being terminated - close database safely
       _closeDatabaseSafely();
     } else if (state == AppLifecycleState.resumed) {
-      // Refresh data when app resumes (e.g. date change)
       if (mounted && context.mounted) {
         context.read<AppState>().loadData();
       }
     }
   }
 
+  Future<void> _handlePaused() async {
+    if (!mounted || !context.mounted) return;
+    final appState = context.read<AppState>();
+    appState.lock();
+    try {
+      // Update the home-screen widget with the latest financial summary
+      // while the DB is still open. Any failure here is logged but does
+      // not block maintenance — the widget falls back to stale data on
+      // the user's launcher, never an exception.
+      await HomeWidgetHelper.updateWidget(appState);
+    } catch (e, st) {
+      if (kDebugMode) debugPrint('HomeWidget update on paused failed: $e');
+      CrashLog.record(e, stack: st, context: 'lifecycle_paused_widget_update');
+    }
+    // Only NOW close the DB.
+    await _performBackgroundMaintenance();
+  }
+
   Future<void> _performBackgroundMaintenance() async {
     try {
       if (mounted && context.mounted) {
         final appState = context.read<AppState>();
-        // Perform maintenance operations asynchronously
         await appState.closeDatabase();
       }
     } catch (e) {
