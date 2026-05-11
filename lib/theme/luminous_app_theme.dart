@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'luminous_tokens.dart';
 
 export 'luminous_tokens.dart';
 
+/// Phase 2.3: Hanken Grotesk is now bundled as a variable TTF
+/// (`assets/fonts/HankenGrotesk/HankenGrotesk-Variable.ttf`) and `google_fonts`
+/// has been removed. The wght axis is driven explicitly via
+/// `FontVariation('wght', …)` so each text role lands on the correct numeric
+/// weight regardless of which fallback Flutter would otherwise synthesize.
 TextTheme _luminousTextTheme(ColorScheme cs) {
   TextStyle hanken(
     double size,
@@ -13,9 +17,13 @@ TextTheme _luminousTextTheme(ColorScheme cs) {
     double height = 1.2,
     double letterSpacing = 0,
   }) {
-    return GoogleFonts.hankenGrotesk(
+    return TextStyle(
+      fontFamily: 'HankenGrotesk',
       fontSize: size,
       fontWeight: w,
+      fontVariations: <FontVariation>[
+        FontVariation('wght', w.value.toDouble()),
+      ],
       height: height / size,
       letterSpacing: letterSpacing,
       color: cs.onSurface,
