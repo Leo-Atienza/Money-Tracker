@@ -54,15 +54,22 @@ class Budget {
       parsedMonth = DateHelper.startOfMonth(DateHelper.today());
     }
 
+    // Phase 4.11: snake_case only. The legacy `accountId` key tolerance was
+    // useful when JSON backups used camelCase, but the on-disk schema and
+    // all live writers use snake_case. Accepting both hid corruption (a
+    // hand-edited backup with a typo silently inserted as account 0).
+    final accountId = map['account_id'];
+    if (accountId == null) {
+      throw ArgumentError('Budget account_id is required');
+    }
+
     return Budget(
       id: map['id'],
       category: map['category'] ?? 'Uncategorized',
       amount: DecimalHelper.fromDoubleSafe(
         (map['amount'] as num?)?.toDouble(),
       ), // Convert from database double
-      accountId: map['account_id'] ??
-          map['accountId'] ??
-          0, // Support both formats, default to 0
+      accountId: accountId as int,
       month: parsedMonth ??
           DateHelper.startOfMonth(
             DateHelper.today(),

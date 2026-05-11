@@ -179,8 +179,9 @@ void main() {
 
   group('DatabaseConstants', () {
     group('database metadata', () {
-      test('database version is 18', () {
-        expect(DatabaseConstants.databaseVersion, 18);
+      test('database version is 19 (Phase 4)', () {
+        // Phase 4 bumped the schema to v19. See `DatabaseHelper._migrateToV19`.
+        expect(DatabaseConstants.databaseVersion, 19);
       });
 
       test('database name is non-empty', () {

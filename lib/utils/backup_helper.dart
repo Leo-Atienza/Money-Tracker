@@ -121,11 +121,17 @@ class BackupHelper {
       final allExpenses = await appState.getAllExpensesForBackup();
       final allIncomes = await appState.getAllIncomesForBackup();
 
+      // Phase 4.9: include `transaction_tags` so the junction is preserved
+      // through a round-trip. Scoped to the current account to match the
+      // existing `tags` scope.
+      final transactionTags = await DatabaseHelper()
+          .readAllTransactionTags(appState.currentAccountId);
+
       // FIX P2-12: Include ALL data in backup (previously missing budgets, recurring_income, monthly_balances, tags)
       // FIX Bug #9: Include schema_version so newer backups can be refused by
       // older app installs before any writes happen.
       final backupData = {
-        'version': 2, // Bumped version for expanded backup format
+        'version': 3, // Phase 4.9: bumped to include transaction_tags
         'schema_version': DatabaseConstants.databaseVersion,
         'timestamp': DateTime.now().toIso8601String(),
         'currency': appState.currencyCode,
@@ -146,6 +152,7 @@ class BackupHelper {
             .map((e) => e.toMap())
             .toList(), // FIX P2-12: Added
         'tags': appState.tags, // FIX P2-12: Added (already Map format)
+        'transaction_tags': transactionTags, // Phase 4.9
       };
 
       // Create temporary file

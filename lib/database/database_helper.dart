@@ -98,6 +98,84 @@ class DatabaseHelper {
     }
   }
 
+  /// Phase 4.10: parse rows with [Expense.tryFromMap] and drop any that fail
+  /// validation (missing `category` or `account_id`). Logs a debug-mode line
+  /// per skipped row so corruption is visible.
+  static List<Expense> _parseExpenseRows(List<Map<String, dynamic>> rows) {
+    final out = <Expense>[];
+    for (final row in rows) {
+      final expense = Expense.tryFromMap(row);
+      if (expense != null) {
+        out.add(expense);
+      } else if (kDebugMode) {
+        debugPrint(
+          'DatabaseHelper: skipping corrupt expense row id=${row['id']} '
+          '(missing required field)',
+        );
+      }
+    }
+    return out;
+  }
+
+  // ----- Phase 4.9 input validation helpers ---------------------------------
+  //
+  // Backups are user-supplied JSON; nothing inside the file is trusted. These
+  // helpers gate the per-row inserts in `restoreFromJsonBackup`. A failed
+  // check skips the row (and increments the relevant skipped counter so the
+  // UI can show "N rows skipped").
+
+  /// Amount must be finite, non-NaN, in [0, 1e10). Currency precision means
+  /// $10B is far beyond any sane personal budget — rejecting it catches the
+  /// "json overflow injection" case where a hand-edited backup tries to
+  /// poison aggregates with `1e308`.
+  static bool _isValidAmount(dynamic raw) {
+    final v = (raw is num) ? raw.toDouble() : null;
+    if (v == null) return false;
+    if (v.isNaN || v.isInfinite) return false;
+    if (v < 0) return false;
+    if (v >= 1e10) return false;
+    return true;
+  }
+
+  /// Date must be parseable, on/after 2000-01-01, and at most 100 years past
+  /// today. The lower bound rules out epoch-zero dates from corrupt clocks;
+  /// the upper bound rules out year-overflow attacks (year 9999 etc.).
+  static bool _isValidBackupDate(dynamic raw) {
+    if (raw is! String) return false;
+    final parsed = DateHelper.parseDate(raw);
+    if (parsed == null) return false;
+    final lower = DateTime.utc(2000, 1, 1);
+    final upper = DateTime.now().toUtc().add(const Duration(days: 365 * 100));
+    if (parsed.isBefore(lower)) return false;
+    if (parsed.isAfter(upper)) return false;
+    return true;
+  }
+
+  /// Description (and similar free-text fields) must be a string under 1 KiB.
+  /// 1024 chars × 4 bytes/char (worst-case UTF-8) is still a manageable row.
+  static bool _isValidDescription(dynamic raw) {
+    if (raw == null) return true; // optional
+    if (raw is! String) return false;
+    return raw.length <= 1024;
+  }
+
+  /// Same as [_parseExpenseRows] but for [Income].
+  static List<Income> _parseIncomeRows(List<Map<String, dynamic>> rows) {
+    final out = <Income>[];
+    for (final row in rows) {
+      final income = Income.tryFromMap(row);
+      if (income != null) {
+        out.add(income);
+      } else if (kDebugMode) {
+        debugPrint(
+          'DatabaseHelper: skipping corrupt income row id=${row['id']} '
+          '(missing required field)',
+        );
+      }
+    }
+    return out;
+  }
+
   Future<Database> _initDatabase() async {
     final databasePath = await getDatabasesPath();
     final dbPath = path.join(
@@ -107,7 +185,10 @@ class DatabaseHelper {
 
     return await openDatabase(
       dbPath,
-      version: 18, // Bumped version for tag indexing/dedupe improvements
+      // Phase 4: bumped 18 → 19. Source of truth is
+      // `DatabaseConstants.databaseVersion`. See the `if (oldVersion < 19)`
+      // block in [_onUpgrade] for the migration details.
+      version: DatabaseConstants.databaseVersion,
       // FIX #4: Enable SQLite foreign key enforcement
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
@@ -205,7 +286,10 @@ class DatabaseHelper {
       )
     ''');
 
-    // Deleted expenses table (for 30-day restore)
+    // Deleted expenses table (for 30-day restore).
+    // Phase 4.2: FOREIGN KEY (account_id) on CASCADE so deleting an account
+    // also empties its trash. Without this, an account hard-delete left
+    // dangling trash rows that pointed at a non-existent account.
     await db.execute('''
       CREATE TABLE deleted_expenses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -217,11 +301,12 @@ class DatabaseHelper {
         account_id INTEGER NOT NULL,
         amountPaid REAL DEFAULT 0,
         paymentMethod TEXT,
-        deletedAt TEXT NOT NULL
+        deletedAt TEXT NOT NULL,
+        FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE CASCADE
       )
     ''');
 
-    // Deleted income table (for 30-day restore)
+    // Deleted income table (for 30-day restore). Phase 4.2 FK.
     await db.execute('''
       CREATE TABLE deleted_income (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -231,11 +316,14 @@ class DatabaseHelper {
         description TEXT,
         date TEXT NOT NULL,
         account_id INTEGER NOT NULL,
-        deletedAt TEXT NOT NULL
+        deletedAt TEXT NOT NULL,
+        FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE CASCADE
       )
     ''');
 
-    // Deleted accounts table (for 30-day restore)
+    // Deleted accounts table (for 30-day restore).
+    // Note: no FK here — this is *itself* the soft-delete table for accounts,
+    // so it intentionally outlives the row in `accounts`.
     await db.execute('''
       CREATE TABLE deleted_accounts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -380,6 +468,31 @@ class DatabaseHelper {
     await db.execute('CREATE INDEX idx_transaction_tags_lookup ON transaction_tags(transaction_type, transaction_id)');
     await db.execute('CREATE INDEX idx_transaction_tags_tag_type ON transaction_tags(tag_id, transaction_type)');
     await db.execute('CREATE UNIQUE INDEX idx_transaction_tags_unique ON transaction_tags(transaction_id, transaction_type, tag_id)');
+
+    // Phase 4.4: hard-delete cleanup triggers for the junction table. These
+    // fire when a row is removed from `expenses` / `income` directly (e.g.
+    // via DROP, or eventually via account cascade), keeping `transaction_tags`
+    // free of dangling pointers. The soft-delete paths still need explicit
+    // cleanup because they `INSERT INTO deleted_*` then `DELETE FROM live`
+    // — see [moveToDeleted], [moveIncomeToDeleted] (Phase 4.5).
+    await db.execute('''
+      CREATE TRIGGER trg_transaction_tags_cleanup_expense
+        AFTER DELETE ON expenses
+        FOR EACH ROW
+      BEGIN
+        DELETE FROM transaction_tags
+        WHERE transaction_id = OLD.id AND transaction_type = 'expense';
+      END
+    ''');
+    await db.execute('''
+      CREATE TRIGGER trg_transaction_tags_cleanup_income
+        AFTER DELETE ON income
+        FOR EACH ROW
+      BEGIN
+        DELETE FROM transaction_tags
+        WHERE transaction_id = OLD.id AND transaction_type = 'income';
+      END
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -615,6 +728,244 @@ class DatabaseHelper {
 
       await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_transaction_tags_unique ON transaction_tags(transaction_id, transaction_type, tag_id)');
     }
+
+    if (oldVersion < 19) {
+      await _migrateToV19(db);
+    }
+  }
+
+  /// Phase 4 migration to schema v19. Bundles:
+  ///
+  /// - **4.1** pre-migration backup of the live `.db` file alongside the
+  ///   original (suffixed `.v18-backup`). If anything below throws, the
+  ///   outer `openDatabase` rolls back the transaction, leaving the live
+  ///   `.db` intact; the `.v18-backup` file lets the user restore by hand
+  ///   if a future version corrupts on upgrade. The backup is removed after
+  ///   the migration commits.
+  /// - **4.2** rebuild `deleted_expenses`, `deleted_income` with
+  ///   `FOREIGN KEY (account_id) ... ON DELETE CASCADE`.
+  /// - **4.3** rebuild `income` and `quick_templates` with the same FK
+  ///   cascade, but only if their existing schema is missing it.
+  /// - **4.4** add the two `transaction_tags` cleanup triggers (hard-delete
+  ///   from `expenses` / `income` cascades through to the junction).
+  /// - **4.8** normalise `monthly_balances.month` from YYYY-MM-DD to YYYY-MM.
+  ///
+  /// Every step runs inside a single `db.transaction` so a failure halfway
+  /// through rolls back the entire migration. FK enforcement is toggled OFF
+  /// during the rebuild (the standard SQLite "12-step alter" recipe) and ON
+  /// again at the end.
+  Future<void> _migrateToV19(Database db) async {
+    // Phase 4.1: snapshot the live DB file before any destructive work.
+    // We swallow errors here because the backup is a *nice-to-have*; the
+    // migration's own atomicity (one transaction, rollback on throw) is the
+    // primary safety net.
+    File? backupFile;
+    try {
+      final databasePath = await getDatabasesPath();
+      final live = File(path.join(
+        databasePath,
+        databaseNameOverride ?? _defaultDatabaseName,
+      ));
+      if (await live.exists()) {
+        backupFile = File('${live.path}.v18-backup');
+        await live.copy(backupFile.path);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Phase 4.1: pre-migration backup failed (non-fatal): $e');
+      }
+      backupFile = null;
+    }
+
+    // FK off for the rebuild — SQLite recommends this when recreating tables
+    // that other tables reference. Turning it back on inside the transaction
+    // re-enables enforcement for the remainder of the session.
+    await db.execute('PRAGMA foreign_keys = OFF');
+
+    try {
+      await db.transaction((txn) async {
+        // 4.2: trash tables. Both `deleted_expenses` and `deleted_income`
+        // get FK + CASCADE on `account_id`. `deleted_accounts` intentionally
+        // skipped — that table is the soft-delete pool for accounts and
+        // must outlive the live row.
+        await _rebuildTableWithAccountCascade(
+          txn,
+          tableName: 'deleted_expenses',
+          createSql: '''
+            CREATE TABLE deleted_expenses (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              original_id INTEGER,
+              amount REAL NOT NULL,
+              category TEXT NOT NULL,
+              description TEXT,
+              date TEXT NOT NULL,
+              account_id INTEGER NOT NULL,
+              amountPaid REAL DEFAULT 0,
+              paymentMethod TEXT,
+              deletedAt TEXT NOT NULL,
+              FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE CASCADE
+            )
+          ''',
+          indexSql: [
+            'CREATE INDEX IF NOT EXISTS idx_deleted_expenses_deletedAt ON deleted_expenses(deletedAt)',
+            'CREATE INDEX IF NOT EXISTS idx_deleted_expenses_account ON deleted_expenses(account_id, deletedAt)',
+          ],
+        );
+
+        await _rebuildTableWithAccountCascade(
+          txn,
+          tableName: 'deleted_income',
+          createSql: '''
+            CREATE TABLE deleted_income (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              original_id INTEGER,
+              amount REAL NOT NULL,
+              category TEXT NOT NULL,
+              description TEXT,
+              date TEXT NOT NULL,
+              account_id INTEGER NOT NULL,
+              deletedAt TEXT NOT NULL,
+              FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE CASCADE
+            )
+          ''',
+          indexSql: [
+            'CREATE INDEX IF NOT EXISTS idx_deleted_income_deletedAt ON deleted_income(deletedAt)',
+            'CREATE INDEX IF NOT EXISTS idx_deleted_income_account ON deleted_income(account_id, deletedAt)',
+          ],
+        );
+
+        // 4.3: v4 tables. The v4 `_onUpgrade` block already created `income`
+        // and `quick_templates` with the FK, but earlier installs may have
+        // skipped it. Probe and only rebuild if the cascade is missing.
+        if (!await _tableHasAccountCascade(txn, 'income')) {
+          await _rebuildTableWithAccountCascade(
+            txn,
+            tableName: 'income',
+            createSql: '''
+              CREATE TABLE income (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                amount REAL NOT NULL,
+                category TEXT NOT NULL,
+                description TEXT,
+                date TEXT NOT NULL,
+                account_id INTEGER NOT NULL,
+                FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE CASCADE
+              )
+            ''',
+            indexSql: [
+              'CREATE INDEX IF NOT EXISTS idx_income_account_date ON income(account_id, date DESC)',
+              'CREATE INDEX IF NOT EXISTS idx_income_category ON income(account_id, category)',
+              'CREATE INDEX IF NOT EXISTS idx_income_description ON income(account_id, description)',
+              'CREATE INDEX IF NOT EXISTS idx_income_account_date_category ON income(account_id, date DESC, category)',
+            ],
+          );
+        }
+
+        if (!await _tableHasAccountCascade(txn, 'quick_templates')) {
+          await _rebuildTableWithAccountCascade(
+            txn,
+            tableName: 'quick_templates',
+            createSql: '''
+              CREATE TABLE quick_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                amount REAL NOT NULL,
+                category TEXT NOT NULL,
+                paymentMethod TEXT DEFAULT 'Cash',
+                type TEXT DEFAULT 'expense',
+                account_id INTEGER NOT NULL,
+                sortOrder INTEGER DEFAULT 0,
+                FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE CASCADE
+              )
+            ''',
+            indexSql: const [],
+          );
+        }
+
+        // 4.4: junction cleanup triggers. Use `CREATE TRIGGER IF NOT EXISTS`
+        // so re-running the migration is idempotent (defensive — the outer
+        // `if (oldVersion < 19)` already gates this).
+        await txn.execute('''
+          CREATE TRIGGER IF NOT EXISTS trg_transaction_tags_cleanup_expense
+            AFTER DELETE ON expenses
+            FOR EACH ROW
+          BEGIN
+            DELETE FROM transaction_tags
+            WHERE transaction_id = OLD.id AND transaction_type = 'expense';
+          END
+        ''');
+        await txn.execute('''
+          CREATE TRIGGER IF NOT EXISTS trg_transaction_tags_cleanup_income
+            AFTER DELETE ON income
+            FOR EACH ROW
+          BEGIN
+            DELETE FROM transaction_tags
+            WHERE transaction_id = OLD.id AND transaction_type = 'income';
+          END
+        ''');
+
+        // 4.8: normalise YYYY-MM-DD → YYYY-MM. Idempotent: substring of a
+        // string that is already 7 chars is the same 7 chars.
+        await txn.execute(
+          "UPDATE monthly_balances SET month = substr(month, 1, 7)",
+        );
+      });
+    } finally {
+      // Re-enable FK enforcement whether the migration succeeded or rolled
+      // back — leaving it OFF on the live connection would silently let
+      // future inserts violate constraints.
+      await db.execute('PRAGMA foreign_keys = ON');
+    }
+
+    // Phase 4.1 cleanup: migration succeeded, the backup is no longer needed.
+    // Leave the file alone on failure so the user can recover by hand.
+    if (backupFile != null) {
+      try {
+        if (await backupFile.exists()) await backupFile.delete();
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('Phase 4.1: backup cleanup failed (non-fatal): $e');
+        }
+      }
+    }
+  }
+
+  /// SQLite's recommended "12-step alter" rebuild. Inserts every row from
+  /// the old table into the new one, then renames into place. The caller
+  /// drives the transaction; this method only handles the table swap.
+  static Future<void> _rebuildTableWithAccountCascade(
+    Transaction txn, {
+    required String tableName,
+    required String createSql,
+    required List<String> indexSql,
+  }) async {
+    final tmpName = '${tableName}_v19_tmp';
+    await txn.execute(createSql.replaceFirst(tableName, tmpName));
+    // INSERT INTO ... SELECT * FROM works only when column order matches.
+    // Use named INSERT with a column list to be robust against schema drift.
+    final columns = await txn.rawQuery('PRAGMA table_info($tableName)');
+    final colList = columns.map((c) => c['name'] as String).join(', ');
+    await txn.execute(
+      'INSERT INTO $tmpName ($colList) SELECT $colList FROM $tableName',
+    );
+    await txn.execute('DROP TABLE $tableName');
+    await txn.execute('ALTER TABLE $tmpName RENAME TO $tableName');
+    for (final sql in indexSql) {
+      await txn.execute(sql);
+    }
+  }
+
+  /// True iff [tableName]'s `account_id` column has an `ON DELETE CASCADE`
+  /// foreign key. Used by Phase 4.3 to skip already-correct schemas.
+  static Future<bool> _tableHasAccountCascade(
+    DatabaseExecutor db,
+    String tableName,
+  ) async {
+    final fkList = await db.rawQuery('PRAGMA foreign_key_list($tableName)');
+    return fkList.any((row) =>
+        row['from'] == 'account_id' &&
+        row['table'] == 'accounts' &&
+        (row['on_delete'] as String?)?.toUpperCase() == 'CASCADE');
   }
 
   /// Safely adds a column to a table if it doesn't already exist.
@@ -684,7 +1035,7 @@ class DatabaseHelper {
       whereArgs: [accountId],
       orderBy: 'date DESC',
     );
-    return result.map((map) => Income.fromMap(map)).toList();
+    return _parseIncomeRows(result);
   }
 
   Future<List<Income>> getIncomeByMonth(int accountId, int year, int month) async {
@@ -702,7 +1053,7 @@ class DatabaseHelper {
       whereArgs: [accountId, startDate, endDate],
       orderBy: 'date DESC',
     );
-    return result.map((map) => Income.fromMap(map)).toList();
+    return _parseIncomeRows(result);
   }
 
   Future<int> updateIncome(Income income) async {
@@ -732,7 +1083,12 @@ class DatabaseHelper {
     );
   }
 
-  // Move income to deleted (for undo/restore)
+  // Move income to deleted (for undo/restore).
+  //
+  // Phase 4.5: clean up `transaction_tags` rows for this income BEFORE the
+  // live row is gone. The Phase 4.4 hard-delete triggers don't fire on a
+  // move-to-trash path because we delete from `income`, not directly.
+  // Letting the rows linger would point to a non-existent transaction id.
   Future<void> moveIncomeToDeleted(Income income) async {
     final db = await database;
     await db.transaction((txn) async {
@@ -746,17 +1102,56 @@ class DatabaseHelper {
         // FIX: Use UTC to avoid timezone-dependent expiration
         'deletedAt': DateTime.now().toUtc().toIso8601String(),
       });
+      await txn.delete(
+        'transaction_tags',
+        where: 'transaction_id = ? AND transaction_type = ?',
+        whereArgs: [income.id, 'income'],
+      );
       await txn.delete('income', where: 'id = ?', whereArgs: [income.id]);
     });
   }
 
-  // Move income to deleted by ID (fetches from DB if needed)
-  // Returns the date of the deleted income for carryover recalculation, or null if not found.
+  // Move income to deleted by ID (fetches from DB if needed).
+  // Returns the date of the deleted income for carryover recalculation, or
+  // null if not found.
+  //
+  // Phase 4.7 + 4.5: read + tag cleanup + insert + delete in a single
+  // transaction. Mirrors the [moveToDeletedById] refactor for expenses.
   Future<DateTime?> moveIncomeToDeletedById(int id) async {
-    final income = await getIncomeById(id);
-    if (income == null) return null;
-    await moveIncomeToDeleted(income);
-    return income.date;
+    final db = await database;
+    return db.transaction<DateTime?>((txn) async {
+      final rows = await txn.query(
+        'income',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      if (rows.isEmpty) return null;
+      final income = Income.tryFromMap(rows.first);
+      if (income == null) {
+        if (kDebugMode) {
+          debugPrint(
+            'moveIncomeToDeletedById: skipping corrupt income row id=$id',
+          );
+        }
+        return null;
+      }
+      await txn.insert('deleted_income', {
+        'original_id': income.id,
+        'amount': income.amount,
+        'category': income.category,
+        'description': income.description,
+        'date': DateHelper.toDateString(income.date),
+        'account_id': income.accountId,
+        'deletedAt': DateTime.now().toUtc().toIso8601String(),
+      });
+      await txn.delete(
+        'transaction_tags',
+        where: 'transaction_id = ? AND transaction_type = ?',
+        whereArgs: [income.id, 'income'],
+      );
+      await txn.delete('income', where: 'id = ?', whereArgs: [income.id]);
+      return income.date;
+    });
   }
 
   // ============== QUICK TEMPLATE METHODS ==============
@@ -1454,12 +1849,16 @@ class DatabaseHelper {
     DatabaseExecutor exec,
     MonthlyBalance balance,
   ) async {
-    final monthString = DateHelper.toDateString(balance.month);
+    // Phase 4.8: `month` is now stored as the YYYY-MM key. Use `LIKE` with a
+    // YYYY-MM% prefix so the lookup hits both post-v19 rows (YYYY-MM) and
+    // any pre-migration leftovers (YYYY-MM-DD) that escaped the
+    // `UPDATE ... substr(month, 1, 7)` normalisation.
+    final monthKey = DateHelper.toMonthString(balance.month);
     final rows = await exec.query(
       'monthly_balances',
       columns: ['id'],
-      where: 'account_id = ? AND month = ?',
-      whereArgs: [balance.accountId, monthString],
+      where: 'account_id = ? AND month LIKE ?',
+      whereArgs: [balance.accountId, '$monthKey%'],
       limit: 1,
     );
     if (rows.isEmpty) {
@@ -1482,7 +1881,7 @@ class DatabaseHelper {
       whereArgs: [accountId],
       orderBy: orderBy,
     );
-    return result.map((map) => Expense.fromMap(map)).toList();
+    return _parseExpenseRows(result);
   }
 
   Future<List<Expense>> getExpensesByMonth(int accountId, int year, int month) async {
@@ -1500,7 +1899,7 @@ class DatabaseHelper {
       whereArgs: [accountId, startDate, endDate],
       orderBy: 'date DESC',
     );
-    return result.map((map) => Expense.fromMap(map)).toList();
+    return _parseExpenseRows(result);
   }
 
   Future<int> updateExpense(Expense expense) async {
@@ -1554,7 +1953,11 @@ class DatabaseHelper {
     return Income.fromMap(result.first);
   }
 
-  // Move expense to deleted (for 30-day restore)
+  // Move expense to deleted (for 30-day restore).
+  //
+  // Phase 4.5: clean up `transaction_tags` before the live row is gone. Same
+  // rationale as [moveIncomeToDeleted] — the hard-delete trigger does not
+  // fire when the row is moved to trash, only when it's removed entirely.
   Future<void> moveToDeleted(Expense expense) async {
     final db = await database;
     await db.transaction((txn) async {
@@ -1570,17 +1973,61 @@ class DatabaseHelper {
         // FIX: Use UTC to avoid timezone-dependent expiration
         'deletedAt': DateTime.now().toUtc().toIso8601String(),
       });
+      await txn.delete(
+        'transaction_tags',
+        where: 'transaction_id = ? AND transaction_type = ?',
+        whereArgs: [expense.id, 'expense'],
+      );
       await txn.delete('expenses', where: 'id = ?', whereArgs: [expense.id]);
     });
   }
 
-  // Move expense to deleted by ID (fetches from DB if needed)
-  // Returns the date of the deleted expense for carryover recalculation, or null if not found.
+  // Move expense to deleted by ID (fetches from DB if needed).
+  // Returns the date of the deleted expense for carryover recalculation, or
+  // null if not found.
+  //
+  // Phase 4.7: read + insert + delete now happen in a single transaction so
+  // a concurrent edit between read and delete can't desync the trash row
+  // from the live row.
   Future<DateTime?> moveToDeletedById(int id) async {
-    final expense = await getExpenseById(id);
-    if (expense == null) return null;
-    await moveToDeleted(expense);
-    return expense.date;
+    final db = await database;
+    return db.transaction<DateTime?>((txn) async {
+      final rows = await txn.query(
+        'expenses',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      if (rows.isEmpty) return null;
+      final expense = Expense.tryFromMap(rows.first);
+      if (expense == null) {
+        // Corrupt row — leave it alone rather than half-deleting.
+        if (kDebugMode) {
+          debugPrint(
+            'moveToDeletedById: skipping corrupt expense row id=$id',
+          );
+        }
+        return null;
+      }
+      await txn.insert('deleted_expenses', {
+        'original_id': expense.id,
+        'amount': expense.amount,
+        'category': expense.category,
+        'description': expense.description,
+        'date': DateHelper.toDateString(expense.date),
+        'account_id': expense.accountId,
+        'amountPaid': expense.amountPaid,
+        'paymentMethod': expense.paymentMethod,
+        'deletedAt': DateTime.now().toUtc().toIso8601String(),
+      });
+      // Phase 4.5: tag cleanup before the live row vanishes.
+      await txn.delete(
+        'transaction_tags',
+        where: 'transaction_id = ? AND transaction_type = ?',
+        whereArgs: [expense.id, 'expense'],
+      );
+      await txn.delete('expenses', where: 'id = ?', whereArgs: [expense.id]);
+      return expense.date;
+    });
   }
 
   // FIX #2: Get ALL deleted expenses (for trash screen)
@@ -1724,28 +2171,50 @@ class DatabaseHelper {
     }
   }
 
-  // Clear old deleted items (30 days) - call on app startup
+  // Clear old deleted items (30 days) - call on app startup.
+  //
+  // Phase 4.6: wrapped in a single transaction. Previously the two deletes
+  // could partially commit on a crash, leaving the trash in a state where
+  // only expenses had been purged but income hadn't.
   Future<void> clearOldDeleted() async {
     final db = await database;
     // FIX: Use UTC to avoid timezone-dependent expiration
-    final thirtyDaysAgo = DateTime.now().toUtc().subtract(const Duration(days: 30)).toIso8601String();
-    await db.delete(
-      'deleted_expenses',
-      where: 'deletedAt < ?',
-      whereArgs: [thirtyDaysAgo],
-    );
-    await db.delete(
-      'deleted_income',
-      where: 'deletedAt < ?',
-      whereArgs: [thirtyDaysAgo],
-    );
+    final thirtyDaysAgo = DateTime.now()
+        .toUtc()
+        .subtract(const Duration(days: 30))
+        .toIso8601String();
+    await db.transaction((txn) async {
+      await txn.delete(
+        'deleted_expenses',
+        where: 'deletedAt < ?',
+        whereArgs: [thirtyDaysAgo],
+      );
+      await txn.delete(
+        'deleted_income',
+        where: 'deletedAt < ?',
+        whereArgs: [thirtyDaysAgo],
+      );
+    });
   }
 
-  // Empty trash completely
+  // Empty trash completely.
+  //
+  // Phase 4.6: wrapped in a single transaction. Same atomicity concern as
+  // `clearOldDeleted` — half-emptied trash on crash is confusing UX.
   Future<void> emptyTrash(int accountId) async {
     final db = await database;
-    await db.delete('deleted_expenses', where: 'account_id = ?', whereArgs: [accountId]);
-    await db.delete('deleted_income', where: 'account_id = ?', whereArgs: [accountId]);
+    await db.transaction((txn) async {
+      await txn.delete(
+        'deleted_expenses',
+        where: 'account_id = ?',
+        whereArgs: [accountId],
+      );
+      await txn.delete(
+        'deleted_income',
+        where: 'account_id = ?',
+        whereArgs: [accountId],
+      );
+    });
   }
 
   // ============== BUDGET METHODS ==============
@@ -2184,6 +2653,8 @@ class DatabaseHelper {
         );
 
         final now = DateTime.now().toUtc().toIso8601String();
+        // Phase 4.5: collect ids so we can clean transaction_tags in one shot.
+        final idsToDelete = <int>[];
         for (final expense in expenses) {
           await txn.insert('deleted_expenses', {
             'original_id': expense['id'],
@@ -2196,6 +2667,17 @@ class DatabaseHelper {
             'paymentMethod': expense['paymentMethod'],
             'deletedAt': now,
           });
+          final eid = expense['id'];
+          if (eid is int) idsToDelete.add(eid);
+        }
+        if (idsToDelete.isNotEmpty) {
+          final placeholders = List.filled(idsToDelete.length, '?').join(',');
+          await txn.delete(
+            'transaction_tags',
+            where:
+                'transaction_type = ? AND transaction_id IN ($placeholders)',
+            whereArgs: ['expense', ...idsToDelete],
+          );
         }
 
         await txn.delete(
@@ -2211,6 +2693,7 @@ class DatabaseHelper {
         );
 
         final now = DateTime.now().toUtc().toIso8601String();
+        final idsToDelete = <int>[];
         for (final income in incomes) {
           await txn.insert('deleted_income', {
             'original_id': income['id'],
@@ -2221,6 +2704,17 @@ class DatabaseHelper {
             'account_id': income['account_id'],
             'deletedAt': now,
           });
+          final iid = income['id'];
+          if (iid is int) idsToDelete.add(iid);
+        }
+        if (idsToDelete.isNotEmpty) {
+          final placeholders = List.filled(idsToDelete.length, '?').join(',');
+          await txn.delete(
+            'transaction_tags',
+            where:
+                'transaction_type = ? AND transaction_id IN ($placeholders)',
+            whereArgs: ['income', ...idsToDelete],
+          );
         }
 
         await txn.delete(
@@ -2255,6 +2749,8 @@ class DatabaseHelper {
 
         // FIX: Use UTC to avoid timezone-dependent expiration
         final now = DateTime.now().toUtc().toIso8601String();
+        // Phase 4.5: collect ids for the transaction_tags cleanup below.
+        final idsToDelete = <int>[];
         for (final expense in expenses) {
           await txn.insert('deleted_expenses', {
             'original_id': expense['id'],
@@ -2267,6 +2763,17 @@ class DatabaseHelper {
             'paymentMethod': expense['paymentMethod'],
             'deletedAt': now,
           });
+          final eid = expense['id'];
+          if (eid is int) idsToDelete.add(eid);
+        }
+        if (idsToDelete.isNotEmpty) {
+          final placeholders = List.filled(idsToDelete.length, '?').join(',');
+          await txn.delete(
+            'transaction_tags',
+            where:
+                'transaction_type = ? AND transaction_id IN ($placeholders)',
+            whereArgs: ['expense', ...idsToDelete],
+          );
         }
 
         // Then delete all expenses in one SQL statement
@@ -2285,6 +2792,7 @@ class DatabaseHelper {
 
         // FIX: Use UTC to avoid timezone-dependent expiration
         final now = DateTime.now().toUtc().toIso8601String();
+        final idsToDelete = <int>[];
         for (final income in incomes) {
           await txn.insert('deleted_income', {
             'original_id': income['id'],
@@ -2295,6 +2803,17 @@ class DatabaseHelper {
             'account_id': income['account_id'],
             'deletedAt': now,
           });
+          final iid = income['id'];
+          if (iid is int) idsToDelete.add(iid);
+        }
+        if (idsToDelete.isNotEmpty) {
+          final placeholders = List.filled(idsToDelete.length, '?').join(',');
+          await txn.delete(
+            'transaction_tags',
+            where:
+                'transaction_type = ? AND transaction_id IN ($placeholders)',
+            whereArgs: ['income', ...idsToDelete],
+          );
         }
 
         // Then delete all income in one SQL statement
@@ -2355,7 +2874,7 @@ class DatabaseHelper {
       ],
       orderBy: 'date DESC',
     );
-    return result.map((map) => Expense.fromMap(map)).toList();
+    return _parseExpenseRows(result);
   }
 
   /// Get income for a specific date range (for lazy loading).
@@ -2600,6 +3119,25 @@ class DatabaseHelper {
     );
   }
 
+  /// Phase 4.9: backup support — return every transaction_tags row whose
+  /// tag belongs to [accountId]. The junction table itself has no
+  /// `account_id` column, so we filter via a JOIN-style subquery against
+  /// `tags`. Returns the raw row maps (`id`, `transaction_id`,
+  /// `transaction_type`, `tag_id`) so the backup writer can serialise them.
+  Future<List<Map<String, dynamic>>> readAllTransactionTags(int accountId) async {
+    final db = await database;
+    return await db.rawQuery(
+      '''
+      SELECT tt.id, tt.transaction_id, tt.transaction_type, tt.tag_id
+      FROM transaction_tags tt
+      INNER JOIN tags t ON tt.tag_id = t.id
+      WHERE t.account_id = ?
+      ORDER BY tt.id ASC
+      ''',
+      [accountId],
+    );
+  }
+
   Future<int> updateTag(int id, String name, {String? color}) async {
     final db = await database;
     return await db.update(
@@ -2671,7 +3209,7 @@ class DatabaseHelper {
     ));
 
     if (result == null) return []; // Timeout occurred
-    return result.map((map) => Expense.fromMap(map)).toList();
+    return _parseExpenseRows(result);
   }
 
   Future<List<Income>> searchIncome(int accountId, String query, {int? limit, int offset = 0}) async {
@@ -2689,7 +3227,7 @@ class DatabaseHelper {
     ));
 
     if (result == null) return []; // Timeout occurred
-    return result.map((map) => Income.fromMap(map)).toList();
+    return _parseIncomeRows(result);
   }
 
   /// FIX: Sanitize search query to prevent LIKE performance issues and injection
@@ -3058,48 +3596,101 @@ class DatabaseHelper {
       }
 
       // 3. Expenses — preserve date and account_id, strip id.
+      //    Phase 4.9: validate amount, date, description; build expenseIdMap
+      //    so transaction_tags can remap transaction_id.
+      final expenseIdMap = <int, int>{};
       final expensesList = backupData['expenses'];
       if (expensesList is List) {
         for (final raw in expensesList) {
-          if (raw is! Map) continue;
+          if (raw is! Map) {
+            stats.rowsSkipped++;
+            continue;
+          }
           final map = Map<String, dynamic>.from(raw);
           final resolvedAccountId = await resolveAccountId(map['account_id']);
-          if (resolvedAccountId == null) continue;
+          if (resolvedAccountId == null) {
+            stats.rowsSkipped++;
+            continue;
+          }
+          if (!_isValidAmount(map['amount']) ||
+              !_isValidBackupDate(map['date']) ||
+              !_isValidDescription(map['description']) ||
+              map['category'] is! String ||
+              (map['category'] as String).isEmpty) {
+            stats.rowsSkipped++;
+            continue;
+          }
+          final oldId = map['id'] as int?;
           final insertMap = Map<String, dynamic>.from(map)
             ..remove('id')
             ..['account_id'] = resolvedAccountId;
-          await txn.insert(DatabaseConstants.tableExpenses, insertMap);
+          final newId =
+              await txn.insert(DatabaseConstants.tableExpenses, insertMap);
+          if (oldId != null) expenseIdMap[oldId] = newId;
           stats.expensesAdded++;
         }
       }
 
       // 4. Incomes — same shape as expenses.
+      //    Phase 4.9: same validation + incomeIdMap for transaction_tags.
+      final incomeIdMap = <int, int>{};
       final incomesList = backupData['incomes'];
       if (incomesList is List) {
         for (final raw in incomesList) {
-          if (raw is! Map) continue;
+          if (raw is! Map) {
+            stats.rowsSkipped++;
+            continue;
+          }
           final map = Map<String, dynamic>.from(raw);
           final resolvedAccountId = await resolveAccountId(map['account_id']);
-          if (resolvedAccountId == null) continue;
+          if (resolvedAccountId == null) {
+            stats.rowsSkipped++;
+            continue;
+          }
+          if (!_isValidAmount(map['amount']) ||
+              !_isValidBackupDate(map['date']) ||
+              !_isValidDescription(map['description']) ||
+              map['category'] is! String ||
+              (map['category'] as String).isEmpty) {
+            stats.rowsSkipped++;
+            continue;
+          }
+          final oldId = map['id'] as int?;
           final insertMap = Map<String, dynamic>.from(map)
             ..remove('id')
             ..['account_id'] = resolvedAccountId;
-          await txn.insert(DatabaseConstants.tableIncome, insertMap);
+          final newId =
+              await txn.insert(DatabaseConstants.tableIncome, insertMap);
+          if (oldId != null) incomeIdMap[oldId] = newId;
           stats.incomesAdded++;
         }
       }
 
       // 5. Budgets — preserve month, upsert by (account_id, category, month).
+      //    Phase 4.9: validate amount; reject malformed months early.
       final budgetsList = backupData['budgets'];
       if (budgetsList is List) {
         for (final raw in budgetsList) {
-          if (raw is! Map) continue;
+          if (raw is! Map) {
+            stats.rowsSkipped++;
+            continue;
+          }
           final map = Map<String, dynamic>.from(raw);
           final resolvedAccountId = await resolveAccountId(map['account_id']);
-          if (resolvedAccountId == null) continue;
+          if (resolvedAccountId == null) {
+            stats.rowsSkipped++;
+            continue;
+          }
           final category = map['category'];
           final month = map['month'];
-          if (category is! String || month is! String) continue;
+          if (category is! String || month is! String) {
+            stats.rowsSkipped++;
+            continue;
+          }
+          if (!_isValidAmount(map['amount'])) {
+            stats.rowsSkipped++;
+            continue;
+          }
 
           final existing = await txn.query(
             DatabaseConstants.tableBudgets,
@@ -3127,13 +3718,25 @@ class DatabaseHelper {
 
       // 6. Recurring expenses — natural key: (account_id, description,
       // frequency, dayOfMonth). Skip exact duplicates.
+      //    Phase 4.9: validate amount + description.
       final recurringExpensesList = backupData['recurring_expenses'];
       if (recurringExpensesList is List) {
         for (final raw in recurringExpensesList) {
-          if (raw is! Map) continue;
+          if (raw is! Map) {
+            stats.rowsSkipped++;
+            continue;
+          }
           final map = Map<String, dynamic>.from(raw);
           final resolvedAccountId = await resolveAccountId(map['account_id']);
-          if (resolvedAccountId == null) continue;
+          if (resolvedAccountId == null) {
+            stats.rowsSkipped++;
+            continue;
+          }
+          if (!_isValidAmount(map['amount']) ||
+              !_isValidDescription(map['description'])) {
+            stats.rowsSkipped++;
+            continue;
+          }
           final existing = await txn.query(
             DatabaseConstants.tableRecurringExpenses,
             where: 'account_id = ? AND description = ? AND frequency = ? AND dayOfMonth = ?',
@@ -3158,13 +3761,25 @@ class DatabaseHelper {
       }
 
       // 7. Recurring incomes — mirror of recurring expenses.
+      //    Phase 4.9: same validation.
       final recurringIncomesList = backupData['recurring_income'];
       if (recurringIncomesList is List) {
         for (final raw in recurringIncomesList) {
-          if (raw is! Map) continue;
+          if (raw is! Map) {
+            stats.rowsSkipped++;
+            continue;
+          }
           final map = Map<String, dynamic>.from(raw);
           final resolvedAccountId = await resolveAccountId(map['account_id']);
-          if (resolvedAccountId == null) continue;
+          if (resolvedAccountId == null) {
+            stats.rowsSkipped++;
+            continue;
+          }
+          if (!_isValidAmount(map['amount']) ||
+              !_isValidDescription(map['description'])) {
+            stats.rowsSkipped++;
+            continue;
+          }
           final existing = await txn.query(
             DatabaseConstants.tableRecurringIncome,
             where: 'account_id = ? AND description = ? AND frequency = ? AND dayOfMonth = ?',
@@ -3189,15 +3804,31 @@ class DatabaseHelper {
       }
 
       // 8. Quick templates — natural key: (account_id, name, type).
+      //    Phase 4.9: validate amount.
       final templatesList = backupData['quick_templates'];
       if (templatesList is List) {
         for (final raw in templatesList) {
-          if (raw is! Map) continue;
+          if (raw is! Map) {
+            stats.rowsSkipped++;
+            continue;
+          }
           final map = Map<String, dynamic>.from(raw);
           final resolvedAccountId = await resolveAccountId(map['account_id']);
-          if (resolvedAccountId == null) continue;
+          if (resolvedAccountId == null) {
+            stats.rowsSkipped++;
+            continue;
+          }
           final name = map['name'];
-          if (name is! String || name.isEmpty) continue;
+          if (name is! String || name.isEmpty) {
+            stats.rowsSkipped++;
+            continue;
+          }
+          // amount is optional on templates (null/zero are common), but if
+          // present must be sane.
+          if (map['amount'] != null && !_isValidAmount(map['amount'])) {
+            stats.rowsSkipped++;
+            continue;
+          }
           final type = map['type'] as String? ?? 'expense';
           final existing = await txn.query(
             DatabaseConstants.tableQuickTemplates,
@@ -3211,6 +3842,89 @@ class DatabaseHelper {
             ..['account_id'] = resolvedAccountId;
           await txn.insert(DatabaseConstants.tableQuickTemplates, insertMap);
           stats.templatesAdded++;
+        }
+      }
+
+      // 9. Tags — Phase 4.9 addition. Natural key: (account_id, name).
+      //    Build tagIdMap so transaction_tags can remap tag_id below.
+      final tagIdMap = <int, int>{};
+      final tagsList = backupData['tags'];
+      if (tagsList is List) {
+        for (final raw in tagsList) {
+          if (raw is! Map) {
+            stats.rowsSkipped++;
+            continue;
+          }
+          final map = Map<String, dynamic>.from(raw);
+          final resolvedAccountId = await resolveAccountId(map['account_id']);
+          if (resolvedAccountId == null) {
+            stats.rowsSkipped++;
+            continue;
+          }
+          final name = map['name'];
+          if (name is! String || name.isEmpty || name.length > 1024) {
+            stats.rowsSkipped++;
+            continue;
+          }
+          final oldId = map['id'] as int?;
+          final existing = await txn.query(
+            'tags',
+            where: 'account_id = ? AND name = ?',
+            whereArgs: [resolvedAccountId, name],
+            limit: 1,
+          );
+          int newId;
+          if (existing.isNotEmpty) {
+            newId = existing.first['id'] as int;
+          } else {
+            final insertMap = Map<String, dynamic>.from(map)
+              ..remove('id')
+              ..['account_id'] = resolvedAccountId;
+            newId = await txn.insert('tags', insertMap);
+            stats.tagsAdded++;
+          }
+          if (oldId != null) tagIdMap[oldId] = newId;
+        }
+      }
+
+      // 10. Transaction tags (junction) — Phase 4.9 addition.
+      //     Remap both `transaction_id` (via expenseIdMap/incomeIdMap) and
+      //     `tag_id` (via tagIdMap). If either map is missing the source id,
+      //     the link is dropped silently — better than orphaning rows.
+      final transactionTagsList = backupData['transaction_tags'];
+      if (transactionTagsList is List) {
+        for (final raw in transactionTagsList) {
+          if (raw is! Map) {
+            stats.rowsSkipped++;
+            continue;
+          }
+          final map = Map<String, dynamic>.from(raw);
+          final oldTagId = map['tag_id'];
+          final oldTxnId = map['transaction_id'];
+          final txnType = map['transaction_type'];
+          if (oldTagId is! int ||
+              oldTxnId is! int ||
+              txnType is! String ||
+              (txnType != 'expense' && txnType != 'income')) {
+            stats.rowsSkipped++;
+            continue;
+          }
+          final newTagId = tagIdMap[oldTagId];
+          final newTxnId = (txnType == 'expense')
+              ? expenseIdMap[oldTxnId]
+              : incomeIdMap[oldTxnId];
+          if (newTagId == null || newTxnId == null) {
+            stats.rowsSkipped++;
+            continue;
+          }
+          // The schema has a unique index on (transaction_id, transaction_type,
+          // tag_id); use insertConflictReplace to be idempotent across re-runs.
+          await txn.insert('transaction_tags', {
+            'transaction_id': newTxnId,
+            'transaction_type': txnType,
+            'tag_id': newTagId,
+          }, conflictAlgorithm: ConflictAlgorithm.ignore);
+          stats.transactionTagsAdded++;
         }
       }
     });
@@ -3243,6 +3957,13 @@ class BackupRestoreStats {
   int recurringExpensesAdded = 0;
   int recurringIncomesAdded = 0;
   int templatesAdded = 0;
+  int tagsAdded = 0;
+  int transactionTagsAdded = 0;
+
+  /// Phase 4.9: number of rows rejected by input validation (bad amount,
+  /// out-of-range date, oversize description, missing required field).
+  /// Surfaced to the UI so the user knows their backup wasn't clean.
+  int rowsSkipped = 0;
 
   int get total =>
       accountsAdded +
@@ -3252,5 +3973,7 @@ class BackupRestoreStats {
       budgetsAdded +
       recurringExpensesAdded +
       recurringIncomesAdded +
-      templatesAdded;
+      templatesAdded +
+      tagsAdded +
+      transactionTagsAdded;
 }

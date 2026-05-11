@@ -58,7 +58,12 @@ class MonthlyBalance {
       'carryover_from_previous': DecimalHelper.toDouble(_carryoverFromPrevious),
       'overall_budget': budget != null ? DecimalHelper.toDouble(budget) : null,
       'account_id': accountId,
-      'month': DateHelper.toDateString(month),
+      // Phase 4.8: store as YYYY-MM (the month *key*) rather than the
+      // YYYY-MM-DD of the first-of-month. The previous full-date version
+      // led to silent duplicate rows when callers truncated to YYYY-MM
+      // for lookup but the writer left YYYY-MM-DD on disk. Migration v19
+      // normalises existing rows via `UPDATE ... SET month = substr(month, 1, 7)`.
+      'month': DateHelper.toMonthString(month),
     };
   }
 
@@ -69,7 +74,13 @@ class MonthlyBalance {
     if (monthValue == null) {
       parsedMonth = DateHelper.startOfMonth(DateHelper.today());
     } else if (monthValue is String) {
-      parsedMonth = DateHelper.parseDate(monthValue);
+      // Phase 4.8: rows written post-v19 use YYYY-MM. Expand to YYYY-MM-01
+      // before delegating to `parseDate`, which only accepts full dates.
+      // Pre-v19 rows in YYYY-MM-DD form are accepted unchanged.
+      final value = monthValue.length == 7 && monthValue.contains('-')
+          ? '$monthValue-01'
+          : monthValue;
+      parsedMonth = DateHelper.parseDate(value);
     } else if (monthValue is int) {
       parsedMonth = DateHelper.normalize(
         DateTime.fromMillisecondsSinceEpoch(monthValue),
@@ -91,13 +102,20 @@ class MonthlyBalance {
       }
     }
 
+    // Phase 4.11: snake_case only. The `accountId` fallback to `0` would
+    // attach orphan rows to the no-such-account id; reject upfront instead.
+    final accountId = map['account_id'];
+    if (accountId == null) {
+      throw ArgumentError('MonthlyBalance account_id is required');
+    }
+
     return MonthlyBalance(
       id: map['id'],
       carryoverFromPrevious: DecimalHelper.fromDoubleSafe(
         (map['carryover_from_previous'] as num?)?.toDouble(),
       ),
       overallBudget: overallBudget,
-      accountId: map['account_id'] ?? map['accountId'] ?? 0,
+      accountId: accountId as int,
       month: parsedMonth ?? DateHelper.startOfMonth(DateHelper.today()),
     );
   }

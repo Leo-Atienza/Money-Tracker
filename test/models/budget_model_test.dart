@@ -149,15 +149,17 @@ void main() {
         expect(b.accountId, 5);
       });
 
-      test('supports accountId key (camelCase) as fallback', () {
+      test('rejects camelCase accountId key (Phase 4.11)', () {
+        // Pre-Phase-4.11 this fell back to camelCase. The on-disk schema and
+        // every live writer use snake_case; accepting camelCase silently
+        // imported hand-edited backups with typos as if they were correct.
         final map = {
           'category': 'Food',
           'amount': 100.0,
           'accountId': 7,
           'month': '2024-01-01',
         };
-        final b = Budget.fromMap(map);
-        expect(b.accountId, 7);
+        expect(() => Budget.fromMap(map), throwsArgumentError);
       });
 
       test('prefers account_id over accountId when both present', () {
@@ -385,15 +387,10 @@ void main() {
         expect(restored.month, budget.month);
       });
 
-      test('handles empty map with graceful defaults', () {
-        final map = <String, dynamic>{};
-        final b = Budget.fromMap(map);
-        expect(b.id, isNull);
-        expect(b.category, 'Uncategorized');
-        expect(b.amount, 0.0);
-        // accountId will be null from ?? null, so this may throw -
-        // but in the model it does map['account_id'] ?? map['accountId'] which gives null
-        // which is then assigned. This tests the actual behavior.
+      test('rejects empty map (Phase 4.11 — account_id required)', () {
+        // Pre-Phase-4.11 returned a fabricated Budget with accountId == 0.
+        // That tied corrupted backups to the no-such-account id; reject loud.
+        expect(() => Budget.fromMap(<String, dynamic>{}), throwsArgumentError);
       });
     });
   });

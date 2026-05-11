@@ -40,6 +40,17 @@ class Income {
     };
   }
 
+  /// Best-effort parser — returns `null` on validation failure instead of
+  /// throwing. Use in bulk-read paths so a single corrupt row doesn't kill
+  /// the whole query; pair with `whereType<Income>()` to drop nulls.
+  static Income? tryFromMap(Map<String, dynamic> map) {
+    try {
+      return Income.fromMap(map);
+    } on ArgumentError {
+      return null;
+    }
+  }
+
   /// Create an Income from a database map.
   /// FIX: Validates that required fields exist to prevent null reference exceptions.
   factory Income.fromMap(Map<String, dynamic> map) {

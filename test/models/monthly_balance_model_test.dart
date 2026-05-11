@@ -119,7 +119,8 @@ void main() {
         );
         expect(map['overall_budget'], closeTo(2000.00, 0.001));
         expect(map['account_id'], 1);
-        expect(map['month'], '2024-06-01');
+        // Phase 4.8: months are written as the YYYY-MM key, not YYYY-MM-DD.
+        expect(map['month'], '2024-06');
       });
 
       test('serializes null id', () {
@@ -220,25 +221,26 @@ void main() {
         expect(balance.carryoverFromPrevious, closeTo(500.0, 0.001));
       });
 
-      test('falls back to accountId key when account_id missing', () {
+      test('rejects camelCase accountId fallback (Phase 4.11)', () {
+        // Pre-Phase-4.11 this fell back to camelCase. The on-disk schema
+        // and every live writer use snake_case; accepting camelCase silently
+        // imported hand-edited backups with typos as if they were correct.
         final map = {
           'id': 1,
           'carryover_from_previous': 100.0,
           'accountId': 3,
           'month': '2024-01-01',
         };
-        final balance = MonthlyBalance.fromMap(map);
-        expect(balance.accountId, 3);
+        expect(() => MonthlyBalance.fromMap(map), throwsArgumentError);
       });
 
-      test('defaults accountId to 0 when both keys missing', () {
+      test('rejects map missing account_id entirely (Phase 4.11)', () {
         final map = {
           'id': 1,
           'carryover_from_previous': 100.0,
           'month': '2024-01-01',
         };
-        final balance = MonthlyBalance.fromMap(map);
-        expect(balance.accountId, 0);
+        expect(() => MonthlyBalance.fromMap(map), throwsArgumentError);
       });
     });
 

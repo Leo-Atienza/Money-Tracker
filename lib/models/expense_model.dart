@@ -77,17 +77,46 @@ class Expense {
     };
   }
 
+  /// Best-effort parser — returns `null` on validation failure instead of
+  /// throwing. Use in bulk-read paths so a single corrupt row doesn't kill
+  /// the whole query; pair with `whereType<Expense>()` to drop nulls.
+  static Expense? tryFromMap(Map<String, dynamic> map) {
+    try {
+      return Expense.fromMap(map);
+    } on ArgumentError {
+      return null;
+    }
+  }
+
+  /// Create an Expense from a database map.
+  ///
+  /// Phase 4.10: validates `category` + `account_id` like `Income.fromMap`
+  /// does. The previous defaults (`'Uncategorized'` / `0`) hid data
+  /// corruption — a row missing `account_id` would silently load against
+  /// the no-such-account `0`, then crash analytics. Callers (`readAllExpenses`,
+  /// `restoreFromJsonBackup`) catch the throw and skip the row, surfacing
+  /// the corruption to the crash log instead.
   factory Expense.fromMap(Map<String, dynamic> map) {
+    final category = map['category'];
+    if (category == null || (category is String && category.isEmpty)) {
+      throw ArgumentError('Expense category is required');
+    }
+
+    final accountId = map['account_id'];
+    if (accountId == null) {
+      throw ArgumentError('Expense account_id is required');
+    }
+
     return Expense(
       id: map['id'],
       amount: DecimalHelper.fromDoubleSafe(
         (map['amount'] as num?)?.toDouble(),
       ), // Convert from database double
-      category: map['category'] ?? 'Uncategorized',
+      category: category as String,
       description: map['description'] ?? '',
       date: DateHelper.parseDate(map['date']) ??
           DateHelper.today(), // Normalize date from database
-      accountId: (map['account_id'] as int?) ?? 0,
+      accountId: accountId as int,
       amountPaid: DecimalHelper.fromDoubleSafe(
         (map['amountPaid'] as num?)?.toDouble(),
       ), // Convert from database double

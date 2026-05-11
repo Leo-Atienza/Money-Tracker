@@ -4,7 +4,10 @@
 class DatabaseConstants {
   // Database metadata
   static const String databaseName = 'expense_tracker_v4.db';
-  static const int databaseVersion = 18;
+  // Phase 4: bumped 18 → 19 for the trash-table FKs, v4 cascade rebuilds,
+  // junction-cleanup triggers, and monthly_balances month-key normalization.
+  // See DatabaseHelper._onUpgrade `if (oldVersion < 19)` block.
+  static const int databaseVersion = 19;
 
   // Table names
   static const String tableAccounts = 'accounts';

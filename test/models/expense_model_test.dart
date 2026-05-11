@@ -157,14 +157,16 @@ void main() {
         expect(e.id, isNull);
       });
 
-      test('defaults category to Uncategorized when null', () {
+      test('rejects map missing category (Phase 4.10)', () {
+        // Pre-Phase-4.10 returned a fabricated `Uncategorized` expense; that
+        // hid corruption from analytics. The strict throw matches
+        // `Income.fromMap`'s long-standing behaviour.
         final map = {
           'amount': 10.0,
           'date': '2024-01-01',
           'account_id': 1,
         };
-        final e = Expense.fromMap(map);
-        expect(e.category, 'Uncategorized');
+        expect(() => Expense.fromMap(map), throwsArgumentError);
       });
 
       test('defaults description to empty string when null', () {
@@ -178,15 +180,14 @@ void main() {
         expect(e.description, '');
       });
 
-      test('defaults accountId to 0 when null', () {
+      test('rejects map missing account_id (Phase 4.10)', () {
         final map = {
           'amount': 10.0,
           'category': 'Food',
           'description': 'Test',
           'date': '2024-01-01',
         };
-        final e = Expense.fromMap(map);
-        expect(e.accountId, 0);
+        expect(() => Expense.fromMap(map), throwsArgumentError);
       });
 
       test('defaults amountPaid to 0 when null', () {
@@ -265,16 +266,22 @@ void main() {
         expect(e.amount, 100.0);
       });
 
-      test('handles empty map with graceful defaults', () {
-        final map = <String, dynamic>{};
-        final e = Expense.fromMap(map);
-        expect(e.id, isNull);
-        expect(e.amount, 0.0);
-        expect(e.category, 'Uncategorized');
-        expect(e.description, '');
-        expect(e.accountId, 0);
-        expect(e.amountPaid, 0.0);
-        expect(e.paymentMethod, 'Cash');
+      test('rejects empty map (Phase 4.10 — category + account_id required)',
+          () {
+        expect(
+          () => Expense.fromMap(<String, dynamic>{}),
+          throwsArgumentError,
+        );
+      });
+
+      test('tryFromMap returns null on missing required fields', () {
+        // The bulk-read path uses `tryFromMap` so a single corrupt row
+        // doesn't kill the whole query. Confirms the back-compat seam exists.
+        expect(Expense.tryFromMap(<String, dynamic>{}), isNull);
+        expect(
+          Expense.tryFromMap({'amount': 10.0, 'date': '2024-01-01'}),
+          isNull,
+        );
       });
     });
 

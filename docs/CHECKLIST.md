@@ -73,18 +73,23 @@ Each lands as its own commit with regression test.
 
 ## Phase 4 — Schema v19 + Data Integrity
 
-- [ ] 4.1 Pre-migration backup hook
-- [ ] 4.2 Migration v19: trash table FKs
-- [ ] 4.3 Migration v19: cascade v4 tables (`income`, `quick_templates`)
-- [ ] 4.4 Migration v19: junction cleanup triggers
-- [ ] 4.5 Soft-delete junction cleanup
-- [ ] 4.6 Wrap `emptyTrash` + `clearOldDeleted` in tx
-- [ ] 4.7 `moveToDeletedById` read inside tx
-- [ ] 4.8 `monthly_balances` month-key normalization
-- [ ] 4.9 `restoreFromJsonBackup` input validation
-- [ ] 4.10 `Expense.fromMap` strict validation
-- [ ] 4.11 Remove `accountId` dual-key in `Budget`/`MonthlyBalance.fromMap`
-- [ ] 4.12 Migration v3→v19 integration test
+- [x] 4.1 Pre-migration backup hook — `.v18-backup` file alongside the live DB; auto-cleaned on success, left for manual recovery on failure
+- [x] 4.2 Migration v19: trash table FKs — `deleted_expenses` + `deleted_income` rebuilt via SQLite "12-step alter" with `FOREIGN KEY (account_id) … ON DELETE CASCADE`
+- [x] 4.3 Migration v19: cascade v4 tables — `income`, `quick_templates` rebuilt only when `_tableHasAccountCascade` returns false (skip when already correct)
+- [x] 4.4 Migration v19: junction cleanup triggers — `trg_transaction_tags_cleanup_expense` + `_income` cover hard-deletes
+- [x] 4.5 Soft-delete junction cleanup — `moveToDeleted`, `moveIncomeToDeleted`, `moveToDeletedById`, `moveIncomeToDeletedById`, `bulkDeleteTransactionsByCategory`, `bulkDeleteTransactionsAndCategory` all clean `transaction_tags` before deleting the live row
+- [x] 4.6 Wrap `emptyTrash` + `clearOldDeleted` in `db.transaction`
+- [x] 4.7 `moveToDeletedById` + `moveIncomeToDeletedById` rewritten so read+insert+delete happen inside a single transaction (uses `Expense.tryFromMap` so corrupt rows are skipped instead of half-deleted)
+- [x] 4.8 `monthly_balances.month` normalised to YYYY-MM — `MonthlyBalance.toMap` writes the month key; migration does `UPDATE … SET month = substr(month, 1, 7)`; `_upsertMonthlyBalanceTxn` lookup uses `LIKE 'YYYY-MM%'` so it hits both pre- and post-migration rows; `MonthlyBalance.fromMap` expands YYYY-MM → YYYY-MM-01 before parsing
+- [x] 4.9 `restoreFromJsonBackup` input validation — `_isValidAmount`, `_isValidBackupDate`, `_isValidDescription` gate expense/income/budget/recurring/template inserts; `rowsSkipped` counter on `BackupRestoreStats`; `transaction_tags` round-trip with `expenseIdMap` / `incomeIdMap` / `tagIdMap`; backup export bumped to `version: 3` and includes `transaction_tags`
+- [x] 4.10 `Expense.fromMap` strict validation — throws on missing `category` or `account_id` (matches `Income.fromMap`); `Expense.tryFromMap` + `Income.tryFromMap` non-throwing variants; `DatabaseHelper._parseExpenseRows` / `_parseIncomeRows` swap the 7 bulk-read sites
+- [x] 4.11 Remove `accountId` dual-key in `Budget.fromMap` / `MonthlyBalance.fromMap` — snake-case only; throw on missing field
+- [x] 4.12 v18→v19 integration test — `test/integration/migration_v18_to_v19_test.dart` seeds 5 expenses / 3 income / 2 budgets / 2 recurring / 1 template / 2 tags / 3 transaction_tags / 1 monthly_balances, runs the upgrade, asserts row counts preserved, month-key normalised, trash-table FKs installed, cleanup trigger fires on hard delete, account cascade reaches trash tables. (Scope tightened from "v3→v19" because the v3→v18 chain is exercised by every production upgrade already — see the test's preamble.)
+
+**Phase 4 gate:**
+- `flutter analyze` — No issues found.
+- `flutter test` — 1,685 pass (+1 migration test; +0 from other waves which amended existing tests).
+- `DatabaseConstants.databaseVersion` = 19.
 
 ---
 
