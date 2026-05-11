@@ -44,6 +44,9 @@ dependencies:
   decimal: ^3.2.4
   crypto: ^3.0.5
 
+  # Phase 6.3: AES-GCM + PBKDF2 for encrypted backup envelopes.
+  cryptography: ^2.7.0
+
   # Reads version+build from native bundle (instead of hardcoding).
   package_info_plus: ^8.0.0
 

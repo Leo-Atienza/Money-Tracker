@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import '../database/database_helper.dart';
 import '../providers/app_state.dart';
 import 'currency_helper.dart';
+import 'pin_security_helper.dart';
+import 'widget_payload.dart';
 
 /// Helper class for managing the home screen widget
 /// Updates the widget with current month's financial summary
@@ -86,16 +88,29 @@ class HomeWidgetHelper {
       ];
       final monthName = monthNames[now.month - 1];
 
-      // Save data to widget storage
-      await HomeWidget.saveWidgetData<String>('month_name', monthName);
-      await HomeWidget.saveWidgetData<String>('expenses', expensesFormatted);
-      await HomeWidget.saveWidgetData<String>('income', incomeFormatted);
-      await HomeWidget.saveWidgetData<String>(
-        'balance',
-        '${isPositiveBalance ? '+' : '-'}$balanceFormatted',
+      // Phase 6.4: redact every monetary field when PIN protection is
+      // enabled. The launcher widget renders even on the lock screen,
+      // so unredacted data here would defeat the PIN gate entirely.
+      final pinEnabled = await PinSecurityHelper.isPinEnabled();
+      final payload = WidgetPayload.redactIfLocked(
+        WidgetData(
+          monthName: monthName,
+          expenses: expensesFormatted,
+          income: incomeFormatted,
+          balance: '${isPositiveBalance ? '+' : '-'}$balanceFormatted',
+          isPositive: isPositiveBalance,
+          currency: currencySymbol,
+        ),
+        pinEnabled: pinEnabled,
       );
-      await HomeWidget.saveWidgetData<bool>('is_positive', isPositiveBalance);
-      await HomeWidget.saveWidgetData<String>('currency', currencySymbol);
+
+      // Save data to widget storage
+      await HomeWidget.saveWidgetData<String>('month_name', payload.monthName);
+      await HomeWidget.saveWidgetData<String>('expenses', payload.expenses);
+      await HomeWidget.saveWidgetData<String>('income', payload.income);
+      await HomeWidget.saveWidgetData<String>('balance', payload.balance);
+      await HomeWidget.saveWidgetData<bool>('is_positive', payload.isPositive);
+      await HomeWidget.saveWidgetData<String>('currency', payload.currency);
 
       // Update the widget using qualifiedAndroidName for reliable class resolution
       await HomeWidget.updateWidget(
