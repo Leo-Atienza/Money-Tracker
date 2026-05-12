@@ -5,7 +5,7 @@ import '../widgets/luminous/glass_surface.dart';
 import 'add_expense_screen.dart';
 import 'add_income_screen.dart';
 import 'budget_screen.dart';
-import 'recurring_expenses_screen.dart';
+import 'recurring_items_screen.dart';
 
 /// Center tab from the stitch redesign: pick what to add (expense, income, budgets, recurring).
 class AddHubScreen extends StatelessWidget {
@@ -85,7 +85,9 @@ class AddHubScreen extends StatelessWidget {
                     tint: cs.onSurfaceVariant,
                     onTap: () => Navigator.push(
                       context,
-                      PremiumPageRoute(page: const RecurringExpensesScreen()),
+                      PremiumPageRoute(
+                        page: const RecurringItemsScreen(initialType: 'expense'),
+                      ),
                     ),
                   ),
                 ],

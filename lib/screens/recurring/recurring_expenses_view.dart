@@ -2,68 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../providers/app_state.dart';
-import '../models/recurring_expense_model.dart';
-import '../utils/currency_helper.dart';
-import '../utils/decimal_helper.dart';
-import '../utils/validators.dart';
-import '../utils/date_helper.dart';
-import '../utils/premium_animations.dart';
-import '../utils/haptic_helper.dart';
-import '../theme/app_colors.dart';
+import '../../providers/app_state.dart';
+import '../../models/recurring_expense_model.dart';
+import '../../utils/currency_helper.dart';
+import '../../utils/decimal_helper.dart';
+import '../../utils/validators.dart';
+import '../../utils/date_helper.dart';
+import '../../utils/premium_animations.dart';
+import '../../utils/haptic_helper.dart';
+import '../../theme/app_colors.dart';
 
-class RecurringExpensesScreen extends StatelessWidget {
-  const RecurringExpensesScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            backgroundColor: theme.colorScheme.surface,
-            elevation: 0,
-            pinned: true,
-            title: Text(
-              'Recurring',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.all(20),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                const _RecurringList(),
-                const SizedBox(height: 100),
-              ]),
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddRecurring(context),
-        backgroundColor: theme.colorScheme.onSurface,
-        child: Icon(Icons.add, color: theme.colorScheme.surface),
-      ),
-    );
-  }
-
-  void _showAddRecurring(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => const _AddRecurringDialog(),
-    );
-  }
+/// Opens the "Add recurring expense" bottom sheet.
+///
+/// Public entry point — the merged `RecurringItemsScreen` calls this when
+/// its FAB is tapped while the Expenses tab is selected.
+void showAddRecurringExpenseDialog(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => const _AddRecurringDialog(),
+  );
 }
 
-class _RecurringList extends StatelessWidget {
-  const _RecurringList();
+/// List of recurring expenses, intended to be embedded inside another scaffold.
+///
+/// Was the private `_RecurringList` inside the now-deleted
+/// `RecurringExpensesScreen`. Promoted to public so it can be reused by
+/// `RecurringItemsScreen`.
+class RecurringExpensesView extends StatelessWidget {
+  const RecurringExpensesView({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -7,8 +7,7 @@ import '../utils/currency_helper.dart';
 import '../utils/dialog_helpers.dart';
 import '../utils/progress_indicator_helper.dart';
 import '../utils/premium_animations.dart';
-import 'recurring_expenses_screen.dart';
-import 'recurring_income_screen.dart';
+import 'recurring_items_screen.dart';
 import 'category_manager_screen.dart';
 import 'quick_templates_screen.dart';
 import 'trash_screen.dart';
@@ -172,7 +171,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             onTap: () => Navigator.push(
                               context,
                               PremiumPageRoute(
-                                page: const RecurringExpensesScreen(),
+                                page: const RecurringItemsScreen(
+                                  initialType: 'expense',
+                                ),
                               ),
                             ),
                           ),
@@ -185,7 +186,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             onTap: () => Navigator.push(
                               context,
                               PremiumPageRoute(
-                                page: const RecurringIncomeScreen(),
+                                page: const RecurringItemsScreen(
+                                  initialType: 'income',
+                                ),
                               ),
                             ),
                           ),

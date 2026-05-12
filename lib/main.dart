@@ -12,7 +12,7 @@ import 'theme/app_colors.dart';
 import 'utils/crash_log.dart';
 import 'screens/home_screen.dart';
 import 'screens/history/history_screen.dart';
-import 'screens/recurring_expenses_screen.dart';
+import 'screens/recurring_items_screen.dart';
 import 'screens/add_hub_screen.dart';
 import 'screens/analytics_screen.dart';
 import 'screens/wallet_screen.dart';
@@ -531,7 +531,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
       if (payload == 'recurring_expenses') {
         Navigator.push(
           context,
-          PremiumPageRoute(page: const RecurringExpensesScreen()),
+          PremiumPageRoute(
+            page: const RecurringItemsScreen(initialType: 'expense'),
+          ),
         );
       } else if (payload.startsWith('budget_alert:')) {
         setState(() => _currentIndex = 0);

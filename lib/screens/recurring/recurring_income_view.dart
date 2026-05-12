@@ -1,69 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../providers/app_state.dart';
-import '../models/recurring_income_model.dart';
-import '../utils/currency_helper.dart';
-import '../utils/decimal_helper.dart';
-import '../utils/validators.dart';
-import '../utils/date_helper.dart';
-import '../utils/premium_animations.dart';
-import '../theme/app_colors.dart';
+import '../../providers/app_state.dart';
+import '../../models/recurring_income_model.dart';
+import '../../utils/currency_helper.dart';
+import '../../utils/decimal_helper.dart';
+import '../../utils/validators.dart';
+import '../../utils/date_helper.dart';
+import '../../utils/premium_animations.dart';
+import '../../theme/app_colors.dart';
 
-class RecurringIncomeScreen extends StatelessWidget {
-  const RecurringIncomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    final appColors = theme.extension<AppColors>()!;
-
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            backgroundColor: theme.colorScheme.surface,
-            elevation: 0,
-            pinned: true,
-            title: Text(
-              'Recurring Income',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.all(20),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                const _RecurringIncomeList(),
-                const SizedBox(height: 100),
-              ]),
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddRecurring(context),
-        backgroundColor: appColors.incomeGreen,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-    );
-  }
-
-  void _showAddRecurring(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => const _AddRecurringIncomeDialog(),
-    );
-  }
+/// Opens the "Add recurring income" bottom sheet.
+///
+/// Public entry point — the merged `RecurringItemsScreen` calls this when
+/// its FAB is tapped while the Income tab is selected.
+void showAddRecurringIncomeDialog(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => const _AddRecurringIncomeDialog(),
+  );
 }
 
-class _RecurringIncomeList extends StatelessWidget {
-  const _RecurringIncomeList();
+/// List of recurring income, intended to be embedded inside another scaffold.
+///
+/// Was the private `_RecurringIncomeList` inside the now-deleted
+/// `RecurringIncomeScreen`. Promoted to public so it can be reused by
+/// `RecurringItemsScreen`.
+class RecurringIncomeView extends StatelessWidget {
+  const RecurringIncomeView({super.key});
 
   @override
   Widget build(BuildContext context) {
