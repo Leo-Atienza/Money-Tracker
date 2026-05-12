@@ -7,8 +7,10 @@ import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import '../utils/backup_helper.dart';
 import '../providers/app_state.dart';
-import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
+import '../theme/luminous_tokens.dart';
+import '../widgets/luminous/glass_panel.dart';
+import '../widgets/luminous/glass_top_app_bar.dart';
 
 class BackupRestoreScreen extends StatefulWidget {
   const BackupRestoreScreen({super.key});
@@ -145,7 +147,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const CircularProgressIndicator(),
-                const SizedBox(width: Spacing.lg),
+                const SizedBox(width: 20),
                 Expanded(child: Text(message)),
               ],
             ),
@@ -345,11 +347,11 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(Spacing.sm),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: dialogAppColors.warningOrange.withAlpha(20),
                           borderRadius:
-                              BorderRadius.circular(Spacing.radiusSmall),
+                              BorderRadius.circular(8),
                           border: Border.all(
                             color: dialogAppColors.warningOrange.withAlpha(100),
                           ),
@@ -361,7 +363,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                               size: 20,
                               color: dialogAppColors.warningOrange,
                             ),
-                            const SizedBox(width: Spacing.sm),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 'Choose a passphrase. We cannot recover '
@@ -372,7 +374,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: Spacing.md),
+                      const SizedBox(height: 16),
                       TextFormField(
                         controller: passphraseController,
                         obscureText: obscure,
@@ -390,7 +392,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: Spacing.sm),
+                      const SizedBox(height: 12),
                       TextFormField(
                         controller: confirmController,
                         obscureText: obscure,
@@ -399,7 +401,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                         ),
                       ),
                       if (validationError != null) ...[
-                        const SizedBox(height: Spacing.sm),
+                        const SizedBox(height: 12),
                         Text(
                           validationError!,
                           style: dialogTheme.textTheme.bodySmall?.copyWith(
@@ -476,12 +478,12 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                 children: [
                   if (isRetry)
                     Container(
-                      padding: const EdgeInsets.all(Spacing.sm),
-                      margin: const EdgeInsets.only(bottom: Spacing.sm),
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
                         color: dialogAppColors.expenseRed.withAlpha(20),
                         borderRadius:
-                            BorderRadius.circular(Spacing.radiusSmall),
+                            BorderRadius.circular(8),
                       ),
                       child: Text(
                         'Wrong passphrase — try again.',
@@ -494,7 +496,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     'Enter the passphrase used when this backup was created.',
                     style: dialogTheme.textTheme.bodyMedium,
                   ),
-                  const SizedBox(height: Spacing.md),
+                  const SizedBox(height: 16),
                   TextField(
                     controller: controller,
                     obscureText: obscure,
@@ -591,7 +593,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       CircularProgressIndicator(),
-                      SizedBox(width: Spacing.lg),
+                      SizedBox(width: 20),
                       Expanded(child: Text('Creating backup...')),
                     ],
                   ),
@@ -715,7 +717,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       CircularProgressIndicator(),
-                      SizedBox(width: Spacing.lg),
+                      SizedBox(width: 20),
                       Expanded(child: Text('Creating backup for sharing...')),
                     ],
                   ),
@@ -787,12 +789,12 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                 'Restore from "${backupFile.path.split(Platform.pathSeparator).last}"?',
                 style: dialogTheme.textTheme.titleSmall,
               ),
-              const SizedBox(height: Spacing.md),
+              const SizedBox(height: 16),
               Container(
-                padding: const EdgeInsets.all(Spacing.sm),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: dialogAppColors.infoBlue.withAlpha(20),
-                  borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: dialogAppColors.infoBlue.withAlpha(100),
                   ),
@@ -804,7 +806,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       size: 20,
                       color: dialogAppColors.infoBlue,
                     ),
-                    const SizedBox(width: Spacing.sm),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'A safety backup of your current data will be created before restoring.',
@@ -816,7 +818,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: Spacing.sm),
+              const SizedBox(height: 12),
               Text(
                 'This will replace all current data.',
                 style: dialogTheme.textTheme.bodyMedium?.copyWith(
@@ -894,7 +896,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         CircularProgressIndicator(),
-                        SizedBox(width: Spacing.lg),
+                        SizedBox(width: 20),
                         Expanded(child: Text('Restoring backup...')),
                       ],
                     ),
@@ -1176,49 +1178,50 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: theme.colorScheme.surface,
-        elevation: 0,
-        leading: _isSelectionMode
-            ? IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: _toggleSelectionMode,
-              )
-            : null,
-        title: Text(
-          _isSelectionMode
-              ? '${_selectedBackups.length} selected'
-              : 'Backup & Restore',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w400,
-            color: theme.colorScheme.onSurface,
+      backgroundColor: Colors.transparent,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GlassTopAppBar(
+            leading: _isSelectionMode
+                ? IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: _toggleSelectionMode,
+                  )
+                : BackButton(color: theme.colorScheme.onSurface),
+            title: _isSelectionMode
+                ? '${_selectedBackups.length} selected'
+                : 'Backup & Restore',
+            actions: _isSelectionMode
+                ? [
+                    if (_backupsWithInfo.isNotEmpty)
+                      TextButton(
+                        onPressed: _selectAllBackups,
+                        child: const Text('Select All'),
+                      ),
+                    if (_selectedBackups.isNotEmpty)
+                      IconButton(
+                        icon: Icon(
+                          Icons.delete,
+                          color: theme.extension<AppColors>()!.expenseRed,
+                        ),
+                        onPressed: _deleteSelectedBackups,
+                      ),
+                  ]
+                : const [],
           ),
-        ),
-        actions: _isSelectionMode
-            ? [
-                if (_backupsWithInfo.isNotEmpty)
-                  TextButton(
-                    onPressed: _selectAllBackups,
-                    child: const Text('Select All'),
-                  ),
-                if (_selectedBackups.isNotEmpty)
-                  IconButton(
-                    icon: Icon(
-                      Icons.delete,
-                      color: theme.extension<AppColors>()!.expenseRed,
-                    ),
-                    onPressed: _deleteSelectedBackups,
-                  ),
-              ]
-            : null,
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadBackups, // FIX: Pull-to-refresh capability
-              child: ListView(
-                padding: const EdgeInsets.all(Spacing.screenPadding),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : RefreshIndicator(
+                    onRefresh: _loadBackups,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(
+                        LuminousTokens.containerPadding,
+                        LuminousTokens.stackGap,
+                        LuminousTokens.containerPadding,
+                        LuminousTokens.sectionMargin,
+                      ),
                 children: [
                   // Export Section
                   _SectionCard(
@@ -1228,7 +1231,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     color: theme.colorScheme.primary,
                     child: Column(
                       children: [
-                        const SizedBox(height: Spacing.sm),
+                        const SizedBox(height: 12),
                         // CRITICAL FIX: Clarify that Save Backup lets user choose location
                         ElevatedButton.icon(
                           onPressed: (_isExporting || _isRestoring)
@@ -1257,8 +1260,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: Spacing.sm,
-                            vertical: Spacing.xxs,
+                            horizontal: 12,
+                            vertical: 4,
                           ),
                           child: Text(
                             'Choose where to save the backup file',
@@ -1268,7 +1271,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                             textAlign: TextAlign.center,
                           ),
                         ),
-                        const SizedBox(height: Spacing.xs),
+                        const SizedBox(height: 8),
                         // CRITICAL FIX: Clarify that Share creates backup in app folder AND opens share menu
                         OutlinedButton.icon(
                           onPressed: (_isExporting || _isRestoring)
@@ -1282,8 +1285,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: Spacing.sm,
-                            vertical: Spacing.xxs,
+                            horizontal: 12,
+                            vertical: 4,
                           ),
                           child: Text(
                             'Create backup and share via apps (also saved to Recent Backups)',
@@ -1297,7 +1300,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: Spacing.xl),
+                  const SizedBox(height: 24),
 
                   // Restore Section
                   _SectionCard(
@@ -1307,7 +1310,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     color: theme.colorScheme.tertiary,
                     child: Column(
                       children: [
-                        const SizedBox(height: Spacing.sm),
+                        const SizedBox(height: 12),
                         ElevatedButton.icon(
                           onPressed: (_isExporting || _isRestoring)
                               ? null
@@ -1335,7 +1338,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                             minimumSize: const Size(double.infinity, 48),
                           ),
                         ),
-                        const SizedBox(height: Spacing.xs),
+                        const SizedBox(height: 8),
                         Text(
                           '⚠️ Warning: This will replace all current data',
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -1346,7 +1349,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: Spacing.xl),
+                  const SizedBox(height: 24),
 
                   // FIX: Recent Backups header with bulk select button
                   Row(
@@ -1367,7 +1370,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                           label: const Text('Select'),
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: Spacing.sm,
+                              horizontal: 12,
                               vertical: 6,
                             ),
                             minimumSize: Size.zero,
@@ -1376,14 +1379,14 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: Spacing.sm),
+                  const SizedBox(height: 12),
 
                   if (_backupsWithInfo.isEmpty)
                     Container(
-                      padding: const EdgeInsets.all(Spacing.xl),
+                      padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: Center(
                         child: Text(
@@ -1442,13 +1445,13 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 
                     // FIX: Show "Load More" button if there are more backups to load
                     if (_backupsWithInfo.length < _allBackupFiles.length) ...[
-                      const SizedBox(height: Spacing.sm),
+                      const SizedBox(height: 12),
                       Container(
-                        padding: const EdgeInsets.all(Spacing.md),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.surfaceContainerHighest,
                           borderRadius:
-                              BorderRadius.circular(Spacing.radiusMedium),
+                              BorderRadius.circular(12),
                           border: Border.all(color: theme.colorScheme.outline),
                         ),
                         child: Column(
@@ -1459,7 +1462,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
-                            const SizedBox(height: Spacing.sm),
+                            const SizedBox(height: 12),
                             OutlinedButton.icon(
                               onPressed: _loadingMore
                                   ? null
@@ -1490,6 +1493,9 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                 ],
               ),
             ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1513,27 +1519,22 @@ class _SectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Container(
-      padding: const EdgeInsets.all(Spacing.cardPadding),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-        border: Border.all(color: theme.colorScheme.outline),
-      ),
+    return GlassPanel(
+      padding: const EdgeInsets.all(LuminousTokens.glassPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(Spacing.sm),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withAlpha((255 * 0.1).round()),
-                  borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: color, size: 24),
               ),
-              const SizedBox(width: Spacing.md),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1589,12 +1590,12 @@ class _BackupTile extends StatelessWidget {
     final appColors = theme.extension<AppColors>()!;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: Spacing.xs),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: isSelected
             ? theme.colorScheme.primaryContainer.withAlpha(100)
             : theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isSelected
               ? theme.colorScheme.primary
