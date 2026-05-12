@@ -20,9 +20,25 @@ import 'pin_setup_screen.dart';
 import 'export_data_screen.dart';
 import 'crash_log_screen.dart';
 import '../utils/pin_security_helper.dart';
-import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
+import '../theme/luminous_tokens.dart';
+import '../widgets/luminous/glass_list_section.dart';
+import '../widgets/luminous/glass_list_tile.dart';
+import '../widgets/luminous/glass_panel.dart';
+import '../widgets/luminous/glass_top_app_bar.dart';
 
+/// Settings & Security — Luminous redesign (Phase 5.1).
+///
+/// Composition:
+///   * [GlassTopAppBar] header ("Settings & Security")
+///   * [GlassListSection] per logical group (Accounts, Appearance, Security,
+///     Preferences, Insights, Data & Backup, Notifications, Advanced)
+///   * [GlassListTile] for every settings row
+///
+/// The dialog/modal helpers (theme picker, currency picker, account picker,
+/// account-options menu, reset/delete confirmation) are kept intact —
+/// `AlertDialog` + `showModalBottomSheet` shells inherit Luminous styling from
+/// the global theme; reskinning them belongs to a follow-up if needed.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -36,7 +52,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final theme = Theme.of(context);
     final appColors = theme.extension<AppColors>()!;
 
-    // Select only the fields rendered in this build method to avoid unnecessary rebuilds
+    // Select only the fields rendered in this build to avoid unnecessary
+    // rebuilds when unrelated AppState fields change.
     final (
       currentAccountName,
       themeMode,
@@ -44,7 +61,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       transactionColorIntensity,
       currencyCode,
       currency,
-    ) = context.select<AppState, (String, String, bool, double, String, String)>(
+    ) =
+        context.select<AppState, (String, String, bool, double, String, String)>(
       (s) => (
         s.currentAccount?.name ?? 'Main Account',
         s.themeMode,
@@ -56,392 +74,283 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     final appState = context.read<AppState>();
 
+    final themeSubtitle = themeMode == 'light'
+        ? 'Light'
+        : themeMode == 'dark'
+            ? 'Dark'
+            : 'Follow System';
+    final themeIcon = themeMode == 'light'
+        ? Icons.light_mode
+        : themeMode == 'dark'
+            ? Icons.dark_mode
+            : Icons.brightness_auto;
+
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            backgroundColor: theme.colorScheme.surface,
-            elevation: 0,
-            pinned: true,
-            title: Text(
-              'Settings',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.all(Spacing.screenPadding),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                // ACCOUNTS
-                const _SectionHeader(title: 'ACCOUNTS'),
-                const SizedBox(height: Spacing.sm),
-                _SettingsCard(
-                  children: [
-                    _SettingsTile(
-                      title: 'Current Account',
-                      subtitle: currentAccountName,
-                      icon: Icons.account_balance_wallet_outlined,
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => _showAccountPicker(context),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: Spacing.xxl),
-
-                // APPEARANCE
-                const _SectionHeader(title: 'APPEARANCE'),
-                const SizedBox(height: Spacing.sm),
-                _SettingsCard(
-                  children: [
-                    // FIX: Theme mode picker with tri-state (Light, Dark, System)
-                    _SettingsTile(
-                      title: 'Theme',
-                      subtitle: themeMode == 'light'
-                          ? 'Light'
-                          : themeMode == 'dark'
-                              ? 'Dark'
-                              : 'Follow System',
-                      icon: themeMode == 'light'
-                          ? Icons.light_mode
-                          : themeMode == 'dark'
-                              ? Icons.dark_mode
-                              : Icons.brightness_auto,
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => _showThemePicker(context),
-                    ),
-                    const _Divider(),
-                    _SettingsTile(
-                      title: 'Transaction Colors',
-                      subtitle: showTransactionColors
-                          ? 'Category colors shown on cards'
-                          : 'Clean white/dark cards',
-                      icon: Icons.palette_outlined,
-                      trailing: Switch(
-                        value: showTransactionColors,
-                        onChanged: (value) =>
-                            appState.toggleShowTransactionColors(value),
+      backgroundColor: Colors.transparent,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const GlassTopAppBar(title: 'Settings & Security'),
+          Expanded(
+            child: CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    LuminousTokens.containerPadding,
+                    LuminousTokens.stackGap,
+                    LuminousTokens.containerPadding,
+                    100,
+                  ),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      // ACCOUNTS
+                      GlassListSection(
+                        title: 'Accounts',
+                        children: [
+                          GlassListTile(
+                            icon: Icons.account_balance_wallet_outlined,
+                            label: 'Current Account',
+                            sublabel: currentAccountName,
+                            chevron: true,
+                            onTap: () => _showAccountPicker(context),
+                          ),
+                        ],
                       ),
-                    ),
-                    // Show intensity slider when transaction colors are enabled
-                    if (showTransactionColors) ...[
-                      const _Divider(),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: Spacing.md,
-                          vertical: Spacing.sm,
-                        ),
+
+                      // APPEARANCE
+                      GlassListSection(
+                        title: 'Appearance',
+                        children: [
+                          GlassListTile(
+                            icon: themeIcon,
+                            label: 'Theme',
+                            sublabel: themeSubtitle,
+                            chevron: true,
+                            onTap: () => _showThemePicker(context),
+                          ),
+                          GlassListTile(
+                            icon: Icons.palette_outlined,
+                            label: 'Transaction Colors',
+                            sublabel: showTransactionColors
+                                ? 'Category colors shown on cards'
+                                : 'Clean white/dark cards',
+                            trailing: Switch(
+                              value: showTransactionColors,
+                              onChanged: (value) =>
+                                  appState.toggleShowTransactionColors(value),
+                            ),
+                          ),
+                          if (showTransactionColors)
+                            _ColorIntensityTile(
+                              value: transactionColorIntensity,
+                              onChanged:
+                                  appState.setTransactionColorIntensity,
+                            ),
+                        ],
+                      ),
+
+                      // SECURITY
+                      const _PinSecuritySection(),
+
+                      // PREFERENCES
+                      GlassListSection(
+                        title: 'Preferences',
+                        children: [
+                          GlassListTile(
+                            icon: Icons.attach_money,
+                            label: 'Currency',
+                            sublabel:
+                                '${CurrencyHelper.getName(currencyCode)} ($currency)',
+                            chevron: true,
+                            onTap: () => _showCurrencyPicker(context),
+                          ),
+                          GlassListTile(
+                            icon: Icons.repeat,
+                            label: 'Recurring Expenses',
+                            sublabel: 'Auto-create monthly expenses',
+                            chevron: true,
+                            onTap: () => Navigator.push(
+                              context,
+                              PremiumPageRoute(
+                                page: const RecurringExpensesScreen(),
+                              ),
+                            ),
+                          ),
+                          GlassListTile(
+                            icon: Icons.repeat,
+                            iconColor: appColors.incomeGreen,
+                            label: 'Recurring Income',
+                            sublabel: 'Auto-create monthly income',
+                            chevron: true,
+                            onTap: () => Navigator.push(
+                              context,
+                              PremiumPageRoute(
+                                page: const RecurringIncomeScreen(),
+                              ),
+                            ),
+                          ),
+                          GlassListTile(
+                            icon: Icons.category_outlined,
+                            label: 'Categories',
+                            sublabel: 'Manage expense categories',
+                            chevron: true,
+                            onTap: () => Navigator.push(
+                              context,
+                              PremiumPageRoute(
+                                page: const CategoryManagerScreen(),
+                              ),
+                            ),
+                          ),
+                          GlassListTile(
+                            icon: Icons.flash_on_outlined,
+                            label: 'Quick Templates',
+                            sublabel: '1-tap expense adding',
+                            chevron: true,
+                            onTap: () => Navigator.push(
+                              context,
+                              PremiumPageRoute(
+                                page: const QuickTemplatesScreen(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // INSIGHTS
+                      GlassListSection(
+                        title: 'Insights',
+                        children: [
+                          GlassListTile(
+                            icon: Icons.account_balance_wallet_outlined,
+                            label: 'Budgets',
+                            sublabel: 'Set spending limits by category',
+                            chevron: true,
+                            onTap: () => Navigator.push(
+                              context,
+                              PremiumPageRoute(page: const BudgetScreen()),
+                            ),
+                          ),
+                          GlassListTile(
+                            icon: Icons.bar_chart,
+                            label: 'Analytics',
+                            sublabel: 'View charts and spending patterns',
+                            chevron: true,
+                            onTap: () => Navigator.push(
+                              context,
+                              PremiumPageRoute(page: const AnalyticsScreen()),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // DATA & BACKUP
+                      GlassListSection(
+                        title: 'Data & Backup',
+                        children: [
+                          GlassListTile(
+                            icon: Icons.delete_outline,
+                            label: 'Trash',
+                            sublabel: 'Restore deleted items (30 days)',
+                            chevron: true,
+                            onTap: () => Navigator.push(
+                              context,
+                              PremiumPageRoute(page: const TrashScreen()),
+                            ),
+                          ),
+                          GlassListTile(
+                            icon: Icons.backup_outlined,
+                            label: 'Backup & Restore',
+                            sublabel: 'Export and import your data',
+                            chevron: true,
+                            onTap: () => Navigator.push(
+                              context,
+                              PremiumPageRoute(
+                                page: const BackupRestoreScreen(),
+                              ),
+                            ),
+                          ),
+                          GlassListTile(
+                            icon: Icons.file_download_outlined,
+                            label: 'Export Data',
+                            sublabel: 'Export transactions to CSV',
+                            chevron: true,
+                            onTap: () => Navigator.push(
+                              context,
+                              PremiumPageRoute(
+                                page: const ExportDataScreen(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // NOTIFICATIONS
+                      GlassListSection(
+                        title: 'Notifications',
+                        children: [
+                          GlassListTile(
+                            icon: Icons.notifications_outlined,
+                            label: 'Notification Settings',
+                            sublabel: 'Bill reminders, budget alerts',
+                            chevron: true,
+                            onTap: () => Navigator.push(
+                              context,
+                              PremiumPageRoute(
+                                page: const NotificationSettingsScreen(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // ADVANCED
+                      GlassListSection(
+                        title: 'Advanced',
+                        children: [
+                          GlassListTile(
+                            icon: Icons.bug_report_outlined,
+                            iconColor: appColors.warningOrange,
+                            label: 'Crash Log',
+                            sublabel:
+                                'View recorded errors and share with the developer',
+                            chevron: true,
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              Navigator.push(
+                                context,
+                                PremiumPageRoute(
+                                  page: const CrashLogScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+
+                      Center(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.opacity,
-                                  size: 20,
-                                  color: theme.colorScheme.primary,
-                                ),
-                                const SizedBox(width: Spacing.sm),
-                                Expanded(
-                                  child: Text(
-                                    'Color Intensity',
-                                    style: theme.textTheme.titleSmall?.copyWith(
-                                      color: theme.colorScheme.onSurface,
-                                    ),
-                                  ),
-                                ),
-                                Text(
-                                  '${(transactionColorIntensity * 100).round()}%',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: Spacing.xs),
-                            SliderTheme(
-                              data: SliderTheme.of(context).copyWith(
-                                trackHeight: 4,
-                                thumbShape: const RoundSliderThumbShape(
-                                  enabledThumbRadius: 8,
-                                ),
-                              ),
-                              child: Slider(
-                                value: transactionColorIntensity,
-                                min: 0.1,
-                                max: 1.0,
-                                divisions: 9,
-                                onChanged: (value) => appState
-                                    .setTransactionColorIntensity(value),
+                            Text(
+                              'FinanceFlow',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Subtle',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                Text(
-                                  'Vivid',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
+                            const SizedBox(height: 4),
+                            Text(
+                              'Made by Leo Atienza',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant
+                                    .withAlpha((255 * 0.6).round()),
+                              ),
                             ),
                           ],
                         ),
                       ),
-                    ],
-                  ],
-                ),
-
-                const SizedBox(height: 32),
-
-                // SECURITY
-                const _SectionHeader(title: 'SECURITY'),
-                const SizedBox(height: Spacing.sm),
-                _PinSecurityCard(),
-
-                const SizedBox(height: Spacing.xxl),
-
-                // PREFERENCES
-                const _SectionHeader(title: 'PREFERENCES'),
-                const SizedBox(height: Spacing.sm),
-                _SettingsCard(
-                  children: [
-                    _SettingsTile(
-                      title: 'Currency',
-                      subtitle:
-                          '${CurrencyHelper.getName(currencyCode)} ($currency)',
-                      icon: Icons.attach_money,
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => _showCurrencyPicker(context),
-                    ),
-                    const _Divider(),
-                    _SettingsTile(
-                      title: 'Recurring Expenses',
-                      subtitle: 'Auto-create monthly expenses',
-                      icon: Icons.repeat,
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          PremiumPageRoute(
-                            page: const RecurringExpensesScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const _Divider(),
-                    _SettingsTile(
-                      title: 'Recurring Income',
-                      subtitle: 'Auto-create monthly income',
-                      icon: Icons.repeat,
-                      iconColor: appColors.incomeGreen,
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          PremiumPageRoute(page: const RecurringIncomeScreen()),
-                        );
-                      },
-                    ),
-                    const _Divider(),
-                    _SettingsTile(
-                      title: 'Categories',
-                      subtitle: 'Manage expense categories',
-                      icon: Icons.category_outlined,
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          PremiumPageRoute(page: const CategoryManagerScreen()),
-                        );
-                      },
-                    ),
-                    const _Divider(),
-                    _SettingsTile(
-                      title: 'Quick Templates',
-                      subtitle: '1-tap expense adding',
-                      icon: Icons.flash_on_outlined,
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          PremiumPageRoute(page: const QuickTemplatesScreen()),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: Spacing.xxl),
-
-                // INSIGHTS
-                const _SectionHeader(title: 'INSIGHTS'),
-                const SizedBox(height: Spacing.sm),
-                _SettingsCard(
-                  children: [
-                    _SettingsTile(
-                      title: 'Budgets',
-                      subtitle: 'Set spending limits by category',
-                      icon: Icons.account_balance_wallet_outlined,
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          PremiumPageRoute(page: const BudgetScreen()),
-                        );
-                      },
-                    ),
-                    const _Divider(),
-                    _SettingsTile(
-                      title: 'Analytics',
-                      subtitle: 'View charts and spending patterns',
-                      icon: Icons.bar_chart,
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          PremiumPageRoute(page: const AnalyticsScreen()),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: Spacing.xxl),
-
-                // DATA & BACKUP
-                const _SectionHeader(title: 'DATA & BACKUP'),
-                const SizedBox(height: Spacing.sm),
-                _SettingsCard(
-                  children: [
-                    _SettingsTile(
-                      title: 'Trash',
-                      subtitle: 'Restore deleted items (30 days)',
-                      icon: Icons.delete_outline,
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          PremiumPageRoute(page: const TrashScreen()),
-                        );
-                      },
-                    ),
-                    const _Divider(),
-                    _SettingsTile(
-                      title: 'Backup & Restore',
-                      subtitle: 'Export and import your data',
-                      icon: Icons.backup_outlined,
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          PremiumPageRoute(page: const BackupRestoreScreen()),
-                        );
-                      },
-                    ),
-                    const _Divider(),
-                    _SettingsTile(
-                      title: 'Export Data',
-                      subtitle: 'Export transactions to CSV',
-                      icon: Icons.file_download_outlined,
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          PremiumPageRoute(page: const ExportDataScreen()),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: Spacing.xxl),
-
-                // NOTIFICATIONS
-                const _SectionHeader(title: 'NOTIFICATIONS'),
-                const SizedBox(height: Spacing.sm),
-                _SettingsCard(
-                  children: [
-                    _SettingsTile(
-                      title: 'Notification Settings',
-                      subtitle: 'Bill reminders, budget alerts',
-                      icon: Icons.notifications_outlined,
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          PremiumPageRoute(
-                            page: const NotificationSettingsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: Spacing.xxl),
-
-                // ADVANCED
-                // FIX Phase 3a: surface the local crash log so users can
-                // view and share recorded errors.
-                const _SectionHeader(title: 'ADVANCED'),
-                const SizedBox(height: Spacing.sm),
-                _SettingsCard(
-                  children: [
-                    _SettingsTile(
-                      icon: Icons.bug_report_outlined,
-                      iconColor: appColors.warningOrange,
-                      title: 'Crash Log',
-                      subtitle: 'View recorded errors and share with the developer',
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        Navigator.push(
-                          context,
-                          PremiumPageRoute(page: const CrashLogScreen()),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: Spacing.xxl),
-
-                // APP INFO
-                Center(
-                  child: Column(
-                    children: [
-                      Text(
-                        'FinanceFlow',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: Spacing.xxs),
-                      Text(
-                        'Made by Leo Atienza',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant.withAlpha(
-                            (255 * 0.6).round(),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ]),
                   ),
                 ),
-
-                const SizedBox(height: 100),
-              ]),
+              ],
             ),
           ),
         ],
@@ -449,7 +358,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // FIX #32: Build theme option with preview card
+  // ─── Theme picker ───────────────────────────────────────────────────────
+
   Widget _buildThemeOption(
     BuildContext context, {
     required IconData icon,
@@ -463,18 +373,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final appColors = theme.extension<AppColors>()!;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.xs),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.all(Spacing.sm),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             border: Border.all(
               color: isSelected ? appColors.infoBlue : theme.colorScheme.outline,
               width: isSelected ? 2 : 1,
             ),
-            borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
             children: [
@@ -506,14 +416,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               if (previewColors != null) ...[
-                const SizedBox(width: Spacing.sm),
-                // Preview card showing theme colors
+                const SizedBox(width: 12),
                 Container(
                   width: 60,
                   height: 40,
                   decoration: BoxDecoration(
                     color: previewColors['surface'],
-                    borderRadius: BorderRadius.circular(Spacing.radiusSmall - 2),
+                    borderRadius: BorderRadius.circular(6),
                     border: Border.all(
                       color: theme.colorScheme.outline.withAlpha(50),
                     ),
@@ -543,7 +452,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
               if (isSelected) ...[
-                const SizedBox(width: Spacing.sm),
+                const SizedBox(width: 12),
                 Icon(Icons.check_circle, color: appColors.infoBlue),
               ],
             ],
@@ -553,7 +462,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // FIX: Theme picker with tri-state options
   void _showThemePicker(BuildContext context) {
     final theme = Theme.of(context);
     final appColors = theme.extension<AppColors>()!;
@@ -565,12 +473,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) => Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(Spacing.radiusXLarge)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: Spacing.md),
+            const SizedBox(height: 16),
             Container(
               height: 4,
               width: 40,
@@ -579,15 +487,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: Spacing.xl),
+            const SizedBox(height: 24),
             Text(
               'Choose Theme',
               style: theme.textTheme.titleLarge?.copyWith(
                 color: theme.colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: Spacing.md),
-            // FIX #32: Theme option with preview card
+            const SizedBox(height: 16),
             _buildThemeOption(
               context,
               icon: Icons.light_mode,
@@ -624,18 +531,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Follow System',
               subtitle: 'Automatically switch based on system settings',
               isSelected: appState.themeMode == 'system',
-              previewColors: null, // No preview for system mode
+              previewColors: null,
               onTap: () {
                 appState.setThemeMode('system');
                 Navigator.pop(context);
               },
             ),
-            const SizedBox(height: Spacing.xl),
+            const SizedBox(height: 24),
           ],
         ),
       ),
     );
   }
+
+  // ─── Currency picker ────────────────────────────────────────────────────
 
   void _showCurrencyPicker(BuildContext context) {
     final theme = Theme.of(context);
@@ -649,13 +558,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         height: MediaQuery.of(context).size.height * 0.6,
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(Spacing.radiusXLarge)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           children: [
-            // Header
             Padding(
-              padding: const EdgeInsets.all(Spacing.screenPadding),
+              padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
                   Expanded(
@@ -674,7 +582,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-            // Currency List
             Expanded(
               child: ListView.builder(
                 itemCount: CurrencyHelper.currencyList.length,
@@ -690,7 +597,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       height: 40,
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Center(
                         child: Text(
@@ -714,7 +621,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ? null
                         : () async {
                             Navigator.pop(context);
-                            // FIX #5: Show currency change warning
                             await _showCurrencyChangeWarning(
                               context,
                               code,
@@ -732,7 +638,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // FIX #50: Enhanced currency change warning with data clearing option
   Future<void> _showCurrencyChangeWarning(
     BuildContext context,
     String newCode,
@@ -741,7 +646,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ) async {
     final appState = context.read<AppState>();
 
-    // FIX M8: Use allExpenses (not just current month) for accurate total count
     final transactionCount =
         appState.allExpenses.length + appState.incomes.length;
 
@@ -753,13 +657,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     if (action == 'keep') {
-      // Just change currency symbol, keep all data
       await appState.changeCurrency(newCode);
     } else if (action == 'clear') {
       if (!mounted) return;
       if (!context.mounted) return;
 
-      // Show final confirmation before clearing all data
       final confirmed = await DialogHelpers.showConfirmation(
         context,
         title: 'Clear All Data?',
@@ -770,8 +672,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
 
       if (confirmed) {
-        // Note: clearAllData functionality would need to be implemented in AppState
-        // For now, just change currency
         await appState.changeCurrency(newCode);
 
         if (context.mounted) {
@@ -787,6 +687,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  // ─── Account picker / options ───────────────────────────────────────────
+
   void _showAccountPicker(BuildContext context) {
     final theme = Theme.of(context);
     final appState = context.read<AppState>();
@@ -799,13 +701,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         height: MediaQuery.of(context).size.height * 0.5,
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(Spacing.radiusXLarge)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           children: [
-            // Header
             Padding(
-              padding: const EdgeInsets.all(Spacing.screenPadding),
+              padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
                   Expanded(
@@ -832,7 +733,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-            // Account List
             Expanded(
               child: ListView.builder(
                 itemCount: appState.accounts.length,
@@ -846,7 +746,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       height: 40,
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Center(
                         child: Icon(
@@ -865,17 +765,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         : IconButton(
                             icon: const Icon(Icons.more_vert),
                             onPressed: () {
-                              Navigator.pop(context); // Close account picker
+                              Navigator.pop(context);
                               _showAccountOptionsMenu(context, account);
                             },
                           ),
                     onTap: isSelected
                         ? null
                         : () async {
-                            // FIX #17: Add haptic feedback
                             HapticFeedback.mediumImpact();
 
-                            // FIX: Show loading indicator during account switch
                             showDialog(
                               context: context,
                               barrierDismissible: false,
@@ -886,10 +784,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             try {
                               await appState.switchAccount(account);
                               if (context.mounted) {
-                                Navigator.pop(context); // Close loading dialog
-                                Navigator.pop(
-                                    context); // Close account selector
-                                // FIX #15: Show confirmation feedback
+                                Navigator.pop(context);
+                                Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content:
@@ -901,7 +797,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               }
                             } catch (e) {
                               if (context.mounted) {
-                                Navigator.pop(context); // Close loading dialog
+                                Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content:
@@ -972,7 +868,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     ).then((_) {
-      // Ensure controller is disposed even if dialog is dismissed by tapping outside
       disposeController();
     });
   }
@@ -987,21 +882,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) => Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(Spacing.radiusXLarge)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
             Padding(
-              padding: const EdgeInsets.all(Spacing.screenPadding),
+              padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
                   Icon(
                     Icons.account_balance_wallet,
                     color: theme.colorScheme.onSurface,
                   ),
-                  const SizedBox(width: Spacing.sm),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       account.name,
@@ -1018,15 +912,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-
-            // Reset Account Option
             ListTile(
               leading: Container(
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
                   color: appColors.warningOrange.withAlpha(30),
-                  borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(Icons.refresh, color: appColors.warningOrange),
               ),
@@ -1037,15 +929,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _showResetAccountDialog(context, account);
               },
             ),
-
-            // Delete Account Option
             ListTile(
               leading: Container(
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
                   color: appColors.expenseRed.withAlpha(30),
-                  borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(Icons.delete_forever, color: appColors.expenseRed),
               ),
@@ -1056,8 +946,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _showDeleteAccountDialog(context, account);
               },
             ),
-
-            const SizedBox(height: Spacing.xl),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -1073,7 +962,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Spacing.radiusXLarge)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
             Icon(
@@ -1081,7 +970,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: appColors.warningOrange,
               size: 28,
             ),
-            const SizedBox(width: Spacing.sm),
+            const SizedBox(width: 12),
             Text(
               'Reset Account?',
               style: TextStyle(color: theme.colorScheme.onSurface),
@@ -1094,15 +983,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Text(
               'Reset "${account.name}"?',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: Spacing.md),
+            const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.all(Spacing.md),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: appColors.warningOrange.withAlpha(30),
-                borderRadius: BorderRadius.circular(Spacing.radiusMedium),
-                border: Border.all(color: appColors.warningOrange.withAlpha(100)),
+                borderRadius: BorderRadius.circular(12),
+                border:
+                    Border.all(color: appColors.warningOrange.withAlpha(100)),
               ),
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1125,10 +1016,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: Spacing.md),
+            const SizedBox(height: 16),
             Text(
               'This action cannot be undone.',
-              style: TextStyle(color: appColors.expenseRed, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  color: appColors.expenseRed, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -1158,7 +1050,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Account "${account.name}" has been reset'),
-            backgroundColor: Theme.of(context).extension<AppColors>()!.incomeGreen,
+            backgroundColor:
+                Theme.of(context).extension<AppColors>()!.incomeGreen,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1168,7 +1061,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error resetting account: $e'),
-            backgroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
+            backgroundColor:
+                Theme.of(context).extension<AppColors>()!.expenseRed,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1185,7 +1079,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Spacing.radiusXLarge)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
             Icon(
@@ -1193,7 +1087,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: appColors.expenseRed,
               size: 28,
             ),
-            const SizedBox(width: Spacing.sm),
+            const SizedBox(width: 12),
             Text(
               'Delete Account?',
               style: TextStyle(color: theme.colorScheme.onSurface),
@@ -1206,15 +1100,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Text(
               'Delete "${account.name}"?',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: Spacing.md),
+            const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.all(Spacing.md),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: appColors.expenseRed.withAlpha(30),
-                borderRadius: BorderRadius.circular(Spacing.radiusMedium),
-                border: Border.all(color: appColors.expenseRed.withAlpha(100)),
+                borderRadius: BorderRadius.circular(12),
+                border:
+                    Border.all(color: appColors.expenseRed.withAlpha(100)),
               ),
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1232,10 +1128,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: Spacing.md),
+            const SizedBox(height: 16),
             Text(
               'This action cannot be undone.',
-              style: TextStyle(color: appColors.expenseRed, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  color: appColors.expenseRed, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -1284,137 +1181,95 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
+/// Custom tile for the transaction-color intensity slider. Rendered inside the
+/// Appearance [GlassListSection] when transaction colors are enabled.
+class _ColorIntensityTile extends StatelessWidget {
+  final double value;
+  final ValueChanged<double> onChanged;
 
-  const _SectionHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Text(
-      title,
-      style: theme.textTheme.labelSmall?.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
-      ),
-    );
-  }
-}
-
-class _SettingsCard extends StatelessWidget {
-  final List<Widget> children;
-
-  const _SettingsCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-        border: Border.all(color: Theme.of(context).colorScheme.outline),
-      ),
-      child: Column(children: children),
-    );
-  }
-}
-
-class _SettingsTile extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color? iconColor;
-  final Widget? trailing;
-  final VoidCallback? onTap;
-
-  const _SettingsTile({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    this.iconColor,
-    this.trailing,
-    this.onTap,
+  const _ColorIntensityTile({
+    required this.value,
+    required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    // ScaleTapAnimation provides scale press feedback; InkWell handles ripple and callback.
-    return ScaleTapAnimation(
-      enableHaptic: onTap != null,
-      child: InkWell(
-      onTap: onTap, // Can be null
-      borderRadius: BorderRadius.circular(
-        Spacing.radiusLarge,
-      ), // Match container radius for ripples
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: Spacing.cardPadding, vertical: Spacing.md),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(Spacing.xs),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
-              ),
-              child: Icon(
-                icon,
-                color: iconColor ?? theme.colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(width: Spacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: theme.colorScheme.onSurface,
-                    ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.opacity, size: 20, color: theme.colorScheme.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Color Intensity',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.onSurface,
                   ),
-                  const SizedBox(height: Spacing.tiny),
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                ),
               ),
+              Text(
+                '${(value * 100).round()}%',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 4,
+              thumbShape:
+                  const RoundSliderThumbShape(enabledThumbRadius: 8),
             ),
-            if (trailing != null) ...[const SizedBox(width: 16), trailing!],
-          ],
-        ),
-      ),
+            child: Slider(
+              value: value,
+              min: 0.1,
+              max: 1.0,
+              divisions: 9,
+              onChanged: onChanged,
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Subtle',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              Text(
+                'Vivid',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-class _Divider extends StatelessWidget {
-  const _Divider();
+/// PIN-security section. Loads the PIN state asynchronously; renders a Luminous
+/// [GlassListSection] with a Switch tile for enable/disable, plus an optional
+/// "Change PIN" row and a footer card when enabled.
+class _PinSecuritySection extends StatefulWidget {
+  const _PinSecuritySection();
 
   @override
-  Widget build(BuildContext context) {
-    return Divider(
-      height: 1,
-      indent: 64, // Align with text start
-      color: Theme.of(context).colorScheme.outline.withAlpha(50),
-    );
-  }
+  State<_PinSecuritySection> createState() => _PinSecuritySectionState();
 }
 
-/// PIN Security settings card
-class _PinSecurityCard extends StatefulWidget {
-  @override
-  State<_PinSecurityCard> createState() => _PinSecurityCardState();
-}
-
-class _PinSecurityCardState extends State<_PinSecurityCard> {
+class _PinSecuritySectionState extends State<_PinSecuritySection> {
   bool _isPinEnabled = false;
   int _pinLength = 4;
   bool _isLoading = true;
@@ -1441,14 +1296,13 @@ class _PinSecurityCardState extends State<_PinSecurityCard> {
   Future<void> _setupPin() async {
     final result = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (context) => const PinSetupScreen()),
+      PremiumPageRoute(page: const PinSetupScreen()),
     );
 
     if (result == true && mounted) {
       await _loadPinSettings();
       if (!mounted) return;
 
-      // Store appState reference before async gap
       final appState = context.read<AppState>();
       await appState.initializeLockState();
 
@@ -1465,7 +1319,6 @@ class _PinSecurityCardState extends State<_PinSecurityCard> {
   }
 
   Future<void> _changePin() async {
-    // First verify current PIN
     final currentPinController = TextEditingController();
     final verified = await showDialog<bool>(
       context: context,
@@ -1504,8 +1357,8 @@ class _PinSecurityCardState extends State<_PinSecurityCard> {
     if (verified == true && mounted) {
       final result = await Navigator.push<bool>(
         context,
-        MaterialPageRoute(
-          builder: (context) => PinSetupScreen(
+        PremiumPageRoute(
+          page: PinSetupScreen(
             isChangingPin: true,
             oldPin: currentPinController.text,
           ),
@@ -1539,7 +1392,6 @@ class _PinSecurityCardState extends State<_PinSecurityCard> {
   }
 
   Future<void> _disablePin() async {
-    // First verify current PIN
     final pinController = TextEditingController();
     final verified = await showDialog<bool>(
       context: context,
@@ -1588,7 +1440,6 @@ class _PinSecurityCardState extends State<_PinSecurityCard> {
 
       if (!mounted) return;
 
-      // Store appState reference before async gap
       final appState = context.read<AppState>();
       await appState.initializeLockState();
 
@@ -1619,26 +1470,39 @@ class _PinSecurityCardState extends State<_PinSecurityCard> {
     final theme = Theme.of(context);
 
     if (_isLoading) {
-      return _SettingsCard(
-        children: [
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(Spacing.md),
-              child: CircularProgressIndicator(),
+      return Padding(
+        padding: const EdgeInsets.only(bottom: LuminousTokens.sectionMargin),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 12),
+              child: Text(
+                'SECURITY',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  letterSpacing: 1.2,
+                ),
+              ),
             ),
-          ),
-        ],
+            const GlassPanel(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ],
+        ),
       );
     }
 
-    return _SettingsCard(
+    return GlassListSection(
+      title: 'Security',
       children: [
-        _SettingsTile(
-          title: 'App PIN Lock',
-          subtitle: _isPinEnabled
+        GlassListTile(
+          icon: _isPinEnabled ? Icons.lock : Icons.lock_open,
+          label: 'App PIN Lock',
+          sublabel: _isPinEnabled
               ? 'Enabled ($_pinLength digits)'
               : 'Lock app with PIN',
-          icon: _isPinEnabled ? Icons.lock : Icons.lock_open,
           trailing: Switch(
             value: _isPinEnabled,
             onChanged: (value) {
@@ -1651,17 +1515,15 @@ class _PinSecurityCardState extends State<_PinSecurityCard> {
           ),
         ),
         if (_isPinEnabled) ...[
-          const _Divider(),
-          _SettingsTile(
-            title: 'Change PIN',
-            subtitle: 'Update your security PIN',
+          GlassListTile(
             icon: Icons.edit_outlined,
-            trailing: const Icon(Icons.chevron_right),
+            label: 'Change PIN',
+            sublabel: 'Update your security PIN',
+            chevron: true,
             onTap: _changePin,
           ),
-          const _Divider(),
           Padding(
-            padding: const EdgeInsets.all(Spacing.md),
+            padding: const EdgeInsets.all(16),
             child: Row(
               children: [
                 Icon(
@@ -1669,7 +1531,7 @@ class _PinSecurityCardState extends State<_PinSecurityCard> {
                   size: 16,
                   color: theme.colorScheme.primary,
                 ),
-                const SizedBox(width: Spacing.sm),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'App locks after 3 minutes of inactivity',
