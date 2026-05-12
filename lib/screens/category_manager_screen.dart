@@ -6,9 +6,22 @@ import '../widgets/color_picker.dart';
 import '../widgets/category_tile.dart';
 import '../utils/category_icons.dart';
 import '../utils/premium_animations.dart';
-import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
+import '../theme/luminous_tokens.dart';
+import '../widgets/luminous/glass_panel.dart';
+import '../widgets/luminous/glass_top_app_bar.dart';
 
+/// Phase 5.9g — Category Manager Luminous redesign.
+///
+/// Composition:
+///   * [GlassTopAppBar] header ("Categories") with BackButton leading.
+///   * `EXPENSE CATEGORIES` and `INCOME CATEGORIES` sections each wrap
+///     their tile list in a [GlassPanel].
+///   * Empty state renders in a [GlassPanel].
+///
+/// Add/Edit dialog and Delete dialog keep their `AlertDialog` shells —
+/// reskinning them is out of scope here. Spacing tokens inlined to
+/// numeric literals throughout.
 class CategoryManagerScreen extends StatelessWidget {
   const CategoryManagerScreen({super.key});
 
@@ -17,26 +30,23 @@ class CategoryManagerScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            backgroundColor: theme.colorScheme.surface,
-            elevation: 0,
-            pinned: true,
-            title: Text(
-              'Categories',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
+      backgroundColor: Colors.transparent,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GlassTopAppBar(
+            leading: BackButton(color: theme.colorScheme.onSurface),
+            title: 'Categories',
           ),
-          SliverPadding(
-            padding: const EdgeInsets.all(Spacing.screenPadding),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                const _CategoryList(),
-                const SizedBox(height: 100),
-              ]),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                LuminousTokens.containerPadding,
+                LuminousTokens.stackGap,
+                LuminousTokens.containerPadding,
+                100,
+              ),
+              child: const _CategoryList(),
             ),
           ),
         ],
@@ -84,20 +94,17 @@ class _CategoryList extends StatelessWidget {
         // Expense Categories
         if (expenseCategories.isNotEmpty) ...[
           Padding(
-            padding: const EdgeInsets.only(bottom: Spacing.sm),
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
             child: Text(
               'EXPENSE CATEGORIES',
               style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
+                letterSpacing: 1.2,
               ),
             ),
           ),
-          Container(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-              border: Border.all(color: theme.colorScheme.outline),
-            ),
+          GlassPanel(
+            padding: EdgeInsets.zero,
             child: ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -142,26 +149,23 @@ class _CategoryList extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: Spacing.screenPadding),
+          const SizedBox(height: LuminousTokens.sectionMargin),
         ],
 
         // Income Categories
         if (incomeCategories.isNotEmpty) ...[
           Padding(
-            padding: const EdgeInsets.only(bottom: Spacing.sm),
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
             child: Text(
               'INCOME CATEGORIES',
               style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
+                letterSpacing: 1.2,
               ),
             ),
           ),
-          Container(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-              border: Border.all(color: theme.colorScheme.outline),
-            ),
+          GlassPanel(
+            padding: EdgeInsets.zero,
             child: ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -214,13 +218,8 @@ class _CategoryList extends StatelessWidget {
   Widget _buildEmptyState(ThemeData theme, BuildContext context) {
     return GestureDetector(
       onTap: () => CategoryManagerScreen._showAddCategory(context),
-      child: Container(
+      child: GlassPanel(
         padding: const EdgeInsets.all(60),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-          border: Border.all(color: theme.colorScheme.outline),
-        ),
         child: Column(
           children: [
             BounceAnimation(
@@ -482,7 +481,7 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
     return AlertDialog(
       backgroundColor: theme.colorScheme.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Spacing.radiusXLarge),
+        borderRadius: BorderRadius.circular(20),
       ),
       title: Text(
         isEditing ? 'Edit Category' : 'Add Category',
@@ -505,14 +504,14 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
             ),
           ),
           if (!isEditing) ...[
-            const SizedBox(height: Spacing.lg),
+            const SizedBox(height: 20),
             Text(
               'Type',
               style: theme.textTheme.labelLarge?.copyWith(
                 color: theme.colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: Spacing.xs),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -523,7 +522,7 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
                     onTap: () => setState(() => _selectedType = 'expense'),
                   ),
                 ),
-                const SizedBox(width: Spacing.sm),
+                const SizedBox(width: 12),
                 Expanded(
                   child: _TypeChip(
                     label: 'Income',
@@ -535,14 +534,14 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
               ],
             ),
           ],
-          const SizedBox(height: Spacing.lg),
+          const SizedBox(height: 20),
           Text(
             'Color (Optional)',
             style: theme.textTheme.labelLarge?.copyWith(
               color: theme.colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: Spacing.xs),
+          const SizedBox(height: 8),
           InkWell(
             onTap: () => _showColorPicker(context),
             borderRadius: BorderRadius.circular(12),
@@ -593,14 +592,14 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
               ),
             ),
           ),
-          const SizedBox(height: Spacing.lg),
+          const SizedBox(height: 20),
           Text(
             'Icon',
             style: theme.textTheme.labelLarge?.copyWith(
               color: theme.colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: Spacing.xs),
+          const SizedBox(height: 8),
           InkWell(
             onTap: () => _showIconPicker(context),
             borderRadius: BorderRadius.circular(12),
@@ -653,17 +652,17 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
             ),
           ),
           if (isEditing) ...[
-            const SizedBox(height: Spacing.md),
+            const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.all(Spacing.sm),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: appColors.infoBlue.withAlpha(20),
-                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
                   Icon(Icons.info_outline, color: appColors.infoBlue, size: 20),
-                  const SizedBox(width: Spacing.xs),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'All existing transactions will be updated to the new name.',
@@ -1027,7 +1026,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
     return AlertDialog(
       backgroundColor: theme.colorScheme.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Spacing.radiusXLarge),
+        borderRadius: BorderRadius.circular(20),
       ),
       title: Text(
         'Delete Category?',
@@ -1051,10 +1050,10 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
               const SizedBox(height: 16),
               // CRITICAL FIX: Make transaction impact more prominent with warning color
               Container(
-                padding: const EdgeInsets.all(Spacing.md),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: appColors.warningOrange.withAlpha(30),
-                  borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: appColors.warningOrange, width: 2),
                 ),
                 child: Column(
@@ -1171,12 +1170,12 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
 
             // Warning for recurring usage
             if (widget.hasRecurringUsage) ...[
-              const SizedBox(height: Spacing.md),
+              const SizedBox(height: 16),
               Container(
-                padding: const EdgeInsets.all(Spacing.sm),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: appColors.expenseRed.withAlpha(20),
-                  borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: appColors.expenseRed.withAlpha(100)),
                 ),
                 child: Column(
@@ -1189,7 +1188,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                           color: appColors.expenseRed,
                           size: 20,
                         ),
-                        const SizedBox(width: Spacing.xs),
+                        const SizedBox(width: 8),
                         Text(
                           'Used by Recurring Transactions',
                           style: theme.textTheme.bodyMedium?.copyWith(
