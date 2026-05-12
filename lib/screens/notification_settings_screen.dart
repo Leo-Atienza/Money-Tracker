@@ -3,9 +3,22 @@ import 'package:provider/provider.dart';
 import 'package:app_settings/app_settings.dart';
 import '../providers/app_state.dart';
 import '../utils/notification_helper.dart';
-import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
+import '../theme/luminous_tokens.dart';
+import '../widgets/luminous/glass_list_section.dart';
+import '../widgets/luminous/glass_list_tile.dart';
+import '../widgets/luminous/glass_panel.dart';
+import '../widgets/luminous/glass_top_app_bar.dart';
 
+/// Phase 5.9j — Notification Settings Luminous redesign.
+///
+/// Composition:
+///   * [GlassTopAppBar] header ("Notifications") with BackButton leading.
+///   * Permission warning + info banners wrapped in [GlassPanel].
+///   * Toggles grouped into a single [GlassListSection] ("Alerts").
+///   * Reminder Time + Test action in their own [GlassListSection]s.
+///   * Example notifications shown as plain [GlassPanel]s with the same
+///     inner content as before (icon · title · body · progress).
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
 
@@ -20,30 +33,25 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   bool _checkingPermission = true;
 
   /// Phase 2.7: resolve the helper once via `AppState` so tests can swap in a
-  /// fake AppState with a mock helper. Lazy initialisation via `didChangeDeps`
-  /// is overkill — the field is read after the first build pump.
+  /// fake AppState with a mock helper.
   late final NotificationHelper _helper =
       context.read<AppState>().notificationHelper;
 
   @override
   void initState() {
     super.initState();
-    // Register observer to detect when user returns from system settings
     WidgetsBinding.instance.addObserver(this);
     _checkPermissionStatus();
   }
 
   @override
   void dispose() {
-    // Unregister observer to prevent memory leaks
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // When the app resumes (user returns from Settings or another app),
-    // re-check notification permission status to update the UI
     if (state == AppLifecycleState.resumed) {
       _checkPermissionStatus();
     }
@@ -59,13 +67,11 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     }
   }
 
-  // FIX #2: Request notification permission when enabling any notification
   Future<void> _handleNotificationToggle(
     bool value,
     Future<void> Function(bool) toggle,
   ) async {
     if (value && !_permissionGranted) {
-      // Request permission first
       final granted = await _helper.requestPermissions();
 
       if (!granted) {
@@ -76,7 +82,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               action: SnackBarAction(
                 label: 'Settings',
                 onPressed: () {
-                  // Open app notification settings directly
                   AppSettings.openAppSettings(
                     type: AppSettingsType.notification,
                   );
@@ -99,8 +104,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
 
-    // Select only the notification fields rendered in this build method
     final (
       billRemindersEnabled,
       budgetAlertsEnabled,
@@ -117,361 +122,235 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     final appState = context.read<AppState>();
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: theme.colorScheme.surface,
-        elevation: 0,
-        title: Text(
-          'Notifications',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w400,
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(Spacing.screenPadding),
+      backgroundColor: Colors.transparent,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Permission Warning Card (if not granted)
-          if (!_checkingPermission && !_permissionGranted) ...[
-            Builder(
-              builder: (context) {
-                final appColors = Theme.of(context).extension<AppColors>()!;
-                return Container(
-                  padding: const EdgeInsets.all(Spacing.md),
-                  decoration: BoxDecoration(
-                    color: appColors.warningOrange.withAlpha(30),
-                    borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-                    border: Border.all(color: appColors.warningOrange.withAlpha(80)),
+          GlassTopAppBar(
+            leading: BackButton(color: theme.colorScheme.onSurface),
+            title: 'Notifications',
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                LuminousTokens.containerPadding,
+                LuminousTokens.stackGap,
+                LuminousTokens.containerPadding,
+                LuminousTokens.sectionMargin,
+              ),
+              children: [
+                if (!_checkingPermission && !_permissionGranted) ...[
+                  GlassPanel(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded,
+                            color: appColors.warningOrange),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Notifications Disabled',
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Enable notifications to receive alerts',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            final granted = await _helper.requestPermissions();
+                            if (granted) {
+                              if (mounted) {
+                                setState(() => _permissionGranted = true);
+                              }
+                            } else {
+                              AppSettings.openAppSettings(
+                                type: AppSettingsType.notification,
+                              );
+                            }
+                          },
+                          child: const Text('Enable'),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Info banner
+                GlassPanel(
+                  padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      Icon(Icons.warning_amber_rounded, color: appColors.warningOrange),
-                      const SizedBox(width: Spacing.md),
+                      Icon(Icons.info_outline, color: appColors.infoBlue),
+                      const SizedBox(width: 16),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Notifications Disabled',
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                color: theme.colorScheme.onSurface,
-                              ),
-                            ),
-                            const SizedBox(height: Spacing.xxs),
-                            Text(
-                              'Enable notifications to receive alerts',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          'All notifications are local and work offline',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface,
+                          ),
                         ),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          // First try to request permission via the system dialog
-                          final granted = await _helper.requestPermissions();
-                          if (granted) {
-                            if (mounted) {
-                              setState(() => _permissionGranted = true);
-                            }
-                          } else {
-                            // If denied, open app settings directly
-                            AppSettings.openAppSettings(
-                              type: AppSettingsType.notification,
-                            );
-                          }
-                        },
-                        child: const Text('Enable'),
                       ),
                     ],
                   ),
-                );
-              },
-            ),
-            const SizedBox(height: Spacing.md),
-          ],
-
-          // Info Card
-          Builder(
-            builder: (context) {
-              final appColors = Theme.of(context).extension<AppColors>()!;
-              return Container(
-                padding: const EdgeInsets.all(Spacing.cardPadding),
-                decoration: BoxDecoration(
-                  color: appColors.infoBlue.withAlpha((255 * 0.1).round()),
-                  borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-                  border: Border.all(
-                    color: appColors.infoBlue.withAlpha((255 * 0.3).round()),
-                  ),
                 ),
-                child: Row(
+                const SizedBox(height: LuminousTokens.sectionMargin),
+
+                // Alerts
+                GlassListSection(
+                  title: 'Alerts',
                   children: [
-                    Icon(Icons.info_outline, color: appColors.infoBlue),
-                    const SizedBox(width: Spacing.md),
-                    Expanded(
-                      child: Text(
-                        'All notifications are local and work offline',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface,
-                        ),
+                    GlassListTile(
+                      icon: Icons.notifications_outlined,
+                      label: 'Bill Reminders',
+                      sublabel:
+                          'Get notified 1 day before recurring bills are due',
+                      trailing: Switch(
+                        value: billRemindersEnabled,
+                        onChanged: (v) => _handleNotificationToggle(
+                            v, appState.toggleBillReminders),
+                      ),
+                    ),
+                    GlassListTile(
+                      icon: Icons.warning_amber_outlined,
+                      label: 'Budget Alerts',
+                      sublabel:
+                          'Notifications at 80%, 90%, and 100% of budget',
+                      trailing: Switch(
+                        value: budgetAlertsEnabled,
+                        onChanged: (v) => _handleNotificationToggle(
+                            v, appState.toggleBudgetAlerts),
+                      ),
+                    ),
+                    GlassListTile(
+                      icon: Icons.bar_chart_outlined,
+                      label: 'Monthly Summary',
+                      sublabel:
+                          'Get a spending summary on the 1st of each month',
+                      trailing: Switch(
+                        value: monthlySummaryEnabled,
+                        onChanged: (v) => _handleNotificationToggle(
+                            v, appState.toggleMonthlySummary),
                       ),
                     ),
                   ],
                 ),
-              );
-            },
-          ),
 
-          const SizedBox(height: Spacing.screenPadding),
-
-          // Bill Reminders
-          _NotificationCard(
-            icon: Icons.notifications_outlined,
-            title: 'Bill Reminders',
-            subtitle: 'Get notified 1 day before recurring bills are due',
-            value: billRemindersEnabled,
-            onChanged: (value) =>
-                _handleNotificationToggle(value, appState.toggleBillReminders),
-          ),
-
-          const SizedBox(height: Spacing.sm),
-
-          // Budget Alerts
-          _NotificationCard(
-            icon: Icons.warning_amber_outlined,
-            title: 'Budget Alerts',
-            subtitle: 'Notifications at 80%, 90%, and 100% of budget',
-            value: budgetAlertsEnabled,
-            onChanged: (value) =>
-                _handleNotificationToggle(value, appState.toggleBudgetAlerts),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Monthly Summary
-          _NotificationCard(
-            icon: Icons.bar_chart_outlined,
-            title: 'Monthly Summary',
-            subtitle: 'Get a spending summary on the 1st of each month',
-            value: monthlySummaryEnabled,
-            onChanged: (value) =>
-                _handleNotificationToggle(value, appState.toggleMonthlySummary),
-          ),
-
-          const SizedBox(height: Spacing.screenPadding),
-
-          // Reminder Time
-          Text(
-            'REMINDER TIME',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: Spacing.sm),
-
-          Container(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-              border: Border.all(color: theme.colorScheme.outline),
-            ),
-            child: ListTile(
-              leading: Icon(
-                Icons.access_time,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              title: const Text('Default reminder time'),
-              subtitle: Text(
-                reminderTime.format(context),
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () async {
-                final time = await showTimePicker(
-                  context: context,
-                  initialTime: reminderTime,
-                );
-                if (time != null) {
-                  await appState.setReminderTime(time);
-                }
-              },
-            ),
-          ),
-
-          const SizedBox(height: Spacing.screenPadding),
-
-          // Test Notification Button
-          Text(
-            'TEST',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: Spacing.sm),
-
-          Builder(
-            builder: (context) {
-              final appColors = Theme.of(context).extension<AppColors>()!;
-              return Container(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-                  border: Border.all(color: theme.colorScheme.outline),
-                ),
-                child: ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(Spacing.xs),
-                    decoration: BoxDecoration(
-                      color: appColors.infoBlue.withAlpha((255 * 0.1).round()),
-                      borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                // Reminder time
+                GlassListSection(
+                  title: 'Reminder Time',
+                  children: [
+                    GlassListTile(
+                      icon: Icons.access_time,
+                      label: 'Default reminder time',
+                      value: reminderTime.format(context),
+                      chevron: true,
+                      onTap: () async {
+                        final time = await showTimePicker(
+                          context: context,
+                          initialTime: reminderTime,
+                        );
+                        if (time != null) {
+                          await appState.setReminderTime(time);
+                        }
+                      },
                     ),
-                    child: Icon(
-                      Icons.notifications_active_outlined,
-                      color: appColors.infoBlue,
+                  ],
+                ),
+
+                // Test
+                GlassListSection(
+                  title: 'Test',
+                  children: [
+                    GlassListTile(
+                      icon: Icons.notifications_active_outlined,
+                      iconColor: appColors.infoBlue,
+                      label: 'Send Test Notification',
+                      sublabel: 'Verify notifications are working',
+                      trailing: Icon(
+                        Icons.send_outlined,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      onTap: () async {
+                        try {
+                          await _helper.showMonthlySummary(1234.56, 1500.00);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Test notification sent! Check your notification shade.',
+                                ),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            final errorAppColors =
+                                Theme.of(context).extension<AppColors>()!;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to send notification: $e'),
+                                backgroundColor: errorAppColors.expenseRed,
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                  ],
+                ),
+
+                // Examples header
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 12),
+                  child: Text(
+                    'EXAMPLES',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      letterSpacing: 1.2,
                     ),
                   ),
-                  title: const Text('Send Test Notification'),
-                  subtitle: const Text('Verify notifications are working'),
-                  trailing: const Icon(Icons.send_outlined),
-                  onTap: () async {
-                    // Send a test notification
-                    try {
-                      await _helper.showMonthlySummary(
-                        1234.56,
-                        1500.00,
-                      );
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Test notification sent! Check your notification shade.',
-                            ),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        final errorAppColors = Theme.of(context).extension<AppColors>()!;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Failed to send notification: $e'),
-                            backgroundColor: errorAppColors.expenseRed,
-                            duration: const Duration(seconds: 3),
-                          ),
-                        );
-                      }
-                    }
-                  },
                 ),
-              );
-            },
-          ),
-
-          const SizedBox(height: Spacing.screenPadding),
-
-          // Examples Section
-          Text(
-            'EXAMPLES',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+                _ExampleNotification(
+                  icon: Icons.notifications,
+                  title: '💡 Bill Reminder',
+                  message: 'Netflix (\$15.99) due tomorrow',
+                  time: reminderTime.format(context),
+                ),
+                const SizedBox(height: 8),
+                _ExampleNotification(
+                  icon: Icons.warning_amber,
+                  title: '⚠️ Budget Alert',
+                  message: 'Food budget at 92%\n\$40 left for month',
+                  time: 'When limit reached',
+                  progress: 0.92,
+                  progressColor: appColors.warningOrange,
+                ),
+                const SizedBox(height: 8),
+                const _ExampleNotification(
+                  icon: Icons.bar_chart,
+                  title: '📊 Monthly Summary',
+                  message: 'November spending: \$4,250',
+                  time: '1st of month at 9:00 AM',
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: Spacing.sm),
-
-          _ExampleNotification(
-            icon: Icons.notifications,
-            title: '💡 Bill Reminder',
-            message: 'Netflix (\$15.99) due tomorrow',
-            time: appState.reminderTime.format(context),
-          ),
-
-          const SizedBox(height: Spacing.xs),
-
-          Builder(
-            builder: (context) {
-              final appColors = Theme.of(context).extension<AppColors>()!;
-              return _ExampleNotification(
-                icon: Icons.warning_amber,
-                title: '⚠️ Budget Alert',
-                message: 'Food budget at 92%\n\$40 left for month',
-                time: 'When limit reached',
-                progress: 0.92,
-                progressColor: appColors.warningOrange,
-              );
-            },
-          ),
-
-          const SizedBox(height: Spacing.xs),
-
-          const _ExampleNotification(
-            icon: Icons.bar_chart,
-            title: '📊 Monthly Summary',
-            message: 'November spending: \$4,250',
-            time: '1st of month at 9:00 AM',
-          ),
         ],
-      ),
-    );
-  }
-}
-
-class _NotificationCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  const _NotificationCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.value,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-        border: Border.all(color: theme.colorScheme.outline),
-      ),
-      child: SwitchListTile(
-        secondary: Container(
-          padding: const EdgeInsets.all(Spacing.xs),
-          decoration: BoxDecoration(
-            color: value
-                ? theme.colorScheme.primary.withAlpha((255 * 0.1).round())
-                : theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(Spacing.radiusSmall),
-          ),
-          child: Icon(
-            icon,
-            color: value
-                ? theme.colorScheme.primary
-                : theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        title: Text(
-          title,
-          style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        value: value,
-        onChanged: onChanged,
-        activeTrackColor: theme.colorScheme.primary,
       ),
     );
   }
@@ -498,36 +377,37 @@ class _ExampleNotification extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Container(
-      padding: const EdgeInsets.all(Spacing.md),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(Spacing.radiusMedium),
-        border: Border.all(color: theme.colorScheme.outline),
-      ),
+    return GlassPanel(
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
-              const SizedBox(width: Spacing.xs),
-              Text(
-                title,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               Text(
                 time,
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
-          const SizedBox(height: Spacing.xxs),
+          const SizedBox(height: 4),
           Text(
             message,
             style: theme.textTheme.bodySmall?.copyWith(
@@ -535,7 +415,7 @@ class _ExampleNotification extends StatelessWidget {
             ),
           ),
           if (progress != null) ...[
-            const SizedBox(height: Spacing.xs),
+            const SizedBox(height: 8),
             ClipRRect(
               borderRadius: BorderRadius.circular(2),
               child: LinearProgressIndicator(
