@@ -4,61 +4,71 @@ import 'package:fl_chart/fl_chart.dart';
 import '../providers/app_state.dart';
 import '../utils/accessibility_helper.dart';
 import '../utils/premium_animations.dart';
-import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
+import '../theme/luminous_tokens.dart';
+import '../widgets/luminous/glass_panel.dart';
+import '../widgets/luminous/glass_top_app_bar.dart';
 import 'budget_screen.dart';
 
+/// Phase 5.4 — Analytics & Insights Luminous redesign.
+///
+/// Composition:
+///   * [GlassTopAppBar] header ("Analytics") — sits behind the main-nav
+///     "Analytics" tab so no BackButton leading.
+///   * Five hero cards (`_MonthOverMonthInsights`, `_SpendingTrendsChart`,
+///     `_SpendingChart`, `_BudgetProgress`, `_CategoryBreakdown`) each
+///     wrap their content in `GlassPanel`.
+///   * Chart primitives still flow through `fl_chart` (donut/bar/line)
+///     for now — wholesale retirement to `GlassDonutChart` /
+///     `GlassBarChart` is deferred until those components have
+///     production-grade theming.
 class AnalyticsScreen extends StatelessWidget {
   const AnalyticsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            backgroundColor: theme.colorScheme.surface,
-            elevation: 0,
-            pinned: true,
-            title: Text(
-              'Analytics',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
+      backgroundColor: Colors.transparent,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const GlassTopAppBar(title: 'Analytics'),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                LuminousTokens.containerPadding,
+                LuminousTokens.stackGap,
+                LuminousTokens.containerPadding,
+                100,
               ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.all(Spacing.screenPadding),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                FadeInOnLoad(
-                  delay: const Duration(milliseconds: 0),
-                  child: const _MonthOverMonthInsights(),
-                ),
-                const SizedBox(height: Spacing.xl),
-                FadeInOnLoad(
-                  delay: const Duration(milliseconds: 100),
-                  child: const _SpendingTrendsChart(),
-                ),
-                const SizedBox(height: Spacing.xl),
-                FadeInOnLoad(
-                  delay: const Duration(milliseconds: 200),
-                  child: const _SpendingChart(),
-                ),
-                const SizedBox(height: Spacing.xl),
-                FadeInOnLoad(
-                  delay: const Duration(milliseconds: 300),
-                  child: const _BudgetProgress(),
-                ),
-                const SizedBox(height: Spacing.xl),
-                FadeInOnLoad(
-                  delay: const Duration(milliseconds: 400),
-                  child: const _CategoryBreakdown(),
-                ),
-                const SizedBox(height: 100),
-              ]),
+              child: Column(
+                children: [
+                  FadeInOnLoad(
+                    delay: Duration.zero,
+                    child: const _MonthOverMonthInsights(),
+                  ),
+                  const SizedBox(height: 24),
+                  FadeInOnLoad(
+                    delay: const Duration(milliseconds: 100),
+                    child: const _SpendingTrendsChart(),
+                  ),
+                  const SizedBox(height: 24),
+                  FadeInOnLoad(
+                    delay: const Duration(milliseconds: 200),
+                    child: const _SpendingChart(),
+                  ),
+                  const SizedBox(height: 24),
+                  FadeInOnLoad(
+                    delay: const Duration(milliseconds: 300),
+                    child: const _BudgetProgress(),
+                  ),
+                  const SizedBox(height: 24),
+                  FadeInOnLoad(
+                    delay: const Duration(milliseconds: 400),
+                    child: const _CategoryBreakdown(),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -151,10 +161,10 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart>
     if (_isLoading) {
       return Container(
         height: 250,
-        padding: const EdgeInsets.all(Spacing.cardPadding),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(Spacing.radiusLarge),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: theme.colorScheme.outline),
         ),
         child: const Center(child: CircularProgressIndicator()),
@@ -183,13 +193,8 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart>
 
     return AnimatedBuilder(
       animation: _chartAnimation,
-      builder: (context, child) => Container(
-        padding: const EdgeInsets.all(Spacing.cardPadding),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-          border: Border.all(color: theme.colorScheme.outline),
-        ),
+      builder: (context, child) => GlassPanel(
+        padding: const EdgeInsets.all(LuminousTokens.glassPadding),
         child: Semantics(
           label: 'Six month trends chart, $chartDescription',
           container: true,
@@ -208,13 +213,13 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart>
                   Row(
                     children: [
                       _buildLegendItem(theme, appColors.expenseRed, 'Expenses'),
-                      const SizedBox(width: Spacing.md),
+                      const SizedBox(width: 16),
                       _buildLegendItem(theme, appColors.incomeGreen, 'Income'),
                     ],
                   ),
                 ],
               ),
-              const SizedBox(height: Spacing.xl),
+              const SizedBox(height: 24),
               SizedBox(
                 height: 200,
                 child: BarChart(
@@ -383,7 +388,7 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart>
             borderRadius: BorderRadius.circular(2),
           ),
         ),
-        const SizedBox(width: Spacing.xxs + 2),
+        const SizedBox(width: 4 + 2),
         Text(
           label,
           style: theme.textTheme.bodySmall?.copyWith(
@@ -469,13 +474,8 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart>
   }
 
   Widget _buildEmptyState(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.all(Spacing.xxxl),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-        border: Border.all(color: theme.colorScheme.outline),
-      ),
+    return GlassPanel(
+      padding: const EdgeInsets.all(40),
       child: Center(
         child: Column(
           children: [
@@ -484,14 +484,14 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart>
               size: 48,
               color: theme.colorScheme.onSurfaceVariant.withAlpha(100),
             ),
-            const SizedBox(height: Spacing.md),
+            const SizedBox(height: 16),
             Text(
               'Not enough data for trends',
               style: theme.textTheme.bodyLarge?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: Spacing.xs),
+            const SizedBox(height: 8),
             Text(
               'Add transactions to see your 6-month spending trends',
               style: theme.textTheme.bodyMedium?.copyWith(
@@ -588,13 +588,8 @@ class _SpendingChart extends StatelessWidget {
         )
         .join('; ');
 
-    return Container(
-      padding: const EdgeInsets.all(Spacing.cardPadding),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-        border: Border.all(color: theme.colorScheme.outline),
-      ),
+    return GlassPanel(
+      padding: const EdgeInsets.all(LuminousTokens.glassPadding),
       child: Semantics(
         label: 'Spending by category, $categoryDescriptions',
         container: true,
@@ -607,7 +602,7 @@ class _SpendingChart extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: Spacing.xl),
+            const SizedBox(height: 24),
             SizedBox(
               height: 200,
               child: PieChart(
@@ -651,7 +646,7 @@ class _SpendingChart extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: Spacing.cardPadding),
+            const SizedBox(height: 24),
             ...spending.entries.toList().asMap().entries.map((entry) {
               final index = entry.key;
               final data = entry.value;
@@ -670,7 +665,7 @@ class _SpendingChart extends StatelessWidget {
                 label:
                     '${data.key}, $currency${data.value.toStringAsFixed(2)}, $percentageStr percent',
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: Spacing.sm),
+                  padding: const EdgeInsets.only(bottom: 12),
                   child: Row(
                     children: [
                       Container(
@@ -681,7 +676,7 @@ class _SpendingChart extends StatelessWidget {
                           shape: BoxShape.circle,
                         ),
                       ),
-                      const SizedBox(width: Spacing.sm),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           data.key,
@@ -701,7 +696,7 @@ class _SpendingChart extends StatelessWidget {
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      const SizedBox(width: Spacing.xs),
+                      const SizedBox(width: 8),
                       Text(
                         '$currency${data.value.toStringAsFixed(2)}',
                         style: TextStyle(
@@ -760,13 +755,8 @@ class _SpendingChart extends StatelessWidget {
   }
 
   Widget _buildEmptyState(ThemeData theme, String message) {
-    return Container(
-      padding: const EdgeInsets.all(Spacing.xxxl),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-        border: Border.all(color: theme.colorScheme.outline),
-      ),
+    return GlassPanel(
+      padding: const EdgeInsets.all(40),
       child: Center(
         child: Column(
           children: [
@@ -775,7 +765,7 @@ class _SpendingChart extends StatelessWidget {
               size: 48,
               color: theme.colorScheme.onSurfaceVariant.withAlpha(100),
             ),
-            const SizedBox(height: Spacing.md),
+            const SizedBox(height: 16),
             Text(
               message,
               style: theme.textTheme.bodyLarge?.copyWith(
@@ -809,13 +799,8 @@ class _BudgetProgress extends StatelessWidget {
       return _buildEmptyState(context, theme);
     }
 
-    return Container(
-      padding: const EdgeInsets.all(Spacing.cardPadding),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-        border: Border.all(color: theme.colorScheme.outline),
-      ),
+    return GlassPanel(
+      padding: const EdgeInsets.all(LuminousTokens.glassPadding),
       child: Semantics(
         label: 'Budget progress overview',
         container: true,
@@ -828,7 +813,7 @@ class _BudgetProgress extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: Spacing.cardPadding),
+            const SizedBox(height: 24),
             ...budgets.map((budget) {
               final spent = appState.getSpentForCategory(budget.category);
               // FIX #3: Handle division by zero for budget percentage
@@ -850,7 +835,7 @@ class _BudgetProgress extends StatelessWidget {
               return Semantics(
                 label: statusLabel,
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: Spacing.cardPadding),
+                  padding: const EdgeInsets.only(bottom: 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -872,7 +857,7 @@ class _BudgetProgress extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: Spacing.xs),
+                      const SizedBox(height: 8),
                       AccessibilityHelper.accessibleProgressIndicator(
                         value: percentage / 100,
                         label: '${budget.category} budget',
@@ -880,7 +865,7 @@ class _BudgetProgress extends StatelessWidget {
                         backgroundColor:
                             theme.colorScheme.surfaceContainerHighest,
                       ),
-                      const SizedBox(height: Spacing.xxs),
+                      const SizedBox(height: 4),
                       Text(
                         '${percentage.toStringAsFixed(0)}% used',
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -900,13 +885,8 @@ class _BudgetProgress extends StatelessWidget {
   }
 
   Widget _buildEmptyState(BuildContext context, ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.all(Spacing.xxxl),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-        border: Border.all(color: theme.colorScheme.outline),
-      ),
+    return GlassPanel(
+      padding: const EdgeInsets.all(40),
       child: Center(
         child: Column(
           children: [
@@ -915,21 +895,21 @@ class _BudgetProgress extends StatelessWidget {
               size: 48,
               color: theme.colorScheme.onSurfaceVariant.withAlpha(100),
             ),
-            const SizedBox(height: Spacing.md),
+            const SizedBox(height: 16),
             Text(
               'No budgets set',
               style: theme.textTheme.bodyLarge?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: Spacing.xs),
+            const SizedBox(height: 8),
             Text(
               'Set budgets to track your spending',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant.withAlpha(150),
               ),
             ),
-            const SizedBox(height: Spacing.md),
+            const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: () {
                 // FIX Phase 1.3: typed PremiumPageRoute (was pushNamed).
@@ -973,13 +953,8 @@ class _CategoryBreakdown extends StatelessWidget {
 
     final total = spending.values.fold(0.0, (sum, val) => sum + val);
 
-    return Container(
+    return GlassPanel(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-        border: Border.all(color: theme.colorScheme.outline),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -989,7 +964,7 @@ class _CategoryBreakdown extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: Spacing.md),
+          const SizedBox(height: 16),
           ...sortedEntries.take(5).map((entry) {
             // FIX #3: Safe percentage calculation
             final percentage = total > 0 ? (entry.value / total * 100) : 0.0;
@@ -998,7 +973,7 @@ class _CategoryBreakdown extends StatelessWidget {
               label:
                   '${entry.key}, $currency${entry.value.toStringAsFixed(2)}, ${percentage.toStringAsFixed(1)}% of total spending',
               child: Padding(
-                padding: const EdgeInsets.only(bottom: Spacing.md),
+                padding: const EdgeInsets.only(bottom: 16),
                 child: Row(
                   children: [
                     Expanded(
@@ -1011,7 +986,7 @@ class _CategoryBreakdown extends StatelessWidget {
                               color: theme.colorScheme.onSurface,
                             ),
                           ),
-                          const SizedBox(height: Spacing.xxs),
+                          const SizedBox(height: 4),
                           // Progress bar showing relative spending
                           ExcludeSemantics(
                             child: ClipRRect(
@@ -1030,7 +1005,7 @@ class _CategoryBreakdown extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(width: Spacing.md),
+                    const SizedBox(width: 16),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
@@ -1096,13 +1071,8 @@ class _MonthOverMonthInsights extends StatelessWidget {
         ),
       );
 
-    return Container(
-      padding: const EdgeInsets.all(Spacing.cardPadding),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-        border: Border.all(color: theme.colorScheme.outline),
-      ),
+    return GlassPanel(
+      padding: const EdgeInsets.all(LuminousTokens.glassPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1112,7 +1082,7 @@ class _MonthOverMonthInsights extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: Spacing.cardPadding),
+          const SizedBox(height: 24),
 
           // Expense comparison
           Row(
@@ -1129,7 +1099,7 @@ class _MonthOverMonthInsights extends StatelessWidget {
                   isExpense: true,
                 ),
               ),
-              const SizedBox(width: Spacing.sm),
+              const SizedBox(width: 12),
               Expanded(
                 child: _buildComparisonCard(
                   context,
@@ -1147,7 +1117,7 @@ class _MonthOverMonthInsights extends StatelessWidget {
 
           // Category insights
           if (categoryChanges.isNotEmpty) ...[
-            const SizedBox(height: Spacing.cardPadding),
+            const SizedBox(height: 24),
             Text(
               'CATEGORY INSIGHTS',
               style: theme.textTheme.labelSmall?.copyWith(
@@ -1155,7 +1125,7 @@ class _MonthOverMonthInsights extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: Spacing.sm),
+            const SizedBox(height: 12),
             ...categoryChanges.take(3).map((entry) {
               final cat = entry.key;
               final data = entry.value;
@@ -1209,10 +1179,10 @@ class _MonthOverMonthInsights extends StatelessWidget {
       label:
           '$title: $currency${current.toStringAsFixed(0)}, $changeDescription',
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest.withAlpha(100),
-          borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1269,7 +1239,7 @@ class _MonthOverMonthInsights extends StatelessWidget {
     return Semantics(
       label: semanticLabel,
       child: Padding(
-        padding: const EdgeInsets.only(bottom: Spacing.sm),
+        padding: const EdgeInsets.only(bottom: 12),
         child: Row(
           children: [
             ExcludeSemantics(
@@ -1282,7 +1252,7 @@ class _MonthOverMonthInsights extends StatelessWidget {
                       : isRemoved
                           ? theme.colorScheme.onSurfaceVariant.withAlpha(20)
                           : changeColor.withAlpha(20),
-                  borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   isNew
@@ -1301,7 +1271,7 @@ class _MonthOverMonthInsights extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: Spacing.sm),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1327,10 +1297,10 @@ class _MonthOverMonthInsights extends StatelessWidget {
             ),
             if (!isNew && !isRemoved)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: Spacing.xs, vertical: Spacing.xxs),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: changeColor.withAlpha(20),
-                  borderRadius: BorderRadius.circular(Spacing.radiusSmall - 2),
+                  borderRadius: BorderRadius.circular(8 - 2),
                 ),
                 child: Text(
                   '${isPositiveChange ? '+' : ''}${change.toStringAsFixed(0)}%',
