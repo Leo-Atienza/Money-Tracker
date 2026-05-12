@@ -7,73 +7,66 @@ import '../utils/currency_helper.dart';
 import '../utils/decimal_helper.dart';
 import '../utils/premium_animations.dart';
 import '../utils/haptic_helper.dart';
-import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
+import '../theme/luminous_tokens.dart';
+import '../widgets/luminous/glass_panel.dart';
+import '../widgets/luminous/glass_top_app_bar.dart';
 
+/// Phase 5.9i — Quick Templates Luminous redesign.
+///
+/// Composition:
+///   * [GlassTopAppBar] header ("Quick Templates") with BackButton leading.
+///   * Each template card wrapped in [GlassPanel] (replaces the old
+///     `Card` + surface-container styling).
+///   * Empty state wrapped in a [GlassPanel].
+///
+/// The Add/Edit dialog (`_AddTemplateDialog`) keeps its original
+/// `AlertDialog` shell which inherits Luminous styling from the global
+/// theme; its body fields and validation are unchanged.
 class QuickTemplatesScreen extends StatelessWidget {
   const QuickTemplatesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Optimize: Only watch quick templates
     final templates = context.select<AppState, List<QuickTemplate>>(
       (s) => s.quickTemplates,
     );
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: theme.colorScheme.surface,
-        elevation: 0,
-        title: Text(
-          'Quick Templates',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w400,
-            color: theme.colorScheme.onSurface,
+      backgroundColor: Colors.transparent,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GlassTopAppBar(
+            leading: BackButton(color: theme.colorScheme.onSurface),
+            title: 'Quick Templates',
           ),
-        ),
+          Expanded(
+            child: templates.isEmpty
+                ? _EmptyTemplates(theme: theme)
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      LuminousTokens.containerPadding,
+                      LuminousTokens.stackGap,
+                      LuminousTokens.containerPadding,
+                      96,
+                    ),
+                    child: ListView.separated(
+                      itemCount: templates.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final template = templates[index];
+                        return StaggeredListItem(
+                          index: index,
+                          child: _TemplateCard(template: template),
+                        );
+                      },
+                    ),
+                  ),
+          ),
+        ],
       ),
-      body: templates.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.flash_on_outlined,
-                    size: 64,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(height: Spacing.md),
-                  Text(
-                    'No templates yet',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: Spacing.xs),
-                  Text(
-                    'Create templates for quick adding',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant.withAlpha(
-                        (255 * 0.6).round(),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(Spacing.screenPadding),
-              itemCount: templates.length,
-              itemBuilder: (context, index) {
-                final template = templates[index];
-                return StaggeredListItem(
-                  index: index,
-                  child: _TemplateCard(template: template),
-                );
-              },
-            ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddTemplateDialog(context),
         backgroundColor: theme.colorScheme.onSurface,
@@ -92,6 +85,49 @@ class QuickTemplatesScreen extends StatelessWidget {
   }
 }
 
+class _EmptyTemplates extends StatelessWidget {
+  final ThemeData theme;
+  const _EmptyTemplates({required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(LuminousTokens.sectionMargin),
+        child: GlassPanel(
+          padding: const EdgeInsets.all(LuminousTokens.glassPadding),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.flash_on_outlined,
+                size: 64,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No templates yet',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Create templates for quick adding',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _TemplateCard extends StatelessWidget {
   final QuickTemplate template;
 
@@ -100,63 +136,69 @@ class _TemplateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final appColors = Theme.of(context).extension<AppColors>()!;
+    final appColors = theme.extension<AppColors>()!;
     final appState = context.read<AppState>();
     final isIncome = template.type == 'income';
+    final accent =
+        isIncome ? appColors.incomeGreen : theme.colorScheme.onSurface;
 
     return AnimatedPressCard(
-      borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-      border: Border.all(color: theme.colorScheme.outline),
-      child: Container(
-      margin: const EdgeInsets.only(bottom: Spacing.sm),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-        border: Border.all(color: theme.colorScheme.outline),
+      borderRadius: BorderRadius.circular(LuminousTokens.radiusLg),
+      border: Border.all(
+        color: theme.colorScheme.outline.withValues(alpha: 0.4),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: Spacing.cardPadding,
-          vertical: Spacing.sm,
-        ),
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: isIncome
-                ? appColors.incomeGreen.withAlpha((255 * 0.1).round())
-                : theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(Spacing.radiusMedium),
-          ),
-          child: Icon(
-            isIncome ? Icons.arrow_downward : Icons.arrow_upward,
-            color: isIncome ? appColors.incomeGreen : theme.colorScheme.onSurface,
-          ),
-        ),
-        title: Text(
-          template.name,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-        subtitle: Text(
-          '${template.category} • ${template.paymentMethod}',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
+      child: GlassPanel(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
           children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: isIncome ? 0.12 : 0.08),
+                borderRadius: BorderRadius.circular(LuminousTokens.radiusMd),
+              ),
+              child: Icon(
+                isIncome ? Icons.arrow_downward : Icons.arrow_upward,
+                color: accent,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    template.name,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${template.category} • ${template.paymentMethod}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
             Text(
               '${appState.currency}${template.amount.toStringAsFixed(2)}',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: isIncome ? appColors.incomeGreen : theme.colorScheme.onSurface,
+                color: accent,
               ),
             ),
-            PopupMenuButton(
+            PopupMenuButton<String>(
               icon: Icon(
                 Icons.more_vert,
                 color: theme.colorScheme.onSurfaceVariant,
@@ -167,7 +209,7 @@ class _TemplateCard extends StatelessWidget {
                   child: Row(
                     children: [
                       Icon(Icons.flash_on),
-                      SizedBox(width: Spacing.sm),
+                      SizedBox(width: 12),
                       Text('Use Template'),
                     ],
                   ),
@@ -177,7 +219,7 @@ class _TemplateCard extends StatelessWidget {
                   child: Row(
                     children: [
                       Icon(Icons.edit),
-                      SizedBox(width: Spacing.sm),
+                      SizedBox(width: 12),
                       Text('Edit'),
                     ],
                   ),
@@ -187,8 +229,9 @@ class _TemplateCard extends StatelessWidget {
                   child: Row(
                     children: [
                       Icon(Icons.delete, color: appColors.expenseRed),
-                      const SizedBox(width: Spacing.sm),
-                      Text('Delete', style: TextStyle(color: appColors.expenseRed)),
+                      const SizedBox(width: 12),
+                      Text('Delete',
+                          style: TextStyle(color: appColors.expenseRed)),
                     ],
                   ),
                 ),
@@ -214,7 +257,6 @@ class _TemplateCard extends StatelessWidget {
                     );
                   }
                 } else if (value == 'delete') {
-                  // Add confirmation dialog before deleting template
                   final confirmed = await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
@@ -229,7 +271,8 @@ class _TemplateCard extends StatelessWidget {
                         ),
                         Builder(
                           builder: (context) {
-                            final dialogAppColors = Theme.of(context).extension<AppColors>()!;
+                            final dialogAppColors =
+                                Theme.of(context).extension<AppColors>()!;
                             return FilledButton(
                               onPressed: () => Navigator.pop(context, true),
                               style: FilledButton.styleFrom(
@@ -259,7 +302,6 @@ class _TemplateCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
       ),
     );
   }
@@ -305,13 +347,11 @@ class _AddTemplateDialogState extends State<_AddTemplateDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Optimize: Watch specific data, read for methods
     final categories = context.select<AppState, List<Category>>(
       (s) => _type == 'expense' ? s.expenseCategories : s.incomeCategories,
     );
-    final appState = context.read<AppState>(); // For method calls
+    final appState = context.read<AppState>();
 
-    // Ensure selected category is valid for current type
     final validCategory = categories.isNotEmpty &&
             categories.any((c) => c.name == _selectedCategory)
         ? _selectedCategory
@@ -326,7 +366,6 @@ class _AddTemplateDialogState extends State<_AddTemplateDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Type
               SegmentedButton<String>(
                 segments: const [
                   ButtonSegment(
@@ -348,9 +387,8 @@ class _AddTemplateDialogState extends State<_AddTemplateDialog> {
                   });
                 },
               ),
-              const SizedBox(height: Spacing.md),
+              const SizedBox(height: 16),
 
-              // Name
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
@@ -362,7 +400,6 @@ class _AddTemplateDialogState extends State<_AddTemplateDialog> {
               ),
               const SizedBox(height: 16),
 
-              // Amount
               TextFormField(
                 controller: _amountController,
                 decoration: InputDecoration(
@@ -375,24 +412,19 @@ class _AddTemplateDialogState extends State<_AddTemplateDialog> {
                 inputFormatters: [CurrencyHelper.decimalInputFormatter()],
                 validator: (value) {
                   if (value?.isEmpty ?? true) return 'Required';
-                  // FIX: Use parseDecimal to support both comma and dot as decimal separator
                   final amount = CurrencyHelper.parseDecimal(value!);
                   if (amount == null) return 'Invalid number';
-                  // FIX #33: Validate amount must be greater than 0
                   if (amount <= 0) return 'Amount must be greater than 0';
                   return null;
                 },
               ),
               const SizedBox(height: 16),
 
-              // Category - Using InputDecorator with DropdownButton to avoid deprecated value warning
               InputDecorator(
                 decoration: const InputDecoration(
                   labelText: 'Category',
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: Spacing.sm,
-                    vertical: Spacing.xs,
-                  ),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
@@ -414,14 +446,11 @@ class _AddTemplateDialogState extends State<_AddTemplateDialog> {
               ),
               const SizedBox(height: 16),
 
-              // Payment Method - Using InputDecorator with DropdownButton to avoid deprecated value warning
               InputDecorator(
                 decoration: const InputDecoration(
                   labelText: 'Payment Method',
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: Spacing.sm,
-                    vertical: Spacing.xs,
-                  ),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
@@ -468,7 +497,6 @@ class _AddTemplateDialogState extends State<_AddTemplateDialog> {
               final template = QuickTemplate(
                 id: widget.template?.id,
                 name: _nameController.text,
-                // FIX: Use parseDecimal to support both comma and dot as decimal separator
                 amount: DecimalHelper.parse(_amountController.text),
                 category: _selectedCategory,
                 paymentMethod: _paymentMethod,
