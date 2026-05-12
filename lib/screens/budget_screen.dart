@@ -5,51 +5,41 @@ import '../utils/currency_helper.dart';
 import '../utils/accessibility_helper.dart';
 import '../utils/dialog_helpers.dart';
 import '../utils/haptic_helper.dart';
-import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
+import '../theme/luminous_tokens.dart';
+import '../widgets/luminous/glass_panel.dart';
+import '../widgets/luminous/glass_progress_bar.dart';
+import '../widgets/luminous/glass_top_app_bar.dart';
 
+/// Phase 5.3 — Budgets & Planning Luminous redesign.
+///
+/// Composition:
+///   * [GlassTopAppBar] header with month navigation in the trailing slot.
+///   * `_MonthlySummaryCard` (Monthly Overview) wrapped in a [GlassPanel].
+///   * `_BudgetList` renders each budget as a [GlassPanel] containing a
+///     [GlassProgressBar]. The progress bar reports the raw percentage via
+///     semantics — clamping is visual only, so screen readers announce
+///     "115%" when the budget is over.
+///   * Empty state renders inside a [GlassPanel].
 class BudgetScreen extends StatelessWidget {
   const BudgetScreen({super.key});
 
-  // FIX #10: Extract magic numbers to named constants for clarity
-  static const double _baseToolbarHeight =
-      56.0; // Material default toolbar height
-  static const double _textScaleMultiplier =
-      14.0; // Base font size for scaling calculation
-  static const double _textScaleFactor =
-      2.0; // Extra height per scaled text unit
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    // Optimize: Only watch the selected month name for display
     final selectedMonthName = context.select<AppState, String>(
       (s) => s.selectedMonthName,
     );
-    final appState =
-        context.read<AppState>(); // Read for one-time access in callbacks
-
-    // Calculate accessible toolbar height based on text scale
-    final textScaler = MediaQuery.textScalerOf(context);
-    final toolbarHeight = _baseToolbarHeight +
-        (textScaler.scale(_textScaleMultiplier) * _textScaleFactor);
+    final appState = context.read<AppState>();
+    final theme = Theme.of(context);
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            backgroundColor: theme.colorScheme.surface,
-            elevation: 0,
-            pinned: true,
-            toolbarHeight: toolbarHeight,
-            title: Text(
-              'Budgets',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
+      backgroundColor: Colors.transparent,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GlassTopAppBar(
+            title: 'Budgets',
             actions: [
-              // Month navigation directly in the app bar
               AccessibilityHelper.semanticIconButton(
                 icon: Icons.chevron_left,
                 label: 'Previous month',
@@ -64,12 +54,12 @@ class BudgetScreen extends StatelessWidget {
                   onLongPress: () => context.read<AppState>().goToToday(),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: Spacing.xs,
-                      vertical: Spacing.xxs,
+                      horizontal: 8,
+                      vertical: 4,
                     ),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       selectedMonthName,
@@ -88,15 +78,25 @@ class BudgetScreen extends StatelessWidget {
               ),
             ],
           ),
-          SliverPadding(
-            padding: const EdgeInsets.all(Spacing.screenPadding),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                const _MonthlySummaryCard(),
-                const SizedBox(height: Spacing.md),
-                const _BudgetList(),
-                const SizedBox(height: 100),
-              ]),
+          Expanded(
+            child: CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    LuminousTokens.containerPadding,
+                    LuminousTokens.stackGap,
+                    LuminousTokens.containerPadding,
+                    100,
+                  ),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      const _MonthlySummaryCard(),
+                      const SizedBox(height: 16),
+                      const _BudgetList(),
+                    ]),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -141,13 +141,13 @@ class BudgetScreen extends StatelessWidget {
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
             borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(Spacing.radiusXLarge),
+              top: Radius.circular(20),
             ),
           ),
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.all(Spacing.md),
+                padding: const EdgeInsets.all(16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -234,7 +234,7 @@ class BudgetScreen extends StatelessWidget {
                           color: isSelected
                               ? theme.colorScheme.primary
                               : theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                          borderRadius: BorderRadius.circular(12),
                           // FIX #13: Add border for current month
                           border: isCurrentMonth && !isSelected
                               ? Border.all(
@@ -347,13 +347,8 @@ class _MonthlySummaryCard extends StatelessWidget {
       budgetStatusIcon = Icons.info;
     }
 
-    return Container(
+    return GlassPanel(
       padding: EdgeInsets.all(cardPadding),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-        border: Border.all(color: theme.colorScheme.outline),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -422,18 +417,18 @@ class _MonthlySummaryCard extends StatelessWidget {
           ),
 
           if (hasCarryover) ...[
-            const SizedBox(height: Spacing.xs),
+            const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(
-                horizontal: Spacing.sm,
-                vertical: Spacing.xs,
+                horizontal: 12,
+                vertical: 8,
               ),
               decoration: BoxDecoration(
                 color: (carryover >= 0
                         ? appColors.infoBlue
                         : appColors.expenseRed)
                     .withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
@@ -905,10 +900,10 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(Spacing.radiusXLarge),
+            top: Radius.circular(20),
           ),
         ),
-        padding: const EdgeInsets.all(Spacing.screenPadding),
+        padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
           child: Column(
@@ -962,7 +957,7 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
                   ],
                 ),
               ),
-              const SizedBox(height: Spacing.screenPadding),
+              const SizedBox(height: 20),
               TextFormField(
                 controller: _amountController,
                 keyboardType: const TextInputType.numberWithOptions(
@@ -974,7 +969,7 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
                   labelText: 'Monthly Budget Amount',
                   prefixText: '$currency ',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 validator: (value) {
@@ -985,7 +980,7 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
                   return null;
                 },
               ),
-              const SizedBox(height: Spacing.screenPadding),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -993,9 +988,9 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.onSurface,
                     foregroundColor: theme.colorScheme.surface,
-                    padding: const EdgeInsets.symmetric(vertical: Spacing.md),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                   child: _isSaving
@@ -1155,114 +1150,79 @@ class _BudgetList extends StatelessWidget {
           budget.category,
         );
 
-        return Semantics(
-          label: statusLabel,
-          container: true,
-          child: Container(
-            margin: const EdgeInsets.only(bottom: Spacing.md),
-            padding: const EdgeInsets.all(Spacing.cardPadding),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-              border: Border.all(color: theme.colorScheme.outline),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      budget.category.toUpperCase(),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Semantics(
+            label: statusLabel,
+            container: true,
+            child: GlassPanel(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        budget.category.toUpperCase(),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                    Row(
-                      children: [
-                        // CRITICAL FIX: Add status icon for color-blind accessibility
-                        ExcludeSemantics(
-                          child: Icon(statusIcon, size: 18, color: statusColor),
-                        ),
-                        const SizedBox(width: 12),
-                        AccessibilityHelper.semanticIconButton(
-                          icon: Icons.edit_outlined,
-                          label: 'Edit ${budget.category} budget',
-                          onPressed: () => _showEditBudget(
-                            context,
-                            budget.category,
-                            budget.amount,
-                          ),
-                          size: 18,
-                        ),
-                        const SizedBox(width: 12),
-                        AccessibilityHelper.semanticIconButton(
-                          icon: Icons.delete_outline,
-                          label: 'Delete ${budget.category} budget',
-                          onPressed: () => _confirmDelete(context, budget.id!),
-                          size: 18,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '$currency${spent.toStringAsFixed(0)} / $currency${budget.amount.toStringAsFixed(0)}',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w300,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // FIX: Stacked progress bar showing actual (solid) and projected (lighter)
-                Semantics(
-                  label: AccessibilityHelper.getBudgetStatusLabel(
-                    percentage,
-                    budget.category,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: SizedBox(
-                      height: 8,
-                      child: Stack(
+                      Row(
                         children: [
-                          // Background
-                          Container(
-                            color: theme.colorScheme.surfaceContainerHighest,
+                          ExcludeSemantics(
+                            child: Icon(statusIcon,
+                                size: 18, color: statusColor),
                           ),
-                          // Projected (total) - lighter/semi-transparent
-                          if (projectedSpent > 0)
-                            FractionallySizedBox(
-                              widthFactor: (spent / budget.amount).clamp(
-                                0.0,
-                                1.0,
-                              ),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: statusColor.withValues(alpha: 0.3),
-                                  border: Border.all(
-                                    color: statusColor.withValues(alpha: 0.5),
-                                    width: 0.5,
-                                  ),
-                                ),
-                              ),
+                          const SizedBox(width: 12),
+                          AccessibilityHelper.semanticIconButton(
+                            icon: Icons.edit_outlined,
+                            label: 'Edit ${budget.category} budget',
+                            onPressed: () => _showEditBudget(
+                              context,
+                              budget.category,
+                              budget.amount,
                             ),
-                          // Actual - solid color
-                          FractionallySizedBox(
-                            widthFactor: (actualSpent / budget.amount).clamp(
-                              0.0,
-                              1.0,
-                            ),
-                            child: Container(color: statusColor),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 12),
+                          AccessibilityHelper.semanticIconButton(
+                            icon: Icons.delete_outline,
+                            label: 'Delete ${budget.category} budget',
+                            onPressed: () =>
+                                _confirmDelete(context, budget.id!),
+                            size: 18,
                           ),
                         ],
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '$currency${spent.toStringAsFixed(0)} / $currency${budget.amount.toStringAsFixed(0)}',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w300,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
+                  const SizedBox(height: 12),
+                  // Luminous GlassProgressBar — visually clamps at 100% but
+                  // reports the raw percentage in semantics so screen readers
+                  // can announce 115% on over-budget. The dual actual/
+                  // projected breakdown below the bar preserves the prior
+                  // information density.
+                  GlassProgressBar(
+                    progress: budgetAmount != null && budgetAmount > 0
+                        ? spent / budgetAmount
+                        : 0.0,
+                    color: statusColor,
+                    semanticLabel: AccessibilityHelper.getBudgetStatusLabel(
+                      percentage,
+                      budget.category,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                 // FIX: Show breakdown of actual vs projected
                 if (projectedSpent > 0)
                   Semantics(
@@ -1346,6 +1306,7 @@ class _BudgetList extends StatelessWidget {
               ],
             ),
           ),
+          ),
         );
       }).toList(),
     );
@@ -1358,13 +1319,8 @@ class _BudgetList extends StatelessWidget {
   ) {
     return GestureDetector(
       onTap: () => BudgetScreen.showAddBudget(context),
-      child: Container(
-        padding: const EdgeInsets.all(Spacing.xxl),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-          border: Border.all(color: theme.colorScheme.outline),
-        ),
+      child: GlassPanel(
+        padding: const EdgeInsets.all(32),
         child: Column(
           children: [
             Icon(
@@ -1553,10 +1509,10 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(Spacing.radiusXLarge),
+            top: Radius.circular(20),
           ),
         ),
-        padding: const EdgeInsets.all(Spacing.screenPadding),
+        padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
           child: Column(
@@ -1570,14 +1526,14 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: Spacing.xs),
+              const SizedBox(height: 8),
               Text(
                 'For $selectedMonthName',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: Spacing.screenPadding),
+              const SizedBox(height: 20),
               // Fixed dropdown using InputDecorator pattern to avoid deprecation
               InputDecorator(
                 decoration: InputDecoration(
@@ -1601,7 +1557,7 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
                   ),
                 ),
               ),
-              const SizedBox(height: Spacing.md),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _amountController,
                 keyboardType: const TextInputType.numberWithOptions(
@@ -1612,7 +1568,7 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
                   labelText: 'Monthly Budget',
                   prefixText: '$currency ',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 validator: (value) {
@@ -1624,7 +1580,7 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
                   return null;
                 },
               ),
-              const SizedBox(height: Spacing.screenPadding),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -1632,9 +1588,9 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.onSurface,
                     foregroundColor: theme.colorScheme.surface,
-                    padding: const EdgeInsets.symmetric(vertical: Spacing.md),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                   child: _isSaving
