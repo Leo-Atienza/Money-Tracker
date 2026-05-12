@@ -5,13 +5,26 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 import '../providers/app_state.dart';
-import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
+import '../theme/luminous_tokens.dart';
 import '../utils/csv_exporter.dart';
 import '../utils/pdf_exporter.dart';
 import '../utils/haptic_helper.dart';
+import '../widgets/luminous/glass_panel.dart';
+import '../widgets/luminous/glass_pill_chip.dart';
+import '../widgets/luminous/glass_top_app_bar.dart';
 
-/// Screen for exporting transaction data to various formats
+/// Phase 5.9e — Export Data Luminous redesign.
+///
+/// Composition:
+///   * [GlassTopAppBar] header ("Export Data") with BackButton leading.
+///   * Info banner wrapped in [GlassPanel].
+///   * Each "Data to Export" option rendered as a [GlassPanel]-wrapped
+///     row (replaces the hand-rolled bordered container) with the
+///     selection state still indicated by a check icon + primary tint.
+///   * Date-range filter chips swapped to [GlassPillChip].
+///   * Custom-range buttons reuse the Luminous panel surface so the
+///     selection state reads consistently with the rest of the screen.
 class ExportDataScreen extends StatefulWidget {
   const ExportDataScreen({super.key});
 
@@ -20,10 +33,8 @@ class ExportDataScreen extends StatefulWidget {
 }
 
 class _ExportDataScreenState extends State<ExportDataScreen> {
-  // Export options
   String _exportType = 'all'; // 'all', 'expenses', 'income'
-  String _dateRange =
-      'all_time'; // 'all_time', 'this_month', 'last_month', 'this_year', 'custom'
+  String _dateRange = 'all_time';
   DateTime? _customStartDate;
   DateTime? _customEndDate;
   bool _isExporting = false;
@@ -31,208 +42,184 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: theme.colorScheme.surface,
-        elevation: 0,
-        title: Text(
-          'Export Data',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w400,
-            color: theme.colorScheme.onSurface,
+      backgroundColor: Colors.transparent,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GlassTopAppBar(
+            leading: BackButton(color: theme.colorScheme.onSurface),
+            title: 'Export Data',
           ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(Spacing.screenPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Info card
-            Container(
-              padding: const EdgeInsets.all(Spacing.md),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer.withAlpha(50),
-                borderRadius: BorderRadius.circular(Spacing.radiusMedium),
-                border: Border.all(
-                  color: theme.colorScheme.primary.withAlpha(50),
-                ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                LuminousTokens.containerPadding,
+                LuminousTokens.stackGap,
+                LuminousTokens.containerPadding,
+                LuminousTokens.sectionMargin,
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(Icons.info_outline, color: theme.colorScheme.primary),
-                  const SizedBox(width: Spacing.sm),
-                  Expanded(
+                  // Info banner
+                  GlassPanel(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline,
+                            color: theme.colorScheme.primary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Export your transactions as a CSV file that can be opened in Excel, Google Sheets, or other spreadsheet applications.',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: LuminousTokens.sectionMargin),
+
+                  // Data To Export header
+                  _SectionHeader(theme: theme, label: 'DATA TO EXPORT'),
+                  const SizedBox(height: 12),
+                  _buildOptionCard(
+                    theme: theme,
+                    title: 'All Transactions',
+                    subtitle: 'Expenses and income combined',
+                    icon: Icons.all_inclusive,
+                    isSelected: _exportType == 'all',
+                    onTap: () => setState(() => _exportType = 'all'),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildOptionCard(
+                    theme: theme,
+                    title: 'Expenses Only',
+                    subtitle: 'Only expense transactions',
+                    icon: Icons.arrow_upward,
+                    isSelected: _exportType == 'expenses',
+                    onTap: () => setState(() => _exportType = 'expenses'),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildOptionCard(
+                    theme: theme,
+                    title: 'Income Only',
+                    subtitle: 'Only income transactions',
+                    icon: Icons.arrow_downward,
+                    iconColor: appColors.incomeGreen,
+                    isSelected: _exportType == 'income',
+                    onTap: () => setState(() => _exportType = 'income'),
+                  ),
+                  const SizedBox(height: LuminousTokens.sectionMargin),
+
+                  // Date Range header
+                  _SectionHeader(theme: theme, label: 'DATE RANGE'),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildDateChip('All Time', 'all_time'),
+                      _buildDateChip('This Month', 'this_month'),
+                      _buildDateChip('Last Month', 'last_month'),
+                      _buildDateChip('This Year', 'this_year'),
+                      _buildDateChip('Custom Range', 'custom'),
+                    ],
+                  ),
+                  if (_dateRange == 'custom') ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildDateButton(
+                            theme: theme,
+                            label: 'Start Date',
+                            date: _customStartDate,
+                            onTap: () => _selectDate(isStart: true),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildDateButton(
+                            theme: theme,
+                            label: 'End Date',
+                            date: _customEndDate,
+                            onTap: () => _selectDate(isStart: false),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+
+                  const SizedBox(height: 48),
+
+                  // Export buttons
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: _isExporting ? null : _exportData,
+                      icon: _isExporting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.file_download),
+                      label: Text(_isExporting ? 'Exporting...' : 'Export to CSV'),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _isExporting ? null : _exportToPdf,
+                      icon: _isExporting
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: theme.colorScheme.primary,
+                              ),
+                            )
+                          : const Icon(Icons.picture_as_pdf),
+                      label: Text(_isExporting ? 'Exporting...' : 'Export to PDF'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
                     child: Text(
-                      'Export your transactions as a CSV file that can be opened in Excel, Google Sheets, or other spreadsheet applications.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface,
+                      'CSV for spreadsheets • PDF for professional reports',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: Spacing.xxl),
-
-            // Data Type Section
-            Text(
-              'DATA TO EXPORT',
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.2,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: Spacing.sm),
-            _buildOptionCard(
-              theme: theme,
-              title: 'All Transactions',
-              subtitle: 'Expenses and income combined',
-              icon: Icons.all_inclusive,
-              isSelected: _exportType == 'all',
-              onTap: () => setState(() => _exportType = 'all'),
-            ),
-            const SizedBox(height: Spacing.xs),
-            _buildOptionCard(
-              theme: theme,
-              title: 'Expenses Only',
-              subtitle: 'Only expense transactions',
-              icon: Icons.arrow_upward,
-              isSelected: _exportType == 'expenses',
-              onTap: () => setState(() => _exportType = 'expenses'),
-            ),
-            const SizedBox(height: Spacing.xs),
-            _buildOptionCard(
-              theme: theme,
-              title: 'Income Only',
-              subtitle: 'Only income transactions',
-              icon: Icons.arrow_downward,
-              iconColor: theme.extension<AppColors>()!.incomeGreen,
-              isSelected: _exportType == 'income',
-              onTap: () => setState(() => _exportType = 'income'),
-            ),
-
-            const SizedBox(height: Spacing.xxl),
-
-            // Date Range Section
-            Text(
-              'DATE RANGE',
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.2,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: Spacing.sm),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _buildDateChip(theme, 'All Time', 'all_time'),
-                _buildDateChip(theme, 'This Month', 'this_month'),
-                _buildDateChip(theme, 'Last Month', 'last_month'),
-                _buildDateChip(theme, 'This Year', 'this_year'),
-                _buildDateChip(theme, 'Custom Range', 'custom'),
-              ],
-            ),
-
-            // Custom date range picker
-            if (_dateRange == 'custom') ...[
-              const SizedBox(height: Spacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildDateButton(
-                      theme: theme,
-                      label: 'Start Date',
-                      date: _customStartDate,
-                      onTap: () => _selectDate(isStart: true),
-                    ),
-                  ),
-                  const SizedBox(width: Spacing.sm),
-                  Expanded(
-                    child: _buildDateButton(
-                      theme: theme,
-                      label: 'End Date',
-                      date: _customEndDate,
-                      onTap: () => _selectDate(isStart: false),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-
-            const SizedBox(height: Spacing.huge),
-
-            // Export buttons
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _isExporting ? null : _exportData,
-                icon: _isExporting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.file_download),
-                label: Text(_isExporting ? 'Exporting...' : 'Export to CSV'),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: Spacing.md),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(Spacing.radiusMedium),
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: Spacing.sm),
-
-            // PDF Export button
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _isExporting ? null : _exportToPdf,
-                icon: _isExporting
-                    ? SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: theme.colorScheme.primary,
-                        ),
-                      )
-                    : const Icon(Icons.picture_as_pdf),
-                label: Text(_isExporting ? 'Exporting...' : 'Export to PDF'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: Spacing.md),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(Spacing.radiusMedium),
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: Spacing.md),
-
-            // Note about formats
-            Center(
-              child: Text(
-                'CSV for spreadsheets • PDF for professional reports',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -246,46 +233,40 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
+    final tint = isSelected ? theme.colorScheme.primary : null;
     return InkWell(
       onTap: () {
         HapticHelper.lightImpact();
         onTap();
       },
-      borderRadius: BorderRadius.circular(Spacing.radiusMedium),
-      child: Container(
-        padding: const EdgeInsets.all(Spacing.md),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? theme.colorScheme.primary.withAlpha(20)
-              : theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(Spacing.radiusMedium),
-          border: Border.all(
-            color: isSelected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
+      borderRadius: BorderRadius.circular(LuminousTokens.radiusLg),
+      child: GlassPanel(
+        padding: const EdgeInsets.all(16),
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.18),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ]
+            : null,
         child: Row(
           children: [
             Container(
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: isSelected
-                    ? theme.colorScheme.primary.withAlpha(30)
-                    : theme.colorScheme.surface,
+                color: (tint ?? theme.colorScheme.onSurface)
+                    .withValues(alpha: isSelected ? 0.18 : 0.08),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 icon,
-                color: iconColor ??
-                    (isSelected
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurface),
+                color: iconColor ?? (tint ?? theme.colorScheme.onSurface),
               ),
             ),
-            const SizedBox(width: Spacing.md),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,12 +296,11 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
     );
   }
 
-  Widget _buildDateChip(ThemeData theme, String label, String value) {
-    final isSelected = _dateRange == value;
-    return ChoiceChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
+  Widget _buildDateChip(String label, String value) {
+    return GlassPillChip(
+      label: label,
+      selected: _dateRange == value,
+      onTap: () {
         HapticHelper.lightImpact();
         setState(() {
           _dateRange = value;
@@ -330,18 +310,6 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
           }
         });
       },
-      backgroundColor: theme.colorScheme.surfaceContainerHighest,
-      selectedColor: theme.colorScheme.primary.withAlpha(30),
-      labelStyle: theme.textTheme.bodyMedium?.copyWith(
-        color: isSelected
-            ? theme.colorScheme.primary
-            : theme.colorScheme.onSurface,
-        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-      ),
-      side: BorderSide(
-        color:
-            isSelected ? theme.colorScheme.primary : theme.colorScheme.outline,
-      ),
     );
   }
 
@@ -353,13 +321,9 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(Spacing.radiusMedium),
-      child: Container(
-        padding: const EdgeInsets.all(Spacing.md),
-        decoration: BoxDecoration(
-          border: Border.all(color: theme.colorScheme.outline),
-          borderRadius: BorderRadius.circular(Spacing.radiusMedium),
-        ),
+      borderRadius: BorderRadius.circular(LuminousTokens.radiusLg),
+      child: GlassPanel(
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -369,7 +333,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: Spacing.xxs),
+            const SizedBox(height: 4),
             Row(
               children: [
                 Icon(
@@ -377,15 +341,19 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                   size: 16,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: Spacing.xs),
-                Text(
-                  date != null
-                      ? DateFormat.yMMMd().format(date)
-                      : 'Select date',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: date != null
-                        ? theme.colorScheme.onSurface
-                        : theme.colorScheme.onSurfaceVariant,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    date != null
+                        ? DateFormat.yMMMd().format(date)
+                        : 'Select date',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: date != null
+                          ? theme.colorScheme.onSurface
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -412,13 +380,11 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       setState(() {
         if (isStart) {
           _customStartDate = date;
-          // Ensure end date is not before start date
           if (_customEndDate != null && _customEndDate!.isBefore(date)) {
             _customEndDate = date;
           }
         } else {
           _customEndDate = date;
-          // Ensure start date is not after end date
           if (_customStartDate != null && _customStartDate!.isAfter(date)) {
             _customStartDate = date;
           }
@@ -428,7 +394,6 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   }
 
   Future<void> _exportData() async {
-    // Validate custom date range
     if (_dateRange == 'custom') {
       if (_customStartDate == null || _customEndDate == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -448,14 +413,11 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       final appState = context.read<AppState>();
       final appColors = Theme.of(context).extension<AppColors>()!;
 
-      // Get date range
       final DateTimeRange? dateFilter = _getDateRange();
 
-      // Get all data from database
       final allExpenses = await appState.getAllExpensesForBackup();
       final allIncome = await appState.getAllIncomesForBackup();
 
-      // Filter by date range if applicable
       final filteredExpenses = dateFilter != null
           ? allExpenses
               .where(
@@ -476,7 +438,6 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               .toList()
           : allIncome;
 
-      // Determine separator based on locale
       final locale = Localizations.localeOf(context).toString();
       final separator = CsvSeparator.fromLocale(locale);
 
@@ -511,7 +472,6 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               '${filteredExpenses.length + filteredIncome.length} transactions exported';
       }
 
-      // Share the file
       await SharePlus.instance.share(
         ShareParams(files: [XFile(file.path)], subject: 'FinanceFlow Export'),
       );
@@ -544,7 +504,6 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   }
 
   Future<void> _exportToPdf() async {
-    // Validate custom date range
     if (_dateRange == 'custom') {
       if (_customStartDate == null || _customEndDate == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -564,14 +523,11 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       final appState = context.read<AppState>();
       final appColors = Theme.of(context).extension<AppColors>()!;
 
-      // Get date range
       final DateTimeRange? dateFilter = _getDateRange();
 
-      // Get all data from database
       final allExpenses = await appState.getAllExpensesForBackup();
       final allIncome = await appState.getAllIncomesForBackup();
 
-      // Filter by date range if applicable
       final filteredExpenses = dateFilter != null
           ? allExpenses
               .where(
@@ -621,7 +577,6 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               'PDF report created with ${filteredIncome.length} income records';
           break;
         default:
-          // For "all transactions", create a summary report
           final budgets = appState.currentMonthBudgets;
           final monthName = DateFormat.yMMMM().format(appState.selectedMonth);
 
@@ -644,7 +599,6 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               'PDF summary created with ${filteredExpenses.length + filteredIncome.length} transactions';
       }
 
-      // Share the file
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
@@ -717,5 +671,26 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       default:
         return null; // all_time
     }
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final ThemeData theme;
+  final String label;
+  const _SectionHeader({required this.theme, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.2,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
   }
 }
