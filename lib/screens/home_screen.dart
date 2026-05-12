@@ -12,7 +12,7 @@ import '../widgets/category_tile.dart';
 import '../widgets/luminous/glass_surface.dart';
 import 'add_expense_screen.dart';
 import 'add_payment_dialog.dart';
-import 'history_screen.dart';
+import 'history/history_screen.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {

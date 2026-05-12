@@ -11,7 +11,7 @@ import 'providers/app_state.dart';
 import 'theme/app_colors.dart';
 import 'utils/crash_log.dart';
 import 'screens/home_screen.dart';
-import 'screens/history_screen.dart';
+import 'screens/history/history_screen.dart';
 import 'screens/recurring_expenses_screen.dart';
 import 'screens/add_hub_screen.dart';
 import 'screens/analytics_screen.dart';
