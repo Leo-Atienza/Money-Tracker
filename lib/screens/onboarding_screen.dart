@@ -4,8 +4,14 @@ import '../providers/app_state.dart';
 import '../services/onboarding_service.dart';
 import '../utils/date_helper.dart';
 import '../utils/premium_animations.dart';
-import '../constants/spacing.dart';
+import '../theme/luminous_tokens.dart';
+import '../widgets/luminous/glass_panel.dart';
 
+/// Phase 5.9a — Onboarding Luminous redesign.
+///
+/// Each slide renders inside a [GlassPanel]; page indicators use the
+/// Luminous primary tint; CTAs are filled / outlined buttons over the
+/// `OrganicBlobBackground` provided by the global theme.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -35,14 +41,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     try {
       final appState = context.read<AppState>();
 
-      // Add sample categories
       await appState.addCategory('Groceries', type: 'expense');
       await appState.addCategory('Transport', type: 'expense');
       await appState.addCategory('Entertainment', type: 'expense');
       await appState.addCategory('Salary', type: 'income');
       await appState.addCategory('Freelance', type: 'income');
 
-      // Add sample expenses (past month)
       final today = DateHelper.today();
       final dates = [
         today.subtract(const Duration(days: 1)),
@@ -52,7 +56,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       ];
 
       for (final date in dates) {
-        // Add some sample transactions
         if (date.day % 2 == 0) {
           await appState.addExpenseRaw(
             amount: 45.50 + (date.day % 3) * 10,
@@ -74,7 +77,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         }
       }
 
-      // Add sample income
       await appState.addIncomeRaw(
         amount: 3000.00,
         category: 'Salary',
@@ -82,7 +84,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         date: DateHelper.startOfMonth(today),
       );
 
-      // Add a budget
       await appState.setBudget('Groceries', 200.00);
 
       await _completeOnboarding();
@@ -103,16 +104,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Column(
           children: [
             // Skip button
             Align(
               alignment: Alignment.topRight,
-              child: TextButton(
-                onPressed: _completeOnboarding,
-                child: const Text('Skip'),
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8, top: 4),
+                child: TextButton(
+                  onPressed: _completeOnboarding,
+                  child: const Text('Skip'),
+                ),
               ),
             ),
 
@@ -150,12 +154,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(3, (index) {
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: Spacing.xxs),
-                  width: _currentPage == index ? 24 : 8,
+                final isActive = _currentPage == index;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: isActive ? 24 : 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: _currentPage == index
+                    color: isActive
                         ? theme.colorScheme.primary
                         : theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(4),
@@ -164,11 +170,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               }),
             ),
 
-            const SizedBox(height: Spacing.xxl),
+            const SizedBox(height: LuminousTokens.sectionMargin),
 
             // Action buttons
             Padding(
-              padding: const EdgeInsets.all(Spacing.screenPadding),
+              padding: const EdgeInsets.all(LuminousTokens.containerPadding),
               child: Column(
                 children: [
                   SizedBox(
@@ -185,9 +191,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: theme.colorScheme.primary,
                         foregroundColor: theme.colorScheme.onPrimary,
-                        padding: const EdgeInsets.symmetric(vertical: Spacing.md),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: Text(
@@ -198,15 +204,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: Spacing.sm),
+                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
                       onPressed: _loadSampleData,
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: Spacing.md),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: Text(
@@ -231,47 +237,52 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     String description,
   ) {
     return Padding(
-      padding: const EdgeInsets.all(40),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          FadeInOnLoad(
-            delay: Duration.zero,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(30),
+      padding: const EdgeInsets.all(32),
+      child: Center(
+        child: GlassPanel(
+          padding: const EdgeInsets.all(LuminousTokens.glassPadding),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FadeInOnLoad(
+                delay: Duration.zero,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Icon(icon, size: 60, color: theme.colorScheme.primary),
+                ),
               ),
-              child: Icon(icon, size: 60, color: theme.colorScheme.primary),
-            ),
-          ),
-          const SizedBox(height: 40),
-          FadeInOnLoad(
-            delay: const Duration(milliseconds: 150),
-            child: Text(
-              title,
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onSurface,
+              const SizedBox(height: 32),
+              FadeInOnLoad(
+                delay: const Duration(milliseconds: 150),
+                child: Text(
+                  title,
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: Spacing.md),
-          FadeInOnLoad(
-            delay: const Duration(milliseconds: 300),
-            child: Text(
-              description,
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                height: 1.5,
+              const SizedBox(height: 16),
+              FadeInOnLoad(
+                delay: const Duration(milliseconds: 300),
+                child: Text(
+                  description,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

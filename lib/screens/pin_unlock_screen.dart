@@ -3,8 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../utils/pin_security_helper.dart';
 import '../utils/haptic_helper.dart';
-import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
+import '../theme/luminous_tokens.dart';
+import '../widgets/luminous/glass_panel.dart';
 
 /// Screen for unlocking the app with PIN
 class PinUnlockScreen extends StatefulWidget {
@@ -82,29 +83,33 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(Spacing.screenPadding),
+          padding: const EdgeInsets.all(LuminousTokens.containerPadding),
           child: Column(
             children: [
               const Spacer(),
 
-              // App icon/logo
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary,
-                  borderRadius: BorderRadius.circular(Spacing.radiusXLarge),
-                ),
-                child: Icon(
-                  Icons.account_balance_wallet,
-                  size: 48,
-                  color: theme.colorScheme.onPrimary,
+              // App icon/logo wrapped in a glass surface for the Luminous look
+              GlassPanel(
+                padding: const EdgeInsets.all(LuminousTokens.glassPadding),
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(
+                    Icons.account_balance_wallet,
+                    size: 48,
+                    color: theme.colorScheme.onPrimary,
+                  ),
                 ),
               ),
 
-              const SizedBox(height: Spacing.screenPadding),
+              const SizedBox(height: 20),
 
               // Title
               Text(
@@ -125,7 +130,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                 ),
               ),
 
-              const SizedBox(height: Spacing.xxl),
+              const SizedBox(height: 32),
 
               // PIN dots indicator
               Row(
@@ -133,7 +138,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                 children: List.generate(_pinLength, (index) {
                   final isFilled = index < _enteredPin.length;
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       width: 16,
@@ -157,15 +162,15 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
 
               // Error message
               if (_errorMessage != null) ...[
-                const SizedBox(height: Spacing.screenPadding),
+                const SizedBox(height: 20),
                 Builder(
                   builder: (context) {
                     final appColors = Theme.of(context).extension<AppColors>()!;
                     return Container(
-                      padding: const EdgeInsets.all(Spacing.sm),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: appColors.expenseRed.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -175,7 +180,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                             color: appColors.expenseRed,
                             size: 20,
                           ),
-                          const SizedBox(width: Spacing.xs),
+                          const SizedBox(width: 8),
                           Flexible(
                             child: Text(
                               _errorMessage!,
@@ -197,7 +202,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
               // Number pad
               _buildNumberPad(theme),
 
-              const SizedBox(height: Spacing.screenPadding),
+              const SizedBox(height: 20),
 
               // Forgot PIN hint - show after multiple failed attempts
               // FIX: Use global remaining attempts from PinSecurityHelper
@@ -214,7 +219,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                   ),
                 ),
 
-              const SizedBox(height: Spacing.xs),
+              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -228,7 +233,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
         // Rows 1-3
         for (var row = 0; row < 3; row++)
           Padding(
-            padding: const EdgeInsets.only(bottom: Spacing.md),
+            padding: const EdgeInsets.only(bottom: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(3, (col) {
@@ -252,7 +257,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
 
   Widget _buildNumberButton(String number, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: InkWell(
         onTap: _isLoading ? null : () => _onNumberPressed(number),
         borderRadius: BorderRadius.circular(40),
@@ -279,7 +284,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
 
   Widget _buildBackspaceButton(ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: InkWell(
         onTap: _isLoading ? null : _onBackspacePressed,
         borderRadius: BorderRadius.circular(40),

@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import '../utils/pin_security_helper.dart';
 import '../utils/haptic_helper.dart';
 import '../utils/secure_window.dart';
-import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
+import '../theme/luminous_tokens.dart';
+import '../widgets/luminous/glass_top_app_bar.dart';
 
 /// Screen for setting up a new PIN or changing an existing PIN
 class PinSetupScreen extends StatefulWidget {
@@ -29,34 +30,28 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: theme.colorScheme.surface,
-        elevation: 0,
-        title: Text(
-          widget.isChangingPin ? 'Change PIN' : 'Set Up PIN',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w400,
-            color: theme.colorScheme.onSurface,
+      backgroundColor: Colors.transparent,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GlassTopAppBar(
+            leading: BackButton(color: theme.colorScheme.onSurface),
+            title: widget.isChangingPin ? 'Change PIN' : 'Set Up PIN',
           ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(Spacing.screenPadding),
-          child: Column(
+          Expanded(
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.all(LuminousTokens.containerPadding),
+            child: Column(
             children: [
-              const SizedBox(height: Spacing.xxl),
+              const SizedBox(height: 32),
               // Title and instruction
               Text(
                 _isConfirmMode ? 'Confirm your PIN' : 'Create a PIN',
                 style: theme.textTheme.titleLarge,
               ),
-              const SizedBox(height: Spacing.xs),
+              const SizedBox(height: 8),
               Text(
                 _isConfirmMode
                     ? 'Enter your PIN again to confirm'
@@ -66,7 +61,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: Spacing.huge),
+              const SizedBox(height: 48),
 
               // PIN length selector (only in first step)
               if (!_isConfirmMode) ...[
@@ -77,13 +72,13 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: Spacing.md),
+                const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [4, 5, 6].map((length) {
                     final isSelected = _pinLength == length;
                     return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: Spacing.xs),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: InkWell(
                         onTap: () {
                           setState(() {
@@ -92,7 +87,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                           });
                           HapticHelper.lightImpact();
                         },
-                        borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                        borderRadius: BorderRadius.circular(12),
                         child: Container(
                           width: 60,
                           height: 60,
@@ -100,7 +95,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                             color: isSelected
                                 ? theme.colorScheme.primary
                                 : theme.colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           child: Center(
                             child: Text(
@@ -117,7 +112,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                     );
                   }).toList(),
                 ),
-                const SizedBox(height: Spacing.huge),
+                const SizedBox(height: 48),
               ],
 
               // PIN dots indicator
@@ -127,7 +122,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                   final currentPin = _isConfirmMode ? _confirmPin : _firstPin;
                   final isFilled = index < currentPin.length;
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Container(
                       width: 16,
                       height: 16,
@@ -150,15 +145,15 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
 
               // Error message
               if (_errorMessage != null) ...[
-                const SizedBox(height: Spacing.xl),
+                const SizedBox(height: 24),
                 Builder(
                   builder: (context) {
                     final appColors = Theme.of(context).extension<AppColors>()!;
                     return Container(
-                      padding: const EdgeInsets.all(Spacing.sm),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: appColors.expenseRed.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         children: [
@@ -167,7 +162,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                             color: appColors.expenseRed,
                             size: 20,
                           ),
-                          const SizedBox(width: Spacing.xs),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               _errorMessage!,
@@ -188,10 +183,13 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
               // Number pad
               _buildNumberPad(theme),
 
-              const SizedBox(height: Spacing.xl),
+              const SizedBox(height: 24),
             ],
           ),
         ),
+      ),
+        ),
+        ],
       ),
     );
   }
@@ -202,7 +200,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
         // Rows 1-3
         for (var row = 0; row < 3; row++)
           Padding(
-            padding: const EdgeInsets.only(bottom: Spacing.md),
+            padding: const EdgeInsets.only(bottom: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(3, (col) {
@@ -226,7 +224,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
 
   Widget _buildNumberButton(String number, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: InkWell(
         onTap: _isLoading ? null : () => _onNumberPressed(number),
         borderRadius: BorderRadius.circular(40),
@@ -253,7 +251,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
 
   Widget _buildBackspaceButton(ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: InkWell(
         onTap: _isLoading ? null : _onBackspacePressed,
         borderRadius: BorderRadius.circular(40),
