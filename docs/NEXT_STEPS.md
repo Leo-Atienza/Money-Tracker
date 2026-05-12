@@ -1,28 +1,36 @@
 # Next Steps Plan — From Here to `v5.0.0+1` Ship
 
 **Origin:** synthesis after session 2 (2026-05-11) of the `release/v5.0.0` arc.
-**Revision:** rewritten after session 3 (2026-05-11) — reflects the current branch state, the work that landed in session 3, and the precise remaining work.
-**Companions:** `docs/MASTER_PLAN.md` (full "why"), `docs/CHECKLIST.md` (per-task tickboxes), `SESSION_HANDOFF.md` (snapshot of session 3 close).
-**Purpose:** spell out, with file paths and acceptance criteria, the exact remaining work between commit `789c59c` and a tagged `v5.0.0+1` on the landing page. Anything not in this file is out of scope for this release (see `MASTER_PLAN.md` §"Out of v5.0.0").
+**Revision:** updated after session 5 (2026-05-11) — reflects the four hero screens redesigned this session (5.1 Settings, 5.3 Budgets, 5.8 Home polish, 5.9d Crash Log) plus the D.2 AppState mutator test coverage. See §0 for the full updated state.
+**Companions:** `docs/MASTER_PLAN.md` (full "why"), `docs/CHECKLIST.md` (per-task tickboxes), `SESSION_HANDOFF.md` (snapshot of latest session close).
+**Purpose:** spell out, with file paths and acceptance criteria, the exact remaining work to a tagged `v5.0.0+1` on the landing page. Anything not in this file is out of scope for this release (see `MASTER_PLAN.md` §"Out of v5.0.0").
 
 ---
 
-## 0. Current state (2026-05-11, after `789c59c`)
+## 0. Current state (2026-05-11, after session 5 close)
 
 | Surface | State |
 |---|---|
-| Branch | `release/v5.0.0`, **pushed to origin** (session 3) |
-| `main` | At `789c59c` — fast-forward-merged from `release/v5.0.0` (session 3) |
-| `origin/main` | Same SHA — `git push origin main` completed (session 3) |
-| HEAD | `789c59c docs(handoff): close-out for session 3 — brand, 6.3/6.4 crypto, 7.3/5/7/9/10` |
-| Commits since the old `main` diverged | 28 |
+| Branch | `release/v5.0.0`, pushed to origin |
+| `main` | Fast-forward-merged from `release/v5.0.0` at session-5 close |
+| HEAD | session-5 docs-update commit |
+| Commits this session | 5 (`13fb632`, `3a2216a`, `4e6515c`, `de32374`, `5c76eca`) |
+| Total commits since old `main` diverged | 34 |
 | `flutter analyze` | No issues found |
-| `flutter test` | 1,764 pass (was 1,720 at session 2 close) |
-| `flutter build apk --release` | succeeded, 59.2 MB (verified session 3) |
+| `flutter test` | **1,809 pass** (was 1,775 at session 4 close — +34) |
+| `flutter build apk --release` | 59.4 MB (verified session 4 — no new build this session) |
 | `bash scripts/preflight.sh` | green, test-count gate ≥ 1,750 |
-| DB schema version | 19 |
+| DB schema version | 19 (unchanged) |
 | `pubspec.yaml` version | `4.4.0+6` (will become `5.0.0+1` at Stage E **after** Stage B Phase 5 lands) |
-| New deps since session 2 | `cryptography ^2.7.0` (for Phase 6.3 backup envelope) |
+| New deps this session | None |
+
+### Session 5 deliverables
+
+* **5.1 Settings & Security** Luminous redesign + 5 widget tests (`13fb632`).
+* **5.3 Budgets & Planning** Luminous redesign + 4 widget tests; `GlassProgressBar` replaces the stacked actual/projected bar (visual clamp + raw % via semantics) (`3a2216a`).
+* **5.8 Home Dashboard polish** — every `Spacing.*` call inlined (24 sites) + spacing import removed + 3 widget smoke tests (`4e6515c`).
+* **5.9d Crash Log viewer** Luminous redesign (no new test; underlying logic already covered by `test/utils/crash_log_test.dart`) (`5c76eca`).
+* **D.2 AppState mutator coverage** — 22 tests across the safe DB-free mutator subset (settings/appearance/filters) (`de32374`).
 
 **Headline truth: `main` and `release/v5.0.0` are at the same SHA on both local and origin.** Future work continues on `release/v5.0.0`; merge to `main` again at the end of each session that lands ship-worthy work.
 
@@ -39,9 +47,9 @@
 | 2 — Architectural Foundations | ✅ | — |
 | 3 — Race & Lifecycle | 🟡 (3.8 ⏸) | 3.8 `AppPhase` state machine — deferred to v5.1 per master plan. |
 | 4 — Schema v19 + Data Integrity | ✅ | — |
-| 5 — Luminous Design Integration | 🟡 (5.10 ✅; starter ✅) | 5.1–5.9 hero-screen redesigns; 5.11 Spacing removal. See §3 below. |
+| 5 — Luminous Design Integration | 🟡 (starter, 5.1, 5.3, 5.8, 5.9d, 5.10 ✅) | 5.2 Wallet, 5.4 Analytics, 5.5–5.7 (STRUCTURAL: Add/History/Recurring), 5.9 secondaries (a/b/c/e/f/g/h/i/j), 5.11 Spacing removal. See §3 below. |
 | 6 — Security Hardening | 🟡 (6.2/3/4/5/6 ✅; 6.3 UX wiring landed session 4) | 6.1 SQLCipher only. See §4 below. |
-| 7 — Test Coverage | 🟡 (7.3/4/5/7/9/10 ✅) | 7.1 rename; 7.2 AppState mutator tests; 7.6 hero-screen widget tests; 7.8 goldens. See §5 below. |
+| 7 — Test Coverage | 🟡 (7.2/3/4/5/7/9/10 ✅; session 5 landed 7.2 — appearance/settings/filters subset) | 7.1 rename; remaining 7.2 mutators (CRUD via DB); 7.6 hero-screen widget tests; 7.8 goldens. See §5 below. |
 | 8 — Polish & Ship | 🟡 (8.1/3 ✅) | 8.2 perf pass; 8.4 version bump + tag; 8.5 ship pipeline. See §6 below. |
 
 ---

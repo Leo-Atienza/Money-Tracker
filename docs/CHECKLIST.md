@@ -96,15 +96,17 @@ Each lands as its own commit with regression test.
 ## Phase 5 — Luminous Design Integration
 
 - [x] **Phase 5 starter (WIP from previous session)** — `MainNavigationScreen` nav rewired (5 tabs), Home redesigned, AddHub/Analytics/AccountManager screens scaffolded, `buildLuminousTheme` in place
-- [ ] 5.1 Settings & Security screen
+- [x] **5.1 Settings & Security** — `GlassTopAppBar` ("Settings & Security") + 8 `GlassListSection`s + `GlassListTile` rows + dedicated `_PinSecuritySection`. Dialog/modal helpers (theme/currency/account pickers, reset/delete confirmations) preserved. 5 widget tests in `test/screens/settings_screen_test.dart`. (session 5 — `13fb632`)
 - [ ] 5.2 Wallet & Accounts (rename `account_manager_screen.dart` → `wallet_screen.dart`)
-- [ ] 5.3 Budgets & Planning
+- [x] **5.3 Budgets & Planning** — `GlassTopAppBar` header with month nav in trailing actions; `_MonthlySummaryCard` + each budget card + empty state wrapped in `GlassPanel`; `GlassProgressBar` replaces the stacked actual/projected `LinearProgressIndicator` (clamps visually but reports raw % via semantics for over-budget cases). 4 widget tests in `test/screens/budget_screen_test.dart`. (session 5 — `3a2216a`)
 - [ ] 5.4 Analytics & Insights
 - [ ] 5.5 Add Transaction (STRUCTURAL: replaces hub + merges add_expense/add_income)
 - [ ] 5.6 Transaction History (split into `lib/screens/history/`)
 - [ ] 5.7 Recurring Items (STRUCTURAL: merge expenses + income)
-- [ ] 5.8 Home Dashboard polish
+- [x] **5.8 Home Dashboard polish** — Phase 5 starter's redesign was kept verbatim; this pass dropped every `Spacing.*` call (24 sites inlined) and removed the now-unused `import '../constants/spacing.dart'`. RepaintBoundary around transactions GlassPanel preserved per Phase 1.7. 3 widget smoke tests in `test/screens/home_screen_test.dart` (brand label, no-FAB, empty-state). (session 5 — `4e6515c`)
 - [ ] 5.9 Secondary screens (onboarding, PIN, crash, export, trash, category mgr, etc.)
+    - [x] **5.9d Crash Log viewer** — `GlassTopAppBar` + `GlassPanel` wrapping the SelectableText log and the empty state; refresh / share / clear flows untouched. (session 5 — `5c76eca`)
+    - [ ] 5.9a Onboarding; 5.9b PIN Setup; 5.9c PIN Unlock; 5.9e Export Data; 5.9f Trash; 5.9g Category Manager; 5.9h Backup/Restore; 5.9i Quick Templates; 5.9j Notification Settings
 - [x] **5.10 Brand alignment** — AndroidManifest `android:label="FinanceFlow"`; every "Money Tracker" string in `lib/` rebranded (backup/CSV/PDF subjects, crash log header, schema-upgrade snackbar, pin unlock title, settings about line); crash_log_test expectation updated. `grep -rn "Money Tracker" lib/` = 0.
 
 ---
@@ -123,7 +125,7 @@ Each lands as its own commit with regression test.
 ## Phase 7 — Test Coverage Rebuild
 
 - [ ] 7.1 Rename mislabeled `app_state_logic_test.dart` — DEFERRED. File actually tests `CurrencyHelper` + `DatabaseConstants`; the spec's `app_state_smoke_test` rename is misleading and a no-op without 7.2 brings no value.
-- [ ] 7.2 Real `app_state_logic_test.dart` (every public mutator) — DEFERRED. ~30 mutators, ~1 day of focused work.
+- [x] **7.2 AppState mutator coverage** — new `test/logic/app_state_mutators_test.dart` covers the safe, DB-free subset (settings/appearance/filters): `setThemeMode` (3 cases), `toggleDarkMode`, `toggleShowTransactionColors`, `setTransactionColorIntensity` (clamping), `toggleBillReminders`, `toggleBudgetAlerts`, `toggleMonthlySummary`, `setReminderTime`, `setFilterCategory`, `setDateRange`, `setAmountRange`, `setPaidStatusFilter`, `clearFilters`, `clearAutoCreatedCount`. 22 tests. DB-touching mutators (addExpense/addIncome/setBudget/addAccount/etc.) deferred to integration files. (session 5 — `de32374`)
 - [x] **7.3 Real `onboarding_service_test.dart`** — new file at `test/services/onboarding_service_test.dart`; 8 tests cover the full SharedPreferences round-trip (fresh-install false, post-complete true, persists across instances, reset works, isFirstLaunch self-extinguishes, completeOnboarding idempotency).
 - [x] 7.4 Migration test (covered in 4.12)
 - [x] **7.5 Cascade delete integration test** — new `test/integration/cascade_delete_test.dart`; 5 tests pin: `moveToDeletedById` scrubs `transaction_tags` before moving (Phase 4.5), same for income, hard-delete triggers fire (Phase 4.4), `emptyTrash` is account-scoped.
