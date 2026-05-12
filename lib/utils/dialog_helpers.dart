@@ -1,6 +1,5 @@
 // FIX #9, #16, #50: Comprehensive dialog helpers for confirmations and warnings
 import 'package:flutter/material.dart';
-import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
 import 'haptic_helper.dart';
 
@@ -25,7 +24,7 @@ class DialogHelpers {
         title: Row(
           children: [
             Icon(Icons.warning, color: appColors.warningOrange),
-            SizedBox(width: Spacing.sm),
+            SizedBox(width: 12),
             const Text('Delete Budget?'),
           ],
         ),
@@ -34,12 +33,12 @@ class DialogHelpers {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('You are about to delete the budget for "$categoryName".'),
-            SizedBox(height: Spacing.md),
+            SizedBox(height: 16),
             Container(
-              padding: EdgeInsets.all(Spacing.sm),
+              padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: appColors.warningOrange.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: appColors.warningOrange),
               ),
               child: Column(
@@ -49,10 +48,10 @@ class DialogHelpers {
                     'Current Status:',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: Spacing.xs),
+                  SizedBox(height: 8),
                   Text('Budget: $currency${budgetAmount.toStringAsFixed(2)}'),
                   Text('Spent: $currency${currentSpending.toStringAsFixed(2)}'),
-                  SizedBox(height: Spacing.xs),
+                  SizedBox(height: 8),
                   const Text(
                     '⚠️ Deleting this budget will:',
                     style: TextStyle(fontWeight: FontWeight.w600),
@@ -101,7 +100,7 @@ class DialogHelpers {
         title: Row(
           children: [
             Icon(Icons.warning, color: appColors.warningOrange),
-            SizedBox(width: Spacing.sm),
+            SizedBox(width: 12),
             const Text('Change Currency?'),
           ],
         ),
@@ -112,14 +111,14 @@ class DialogHelpers {
             Text(
               'You are changing currency from $oldCurrency to $newCurrency.',
             ),
-            SizedBox(height: Spacing.md),
+            SizedBox(height: 16),
             Text('You have $transactionCount existing transactions.'),
-            SizedBox(height: Spacing.md),
+            SizedBox(height: 16),
             Container(
-              padding: EdgeInsets.all(Spacing.sm),
+              padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: appColors.infoBlue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: appColors.infoBlue),
               ),
               child: Column(
@@ -129,10 +128,10 @@ class DialogHelpers {
                     'Choose how to handle existing amounts:',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: Spacing.sm),
+                  SizedBox(height: 12),
                   const Text('1. Keep amounts as-is (Recommended)'),
                   const Text('   Example: \$100 becomes ₹100'),
-                  SizedBox(height: Spacing.xs),
+                  SizedBox(height: 8),
                   const Text('2. Clear all data and start fresh'),
                   const Text('   Permanently deletes all transactions'),
                 ],
@@ -184,7 +183,7 @@ class DialogHelpers {
           title: Row(
             children: [
               Icon(Icons.calendar_today, color: appColors.infoBlue),
-              SizedBox(width: Spacing.sm),
+              SizedBox(width: 12),
               const Text('Future Date'),
             ],
           ),
@@ -193,11 +192,11 @@ class DialogHelpers {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('You selected a future date: ${_formatDate(selectedDate)}'),
-              SizedBox(height: Spacing.md),
+              SizedBox(height: 16),
               const Text(
                 'This transaction will be created with a future date.',
               ),
-              SizedBox(height: Spacing.md),
+              SizedBox(height: 16),
               CheckboxListTile(
                 value: dontAskAgain,
                 onChanged: (value) {

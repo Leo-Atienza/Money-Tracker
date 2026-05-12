@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../models/expense_model.dart';
 import '../utils/currency_helper.dart';
-import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
 
 class AddPaymentDialog extends StatefulWidget {
@@ -107,12 +106,12 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
     final hasIncome = availableIncome > 0;
 
     return Container(
-      padding: const EdgeInsets.all(Spacing.md),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: _useIncomeBalance
             ? appColors.incomeGreen.withAlpha(20)
             : theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: _useIncomeBalance ? appColors.incomeGreen : theme.colorScheme.outline,
           width: _useIncomeBalance ? 2 : 1,
@@ -130,7 +129,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                     ? appColors.incomeGreen
                     : theme.colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(width: Spacing.sm),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,17 +166,17 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
             ],
           ),
           if (_useIncomeBalance && hasIncome) ...[
-            const SizedBox(height: Spacing.sm),
+            const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: appColors.incomeGreen.withAlpha(10),
-                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
                   Icon(Icons.info_outline, size: 16, color: appColors.incomeGreen),
-                  const SizedBox(width: Spacing.xs),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'This payment will be deducted from your available income balance.',
@@ -218,12 +217,12 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
 
     return Dialog(
       backgroundColor: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Spacing.radiusLarge)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: Spacing.screenPadding, vertical: Spacing.screenPadding),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: SingleChildScrollView(
         child: Container(
           constraints: const BoxConstraints(maxWidth: 400),
-          padding: const EdgeInsets.all(Spacing.screenPadding),
+          padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,21 +235,21 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: Spacing.xxs),
+              const SizedBox(height: 4),
               Text(
                 widget.expense.category,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: Spacing.screenPadding),
+              const SizedBox(height: 20),
 
               // Progress Section
               Container(
-                padding: const EdgeInsets.all(Spacing.cardPadding),
+                padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
                   children: [
@@ -267,7 +266,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
-                            const SizedBox(height: Spacing.xxs),
+                            const SizedBox(height: 4),
                             Text(
                               '$currency${widget.expense.amountPaid.toStringAsFixed(2)}',
                               style: theme.textTheme.titleLarge?.copyWith(
@@ -287,7 +286,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
-                            const SizedBox(height: Spacing.xxs),
+                            const SizedBox(height: 4),
                             Text(
                               '$currency${widget.expense.amount.toStringAsFixed(2)}',
                               style: theme.textTheme.titleLarge?.copyWith(
@@ -300,7 +299,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                       ],
                     ),
                     if (remaining > 0) ...[
-                      const SizedBox(height: Spacing.sm),
+                      const SizedBox(height: 12),
                       Text(
                         'Remaining: $currency${remaining.toStringAsFixed(2)}',
                         style: theme.textTheme.bodyMedium?.copyWith(
@@ -309,7 +308,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: Spacing.md),
+                    const SizedBox(height: 16),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(2),
                       child: LinearProgressIndicator(
@@ -319,7 +318,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: Spacing.xs),
+                    const SizedBox(height: 8),
                     Text(
                       '${(progress * 100).toStringAsFixed(0)}% paid',
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -330,7 +329,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                   ],
                 ),
               ),
-              const SizedBox(height: Spacing.screenPadding),
+              const SizedBox(height: 20),
 
               if (remaining > 0) ...[
                 // Payment Input
@@ -345,7 +344,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      const SizedBox(height: Spacing.xs),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           Expanded(
@@ -362,13 +361,13 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                                       .withAlpha(128),
                                 ),
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                                  borderRadius: BorderRadius.circular(8),
                                   borderSide: BorderSide(
                                     color: theme.colorScheme.outline,
                                   ),
                                 ),
                                 enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                                  borderRadius: BorderRadius.circular(8),
                                   borderSide: BorderSide(
                                     color: theme.colorScheme.outline,
                                   ),
@@ -400,7 +399,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                               autofocus: true,
                             ),
                           ),
-                          const SizedBox(width: Spacing.xs),
+                          const SizedBox(width: 8),
                           TextButton(
                             onPressed: () {
                               _paymentController.text =
@@ -410,7 +409,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: Spacing.md),
+                      const SizedBox(height: 16),
                       // Pay from Income Option
                       _buildIncomePaymentOption(appState, theme),
                     ],
@@ -419,10 +418,10 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
               ] else ...[
                 // Fully Paid
                 Container(
-                  padding: const EdgeInsets.all(Spacing.cardPadding),
+                  padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
@@ -431,7 +430,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                         color: theme.colorScheme.onSurface,
                         size: 24,
                       ),
-                      const SizedBox(width: Spacing.sm),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           'Fully Paid',
@@ -445,7 +444,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                   ),
                 ),
               ],
-              const SizedBox(height: Spacing.screenPadding),
+              const SizedBox(height: 20),
 
               // Action Buttons
               Row(
@@ -460,7 +459,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                     ),
                   ),
                   if (remaining > 0) ...[
-                    const SizedBox(width: Spacing.sm),
+                    const SizedBox(width: 12),
                     Expanded(
                       flex: 2,
                       child: FilledButton(
@@ -477,7 +476,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                               theme.colorScheme.onSurfaceVariant,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                         ),
                         child: _isSaving

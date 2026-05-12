@@ -8,7 +8,6 @@ import '../utils/decimal_helper.dart';
 import '../utils/validators.dart';
 import '../utils/date_helper.dart';
 import '../utils/premium_animations.dart';
-import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
 
 class RecurringIncomeScreen extends StatelessWidget {
@@ -35,7 +34,7 @@ class RecurringIncomeScreen extends StatelessWidget {
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.all(Spacing.screenPadding),
+            padding: const EdgeInsets.all(20),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 const _RecurringIncomeList(),
@@ -87,10 +86,10 @@ class _RecurringIncomeList extends StatelessWidget {
         return StaggeredListItem(
           index: index,
           child: Container(
-          margin: const EdgeInsets.only(bottom: Spacing.md),
+          margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(Spacing.radiusLarge),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: rec.isActive
                   ? appColors.incomeGreen.withAlpha(100)
@@ -99,8 +98,8 @@ class _RecurringIncomeList extends StatelessWidget {
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: Spacing.cardPadding,
-              vertical: Spacing.sm,
+              horizontal: 24,
+              vertical: 12,
             ),
             leading: Container(
               width: 40,
@@ -125,7 +124,7 @@ class _RecurringIncomeList extends StatelessWidget {
               ),
             ),
             subtitle: Padding(
-              padding: const EdgeInsets.only(top: Spacing.xxs),
+              padding: const EdgeInsets.only(top: 4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -135,7 +134,7 @@ class _RecurringIncomeList extends StatelessWidget {
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: Spacing.tiny),
+                  const SizedBox(height: 2),
                   Text(
                     rec.frequencyDescription,
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -157,7 +156,7 @@ class _RecurringIncomeList extends StatelessWidget {
                         : theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(width: Spacing.xs),
+                const SizedBox(width: 8),
                 Switch(
                   value: rec.isActive,
                   onChanged: (value) async {
@@ -201,20 +200,20 @@ class _RecurringIncomeList extends StatelessWidget {
       padding: const EdgeInsets.all(60),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: theme.colorScheme.outline),
       ),
       child: Column(
         children: [
           Icon(Icons.repeat, size: 48, color: appColors.incomeGreen),
-          const SizedBox(height: Spacing.md),
+          const SizedBox(height: 16),
           Text(
             'No recurring income',
             style: theme.textTheme.titleMedium?.copyWith(
               color: theme.colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: Spacing.xs),
+          const SizedBox(height: 8),
           Text(
             'Tap + to add salary, freelance income, etc.',
             style: theme.textTheme.bodyLarge?.copyWith(
@@ -361,10 +360,10 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(Spacing.radiusXLarge),
+            top: Radius.circular(20),
           ),
         ),
-        padding: const EdgeInsets.all(Spacing.screenPadding),
+        padding: const EdgeInsets.all(20),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -373,7 +372,7 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
               Row(
                 children: [
                   Icon(Icons.arrow_downward, color: appColors.incomeGreen),
-                  const SizedBox(width: Spacing.sm),
+                  const SizedBox(width: 12),
                   Text(
                     widget.recurring != null
                         ? 'Edit Recurring Income'
@@ -385,7 +384,7 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: Spacing.screenPadding),
+              const SizedBox(height: 20),
 
               // Description
               TextFormField(
@@ -396,11 +395,11 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
                   labelText: 'Description',
                   hintText: 'e.g., Monthly Salary, Freelance',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
               ),
-              const SizedBox(height: Spacing.md),
+              const SizedBox(height: 16),
 
               // Amount
               TextFormField(
@@ -413,11 +412,11 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
                   labelText: 'Amount',
                   prefixText: '${appState.currency} ',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
               ),
-              const SizedBox(height: Spacing.md),
+              const SizedBox(height: 16),
 
               // Category
               DropdownButtonFormField<String>(
@@ -425,7 +424,7 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
                 decoration: InputDecoration(
                   labelText: 'Category',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 items: categories.map((cat) {
@@ -433,7 +432,7 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
                 }).toList(),
                 onChanged: (value) => setState(() => _selectedCategory = value),
               ),
-              const SizedBox(height: Spacing.screenPadding),
+              const SizedBox(height: 20),
 
               // Frequency Selection
               Text(
@@ -442,14 +441,14 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: Spacing.sm),
+              const SizedBox(height: 12),
               _buildFrequencySelector(theme),
-              const SizedBox(height: Spacing.lg),
+              const SizedBox(height: 20),
 
               // Day/Date Selection based on frequency
               _buildDaySelector(theme),
 
-              const SizedBox(height: Spacing.screenPadding),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -457,9 +456,9 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: appColors.incomeGreen,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: Spacing.md),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                   child: _isSaving
@@ -490,14 +489,14 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
           'Monthly',
           Icons.calendar_month,
         ),
-        const SizedBox(width: Spacing.xs),
+        const SizedBox(width: 8),
         _buildFrequencyChip(
           theme,
           RecurringFrequency.biweekly,
           'Bi-weekly',
           Icons.date_range,
         ),
-        const SizedBox(width: Spacing.xs),
+        const SizedBox(width: 8),
         _buildFrequencyChip(
           theme,
           RecurringFrequency.weekly,
@@ -521,14 +520,14 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
     return Expanded(
       child: InkWell(
         onTap: () => setState(() => _selectedFrequency = frequency),
-        borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
             color: isSelected
                 ? appColors.incomeGreen.withAlpha(20)
                 : theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected
                   ? appColors.incomeGreen
@@ -545,7 +544,7 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
                     : theme.colorScheme.onSurfaceVariant,
                 size: 20,
               ),
-              const SizedBox(height: Spacing.xxs),
+              const SizedBox(height: 4),
               Text(
                 label,
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -580,7 +579,7 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
-        const SizedBox(height: Spacing.xs),
+        const SizedBox(height: 8),
         TextFormField(
           controller: _dayController,
           keyboardType: TextInputType.number,
@@ -592,7 +591,7 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
                 'Enter a day between 1-31. For 29-31, months without those days will use the last day.',
             helperMaxLines: 2,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+              borderRadius: BorderRadius.circular(8),
             ),
             suffixIcon: const Icon(Icons.calendar_today, size: 20),
           ),
@@ -615,21 +614,21 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
         if (int.tryParse(_dayController.text) != null &&
             int.parse(_dayController.text) >= 29 &&
             int.parse(_dayController.text) <= 31) ...[
-          const SizedBox(height: Spacing.xs),
+          const SizedBox(height: 8),
           Builder(builder: (context) {
             final appColors = Theme.of(context).extension<AppColors>()!;
             return Container(
-              padding: const EdgeInsets.all(Spacing.sm),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: appColors.warningOrange.withAlpha(20),
-                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: appColors.warningOrange.withAlpha(100)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(Icons.info_outline, color: appColors.warningOrange, size: 20),
-                  const SizedBox(width: Spacing.xs),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       int.parse(_dayController.text) == 31
@@ -664,15 +663,15 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
-        const SizedBox(height: Spacing.sm),
+        const SizedBox(height: 12),
         Wrap(
-          spacing: Spacing.xs,
-          runSpacing: Spacing.xs,
+          spacing: 8,
+          runSpacing: 8,
           children: List.generate(7, (index) {
             final isSelected = _selectedDayOfWeek == index;
             return InkWell(
               onTap: () => setState(() => _selectedDayOfWeek = index),
-              borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+              borderRadius: BorderRadius.circular(8),
               child: Container(
                 width: 44,
                 height: 44,
@@ -680,7 +679,7 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
                   color: isSelected
                       ? appColors.incomeGreen
                       : theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: isSelected
                         ? appColors.incomeGreen
@@ -704,25 +703,25 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
           }),
         ),
         if (isBiweekly) ...[
-          const SizedBox(height: Spacing.md),
+          const SizedBox(height: 16),
           Text(
             'START DATE',
             style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: Spacing.xs),
+          const SizedBox(height: 8),
           InkWell(
             onTap: _pickStartDate,
-            borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+            borderRadius: BorderRadius.circular(8),
             child: Container(
               padding: const EdgeInsets.symmetric(
-                horizontal: Spacing.md,
+                horizontal: 16,
                 vertical: 14,
               ),
               decoration: BoxDecoration(
                 border: Border.all(color: theme.colorScheme.outline),
-                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
@@ -731,7 +730,7 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
                     size: 20,
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
-                  const SizedBox(width: Spacing.sm),
+                  const SizedBox(width: 12),
                   Text(
                     _formatDate(_startDate),
                     style: theme.textTheme.bodyLarge?.copyWith(
@@ -742,7 +741,7 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
               ),
             ),
           ),
-          const SizedBox(height: Spacing.xs),
+          const SizedBox(height: 8),
           Text(
             'This date is used as reference for the bi-weekly cycle',
             style: theme.textTheme.bodySmall?.copyWith(
@@ -750,7 +749,7 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
             ),
           ),
         ],
-        const SizedBox(height: Spacing.xs),
+        const SizedBox(height: 8),
         Text(
           isBiweekly
               ? 'Income will auto-create every 2 weeks on ${_dayNames[_selectedDayOfWeek]}'
@@ -940,7 +939,7 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
       builder: (context) => AlertDialog(
         backgroundColor: theme.colorScheme.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Spacing.radiusXLarge),
+          borderRadius: BorderRadius.circular(20),
         ),
         title: Row(
           children: [
@@ -949,7 +948,7 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
               color: appColors.warningOrange,
               size: 28,
             ),
-            const SizedBox(width: Spacing.sm),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 'Similar Income Found',
@@ -970,12 +969,12 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: Spacing.sm),
+            const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(Spacing.sm),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: appColors.warningOrange.withAlpha(20),
-                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: appColors.warningOrange.withAlpha(100)),
               ),
               child: Column(
@@ -997,7 +996,7 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
                 ],
               ),
             ),
-            const SizedBox(height: Spacing.sm),
+            const SizedBox(height: 12),
             Text(
               'Creating this will result in duplicate income every ${duplicate.frequency == RecurringFrequency.monthly ? 'month' : duplicate.frequency == RecurringFrequency.weekly ? 'week' : '2 weeks'}.',
               style: theme.textTheme.bodyMedium?.copyWith(

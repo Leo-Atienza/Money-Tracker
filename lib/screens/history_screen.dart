@@ -17,7 +17,6 @@ import '../widgets/loading_skeleton.dart';
 import 'add_expense_screen.dart';
 import 'add_income_screen.dart';
 import 'add_payment_dialog.dart';
-import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -503,7 +502,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
           children: [
             // Header
             Padding(
-              padding: const EdgeInsets.fromLTRB(Spacing.screenPadding, Spacing.md, Spacing.screenPadding, 0),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Text(
                 'History',
                 style: theme.textTheme.headlineMedium?.copyWith(
@@ -514,14 +513,14 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
               ),
             ),
 
-            const SizedBox(height: Spacing.cardPadding),
+            const SizedBox(height: 24),
 
             // Tab Bar
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: Spacing.screenPadding),
+              margin: const EdgeInsets.symmetric(horizontal: 20),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHighest.withAlpha(100),
-                borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: TabBar(
                 controller: _tabController,
@@ -529,7 +528,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                 unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
                 indicator: BoxDecoration(
                   color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(Spacing.radiusMedium - 2),
+                  borderRadius: BorderRadius.circular(12 - 2),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withAlpha(10),
@@ -548,7 +547,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
-                padding: const EdgeInsets.all(Spacing.xxs),
+                padding: const EdgeInsets.all(4),
                 tabs: const [
                   Tab(text: 'All'),
                   Tab(text: 'Expenses'),
@@ -557,17 +556,17 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
               ),
             ),
 
-            const SizedBox(height: Spacing.cardPadding),
+            const SizedBox(height: 24),
 
             // Search Bar
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Spacing.screenPadding),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Semantics(
                 label: 'Search transactions by name, category, or amount',
                 child: Container(
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(Spacing.radiusMedium + 2),
+                    borderRadius: BorderRadius.circular(12 + 2),
                     border: Border.all(
                       color: theme.colorScheme.outline.withAlpha(50),
                     ),
@@ -636,7 +635,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                           : null,
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: Spacing.md,
+                        horizontal: 16,
                         vertical: 14,
                       ),
                     ),
@@ -645,14 +644,14 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
               ),
             ),
 
-            const SizedBox(height: Spacing.xs),
+            const SizedBox(height: 8),
 
             // FIX: Compact filter bar - all filters in one horizontal scrollable row
             SizedBox(
               height: 40,
               child: ListView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: Spacing.screenPadding),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 children: [
                   // All time toggle chip
                   Semantics(
@@ -696,7 +695,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                     ),
                   ),
 
-                  const SizedBox(width: Spacing.xs),
+                  const SizedBox(width: 8),
 
                   // Date range chip
                   Semantics(
@@ -730,7 +729,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                     ),
                   ),
 
-                  const SizedBox(width: Spacing.xs),
+                  const SizedBox(width: 8),
 
                   // Sort order chip
                   Semantics(
@@ -761,21 +760,21 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                     ),
                   ),
 
-                  const SizedBox(width: Spacing.xs),
+                  const SizedBox(width: 8),
 
                   // Category filters
                   ..._buildCompactCategoryFilters(theme, appState),
 
                   // Payment status filters (only for expenses tab)
                   if (_tabController.index == 1) ...[
-                    const SizedBox(width: Spacing.xs),
+                    const SizedBox(width: 8),
                     ..._buildCompactPaymentFilters(theme),
                   ],
                 ],
               ),
             ),
 
-            const SizedBox(height: Spacing.xs),
+            const SizedBox(height: 8),
 
             // Content
             Expanded(
@@ -815,7 +814,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     return categories.map((category) {
       final isSelected = _filterCategory == category;
       return Padding(
-        padding: const EdgeInsets.only(right: Spacing.xs),
+        padding: const EdgeInsets.only(right: 8),
         child: FilterChip(
           selected: isSelected,
           label: Text(category),
@@ -851,7 +850,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     return statuses.map((status) {
       final isSelected = _paymentStatusFilter == status['value'];
       return Padding(
-        padding: const EdgeInsets.only(right: Spacing.xs),
+        padding: const EdgeInsets.only(right: 8),
         child: FilterChip(
           selected: isSelected,
           label: Row(
@@ -931,13 +930,13 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         builder: (context, scrollController) => Container(
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(Spacing.radiusXLarge)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               // Drag handle
-              const SizedBox(height: Spacing.sm),
+              const SizedBox(height: 12),
               Container(
                 height: 4,
                 width: 40,
@@ -946,21 +945,21 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(height: Spacing.xl),
+              const SizedBox(height: 24),
               Text(
                 'Sort Transactions',
                 style: theme.textTheme.titleLarge?.copyWith(
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: Spacing.xs),
+              const SizedBox(height: 8),
               Text(
                 'Choose how to order your transactions',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: Spacing.xl),
+              const SizedBox(height: 24),
               // Scrollable list of sort options
               Expanded(
                 child: ListView(
@@ -995,7 +994,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
           color: isSelected
               ? theme.colorScheme.primary.withAlpha(30)
               : theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(Spacing.radiusMedium - 2),
+          borderRadius: BorderRadius.circular(12 - 2),
         ),
         child: Icon(
           icon,
@@ -1305,13 +1304,13 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       },
       child: ListView.builder(
         controller: showMonth ? _scrollController : null,
-        padding: const EdgeInsets.fromLTRB(Spacing.screenPadding, Spacing.xs, Spacing.screenPadding, 100),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
         itemCount: itemCount,
       itemBuilder: (context, index) {
         // Show loading indicator at the end
         if (_isLoadingMore && index == sortedKeys.length) {
           return const Padding(
-            padding: EdgeInsets.all(Spacing.md),
+            padding: EdgeInsets.all(16),
             child: Center(child: CircularProgressIndicator()),
           );
         }
@@ -1319,11 +1318,11 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         // FIX: Show limit reached message
         if (showLimitMessage && index == sortedKeys.length) {
           return Container(
-            margin: const EdgeInsets.all(Spacing.md),
-            padding: const EdgeInsets.all(Spacing.md),
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               children: [
@@ -1375,7 +1374,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
           children: [
             // Group Header (date or category) - Premium styling
             Padding(
-              padding: const EdgeInsets.only(top: Spacing.cardPadding, bottom: 14),
+              padding: const EdgeInsets.only(top: 24, bottom: 14),
               child: Text(
                 headerText,
                 style: theme.textTheme.labelSmall?.copyWith(
@@ -1435,13 +1434,13 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       },
       child: ListView.builder(
         controller: showMonth ? _scrollController : null,
-        padding: const EdgeInsets.fromLTRB(Spacing.screenPadding, Spacing.xs, Spacing.screenPadding, 100),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
         itemCount: itemCount,
         itemBuilder: (context, index) {
           // Show loading indicator at the end
           if (_isLoadingMore && index == items.length) {
             return const Padding(
-              padding: EdgeInsets.all(Spacing.md),
+              padding: EdgeInsets.all(16),
               child: Center(child: CircularProgressIndicator()),
             );
           }
@@ -1449,11 +1448,11 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
           // Show limit reached message
           if (showLimitMessage && index == items.length) {
             return Container(
-              margin: const EdgeInsets.all(Spacing.md),
-              padding: const EdgeInsets.all(Spacing.md),
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 children: [
@@ -1522,7 +1521,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       children: [
         // Compact date label
         Padding(
-          padding: const EdgeInsets.only(top: Spacing.xs, bottom: Spacing.xxs, left: Spacing.xxs),
+          padding: const EdgeInsets.only(top: 8, bottom: 4, left: 4),
           child: Text(
             dateStr,
             style: TextStyle(
@@ -1555,7 +1554,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       children: [
         // Compact date label
         Padding(
-          padding: const EdgeInsets.only(top: Spacing.xs, bottom: Spacing.xxs, left: Spacing.xxs),
+          padding: const EdgeInsets.only(top: 8, bottom: 4, left: 4),
           child: Text(
             dateStr,
             style: TextStyle(
@@ -1626,10 +1625,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
           direction: DismissDirection.endToStart,
           background: Container(
             alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: Spacing.screenPadding),
+            padding: const EdgeInsets.only(right: 20),
             decoration: BoxDecoration(
               color: appColors.expenseRed,
-              borderRadius: BorderRadius.circular(Spacing.radiusLarge),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 24),
           ),
@@ -1833,10 +1832,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                           // CRITICAL FIX: Show payment status for BOTH paid and unpaid
                           if (!expense.isPaid) ...[
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: Spacing.xs, vertical: Spacing.tiny),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
                                 color: appColors.warningOrange.withAlpha(20),
-                                borderRadius: BorderRadius.circular(Spacing.radiusSmall - 2),
+                                borderRadius: BorderRadius.circular(8 - 2),
                               ),
                               child: Text(
                                 '${appState.currency}${expense.remainingAmount.toStringAsFixed(2)} left',
@@ -1850,10 +1849,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                           ] else ...[
                             // CRITICAL FIX: Show "PAID" badge for fully paid expenses
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: Spacing.xs, vertical: Spacing.tiny),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
                                 color: appColors.incomeGreen.withAlpha(20),
-                                borderRadius: BorderRadius.circular(Spacing.radiusSmall - 2),
+                                borderRadius: BorderRadius.circular(8 - 2),
                                 border: Border.all(color: appColors.incomeGreen.withAlpha(60), width: 0.5),
                               ),
                               child: Row(
@@ -1913,9 +1912,9 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                             ),
                             style: OutlinedButton.styleFrom(
                               side: BorderSide(color: appColors.warningOrange.withAlpha(150)),
-                              padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                                borderRadius: BorderRadius.circular(8),
                               ),
                             ),
                           ),
@@ -1936,9 +1935,9 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                           ),
                           style: OutlinedButton.styleFrom(
                             side: BorderSide(color: theme.colorScheme.primary.withAlpha(100)),
-                            padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                              borderRadius: BorderRadius.circular(8),
                             ),
                           ),
                         ),
@@ -1975,10 +1974,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
           direction: DismissDirection.endToStart,
           background: Container(
             alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: Spacing.screenPadding),
+            padding: const EdgeInsets.only(right: 20),
             decoration: BoxDecoration(
               color: appColors.expenseRed,
-              borderRadius: BorderRadius.circular(Spacing.radiusLarge),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 24),
           ),
@@ -2039,7 +2038,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                 return Container(
                   decoration: BoxDecoration(
                     color: bgColor ?? theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(Spacing.radiusLarge),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: theme.brightness == Brightness.dark
                           ? theme.colorScheme.outline.withAlpha(30)
@@ -2059,9 +2058,9 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                   child: InkWell(
                     onTap: () => _showEditIncomeDialog(context, income),
                     onLongPress: () => _showEditIncomeDialog(context, income),
-                    borderRadius: BorderRadius.circular(Spacing.radiusLarge),
+                    borderRadius: BorderRadius.circular(16),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.md),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                       child: Row(
                         children: [
                           // Category tile with icon
@@ -2178,7 +2177,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Spacing.radiusXLarge)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text('Delete ${type.capitalize()}?'),
         content: Text('Delete "$name"? It will be moved to trash.'),
         actions: [
@@ -2201,8 +2200,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       SnackBar(
         content: Text('$type moved to trash'),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Spacing.radiusMedium - 2)),
-        margin: const EdgeInsets.all(Spacing.md),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 - 2)),
+        margin: const EdgeInsets.all(16),
       ),
     );
   }
@@ -2215,7 +2214,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(Spacing.huge),
+        padding: const EdgeInsets.all(48),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -2224,7 +2223,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
               height: 80,
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHighest.withAlpha(100),
-                borderRadius: BorderRadius.circular(Spacing.radiusXLarge),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
                 Icons.receipt_long_outlined,
@@ -2232,14 +2231,14 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                 color: theme.colorScheme.onSurfaceVariant.withAlpha(150),
               ),
             ),
-            const SizedBox(height: Spacing.xl),
+            const SizedBox(height: 24),
             Text(
               'No transactions found',
               style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: Spacing.xs),
+            const SizedBox(height: 8),
             Text(
               hasFilters
                   ? 'Try adjusting your search or filters'
@@ -2251,7 +2250,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
             ),
             // CRITICAL FIX: Add action buttons when no filters are active
             if (!hasFilters) ...[
-              const SizedBox(height: Spacing.xl),
+              const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -2272,7 +2271,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                       side: BorderSide(color: theme.colorScheme.error),
                     ),
                   ),
-                  const SizedBox(width: Spacing.sm),
+                  const SizedBox(width: 12),
                   OutlinedButton.icon(
                     onPressed: () {
                       // FIX Phase 1.3: same fix for `/add_income`.

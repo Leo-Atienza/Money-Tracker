@@ -1,6 +1,5 @@
 // FIX #27: Consistent SnackBar styling across the app
 import 'package:flutter/material.dart';
-import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
 
 class SnackBarHelper {
@@ -15,7 +14,7 @@ class SnackBarHelper {
         content: Row(
           children: [
             const Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: Spacing.sm),
+            SizedBox(width: 12),
             Expanded(child: Text(message)),
           ],
         ),
@@ -23,7 +22,7 @@ class SnackBarHelper {
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+          borderRadius: BorderRadius.circular(8),
         ),
       ),
     );
@@ -40,7 +39,7 @@ class SnackBarHelper {
         content: Row(
           children: [
             const Icon(Icons.error, color: Colors.white),
-            SizedBox(width: Spacing.sm),
+            SizedBox(width: 12),
             Expanded(child: Text(message)),
           ],
         ),
@@ -48,7 +47,7 @@ class SnackBarHelper {
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 4),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+          borderRadius: BorderRadius.circular(8),
         ),
       ),
     );
@@ -65,7 +64,7 @@ class SnackBarHelper {
         content: Row(
           children: [
             const Icon(Icons.warning, color: Colors.white),
-            SizedBox(width: Spacing.sm),
+            SizedBox(width: 12),
             Expanded(child: Text(message)),
           ],
         ),
@@ -73,7 +72,7 @@ class SnackBarHelper {
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+          borderRadius: BorderRadius.circular(8),
         ),
       ),
     );
@@ -90,7 +89,7 @@ class SnackBarHelper {
         content: Row(
           children: [
             const Icon(Icons.info, color: Colors.white),
-            SizedBox(width: Spacing.sm),
+            SizedBox(width: 12),
             Expanded(child: Text(message)),
           ],
         ),
@@ -98,7 +97,7 @@ class SnackBarHelper {
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+          borderRadius: BorderRadius.circular(8),
         ),
       ),
     );
@@ -119,7 +118,7 @@ class SnackBarHelper {
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 5),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+          borderRadius: BorderRadius.circular(8),
         ),
         action: SnackBarAction(
           label: 'UNDO',

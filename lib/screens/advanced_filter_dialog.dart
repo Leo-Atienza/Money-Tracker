@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_helper.dart';
 import '../utils/validators.dart';
-import '../constants/spacing.dart';
 
 class AdvancedFilterDialog extends StatefulWidget {
   const AdvancedFilterDialog({super.key});
@@ -57,7 +56,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
         color: theme.colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      padding: const EdgeInsets.all(Spacing.screenPadding),
+      padding: const EdgeInsets.all(20),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -69,7 +68,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
               color: theme.colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: Spacing.screenPadding),
+          const SizedBox(height: 20),
 
           // Category Filter
           Text(
@@ -78,12 +77,12 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: Spacing.xs),
+          const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             initialValue: _filterCategory,
             decoration: InputDecoration(
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
             items: categories.map((cat) {
@@ -92,7 +91,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
             onChanged: (value) => setState(() => _filterCategory = value!),
           ),
 
-          const SizedBox(height: Spacing.lg),
+          const SizedBox(height: 20),
 
           // Date Range
           Text(
@@ -101,14 +100,14 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: Spacing.xs),
+          const SizedBox(height: 8),
           InkWell(
             onTap: _pickDateRange,
             child: Container(
-              padding: const EdgeInsets.all(Spacing.md),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 border: Border.all(color: theme.colorScheme.outline),
-                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -138,7 +137,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
             ),
           ],
 
-          const SizedBox(height: Spacing.lg),
+          const SizedBox(height: 20),
 
           // Amount Range
           Text(
@@ -147,7 +146,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: Spacing.xs),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
@@ -161,7 +160,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                     labelText: 'Min',
                     prefixText: '$currency ',
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                   onChanged: (value) {
@@ -170,7 +169,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                   },
                 ),
               ),
-              const SizedBox(width: Spacing.md),
+              const SizedBox(width: 16),
               Expanded(
                 child: TextField(
                   controller: _maxController,
@@ -182,7 +181,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                     labelText: 'Max',
                     prefixText: '$currency ',
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                   onChanged: (value) {
@@ -194,7 +193,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
             ],
           ),
 
-          const SizedBox(height: Spacing.lg),
+          const SizedBox(height: 20),
 
           // Payment Status
           Text(
@@ -203,7 +202,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: Spacing.xs),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             children: [
@@ -231,7 +230,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
             ],
           ),
 
-          const SizedBox(height: Spacing.xxl),
+          const SizedBox(height: 32),
 
           // Action Buttons
           Row(
@@ -240,24 +239,24 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                 child: OutlinedButton(
                   onPressed: _clearFilters,
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: Spacing.md),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                   child: const Text('Clear All'),
                 ),
               ),
-              const SizedBox(width: Spacing.sm),
+              const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
                   onPressed: _applyFilters,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.onSurface,
                     foregroundColor: theme.colorScheme.surface,
-                    padding: const EdgeInsets.symmetric(vertical: Spacing.md),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                   child: const Text('Apply Filters'),
