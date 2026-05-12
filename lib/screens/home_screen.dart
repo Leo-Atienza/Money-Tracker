@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
 import '../theme/luminous_app_theme.dart';
 import '../providers/app_state.dart';
@@ -221,7 +220,7 @@ class HomeScreen extends StatelessWidget {
                 (s) => s.getUpcomingBillsThisMonth().isNotEmpty,
               ))
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(Spacing.screenPadding, Spacing.md, Spacing.screenPadding, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                   sliver: SliverToBoxAdapter(
                     child: Semantics(
                       label: 'Upcoming bills section',
@@ -236,7 +235,7 @@ class HomeScreen extends StatelessWidget {
                 (s) => s.quickTemplates.isNotEmpty,
               ))
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(Spacing.screenPadding, Spacing.md, Spacing.screenPadding, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                   sliver: SliverToBoxAdapter(
                     child: Semantics(
                       label: 'Quick add templates section',
@@ -308,14 +307,14 @@ class HomeScreen extends StatelessWidget {
                                   size: 64,
                                   color: theme.colorScheme.onSurfaceVariant,
                                 ),
-                                const SizedBox(height: Spacing.md),
+                                const SizedBox(height: 16),
                                 Text(
                                   'No transactions this month',
                                   style: theme.textTheme.bodyLarge?.copyWith(
                                     color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
-                                const SizedBox(height: Spacing.xs),
+                                const SizedBox(height: 8),
                                 Text(
                                   'Tap to add',
                                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -387,12 +386,12 @@ class HomeScreen extends StatelessWidget {
           height: 350,
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(Spacing.radiusXLarge)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.all(Spacing.md),
+                padding: const EdgeInsets.all(16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -441,12 +440,12 @@ class HomeScreen extends StatelessWidget {
               ),
               Expanded(
                 child: GridView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
                     childAspectRatio: 2,
-                    crossAxisSpacing: Spacing.xs,
-                    mainAxisSpacing: Spacing.xs,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
                   ),
                   itemCount: 12,
                   itemBuilder: (context, index) {
@@ -491,7 +490,7 @@ class HomeScreen extends StatelessWidget {
                             color: isSelected
                                 ? theme.colorScheme.primary
                                 : theme.colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                            borderRadius: BorderRadius.circular(12),
                             // FIX #13: Add border for current month
                             border: isCurrentMonth && !isSelected
                                 ? Border.all(
@@ -514,7 +513,7 @@ class HomeScreen extends StatelessWidget {
                                       shape: BoxShape.circle,
                                     ),
                                   ),
-                                  const SizedBox(width: Spacing.xxs),
+                                  const SizedBox(width: 4),
                                 ],
                                 Text(
                                   months[index],
@@ -877,10 +876,10 @@ class _UpcomingBillsBanner extends StatelessWidget {
     );
 
     return Container(
-      padding: const EdgeInsets.all(Spacing.md),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: appColors.warningOrange.withAlpha(20),
-        borderRadius: BorderRadius.circular(Spacing.radiusLarge),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: appColors.warningOrange.withAlpha(100)),
       ),
       child: Column(
@@ -893,7 +892,7 @@ class _UpcomingBillsBanner extends StatelessWidget {
                 size: 18,
                 color: appColors.warningOrange,
               ),
-              const SizedBox(width: Spacing.xs),
+              const SizedBox(width: 8),
               Text(
                 'UPCOMING BILLS',
                 style: theme.textTheme.labelSmall?.copyWith(
@@ -910,7 +909,7 @@ class _UpcomingBillsBanner extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: Spacing.sm),
+          const SizedBox(height: 12),
           // Show up to 3 upcoming bills
           ...bills.take(3).map((bill) {
             final dueDate = bill['dueDate'] as DateTime;
@@ -935,7 +934,7 @@ class _UpcomingBillsBanner extends StatelessWidget {
               label:
                   '${bill['description']}, ${appState.currency}${(bill['amount'] as double).toStringAsFixed(0)}, $dueText',
               child: Padding(
-                padding: const EdgeInsets.only(bottom: Spacing.xs),
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   children: [
                     ExcludeSemantics(
@@ -961,7 +960,7 @@ class _UpcomingBillsBanner extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: Spacing.xs),
+                    const SizedBox(width: 8),
                     Text(
                       '${appState.currency}${(bill['amount'] as double).toStringAsFixed(0)}',
                       style: TextStyle(
@@ -970,10 +969,10 @@ class _UpcomingBillsBanner extends StatelessWidget {
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    const SizedBox(width: Spacing.xs),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: Spacing.xs,
+                        horizontal: 8,
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
@@ -1000,7 +999,7 @@ class _UpcomingBillsBanner extends StatelessWidget {
           }),
           if (bills.length > 3)
             Padding(
-              padding: const EdgeInsets.only(top: Spacing.xxs),
+              padding: const EdgeInsets.only(top: 4),
               child: Text(
                 '+${bills.length - 3} more bills',
                 style: TextStyle(
@@ -1040,7 +1039,7 @@ class _QuickAddBar extends StatelessWidget {
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
-        const SizedBox(height: Spacing.xs),
+        const SizedBox(height: 8),
         // FIX: Wrap in GestureDetector to prevent month swipe when scrolling templates
         GestureDetector(
           onHorizontalDragStart: (_) {}, // Absorb horizontal gestures
@@ -1054,7 +1053,7 @@ class _QuickAddBar extends StatelessWidget {
                 final isIncome = template.type == 'income';
 
                 return Padding(
-                  padding: const EdgeInsets.only(right: Spacing.xs),
+                  padding: const EdgeInsets.only(right: 8),
                   child: Semantics(
                     label:
                         '${template.name}, $currency${template.amount.toStringAsFixed(0)}, ${isIncome ? 'income' : 'expense'}',
@@ -1073,12 +1072,12 @@ class _QuickAddBar extends StatelessWidget {
                         }
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
                           color: isIncome
                               ? appColors.incomeGreen.withAlpha((255 * 0.1).round())
                               : theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(Spacing.radiusXLarge),
+                          borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: isIncome
                                 ? appColors.incomeGreen
@@ -1098,7 +1097,7 @@ class _QuickAddBar extends StatelessWidget {
                                     : theme.colorScheme.onSurface,
                               ),
                             ),
-                            const SizedBox(width: Spacing.xs),
+                            const SizedBox(width: 8),
                             Text(
                               '$currency${template.amount.toStringAsFixed(0)}',
                               style: TextStyle(
