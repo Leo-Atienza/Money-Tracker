@@ -17,6 +17,7 @@ import '../widgets/loading_skeleton.dart';
 import 'add_expense_screen.dart';
 import 'add_income_screen.dart';
 import 'add_payment_dialog.dart';
+import 'history/history_filter_bar.dart';
 import 'history/history_grouping.dart' as history_grouping;
 import '../theme/app_colors.dart';
 
@@ -172,6 +173,45 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // ============== FILTER-BAR CALLBACKS ==============
+  // Extracted from the inline TextField onChanged in build(). Owns the
+  // 300ms debounce so HistoryFilterBar can stay a dumb StatelessWidget.
+
+  void _onSearchTermChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (_isDisposed) return;
+      setState(() {
+        _searchTerm = value;
+        if (value.isNotEmpty && !_searchAllTime) {
+          _previousAllTimeState = _searchAllTime;
+          _searchAllTime = true;
+          _loadAllTimeData();
+        } else if (value.isNotEmpty) {
+          _loadAllTimeData();
+        } else if (value.isEmpty) {
+          _searchAllTime = _previousAllTimeState;
+        }
+      });
+    });
+  }
+
+  void _clearSearchTerm() {
+    _searchController.clear();
+    setState(() {
+      _searchTerm = '';
+      _searchAllTime = _previousAllTimeState;
+    });
+    _loadAllTimeData();
+  }
+
+  void _toggleAllTime(bool value) {
+    setState(() => _searchAllTime = value);
+    if (value && _allTimeExpenses.isEmpty) {
+      _loadAllTimeData();
+    }
   }
 
   void _showEditExpenseDialog(BuildContext context, Expense expense) {
@@ -559,220 +599,26 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
 
             const SizedBox(height: 24),
 
-            // Search Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Semantics(
-                label: 'Search transactions by name, category, or amount',
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(12 + 2),
-                    border: Border.all(
-                      color: theme.colorScheme.outline.withAlpha(50),
-                    ),
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (value) {
-                      // CRITICAL FIX #3: Reduced debounce from 500ms to 300ms for better responsiveness
-                      _debounce?.cancel();
-                      _debounce = Timer(const Duration(milliseconds: 300), () {
-                        // CRITICAL FIX #3: Don't process if disposed
-                        if (_isDisposed) return;
-
-                        setState(() {
-                          _searchTerm = value;
-                          // FIX: Auto-enable all-time search when user starts typing
-                          if (value.isNotEmpty && !_searchAllTime) {
-                            _previousAllTimeState = _searchAllTime; // Remember state
-                            _searchAllTime = true;
-                            _loadAllTimeData();
-                          } else if (value.isNotEmpty) {
-                            // CRITICAL FIX #1: Reload with new search term (will cancel previous)
-                            _loadAllTimeData();
-                          } else if (value.isEmpty) {
-                            // FIX: Restore previous All Time state when search is cleared
-                            _searchAllTime = _previousAllTimeState;
-                          }
-                        });
-                      });
-                    },
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Search transactions...', // FIX #18: Shorter placeholder
-                      hintStyle: TextStyle(
-                        color: theme.colorScheme.onSurfaceVariant.withAlpha(150),
-                        fontSize: 14,
-                      ),
-                      prefixIcon: Icon(
-                        Icons.search_rounded,
-                        color: theme.colorScheme.onSurfaceVariant,
-                        size: 22,
-                      ),
-                      suffixIcon: _searchTerm.isNotEmpty
-                          ? Semantics(
-                        label: 'Clear search',
-                        button: true,
-                        child: IconButton(
-                          icon: Icon(
-                            Icons.close_rounded,
-                            color: theme.colorScheme.onSurfaceVariant,
-                            size: 20,
-                          ),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() {
-                              _searchTerm = '';
-                              _searchAllTime = _previousAllTimeState;
-                            });
-                            _loadAllTimeData();
-                          },
-                        ),
-                      )
-                          : null,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // FIX: Compact filter bar - all filters in one horizontal scrollable row
-            SizedBox(
-              height: 40,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                children: [
-                  // All time toggle chip
-                  Semantics(
-                    label: _searchAllTime ? 'All time search enabled' : 'All time search disabled',
-                    hint: 'Search across all months',
-                    button: true,
-                    child: FilterChip(
-                      selected: _searchAllTime,
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.history, size: 16),
-                          const SizedBox(width: 4),
-                          Text('All time'),
-                          if (_isLoadingAllTime) ...[
-                            const SizedBox(width: 4),
-                            SizedBox(
-                              width: 12,
-                              height: 12,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ],
-                        ],
-                      ),
-                      onSelected: (value) {
-                        setState(() => _searchAllTime = value);
-                        if (value && _allTimeExpenses.isEmpty) {
-                          _loadAllTimeData();
-                        }
-                      },
-                      labelStyle: TextStyle(fontSize: 13),
-                      backgroundColor: theme.colorScheme.surface,
-                      selectedColor: theme.colorScheme.primary.withAlpha(30),
-                      checkmarkColor: theme.colorScheme.primary,
-                      side: BorderSide(
-                        color: _searchAllTime
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.outline.withAlpha(80),
-                      ),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-
-                  const SizedBox(width: 8),
-
-                  // Date range chip
-                  Semantics(
-                    label: _dateRange != null
-                        ? 'Date range: ${_formatDateRange(_dateRange!)}'
-                        : 'Select date range',
-                    button: true,
-                    child: FilterChip(
-                      selected: _dateRange != null,
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.date_range, size: 16),
-                          const SizedBox(width: 4),
-                          Text(_dateRange != null ? _formatDateRange(_dateRange!) : 'Date range'),
-                        ],
-                      ),
-                      onSelected: (_) => _showDateRangePicker(context),
-                      onDeleted: _dateRange != null ? () => setState(() => _dateRange = null) : null,
-                      deleteIcon: _dateRange != null ? Icon(Icons.close, size: 16) : null,
-                      labelStyle: TextStyle(fontSize: 13),
-                      backgroundColor: theme.colorScheme.surface,
-                      selectedColor: theme.colorScheme.primary.withAlpha(30),
-                      checkmarkColor: theme.colorScheme.primary,
-                      side: BorderSide(
-                        color: _dateRange != null
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.outline.withAlpha(80),
-                      ),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-
-                  const SizedBox(width: 8),
-
-                  // Sort order chip
-                  Semantics(
-                    label: 'Sort by: ${_getSortLabel(_sortOrder)}',
-                    hint: 'Change sort order',
-                    button: true,
-                    child: FilterChip(
-                      selected: _sortOrder != 'newest',
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(_getSortIcon(_sortOrder), size: 16),
-                          const SizedBox(width: 4),
-                          Text(_getSortLabel(_sortOrder)),
-                        ],
-                      ),
-                      onSelected: (_) => _showSortOptions(context, theme),
-                      labelStyle: TextStyle(fontSize: 13),
-                      backgroundColor: theme.colorScheme.surface,
-                      selectedColor: theme.colorScheme.primary.withAlpha(30),
-                      checkmarkColor: theme.colorScheme.primary,
-                      side: BorderSide(
-                        color: _sortOrder != 'newest'
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.outline.withAlpha(80),
-                      ),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-
-                  const SizedBox(width: 8),
-
-                  // Category filters
-                  ..._buildCompactCategoryFilters(theme, appState),
-
-                  // Payment status filters (only for expenses tab)
-                  if (_tabController.index == 1) ...[
-                    const SizedBox(width: 8),
-                    ..._buildCompactPaymentFilters(theme),
-                  ],
-                ],
-              ),
+            HistoryFilterBar(
+              searchController: _searchController,
+              searchTerm: _searchTerm,
+              onSearchChanged: _onSearchTermChanged,
+              onSearchCleared: _clearSearchTerm,
+              searchAllTime: _searchAllTime,
+              isLoadingAllTime: _isLoadingAllTime,
+              onAllTimeChanged: _toggleAllTime,
+              dateRange: _dateRange,
+              formatDateRange: _formatDateRange,
+              onDateRangeRequested: () => _showDateRangePicker(context),
+              onDateRangeCleared: () => setState(() => _dateRange = null),
+              sortOrder: _sortOrder,
+              sortLabelFor: _getSortLabel,
+              sortIconFor: _getSortIcon,
+              onShowSortOptions: () => _showSortOptions(context, theme),
+              categoryChips: _buildCompactCategoryFilters(theme, appState),
+              paymentFilterChips: _tabController.index == 1
+                  ? _buildCompactPaymentFilters(theme)
+                  : null,
             ),
 
             const SizedBox(height: 8),
