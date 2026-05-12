@@ -1,27 +1,27 @@
 # Next Steps Plan — From Here to `v5.0.0+1` Ship
 
 **Origin:** synthesis after session 2 (2026-05-11) of the `release/v5.0.0` arc.
-**Revision:** updated after session 5 (2026-05-11) — reflects the four hero screens redesigned this session (5.1 Settings, 5.3 Budgets, 5.8 Home polish, 5.9d Crash Log) plus the D.2 AppState mutator test coverage. See §0 for the full updated state.
+**Revision:** updated after session 6 (2026-05-12) — reflects the 5.2/5.4/5.9 secondaries + 5.11 Spacing retirement landing this session. See §0 for the full updated state.
 **Companions:** `docs/MASTER_PLAN.md` (full "why"), `docs/CHECKLIST.md` (per-task tickboxes), `SESSION_HANDOFF.md` (snapshot of latest session close).
 **Purpose:** spell out, with file paths and acceptance criteria, the exact remaining work to a tagged `v5.0.0+1` on the landing page. Anything not in this file is out of scope for this release (see `MASTER_PLAN.md` §"Out of v5.0.0").
 
 ---
 
-## 0. Current state (2026-05-11, after session 5 close)
+## 0. Current state (2026-05-12, after session 6 close)
 
 | Surface | State |
 |---|---|
-| Branch | `release/v5.0.0`, pushed to origin |
-| `main` | Fast-forward-merged from `release/v5.0.0` at session-5 close |
-| HEAD | session-5 docs-update commit |
-| Commits this session | 5 (`13fb632`, `3a2216a`, `4e6515c`, `de32374`, `5c76eca`) |
-| Total commits since old `main` diverged | 34 |
+| Branch | `release/v5.0.0`, **local ahead of `origin/release/v5.0.0` by 15 commits** — push pending |
+| `main` | Behind `release/v5.0.0`; fast-forward-merge after pushing |
+| HEAD | session-6 docs-update commit |
+| Commits this session | 10 (Phase 5.2 + 5.4 + all 5.9 secondaries + 5.11) |
+| Total commits since old `main` diverged | 44 |
 | `flutter analyze` | No issues found |
-| `flutter test` | **1,809 pass** (was 1,775 at session 4 close — +34) |
-| `flutter build apk --release` | 59.4 MB (verified session 4 — no new build this session) |
+| `flutter test` | **1,798 pass** (was 1,809 at session 5 close; net −11 from retired `spacing_test.dart` (28 tests) + 17 new widget tests across 8 screens) |
+| `flutter build apk --release` | 59.4 MB (verified session 4 — rebuild gate ahead of version bump) |
 | `bash scripts/preflight.sh` | green, test-count gate ≥ 1,750 |
 | DB schema version | 19 (unchanged) |
-| `pubspec.yaml` version | `4.4.0+6` (will become `5.0.0+1` at Stage E **after** Stage B Phase 5 lands) |
+| `pubspec.yaml` version | `4.4.0+6` (will become `5.0.0+1` at Stage E **after** 5.5/5.6/5.7 land) |
 | New deps this session | None |
 
 ### Session 5 deliverables
@@ -32,7 +32,20 @@
 * **5.9d Crash Log viewer** Luminous redesign (no new test; underlying logic already covered by `test/utils/crash_log_test.dart`) (`5c76eca`).
 * **D.2 AppState mutator coverage** — 22 tests across the safe DB-free mutator subset (settings/appearance/filters) (`de32374`).
 
-**Headline truth: `main` and `release/v5.0.0` are at the same SHA on both local and origin.** Future work continues on `release/v5.0.0`; merge to `main` again at the end of each session that lands ship-worthy work.
+### Session 6 deliverables
+
+* **5.9f Trash** Luminous redesign + `GlassSegmentedControl` replaces TabBar + 2 widget tests (`b356bcd`).
+* **5.9i Quick Templates** Luminous redesign + 3 widget tests (`dfe0102`).
+* **5.9j Notification Settings** Luminous redesign with consolidated `Alerts` `GlassListSection` (`81227f1`).
+* **5.9e Export Data** Luminous redesign + `GlassPillChip` date filters + 5 widget tests (`acbd14d`).
+* **5.9g Category Manager** Luminous redesign + 3 widget tests (`236192b`).
+* **5.9h Backup & Restore** Luminous redesign + selection-mode-aware GlassTopAppBar + 2 widget tests (`c0c6201`).
+* **5.9a/b/c Onboarding + PIN Setup + PIN Unlock** Luminous redesign (`d3d8bbd`).
+* **5.2 Wallet** rename `account_manager_screen.dart` → `wallet_screen.dart` + Luminous redesign + 2 widget tests (`d312519`).
+* **5.4 Analytics & Insights** Luminous redesign — 8 inner cards swapped to `GlassPanel`; `fl_chart` retained inside frosted surfaces (`9501a72`).
+* **5.11 Spacing retirement** — 9 remaining files inlined; `lib/constants/spacing.dart` + `test/constants/spacing_test.dart` retired to `TRASH/` (`a5edd19`).
+
+**Headline truth at session-6 close: 17/20 Phase 5 items done; only 5.5/5.6/5.7 (STRUCTURAL) remain in Phase 5.** Local is 15 commits ahead of `origin/release/v5.0.0` — push + fast-forward main at the start of session 7.
 
 ### Phase status legend
 - ✅ **Done** — landed, tested, committed.
@@ -47,9 +60,9 @@
 | 2 — Architectural Foundations | ✅ | — |
 | 3 — Race & Lifecycle | 🟡 (3.8 ⏸) | 3.8 `AppPhase` state machine — deferred to v5.1 per master plan. |
 | 4 — Schema v19 + Data Integrity | ✅ | — |
-| 5 — Luminous Design Integration | 🟡 (starter, 5.1, 5.3, 5.8, 5.9d, 5.10 ✅) | 5.2 Wallet, 5.4 Analytics, 5.5–5.7 (STRUCTURAL: Add/History/Recurring), 5.9 secondaries (a/b/c/e/f/g/h/i/j), 5.11 Spacing removal. See §3 below. |
+| 5 — Luminous Design Integration | 🟢 17/20 (starter, 5.1, 5.2, 5.3, 5.4, 5.8, 5.9a/b/c/d/e/f/g/h/i/j, 5.10, 5.11 ✅) | **Only 5.5/5.6/5.7 STRUCTURAL remain.** Add Transaction merge, History split, Recurring merge. See §3 below. |
 | 6 — Security Hardening | 🟡 (6.2/3/4/5/6 ✅; 6.3 UX wiring landed session 4) | 6.1 SQLCipher only. See §4 below. |
-| 7 — Test Coverage | 🟡 (7.2/3/4/5/7/9/10 ✅; session 5 landed 7.2 — appearance/settings/filters subset) | 7.1 rename; remaining 7.2 mutators (CRUD via DB); 7.6 hero-screen widget tests; 7.8 goldens. See §5 below. |
+| 7 — Test Coverage | 🟡 (7.2/3/4/5/7/9/10 ✅; sessions 5–6 expanded coverage with screen-composition smoke tests) | 7.1 rename; remaining 7.2 mutators (CRUD via DB); 7.6 hero-screen widget tests with seeded data; 7.8 goldens. See §5 below. |
 | 8 — Polish & Ship | 🟡 (8.1/3 ✅) | 8.2 perf pass; 8.4 version bump + tag; 8.5 ship pipeline. See §6 below. |
 
 ---

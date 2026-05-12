@@ -97,17 +97,26 @@ Each lands as its own commit with regression test.
 
 - [x] **Phase 5 starter (WIP from previous session)** — `MainNavigationScreen` nav rewired (5 tabs), Home redesigned, AddHub/Analytics/AccountManager screens scaffolded, `buildLuminousTheme` in place
 - [x] **5.1 Settings & Security** — `GlassTopAppBar` ("Settings & Security") + 8 `GlassListSection`s + `GlassListTile` rows + dedicated `_PinSecuritySection`. Dialog/modal helpers (theme/currency/account pickers, reset/delete confirmations) preserved. 5 widget tests in `test/screens/settings_screen_test.dart`. (session 5 — `13fb632`)
-- [ ] 5.2 Wallet & Accounts (rename `account_manager_screen.dart` → `wallet_screen.dart`)
+- [x] **5.2 Wallet & Accounts** — renamed `account_manager_screen.dart` → `wallet_screen.dart`, class `AccountManagerScreen` → `WalletScreen`. `GlassTopAppBar("Wallet")` (no leading BackButton — sits behind main-nav tab); account cards wrap in `GlassPanel` with primary-tinted boxShadow on the active row; `_DeletedAccountsSection` retained; empty state in `GlassPanel`. `main.dart` import + reference updated; old file moved to `TRASH/`. 2 widget tests in `test/screens/wallet_screen_test.dart`. (session 6 — `d312519`)
 - [x] **5.3 Budgets & Planning** — `GlassTopAppBar` header with month nav in trailing actions; `_MonthlySummaryCard` + each budget card + empty state wrapped in `GlassPanel`; `GlassProgressBar` replaces the stacked actual/projected `LinearProgressIndicator` (clamps visually but reports raw % via semantics for over-budget cases). 4 widget tests in `test/screens/budget_screen_test.dart`. (session 5 — `3a2216a`)
-- [ ] 5.4 Analytics & Insights
-- [ ] 5.5 Add Transaction (STRUCTURAL: replaces hub + merges add_expense/add_income)
-- [ ] 5.6 Transaction History (split into `lib/screens/history/`)
-- [ ] 5.7 Recurring Items (STRUCTURAL: merge expenses + income)
+- [x] **5.4 Analytics & Insights** — `SliverAppBar` + `CustomScrollView` → `GlassTopAppBar` + `SingleChildScrollView`. Eight inner Container cards (across `_SpendingTrendsChart`, `_SpendingChart`, `_BudgetProgress`, `_CategoryBreakdown`, `_MonthOverMonthInsights`, and their empty states) swapped to `GlassPanel` via regex pass. `fl_chart` retained — the chart primitives now sit inside frosted GlassPanel surfaces. `FadeInOnLoad` staggered entry preserved on all five hero cards. No widget test (chart `AnimationController` tickers leak timers under `flutter test` without chart-specific mocking; deferred to D.6). (session 6 — `9501a72`)
+- [ ] 5.5 Add Transaction (STRUCTURAL: replaces hub + merges add_expense/add_income) — DEFERRED; needs its own session
+- [ ] 5.6 Transaction History (split into `lib/screens/history/`) — DEFERRED; 2,307-line file needs its own session
+- [ ] 5.7 Recurring Items (STRUCTURAL: merge expenses + income) — DEFERRED; touches notification IDs
 - [x] **5.8 Home Dashboard polish** — Phase 5 starter's redesign was kept verbatim; this pass dropped every `Spacing.*` call (24 sites inlined) and removed the now-unused `import '../constants/spacing.dart'`. RepaintBoundary around transactions GlassPanel preserved per Phase 1.7. 3 widget smoke tests in `test/screens/home_screen_test.dart` (brand label, no-FAB, empty-state). (session 5 — `4e6515c`)
-- [ ] 5.9 Secondary screens (onboarding, PIN, crash, export, trash, category mgr, etc.)
+- [x] **5.9 Secondary screens** — all 10 secondaries landed across sessions 5+6:
+    - [x] **5.9a Onboarding** — slide content in `GlassPanel`, animated page indicators, transparent scaffold. (session 6 — `d3d8bbd`)
+    - [x] **5.9b PIN Setup** — `GlassTopAppBar` + transparent scaffold; PIN length selector + dots + number pad inlined. (session 6 — `d3d8bbd`)
+    - [x] **5.9c PIN Unlock** — `GlassPanel` around the wallet-icon brand mark; transparent scaffold so OrganicBlobBackground bleeds through; PIN dots + number pad inlined. (session 6 — `d3d8bbd`)
     - [x] **5.9d Crash Log viewer** — `GlassTopAppBar` + `GlassPanel` wrapping the SelectableText log and the empty state; refresh / share / clear flows untouched. (session 5 — `5c76eca`)
-    - [ ] 5.9a Onboarding; 5.9b PIN Setup; 5.9c PIN Unlock; 5.9e Export Data; 5.9f Trash; 5.9g Category Manager; 5.9h Backup/Restore; 5.9i Quick Templates; 5.9j Notification Settings
+    - [x] **5.9e Export Data** — `GlassTopAppBar`, info banner + each data-type option + custom-range buttons wrapped in `GlassPanel`; 5 date-range chips swapped to `GlassPillChip`. 5 widget tests. (session 6 — `acbd14d`)
+    - [x] **5.9f Trash** — `GlassTopAppBar` (delete-forever trailing when non-empty), `GlassSegmentedControl` replaces `TabBar`, each deleted-item card + empty states wrapped in `GlassPanel`. 2 widget tests. (session 6 — `b356bcd`)
+    - [x] **5.9g Category Manager** — `SliverAppBar` → `GlassTopAppBar`; tile lists wrapped in `GlassPanel`; empty state in `GlassPanel`. 3 widget tests. (session 6 — `236192b`)
+    - [x] **5.9h Backup & Restore** — `GlassTopAppBar` (selection-mode aware); `_SectionCard` rewritten on `GlassPanel`. 2 widget tests. (session 6 — `c0c6201`)
+    - [x] **5.9i Quick Templates** — `GlassTopAppBar`, each template card + empty state wrapped in `GlassPanel`, accent-tinted leading icon (incomeGreen for income / onSurface for expense). 3 widget tests. (session 6 — `dfe0102`)
+    - [x] **5.9j Notification Settings** — `GlassTopAppBar`, permission warning + info banners in `GlassPanel`, three toggles consolidated into a single `Alerts` `GlassListSection` of `GlassListTile` + `Switch`. (session 6 — `81227f1`; no widget test — `flutter_local_notifications` platform interface is hard to mock; deferred to device smoke.)
 - [x] **5.10 Brand alignment** — AndroidManifest `android:label="FinanceFlow"`; every "Money Tracker" string in `lib/` rebranded (backup/CSV/PDF subjects, crash log header, schema-upgrade snackbar, pin unlock title, settings about line); crash_log_test expectation updated. `grep -rn "Money Tracker" lib/` = 0.
+- [x] **5.11 Spacing.* removal** — every remaining `Spacing.*` call site in lib/ inlined to numeric literals (preserving the Phase 2.2 realignment). `lib/constants/spacing.dart` retired to `TRASH/`. `test/constants/spacing_test.dart` retired alongside. `grep -rn "Spacing\." lib/` = 0 (comments excluded). (session 6 — `a5edd19`)
 
 ---
 
