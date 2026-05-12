@@ -15,7 +15,7 @@ import 'screens/history_screen.dart';
 import 'screens/recurring_expenses_screen.dart';
 import 'screens/add_hub_screen.dart';
 import 'screens/analytics_screen.dart';
-import 'screens/account_manager_screen.dart';
+import 'screens/wallet_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/budget_screen.dart';
 import 'screens/pin_unlock_screen.dart';
@@ -370,7 +370,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     HistoryScreen(),
     const AddHubScreen(),
     const AnalyticsScreen(),
-    const AccountManagerScreen(),
+    const WalletScreen(),
   ];
 
   @override

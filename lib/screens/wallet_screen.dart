@@ -4,39 +4,50 @@ import '../providers/app_state.dart';
 import '../models/account_model.dart';
 import '../utils/progress_indicator_helper.dart';
 import '../utils/premium_animations.dart';
-import '../constants/spacing.dart';
 import '../theme/app_colors.dart';
+import '../theme/luminous_tokens.dart';
+import '../widgets/luminous/glass_panel.dart';
+import '../widgets/luminous/glass_top_app_bar.dart';
 
-class AccountManagerScreen extends StatelessWidget {
-  const AccountManagerScreen({super.key});
+/// Phase 5.2 — Wallet & Accounts (renamed from `AccountManagerScreen`).
+///
+/// Composition:
+///   * [GlassTopAppBar] header ("Wallet") — no leading BackButton since
+///     this screen lives behind the main-nav "Wallet" tab.
+///   * `_AccountList` cards wrapped in `GlassPanel`.
+///   * `_DeletedAccountsSection` retained as-is for the v5.1 trash flow.
+///   * Empty state in a `GlassPanel`.
+///
+/// Class renamed `AccountManagerScreen` → `WalletScreen`. `main.dart`
+/// import + reference updated; old file moved to `TRASH/` for history.
+class WalletScreen extends StatelessWidget {
+  const WalletScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            backgroundColor: theme.colorScheme.surface,
-            elevation: 0,
-            pinned: true,
-            title: Text(
-              'Accounts',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
+      backgroundColor: Colors.transparent,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const GlassTopAppBar(title: 'Wallet'),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                LuminousTokens.containerPadding,
+                LuminousTokens.stackGap,
+                LuminousTokens.containerPadding,
+                100,
               ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.all(Spacing.screenPadding),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                const _AccountList(),
-                const SizedBox(height: 24),
-                const _DeletedAccountsSection(),
-                const SizedBox(height: 100),
-              ]),
+              child: const Column(
+                children: [
+                  _AccountList(),
+                  SizedBox(height: 24),
+                  _DeletedAccountsSection(),
+                ],
+              ),
             ),
           ),
         ],
@@ -90,23 +101,24 @@ class _AccountList extends StatelessWidget {
           label:
               '${account.name}${account.isDefault ? ', default account' : ''}${isCurrent ? ', currently active' : ', tap to view options'}',
           button: !isCurrent,
-          child: Container(
-            margin: const EdgeInsets.only(bottom: Spacing.md),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(Spacing.radiusLarge),
-              border: Border.all(
-                color: isCurrent
-                    ? theme.colorScheme.onSurface
-                    : theme.colorScheme.outline,
-                width: isCurrent ? 2 : 1,
-              ),
-            ),
-            child: ExcludeSemantics(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: GlassPanel(
+              padding: EdgeInsets.zero,
+              boxShadow: isCurrent
+                  ? [
+                      BoxShadow(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                        blurRadius: 28,
+                        offset: const Offset(0, 10),
+                      ),
+                    ]
+                  : null,
+              child: ExcludeSemantics(
               child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(
-                  horizontal: Spacing.cardPadding,
-                  vertical: Spacing.sm,
+                  horizontal: 24,
+                  vertical: 12,
                 ),
                 leading: Container(
                   width: 48,
@@ -117,7 +129,7 @@ class _AccountList extends StatelessWidget {
                             (255 * 0.1).round(),
                           )
                         : theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     Icons.account_balance_wallet,
@@ -146,12 +158,12 @@ class _AccountList extends StatelessWidget {
                 trailing: isCurrent
                     ? Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: Spacing.sm,
+                          horizontal: 12,
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.onSurface,
-                          borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           'Active',
@@ -198,7 +210,7 @@ class _AccountList extends StatelessWidget {
                                   return Row(
                                     children: [
                                       Icon(Icons.delete, color: appColors.expenseRed),
-                                      const SizedBox(width: Spacing.sm),
+                                      const SizedBox(width: 12),
                                       Text(
                                         'Delete',
                                         style: TextStyle(color: appColors.expenseRed),
@@ -238,7 +250,7 @@ class _AccountList extends StatelessWidget {
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
                                         color: appColors.infoBlue.withAlpha(20),
-                                        borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                                        borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
                                           color: appColors.infoBlue.withAlpha(100),
                                         ),
@@ -250,7 +262,7 @@ class _AccountList extends StatelessWidget {
                                             color: appColors.infoBlue,
                                             size: 20,
                                           ),
-                                          const SizedBox(width: Spacing.sm),
+                                          const SizedBox(width: 12),
                                           Expanded(
                                             child: Text(
                                               'You\'ll see transactions and budgets for this account.',
@@ -410,6 +422,7 @@ class _AccountList extends StatelessWidget {
               ),
             ),
           ),
+          ),
         ),
         );
       },
@@ -417,13 +430,8 @@ class _AccountList extends StatelessWidget {
   }
 
   Widget _buildEmptyState(ThemeData theme) {
-    return Container(
+    return GlassPanel(
       padding: const EdgeInsets.all(60),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.colorScheme.outline),
-      ),
       child: Column(
         children: [
           Icon(
@@ -464,7 +472,7 @@ class _AccountList extends StatelessWidget {
       builder: (context) => AlertDialog(
         backgroundColor: theme.colorScheme.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Spacing.radiusXLarge),
+          borderRadius: BorderRadius.circular(20),
         ),
         title: Row(
           children: [
@@ -473,7 +481,7 @@ class _AccountList extends StatelessWidget {
               color: appColors.expenseRed,
               size: 28,
             ),
-            const SizedBox(width: Spacing.sm),
+            const SizedBox(width: 12),
             Text(
               'Delete Account?',
               style: TextStyle(color: theme.colorScheme.onSurface),
@@ -492,18 +500,18 @@ class _AccountList extends StatelessWidget {
                 color: theme.colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: Spacing.md),
+            const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.all(Spacing.sm),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: appColors.expenseRed.withAlpha(20),
-                borderRadius: BorderRadius.circular(Spacing.radiusSmall),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: appColors.expenseRed.withAlpha(100)),
               ),
               child: Row(
                 children: [
                   Icon(Icons.delete_forever, color: appColors.expenseRed, size: 24),
-                  const SizedBox(width: Spacing.sm),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       'All transactions, budgets, and data in this account will be permanently deleted.',
@@ -791,11 +799,11 @@ class _DeletedAccountsSectionState extends State<_DeletedAccountsSection> {
 
             final appColors = theme.extension<AppColors>()!;
             return Container(
-              margin: const EdgeInsets.only(bottom: Spacing.sm),
-              padding: const EdgeInsets.all(Spacing.md),
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(Spacing.radiusMedium),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: theme.colorScheme.outline),
               ),
               child: Row(
