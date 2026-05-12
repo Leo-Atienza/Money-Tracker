@@ -18,7 +18,7 @@ import 'add_expense_screen.dart';
 import 'add_income_screen.dart';
 import 'add_payment_dialog.dart';
 import 'history/history_filter_bar.dart';
-import 'history/history_grouping.dart' as history_grouping;
+import 'history/history_list.dart';
 import '../theme/app_colors.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -1096,41 +1096,15 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       ThemeData theme, {
       bool showMonth = false,
       }) {
-    // For amount-based sorting, don't group - show flat list with dates inline
-    final bool isAmountSort = _sortOrder == 'highest' || _sortOrder == 'lowest';
-
-    if (isAmountSort) {
-      return _buildFlatTransactionList(context, items, appState, theme, showMonth: showMonth);
-    }
-
-    // Determine grouping based on sort order
-    final bool groupByCategory = _sortOrder == 'category';
-    final Map<String, List<dynamic>> grouped = groupByCategory
-        ? history_grouping.groupByCategory(items)
-        : history_grouping.groupByDay(items);
-
-    final history_grouping.GroupSortOrder sortOrder;
-    if (groupByCategory) {
-      sortOrder = history_grouping.GroupSortOrder.alphabetical;
-    } else if (_sortOrder == 'oldest') {
-      sortOrder = history_grouping.GroupSortOrder.oldestFirst;
-    } else {
-      sortOrder = history_grouping.GroupSortOrder.newestFirst;
-    }
-    final List<String> sortedKeys = history_grouping.sortGroupKeys(
-      grouped.keys,
-      sortOrder,
-    );
-
-    // Add loading indicator item count if loading more, or limit message
-    final totalLoaded = _allTimeExpenses.length + _allTimeIncome.length;
-    final showLimitMessage = showMonth && !_hasMoreData && totalLoaded >= _maxTotalResults;
-    final itemCount = sortedKeys.length +
-        (_isLoadingMore && showMonth ? 1 : 0) +
-        (showLimitMessage ? 1 : 0);
-
-    // FIX: Add pull-to-refresh
-    return RefreshIndicator(
+    return HistoryList(
+      items: items,
+      sortOrder: _sortOrder,
+      showMonth: showMonth,
+      scrollController: _scrollController,
+      isLoadingMore: _isLoadingMore,
+      hasMoreData: _hasMoreData,
+      maxTotalResults: _maxTotalResults,
+      totalLoaded: _allTimeExpenses.length + _allTimeIncome.length,
       onRefresh: () async {
         if (_searchAllTime) {
           await _loadAllTimeData();
@@ -1138,204 +1112,16 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
           await context.read<AppState>().refreshCurrentMonthData();
         }
       },
-      child: ListView.builder(
-        controller: showMonth ? _scrollController : null,
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-        itemCount: itemCount,
-      itemBuilder: (context, index) {
-        // Show loading indicator at the end
-        if (_isLoadingMore && index == sortedKeys.length) {
-          return const Padding(
-            padding: EdgeInsets.all(16),
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        // FIX: Show limit reached message
-        if (showLimitMessage && index == sortedKeys.length) {
-          return Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  color: theme.colorScheme.onSurfaceVariant,
-                  size: 32,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Result limit reached',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Showing first $_maxTotalResults results. Refine your search to see more specific items.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        final groupKey = sortedKeys[index];
-        final groupItems = grouped[groupKey]!;
-        final groupByCategory = _sortOrder == 'category';
-
-        // Determine header text based on grouping type
-        String headerText;
-        if (groupByCategory) {
-          // Category header
-          headerText = groupKey.toUpperCase();
-        } else {
-          // Date header
-          final date = DateTime.parse(groupKey);
-          headerText = showMonth ? _formatDateHeaderWithMonth(date) : _formatDateHeader(date);
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Group Header (date or category) - Premium styling
-            Padding(
-              padding: const EdgeInsets.only(top: 24, bottom: 14),
-              child: Text(
-                headerText,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant.withAlpha(180),
-                  letterSpacing: 1.0,
-                ),
-              ),
-            ),
-            // Transactions for this group
-            ...groupItems.asMap().entries.map((entry) {
-              final itemIndex = entry.key;
-              final item = entry.value;
-              if (item is Expense) {
-                return StaggeredListItem(
-                  index: itemIndex,
-                  delay: const Duration(milliseconds: 25),
-                  child: _buildExpenseItem(context, item, appState, theme),
-                );
-              } else {
-                return StaggeredListItem(
-                  index: itemIndex,
-                  delay: const Duration(milliseconds: 25),
-                  child: _buildIncomeItem(context, item as Income, appState, theme),
-                );
-              }
-            }),
-          ],
-        );
-      },
-      ),
-    );
-  }
-
-  /// Build a flat (non-grouped) transaction list for amount-based sorting.
-  /// Shows each transaction with its date inline rather than grouping by date.
-  Widget _buildFlatTransactionList(
-      BuildContext context,
-      List<dynamic> items,
-      AppState appState,
-      ThemeData theme, {
-      bool showMonth = false,
-      }) {
-    // Add loading indicator item count if loading more, or limit message
-    final totalLoaded = _allTimeExpenses.length + _allTimeIncome.length;
-    final showLimitMessage = showMonth && !_hasMoreData && totalLoaded >= _maxTotalResults;
-    final itemCount = items.length +
-        (_isLoadingMore && showMonth ? 1 : 0) +
-        (showLimitMessage ? 1 : 0);
-
-    return RefreshIndicator(
-      onRefresh: () async {
-        if (_searchAllTime) {
-          await _loadAllTimeData();
-        } else {
-          await context.read<AppState>().refreshCurrentMonthData();
-        }
-      },
-      child: ListView.builder(
-        controller: showMonth ? _scrollController : null,
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-        itemCount: itemCount,
-        itemBuilder: (context, index) {
-          // Show loading indicator at the end
-          if (_isLoadingMore && index == items.length) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-
-          // Show limit reached message
-          if (showLimitMessage && index == items.length) {
-            return Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    color: theme.colorScheme.onSurfaceVariant,
-                    size: 32,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Result limit reached',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Showing first $_maxTotalResults results. Refine your search to see more specific items.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          final item = items[index];
-          if (item is Expense) {
-            return StaggeredListItem(
-              index: index,
-              delay: const Duration(milliseconds: 20),
-              child: _buildExpenseItemWithDate(context, item, appState, theme, showMonth: showMonth),
-            );
-          } else {
-            return StaggeredListItem(
-              index: index,
-              delay: const Duration(milliseconds: 20),
-              child: _buildIncomeItemWithDate(context, item as Income, appState, theme, showMonth: showMonth),
-            );
-          }
-        },
-      ),
+      expenseTileBuilder: (ctx, expense) =>
+          _buildExpenseItem(ctx, expense, appState, theme),
+      incomeTileBuilder: (ctx, income) =>
+          _buildIncomeItem(ctx, income, appState, theme),
+      datedExpenseTileBuilder: (ctx, expense, {bool showMonth = false}) =>
+          _buildExpenseItemWithDate(ctx, expense, appState, theme,
+              showMonth: showMonth),
+      datedIncomeTileBuilder: (ctx, income, {bool showMonth = false}) =>
+          _buildIncomeItemWithDate(ctx, income, appState, theme,
+              showMonth: showMonth),
     );
   }
 
@@ -1404,12 +1190,6 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       ],
     );
   }
-
-  String _formatDateHeader(DateTime date) =>
-      history_grouping.formatDateHeader(date);
-
-  String _formatDateHeaderWithMonth(DateTime date) =>
-      history_grouping.formatDateHeaderWithMonth(date);
 
   // ============== ITEM BUILDERS ==============
 
@@ -2018,92 +1798,26 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   }
 
   Widget _buildEmptyState(ThemeData theme) {
-    // CRITICAL FIX: Provide actionable guidance in empty state
     final bool hasFilters = _searchTerm.isNotEmpty ||
-                           _paymentStatusFilter != 'all' ||
-                           _dateRange != null;
+        _paymentStatusFilter != 'all' ||
+        _dateRange != null;
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(48),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withAlpha(100),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Icon(
-                Icons.receipt_long_outlined,
-                size: 40,
-                color: theme.colorScheme.onSurfaceVariant.withAlpha(150),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'No transactions found',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              hasFilters
-                  ? 'Try adjusting your search or filters'
-                  : 'Get started by adding your first transaction',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            // CRITICAL FIX: Add action buttons when no filters are active
-            if (!hasFilters) ...[
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      // FIX Phase 1.3: `/add_expense` is NOT registered in
-                      // MaterialApp.routes — pushNamed silently fails.
-                      // Use the typed PremiumPageRoute instead.
-                      Navigator.push(
-                        context,
-                        PremiumPageRoute(page: const AddExpenseScreen()),
-                      );
-                    },
-                    icon: const Icon(Icons.remove_circle_outline, size: 18),
-                    label: const Text('Add Expense'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: theme.colorScheme.error,
-                      side: BorderSide(color: theme.colorScheme.error),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      // FIX Phase 1.3: same fix for `/add_income`.
-                      Navigator.push(
-                        context,
-                        PremiumPageRoute(page: const AddIncomeScreen()),
-                      );
-                    },
-                    icon: const Icon(Icons.add_circle_outline, size: 18),
-                    label: const Text('Add Income'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: theme.colorScheme.primary,
-                      side: BorderSide(color: theme.colorScheme.primary),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
+    return HistoryEmptyState(
+      hasFilters: hasFilters,
+      onAddExpense: () {
+        // FIX Phase 1.3: `/add_expense` is NOT registered in MaterialApp.routes
+        // — pushNamed silently fails. Use the typed PremiumPageRoute instead.
+        Navigator.push(
+          context,
+          PremiumPageRoute(page: const AddExpenseScreen()),
+        );
+      },
+      onAddIncome: () {
+        Navigator.push(
+          context,
+          PremiumPageRoute(page: const AddIncomeScreen()),
+        );
+      },
     );
   }
 }
