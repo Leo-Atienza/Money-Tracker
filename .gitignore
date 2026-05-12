@@ -43,3 +43,9 @@ session-state.md
 
 # Claude Code per-user state (scheduled task locks, worktree metadata)
 .claude/
+
+# Local recycling bin for retired files (TRASH-FILES.md indexes entries)
+TRASH/
+
+# Flutter CLI crash dumps (regenerated on the next crash, never worth committing)
+flutter_*.log
