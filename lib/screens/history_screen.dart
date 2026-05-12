@@ -17,6 +17,7 @@ import '../widgets/loading_skeleton.dart';
 import 'add_expense_screen.dart';
 import 'add_income_screen.dart';
 import 'add_payment_dialog.dart';
+import 'history/history_grouping.dart' as history_grouping;
 import '../theme/app_colors.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -1257,34 +1258,23 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     }
 
     // Determine grouping based on sort order
-    final Map<String, List<dynamic>> grouped = {};
     final bool groupByCategory = _sortOrder == 'category';
+    final Map<String, List<dynamic>> grouped = groupByCategory
+        ? history_grouping.groupByCategory(items)
+        : history_grouping.groupByDay(items);
 
-    for (final item in items) {
-      String key;
-      if (groupByCategory) {
-        // Group by category when sorting by category
-        key = item is Expense ? item.category : (item as Income).category;
-      } else {
-        // Group by date for all other sort modes
-        final date = item is Expense ? item.date : (item as Income).date;
-        key = DateFormat('yyyy-MM-dd').format(date);
-      }
-      grouped.putIfAbsent(key, () => []).add(item);
-    }
-
-    // Sort keys based on sort order
-    final List<String> sortedKeys;
+    final history_grouping.GroupSortOrder sortOrder;
     if (groupByCategory) {
-      // Sort category keys alphabetically
-      sortedKeys = grouped.keys.toList()..sort();
+      sortOrder = history_grouping.GroupSortOrder.alphabetical;
     } else if (_sortOrder == 'oldest') {
-      // Sort date keys ascending (oldest first)
-      sortedKeys = grouped.keys.toList()..sort();
+      sortOrder = history_grouping.GroupSortOrder.oldestFirst;
     } else {
-      // Sort date keys descending (newest first)
-      sortedKeys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+      sortOrder = history_grouping.GroupSortOrder.newestFirst;
     }
+    final List<String> sortedKeys = history_grouping.sortGroupKeys(
+      grouped.keys,
+      sortOrder,
+    );
 
     // Add loading indicator item count if loading more, or limit message
     final totalLoaded = _allTimeExpenses.length + _allTimeIncome.length;
@@ -1569,36 +1559,11 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     );
   }
 
-  String _formatDateHeader(DateTime date) {
-    final today = DateHelper.today();
-    final yesterday = today.subtract(const Duration(days: 1));
-    final dateOnly = DateHelper.normalize(date);
+  String _formatDateHeader(DateTime date) =>
+      history_grouping.formatDateHeader(date);
 
-    if (DateHelper.isSameDay(dateOnly, today)) {
-      return 'TODAY';
-    } else if (DateHelper.isSameDay(dateOnly, yesterday)) {
-      return 'YESTERDAY';
-    } else {
-      return DateFormat('EEEE, MMM d').format(date).toUpperCase();
-    }
-  }
-
-  String _formatDateHeaderWithMonth(DateTime date) {
-    final now = DateTime.now();
-    final today = DateHelper.today();
-    final yesterday = today.subtract(const Duration(days: 1));
-    final dateOnly = DateHelper.normalize(date);
-
-    if (DateHelper.isSameDay(dateOnly, today)) {
-      return 'TODAY';
-    } else if (DateHelper.isSameDay(dateOnly, yesterday)) {
-      return 'YESTERDAY';
-    } else if (date.year == now.year) {
-      return DateFormat('EEEE, MMM d').format(date).toUpperCase();
-    } else {
-      return DateFormat('MMM d, yyyy').format(date).toUpperCase();
-    }
-  }
+  String _formatDateHeaderWithMonth(DateTime date) =>
+      history_grouping.formatDateHeaderWithMonth(date);
 
   // ============== ITEM BUILDERS ==============
 
