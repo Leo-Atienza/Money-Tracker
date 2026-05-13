@@ -60,11 +60,12 @@ if ! flutter test --concurrency=4 --reporter=expanded 2>&1 | tee "$TEST_OUT"; th
   fail "flutter test failed"
 fi
 # `--reporter=expanded` prints the final tally as either
-# `+NNNN: All tests passed!` or `+NNNN -M: Some tests failed.`. Parse the
-# `+NNNN` on the last line that contains "All tests passed!" — the
+# `+NNNN: All tests passed!`, `+NNNN ~SS: All tests passed!` (with
+# skipped tests), or `+NNNN -M: Some tests failed.`. Parse the leading
+# `+NNNN` from the last line that contains "All tests passed!" — the
 # previous block has already exited non-zero if any test failed.
-PASS_COUNT=$(grep -oE '\+[0-9]+: All tests passed!' "$TEST_OUT" | tail -1 \
-  | grep -oE '[0-9]+' | head -1)
+PASS_COUNT=$(grep -oE '\+[0-9]+( ~[0-9]+)?: All tests passed!' "$TEST_OUT" \
+  | tail -1 | grep -oE '\+[0-9]+' | head -1 | tr -d '+')
 if [[ -z "$PASS_COUNT" ]]; then
   fail "could not parse pass count from flutter test output"
 fi
