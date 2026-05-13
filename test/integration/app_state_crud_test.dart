@@ -65,7 +65,7 @@ void main() {
     return state;
   }
 
-  Expense _expense(
+  Expense makeExpense(
     AppState state, {
     double amount = 25.0,
     String category = 'Food',
@@ -85,7 +85,7 @@ void main() {
     );
   }
 
-  Income _income(
+  Income makeIncome(
     AppState state, {
     double amount = 3000.0,
     String category = 'Salary',
@@ -107,7 +107,7 @@ void main() {
       final notifies = <void>[];
       state.addListener(() => notifies.add(null));
 
-      final id = await state.addExpense(_expense(state));
+      final id = await state.addExpense(makeExpense(state));
 
       expect(id, isNonZero);
       expect(state.expenses, isNotEmpty);
@@ -119,7 +119,7 @@ void main() {
     test('rejects zero / negative amount with ArgumentError', () async {
       final state = await bootstrap();
       expect(
-        () => state.addExpense(_expense(state, amount: 0)),
+        () => state.addExpense(makeExpense(state, amount: 0)),
         throwsArgumentError,
       );
     });
@@ -127,7 +127,7 @@ void main() {
     test('rejects empty description with ArgumentError', () async {
       final state = await bootstrap();
       expect(
-        () => state.addExpense(_expense(state, description: '')),
+        () => state.addExpense(makeExpense(state, description: '')),
         throwsArgumentError,
       );
     });
@@ -135,7 +135,7 @@ void main() {
     test('rejects empty category with ArgumentError', () async {
       final state = await bootstrap();
       expect(
-        () => state.addExpense(_expense(state, category: '')),
+        () => state.addExpense(makeExpense(state, category: '')),
         throwsArgumentError,
       );
     });
@@ -144,7 +144,7 @@ void main() {
   group('addIncome', () {
     test('persists row + appears in in-memory list', () async {
       final state = await bootstrap();
-      final id = await state.addIncome(_income(state));
+      final id = await state.addIncome(makeIncome(state));
 
       expect(id, isNonZero);
       expect(state.incomes, isNotEmpty);
@@ -154,7 +154,7 @@ void main() {
     test('rejects zero amount with ArgumentError', () async {
       final state = await bootstrap();
       expect(
-        () => state.addIncome(_income(state, amount: 0)),
+        () => state.addIncome(makeIncome(state, amount: 0)),
         throwsArgumentError,
       );
     });
@@ -164,7 +164,7 @@ void main() {
     test('deleteExpense moves the row to trash, removing from active list',
         () async {
       final state = await bootstrap();
-      final id = await state.addExpense(_expense(state));
+      final id = await state.addExpense(makeExpense(state));
       expect(state.expenses.any((e) => e.id == id), isTrue);
 
       await state.deleteExpense(id);
@@ -188,7 +188,7 @@ void main() {
     test('deleteIncome moves the row to trash, removing from active list',
         () async {
       final state = await bootstrap();
-      final id = await state.addIncome(_income(state, description: 'march pay'));
+      final id = await state.addIncome(makeIncome(state, description: 'march pay'));
       expect(state.incomes.any((i) => i.id == id), isTrue);
 
       await state.deleteIncome(id);
