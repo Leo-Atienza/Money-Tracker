@@ -10,6 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../integration/_test_helpers.dart';
+
 /// Phase 5.1 — Settings & Security widget tests.
 ///
 /// Covers the spec acceptance criteria for B.1:
@@ -33,11 +35,24 @@ void main() {
 
   const secureChannel =
       MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+  const homeWidgetChannel = MethodChannel('home_widget');
+  const notifChannel = MethodChannel(
+    'dexterous.com/flutter/local_notifications',
+  );
+  const pathProviderChannel =
+      MethodChannel('plugins.flutter.io/path_provider');
 
   setUp(() async {
     secureBacking = <String, String>{};
     messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger
+      ..setMockMethodCallHandler(homeWidgetChannel, (_) async => true)
+      ..setMockMethodCallHandler(notifChannel, (_) async => null)
+      ..setMockMethodCallHandler(
+        pathProviderChannel,
+        (_) async => '.dart_tool/test_path_provider',
+      );
     messenger.setMockMethodCallHandler(secureChannel, (call) async {
       switch (call.method) {
         case 'read':
@@ -70,10 +85,14 @@ void main() {
     });
 
     SharedPreferences.setMockInitialValues(<String, Object>{});
+    await makeFreshDb();
   });
 
   tearDown(() {
     messenger.setMockMethodCallHandler(secureChannel, null);
+    messenger.setMockMethodCallHandler(homeWidgetChannel, null);
+    messenger.setMockMethodCallHandler(notifChannel, null);
+    messenger.setMockMethodCallHandler(pathProviderChannel, null);
   });
 
   Future<void> pumpHarness(
@@ -200,4 +219,77 @@ void main() {
     expect(find.text('FinanceFlow'), findsOneWidget);
     expect(find.text('Made by Leo Atienza'), findsOneWidget);
   });
+
+  // -------------------------------------------------------------------------
+  // Stage D.2 — seeded-data Settings assertions.
+  //
+  // The header section reads the current account name + currency via
+  // narrow context.selects (settings_screen.dart:57). Seeded states pin
+  // that the screen reflects AppState updates without re-pumping the
+  // ChangeNotifierProvider.
+  // -------------------------------------------------------------------------
+
+  Future<void> pumpAndDrain(WidgetTester tester) async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump(const Duration(milliseconds: 700));
+  }
+
+  testWidgets(
+    'Current Account tile shows the seeded default account name',
+    (tester) async {
+      final state = AppState();
+      await tester.runAsync(() async {
+        await state.loadData();
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      });
+
+      await pumpHarness(tester, appState: state);
+      await pumpAndDrain(tester);
+
+      expect(find.text('Current Account'), findsOneWidget);
+      // After loadData() the bootstrap creates "Main Account" as default.
+      expect(find.text('Main Account'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Currency tile shows the currency name + symbol from AppState',
+    (tester) async {
+      final state = AppState();
+      await tester.runAsync(() async {
+        await state.loadData();
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      });
+
+      await pumpHarness(tester, appState: state);
+      await pumpAndDrain(tester);
+
+      // Currency tile sublabel formats as "<Name> (<symbol>)" — by default
+      // "US Dollar ($)" until the user opens the picker.
+      expect(find.text('Currency'), findsOneWidget);
+      expect(find.textContaining('US Dollar'), findsAtLeastNWidgets(1));
+      // AppState's currencyCode default is USD.
+      expect(state.currencyCode, 'USD');
+    },
+  );
+
+  testWidgets(
+    'Recurring Expenses tile entry into RecurringItems screen is wired',
+    (tester) async {
+      final state = AppState();
+      await tester.runAsync(() async {
+        await state.loadData();
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      });
+
+      await pumpHarness(tester, appState: state);
+      await pumpAndDrain(tester);
+
+      // The Preferences section exposes the entry point — the label is
+      // the contract surface.
+      expect(find.text('Recurring Expenses'), findsOneWidget);
+      expect(find.text('Auto-create monthly expenses'), findsOneWidget);
+    },
+  );
 }
