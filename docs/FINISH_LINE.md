@@ -1,8 +1,8 @@
 # Finish Line — getting `v5.0.0+1` shipped
 
-**Drafted:** 2026-05-12, at the close of session 7.
-**Branch at draft:** `release/v5.0.0` @ `373b3fd` (in sync with `origin/release/v5.0.0` and `origin/main`).
-**Test count:** 1,833. **Preflight:** green. **Analyze:** clean.
+**Drafted:** 2026-05-12, at the close of session 7. Updated 2026-05-12 at the close of session 8.
+**Branch at session-8 close:** `release/v5.0.0` @ `691ffc6` (in sync with `origin/release/v5.0.0` and `origin/main`).
+**Test count:** 1,862 (+29 over session-7). **Preflight:** green. **Analyze:** clean.
 **Companions:** `docs/MASTER_PLAN.md` (why), `docs/SESSION_7_PLAN.md` (prior plan — superseded by this doc), `docs/CHECKLIST.md` (per-task ticks), `SESSION_HANDOFF.md` (last close).
 
 This is a **self-contained playbook** for everything still needed to ship `v5.0.0+1`. If you're picking this up cold, read this file top-to-bottom plus `SESSION_HANDOFF.md`; you can skip `SESSION_7_PLAN.md` (the stages it pre-planned have been re-sequenced here with the post-session-7 deltas baked in).
@@ -15,24 +15,22 @@ There is no time pressure. Do each stage properly. Every commit must pass `bash 
 
 ### What's already done (don't re-do these)
 - **Phases 0–4** (pre-flight, stop-the-bleeding, architectural foundations, race/lifecycle, schema v19): ✅ complete.
-- **Phase 5 Luminous redesign: 19 of 20 sub-phases done.** Settings, Wallet, Budgets, Analytics, Home polish, all 10 secondaries (5.9a–j), brand alignment, Spacing retirement, History split (`lib/screens/history/` with 4 files), Recurring merge (`RecurringItemsScreen` + `recurring/recurring_*_view.dart`). **Only 5.5 Add Transaction merge is left.**
+- **Phase 5 Luminous redesign: 20 of 20 sub-phases done.** Settings, Wallet, Budgets, Analytics, Home polish, all 10 secondaries (5.9a–j), brand alignment, Spacing retirement, History split (`lib/screens/history/` with 4 files), Recurring merge (`RecurringItemsScreen` + `recurring/recurring_*_view.dart`), and **Add Transaction merge (`AddTransactionScreen` — session 8, `196b3ab`)**.
 - **Phase 6 security: 5 of 6.** PIN secure storage migration, AES-GCM backup encryption + UX, FLAG_SECURE, widget redaction, crash PII redactor. **Only 6.1 SQLCipher is left.**
-- **Phase 7 test coverage: 7 of 10 (with D.1 *partial*).** Onboarding, cascade-delete, PIN lockout, Clock injection, CI gate, 22-test settings/filters mutator suite, and now 16 CRUD mutator tests (addExpense/addIncome/delete/account/category/budget).
-- **Phase 8 polish: 2 of 5.** Preflight + lint guard, APK build verified at 59.4 MB.
+- **Phase 7 test coverage: 7 of 10, with D.1 complete (session 8, `691ffc6`).** Onboarding, cascade-delete, PIN lockout, Clock injection, CI gate, 22-test settings/filters mutator suite, and now 40-pass + 3-skip CRUD mutator suite covering every non-notification-gated mutator on AppState.
+- **Phase 8 polish: 2 of 5.** Preflight + lint guard (with session-8 regex tolerance for skipped tests), APK build verified at 59.4 MB.
 
 ### What's left (in order)
 | Stage | What | Risk | Effort | Device? | Blocks |
 |---|---|---|---|---|---|
 | **A** | Device smoke tests for Phase 6 work (PIN migration / FLAG_SECURE / PII redactor / widget redaction / backup round-trip) | Medium | 1–2 hours | ✅ Yes | Nothing — independent gate |
-| **B.5** | Add Transaction merge — replace `add_hub` + `add_expense` + `add_income` with a unified `AddTransactionScreen` | High (R4: user behaviour, R15: shared-field loss on toggle) | 1 day | No | D.2, D.3 |
 | **B.6.5+** | (Optional) extract `_buildExpenseItem` / `_buildIncomeItem` from `lib/screens/history/history_screen.dart` into a tile widget file. Mechanical refactor; deferred from session 7 because it would balloon a low-risk commit into a high-risk one. | Low | 4 hours | No | Nothing |
 | **C** | Phase 6.1 SQLCipher migration with `.pre-sqlcipher-backup` safety net | High (R2/R11: data loss) | 1.5 days | ✅ Yes | E |
-| **D.1 remainder** | Remaining AppState CRUD mutator coverage (updateExpense, markPaid, restore/empty trash, recurring CRUD, template CRUD, updateCategory variants) | Low | 1 day | No | Nothing (independent quality gate) |
 | **D.2** | Hero-screen widget tests with seeded data — 8 screens × ~5 states each, ~40 tests | Low | 1 day | No | D.3 |
 | **D.3** | Goldens for 8 hero screens | Low | 1 day | No | Nothing |
 | **E** | DevTools perf pass → version bump 4.4.0+6 → 5.0.0+1 → CHANGELOG → tag → APK ship → landing-page push → GitHub release → fast-forward main | Medium | 1 day | ✅ Yes | The ship itself |
 
-**Wall-clock to live `v5.0.0+1`:** ~6–9 days of focused work. **Parallelization opportunities:** D.1 remainder can run in parallel with B.5 (different files). D.3 must follow D.2.
+**Wall-clock to live `v5.0.0+1`:** ~4–6 days of focused work (was 6–9 at session-7 close). **Session 8 closed B.5 + D.1 remainder**, reducing the no-device backlog to B.6.5 (optional), D.2, and D.3. Stage A device smokes and Stage C SQLCipher migration still gate the ship.
 
 ### Sequencing rationale
 1. **Stage A first if device available.** Phase 6 commits across sessions 2–5 deferred their production-validation. Run the smokes before stacking more risk. If any fail, revert the offending commit before continuing.
