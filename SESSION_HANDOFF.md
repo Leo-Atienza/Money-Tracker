@@ -1,13 +1,68 @@
 # Session Handoff — v5.0.0 Release Branch
 
-**Branch**: `release/v5.0.0` — local ahead of `origin/release/v5.0.0` by **15 commits at session-6 close** (push pending — see "First commands the next session should run" below).
+**Branch**: `release/v5.0.0` — pushed to origin at session-7 close. `origin/release/v5.0.0` HEAD is `547b8d6`.
 **Master plan**: `docs/MASTER_PLAN.md`
 **Per-task checklist**: `docs/CHECKLIST.md`
+**Session 7 playbook**: `docs/SESSION_7_PLAN.md`
 **Next-steps plan**: `docs/NEXT_STEPS.md`
-**Last committed work at handoff**: session 6 — Phase 5.9 secondaries (a–j), 5.2 Wallet rename, 5.4 Analytics, 5.11 Spacing retirement.
-**Paused**: 2026-05-12 (Session 6 — Phase 5 secondaries + medium hero screens; structural 5.5/5.6/5.7 still ahead.)
+**Last committed work at handoff**: session 7 — Phase 5.6 History split (4 commits), Phase 5.7 Recurring merge, D.1 partial CRUD coverage.
+**Paused**: 2026-05-12 (Session 7 — structural 5.6 + 5.7 done; **5.5 Add Transaction merge** and Phase 6.1 SQLCipher still ahead.)
 
-> To resume: `git checkout release/v5.0.0` (already there), `git push origin release/v5.0.0` and read this file top-to-bottom plus `docs/CHECKLIST.md` and `docs/NEXT_STEPS.md`. The master plan has the full "why" for each phase; this file has "where we are" + "what's left."
+> To resume: `git fetch && git status` (should be clean and in sync), then read this file, `docs/SESSION_7_PLAN.md`, and `docs/CHECKLIST.md`. The next gate is Stage A device smokes (if device available) or Stage B.5 Add Transaction merge (if no device — but B.5 is rated "1 day, HIGHEST RISK" so plan accordingly).
+
+---
+
+## Session 7 — what landed (commits `6bad3c3` → `547b8d6`)
+
+7 commits pushed to `origin/release/v5.0.0`:
+
+| Commit | Phase | What |
+|---|---|---|
+| `6bad3c3` | 5.6.1 | `lib/screens/history/history_grouping.dart` + 15 unit tests — pure functions for `groupByDay`, `groupByCategory`, `sortGroupKeys`, `formatDateHeader*`. Zero behaviour change. |
+| `311c374` | 5.6.2 | `HistoryFilterBar` widget — extracts search field + filter-chip strip. Dumb StatelessWidget; state + debounce stay in parent. |
+| `3544eb1` | 5.6.3 | `HistoryList` + `HistoryEmptyState` widgets — RefreshIndicator + ListView.builder shell with tile-builder callbacks. Parent file shrinks 2306 → 1831 lines. |
+| `f5e12ae` | 5.6.4 | File relocated from `lib/screens/history_screen.dart` to `lib/screens/history/history_screen.dart`. Two caller imports updated (`main.dart`, `home_screen.dart`). |
+| `1445371` | 5.7   | `RecurringItemsScreen` + the two old screens refactored into `recurring/recurring_expenses_view.dart` + `recurring/recurring_income_view.dart` (publicized list widgets + top-level `showAddRecurring*Dialog` helpers). 4 callers updated, 4 widget tests added. |
+| `6b10877` | 7.D1  | `test/integration/app_state_crud_test.dart` — 16 end-to-end mutator tests (addExpense, addIncome, delete-trash flows, account CRUD, category CRUD, setBudget). |
+| `547b8d6` | docs  | `docs/CHECKLIST.md` ticks 5.6 + 5.7 + D.1 partial; notes remaining D.1 gaps. |
+
+**Test count delta**: 1,798 → 1,833 (+35).
+**Preflight**: green on every commit, `flutter analyze` clean.
+**Net file change in `lib/screens/`**: history split keeps the same total LOC but the largest single file (`history_screen.dart`) dropped 475 lines and the feature now lives in a self-contained `history/` subfolder; recurring merge consolidated two `Scaffold` wrappers into one `RecurringItemsScreen`.
+
+## Phase 5 status after session 7
+
+| Sub-phase | Status |
+|---|---|
+| 5.1 Settings | ✅ |
+| 5.2 Wallet | ✅ |
+| 5.3 Budgets | ✅ |
+| 5.4 Analytics | ✅ |
+| **5.5 Add Transaction** | **⏳ STILL DEFERRED — highest-risk structural change. 1380 + 1033 line forms to merge. Plan in `docs/SESSION_7_PLAN.md §5`.** |
+| **5.6 History split** | ✅ Session 7 |
+| **5.7 Recurring merge** | ✅ Session 7 |
+| 5.8 Home polish | ✅ |
+| 5.9 Secondaries (a–j) | ✅ |
+| 5.10 Brand | ✅ |
+| 5.11 Spacing retirement | ✅ |
+
+**5.5 is the only Phase 5 item left.** Once it lands, Phase 5 is done.
+
+## What's still gating `v5.0.0+1` ship
+
+In execution order (per `docs/SESSION_7_PLAN.md`):
+
+1. **Stage A — Device smokes** (Phase 6 validations: PIN migration, FLAG_SECURE, PII redactor, widget redaction, backup round-trip). Requires Android device. 1–2 hours.
+2. **Stage B.5 — Add Transaction merge** (the deferred item above). 1 day. No device required.
+3. **Stage C — SQLCipher migration** (Phase 6.1). 1.5 days. Device required for verification.
+4. **Stage D.1 remainder** — additional mutator coverage (updateExpense/Income, markPaid, restore + emptyTrash, recurring CRUD, template CRUD).
+5. **Stage D.2 — Hero-screen widget tests** with seeded data. Blocked on B.5.
+6. **Stage D.3 — Goldens for 8 hero screens.** Blocked on D.2.
+7. **Stage E — Version bump + CHANGELOG + tag + ship.** 1 day. Device required for post-ship smoke.
+
+If picking up next without a device: start with **Stage B.5** (highest-risk, no device needed). Otherwise start with **Stage A**.
+
+---
 
 ---
 
