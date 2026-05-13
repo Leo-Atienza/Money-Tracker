@@ -66,6 +66,16 @@ dev_dependencies:
   # In-memory SQLite for integration tests (Phase 3b).
   sqflite_common_ffi: ^2.3.3
 
+  # Stage D.2: used by `test/screens/notification_settings_screen_test.dart`
+  # to register a fake platform implementation via MockPlatformInterfaceMixin
+  # so the `late final FlutterLocalNotificationsPlatform.instance` doesn't
+  # throw on first access during widget tests. Both packages are transitive
+  # dependencies of `flutter_local_notifications`; declaring them here
+  # silences the `depend_on_referenced_packages` analyzer info without
+  # changing runtime behaviour.
+  flutter_local_notifications_platform_interface: ^9.1.0
+  plugin_platform_interface: ^2.0.0
+
 flutter:
   uses-material-design: true
 

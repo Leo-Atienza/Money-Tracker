@@ -1,4 +1,3 @@
-import 'package:budget_tracker/database/database_helper.dart';
 import 'package:budget_tracker/models/expense_model.dart';
 import 'package:budget_tracker/providers/app_state.dart';
 import 'package:budget_tracker/screens/analytics_screen.dart';
