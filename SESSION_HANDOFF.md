@@ -1,14 +1,15 @@
 # Session Handoff — v5.0.0 Release Branch
 
-**Branch**: `release/v5.0.0` — pushed to origin at session-7 close. `origin/release/v5.0.0` HEAD is `547b8d6`.
+**Branch**: `release/v5.0.0` — pushed to origin at session-7 close. `origin/release/v5.0.0` HEAD is `373b3fd`. `origin/main` matches.
 **Master plan**: `docs/MASTER_PLAN.md`
 **Per-task checklist**: `docs/CHECKLIST.md`
-**Session 7 playbook**: `docs/SESSION_7_PLAN.md`
+**📍 Forward-looking playbook to finish the app**: **`docs/FINISH_LINE.md`** — read this first. It supersedes `SESSION_7_PLAN.md` with all post-session-7 deltas baked in.
+**Prior plan (superseded)**: `docs/SESSION_7_PLAN.md`
 **Next-steps plan**: `docs/NEXT_STEPS.md`
-**Last committed work at handoff**: session 7 — Phase 5.6 History split (4 commits), Phase 5.7 Recurring merge, D.1 partial CRUD coverage.
+**Last committed work at handoff**: session 7 — Phase 5.6 History split (4 commits), Phase 5.7 Recurring merge, D.1 partial CRUD coverage, strict-mode lint fix.
 **Paused**: 2026-05-12 (Session 7 — structural 5.6 + 5.7 done; **5.5 Add Transaction merge** and Phase 6.1 SQLCipher still ahead.)
 
-> To resume: `git fetch && git status` (should be clean and in sync), then read this file, `docs/SESSION_7_PLAN.md`, and `docs/CHECKLIST.md`. The next gate is Stage A device smokes (if device available) or Stage B.5 Add Transaction merge (if no device — but B.5 is rated "1 day, HIGHEST RISK" so plan accordingly).
+> To resume: `git fetch && git status` (should be clean and in sync), then read `docs/FINISH_LINE.md` top-to-bottom plus this file. The next gate is Stage A device smokes (if device available) or Stage B.5 Add Transaction merge (if no device — rated "1 day, HIGHEST RISK", plan accordingly).
 
 ---
 
