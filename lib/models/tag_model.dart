@@ -1,14 +1,10 @@
 /// Tag model for labeling/categorizing transactions.
 ///
-/// FIX P2-11: FEATURE INCOMPLETE - Tags are defined in the database schema and
-/// loaded in AppState, but the UI for tag management is not yet implemented.
-/// The database has a `tags` table and `transaction_tags` junction table ready.
-///
-/// To complete this feature:
-/// 1. Add TagManagerScreen in lib/screens/ for CRUD operations on tags
-/// 2. Add tag selection UI in AddExpenseScreen/AddIncomeScreen
-/// 3. Add tag filtering in HistoryScreen
-/// 4. Add tag-related methods to AppState (addTag, deleteTag, getTagsForTransaction, etc.)
+/// Tags are loaded in AppState and selectable from AddTransactionScreen
+/// (Phase 5.5 merged the previous AddExpense / AddIncome forms). The
+/// database stores them in `tags` + `transaction_tags`. A dedicated
+/// TagManagerScreen and tag-based history filtering are still open
+/// follow-ups.
 class Tag {
   final int? id;
   final String name;

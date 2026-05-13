@@ -10,7 +10,7 @@ import '../utils/date_helper.dart';
 import '../utils/premium_animations.dart' show PremiumPageRoute, AnimatedCounter;
 import '../widgets/category_tile.dart';
 import '../widgets/luminous/glass_surface.dart';
-import 'add_expense_screen.dart';
+import 'add_transaction_screen.dart';
 import 'add_payment_dialog.dart';
 import 'history/history_screen.dart';
 import 'settings_screen.dart';
@@ -294,7 +294,11 @@ class HomeScreen extends StatelessWidget {
                           onTap: () {
                             Navigator.push(
                               context,
-                              PremiumPageRoute(page: const AddExpenseScreen()),
+                              PremiumPageRoute(
+                                page: const AddTransactionScreen(
+                                  initialType: TransactionType.expense,
+                                ),
+                              ),
                             );
                           },
                           behavior: HitTestBehavior.opaque,
@@ -792,7 +796,12 @@ class _GlassHomeExpenseTile extends StatelessWidget {
           onLongPress: () {
             Navigator.push(
               context,
-              PremiumPageRoute(page: AddExpenseScreen(expense: expense)),
+              PremiumPageRoute(
+                page: AddTransactionScreen(
+                  initialType: TransactionType.expense,
+                  expense: expense,
+                ),
+              ),
             );
           },
           child: Padding(

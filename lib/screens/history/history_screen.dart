@@ -14,8 +14,7 @@ import '../../utils/progress_indicator_helper.dart';
 import '../../utils/premium_animations.dart';
 import '../../widgets/category_tile.dart';
 import '../../widgets/loading_skeleton.dart';
-import '../add_expense_screen.dart';
-import '../add_income_screen.dart';
+import '../add_transaction_screen.dart';
 import '../add_payment_dialog.dart';
 import 'history_filter_bar.dart';
 import 'history_list.dart';
@@ -219,7 +218,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => AddExpenseScreen(expense: expense),
+      builder: (context) => AddTransactionScreen(
+        initialType: TransactionType.expense,
+        expense: expense,
+      ),
     );
   }
 
@@ -227,7 +229,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddIncomeScreen(income: income),
+        builder: (context) => AddTransactionScreen(
+          initialType: TransactionType.income,
+          income: income,
+        ),
       ),
     );
   }
@@ -1809,13 +1814,21 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         // — pushNamed silently fails. Use the typed PremiumPageRoute instead.
         Navigator.push(
           context,
-          PremiumPageRoute(page: const AddExpenseScreen()),
+          PremiumPageRoute(
+            page: const AddTransactionScreen(
+              initialType: TransactionType.expense,
+            ),
+          ),
         );
       },
       onAddIncome: () {
         Navigator.push(
           context,
-          PremiumPageRoute(page: const AddIncomeScreen()),
+          PremiumPageRoute(
+            page: const AddTransactionScreen(
+              initialType: TransactionType.income,
+            ),
+          ),
         );
       },
     );
