@@ -46,7 +46,14 @@ For a detailed user manual and technical documentation, please refer to [DOCUMEN
     flutter pub get
     ```
 
-3.  **Run the app**
+3.  **Bootstrap Firebase config** — per-platform Firebase files are git-ignored. Generate them locally with:
+    ```bash
+    dart pub global activate flutterfire_cli
+    flutterfire configure
+    ```
+    See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for the required Google Cloud Console key restrictions.
+
+4.  **Run the app**
     ```bash
     flutter run
     ```
