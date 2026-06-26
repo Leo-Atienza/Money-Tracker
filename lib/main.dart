@@ -177,7 +177,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Future<void> _handlePaused() async {
     if (!mounted || !context.mounted) return;
     final appState = context.read<AppState>();
-    appState.lock();
+    // Only arm the lock gate when a PIN is actually configured. `_isLocked`
+    // is the single source of truth the resume handler re-presents against,
+    // so locking without a PIN would trap the user on an unlock screen they
+    // can't pass. `initializeLockState` and the inactivity timer already gate
+    // on pinEnabled — keep `_handlePaused` consistent so `isLocked == true`
+    // always implies a PIN exists.
+    if (await appState.isPinEnabled()) {
+      appState.lock();
+    }
     try {
       // Update the home-screen widget with the latest financial summary
       // while the DB is still open. Any failure here is logged but does
@@ -331,6 +339,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     with WidgetsBindingObserver, TickerProviderStateMixin {
   int _currentIndex = 0;
   bool _hasCheckedNotificationPayload = false;
+
+  /// Re-entrancy guard for [_checkPinLock]. Since the unlock gate is now
+  /// re-presented on every resume (not just cold start), a second resume
+  /// while [PinUnlockScreen] is already on the stack must not push a
+  /// duplicate. Set immediately before the push, cleared in `finally`.
+  bool _pinRouteActive = false;
 
   /// Phase 3.2: subscription to the AppState recurring-batch stream. One
   /// snackbar per emitted batch — no more "first batch wins, second batch
@@ -486,17 +500,29 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     if (state == AppLifecycleState.resumed) {
       _hasCheckedNotificationPayload = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _checkPendingNotification();
+        if (!mounted) return;
+        _checkPendingNotification();
+        // Re-present the PIN gate if the app locked while backgrounded or
+        // while the inactivity timer tripped. Without this, auto-lock never
+        // fires on the common process-alive resume path and all financial
+        // data stays visible without re-entering the PIN. `_checkPinLock`
+        // no-ops when the app isn't locked and is re-entrancy guarded.
+        _checkPinLock();
       });
     }
   }
 
-  /// Check if app needs to show PIN unlock screen
+  /// Check if app needs to show PIN unlock screen. Invoked on cold start and
+  /// on every resume, so it is guarded against re-entrant presentation.
   Future<void> _checkPinLock() async {
     if (!mounted) return;
+    if (_pinRouteActive) return;
 
     final appState = context.read<AppState>();
-    if (appState.isLocked) {
+    if (!appState.isLocked) return;
+
+    _pinRouteActive = true;
+    try {
       final unlocked = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
@@ -511,6 +537,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
         // User didn't unlock, exit the app
         SystemNavigator.pop();
       }
+    } finally {
+      _pinRouteActive = false;
     }
   }
 
