@@ -254,6 +254,22 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           : themeMode == 'dark'
               ? ThemeMode.dark
               : ThemeMode.system,
+      // The Luminous design assumes an OrganicBlobBackground behind every
+      // screen. Painting it here — below the Navigator but inside the Theme
+      // scope — gives EVERY route the correct light/dark backdrop. Pushed
+      // routes (Settings, Budgets, Onboarding, PIN, …) use transparent
+      // Scaffolds and PremiumPageRoute is opaque, so before this they fell
+      // through to a black window background with low-contrast glass/text.
+      // The nav-tab screens render over this too (MainNavigationScreen no
+      // longer paints its own copy).
+      builder: (context, child) {
+        return Stack(
+          children: [
+            const Positioned.fill(child: OrganicBlobBackground()),
+            if (child != null) child,
+          ],
+        );
+      },
       home: FutureBuilder<bool>(
         future: _onboardingFuture,
         builder: (context, snapshot) {
@@ -572,7 +588,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
           body: Stack(
             fit: StackFit.expand,
             children: [
-              const Positioned.fill(child: OrganicBlobBackground()),
+              // OrganicBlobBackground is now painted globally in
+              // MyApp.build via MaterialApp.builder, so every route (not
+              // just the nav tabs) gets it. No local copy needed here.
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: IndexedStack(index: _currentIndex, children: _screens),
