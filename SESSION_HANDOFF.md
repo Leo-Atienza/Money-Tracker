@@ -1,5 +1,36 @@
 # Session Handoff — v5.0.0 Release Branch
 
+---
+
+## ⭐ Session 10 (2026-06-26) — autonomous audit + fix arc (READ THIS FIRST; supersedes older sections)
+
+**Branch**: `release/v5.0.0`. Started at `1efcd72` (session-9 D.2 hero widget tests, which the older sections below do NOT reflect). NOT yet pushed to origin this session.
+
+**Environment unlocked this session**: Android emulator `emulator-5554` (Pixel-class, API 36) is available and was used for real device verification via the `mobile` MCP + `adb` at `C:/Users/leooa/AppData/Local/Android/Sdk/platform-tools/adb.exe`. **This removes the "no device" blocker** that deferred Stage A / SQLCipher / perf for 9 sessions. The emulator currently has the app installed (debug) with **App PIN = `1234`** set (leftover from H1 verification — disable it in Settings or `adb uninstall com.moneytracker.app` for a clean visual pass).
+
+### What landed (commits this session, all device- or preflight-verified)
+1. `20a5d57` **fix(test)**: de-rotted a wall-clock-fragile test. The full suite was RED at session start (`1892 pass / 1 fail`) — `app_state_crud_test.dart` "date moves across months" hardcoded April/May 2026 dates that fell out of `AppState`'s 2-month in-memory window (`_loadExpensesInternal`, keyed off `DateHelper.today()`) once the calendar passed May. Anchored to `today()`. Green: **1893 pass / 3 skipped**.
+2. `6a14555` **fix(ui)**: SYSTEMIC black-background regression. `OrganicBlobBackground` lived ONLY inside `MainNavigationScreen`'s Stack, but ~14 screens (onboarding, PIN setup/unlock, and every pushed child screen — Settings, Budgets, Category Manager, Trash, Export, Backup, Crash Log, Recurring, Quick Templates, Notification Settings) use transparent Scaffolds and assumed a global blob that never existed. `PremiumPageRoute` is opaque → those screens rendered on a **black window background** with near-illegible dark-on-dark glass/text. Fixed by painting the blob once in `MyApp.build` via `MaterialApp.builder` (below Navigator, inside Theme); removed the redundant MainNav copy. **Verified on emulator**: onboarding, Home, Settings, PIN setup all render the light blob with legible glass. (Never caught before because device smokes were never run + widget tests build their own MaterialApp.)
+3. **(pending commit, preflight running)** `fix(security)` H1: app never re-locked on resume. `_checkPinLock` ran only at cold start; after background→foreground (process alive) or inactivity timeout, `_isLocked=true` but the unlock screen was never re-presented → all financial data visible without the PIN. Added a resume re-check + re-entrancy guard, and gated `_handlePaused`'s `lock()` on `isPinEnabled` (so a PIN-less user is never trapped). **Verified end-to-end on emulator**: set PIN 1234 → HOME → `am start` (live resume, "task brought to front") → unlock screen re-appeared → 1234 unlocks. FLAG_SECURE also confirmed (screenshot black while locked).
+
+### The big deliverable: `docs/AUDIT_FINDINGS_2026-06.md`
+A 10-dimension adversarial Workflow audit (86 agents, every finding refute-verified) produced **62 confirmed findings** (0 critical, 2 high, 19 medium, 41 low). Full prioritized list with file:line + surgical fix per finding is in that doc. The blob regression + H1 + the wall-clock test are already fixed and NOT in the list.
+
+### Recommended next-session order (all now device-verifiable)
+1. **H2 (HIGH)** — PIN is single-round SHA-256; migrate to PBKDF2 (100k iters, already used by `BackupCrypto`) with migrate-on-verify. `lib/utils/pin_security_helper.dart:230`. Needs async refactor of `_hashPinWithSalt` + device test of set/verify/legacy-upgrade.
+2. **M17/M18/M19 (notifications actually work)** — taps never routed (no response callback registered; payloads never attached → whole nav pipeline dead); "Reminder Time" setting cosmetic (hardcoded 09:00); toggling a reminder doesn't schedule until next load. All surgical, specified in the audit doc. `notification_helper.dart` + `app_state.dart`.
+3. **A11y cluster (M8–M12)** — unlabeled icon buttons, <48dp targets, no textScaler clamp, swipe-delete has no a11y equivalent. Play-Store quality bar.
+4. **M1** — `addPayment` auto-rounds sub-10¢ to "fully paid" → records money never paid (money correctness). Confirm intent vs fix.
+5. **Perf (M3–M7)** — PDF/CSV on UI isolate (compute()), analytics O(n·m) rebuild, history non-virtualized groups + per-tile controllers, GlassPanel RepaintBoundary.
+6. Then the pre-existing roadmap: **6.1 SQLCipher** (now device-testable), **D.3 goldens**, **8.2 perf pass**, **8.4 version bump + CHANGELOG**, **8.5 ship**. See `docs/FINISH_LINE.md`.
+
+### Notes for next session
+- `DateHelper.today()` uses raw `DateTime.now()` but `_selectedMonth` uses `Clock.instance` — a time-source inconsistency worth reconciling (and it makes the month-window untestable via Clock injection). Low priority but real.
+- Money is `Decimal` in Dart but stored as `REAL` in SQLite — "INTEGER cents" migration is explicitly v5.1 (out of scope).
+- Two preflight runs this session were green at 1893 pass / 3 skipped. `flutter analyze` clean throughout.
+
+---
+
 **Branch**: `release/v5.0.0` — pushed to origin during session-8. `origin/main` is fast-forwarded to the same SHA.
 **Master plan**: `docs/MASTER_PLAN.md`
 **Per-task checklist**: `docs/CHECKLIST.md`
