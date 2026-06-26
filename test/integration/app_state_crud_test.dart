@@ -356,17 +356,24 @@ void main() {
 
     test('editing the date moves the row across months', () async {
       final state = await bootstrap();
-      final start = DateHelper.normalize(DateTime(2026, 4, 15));
-      final later = DateHelper.normalize(DateTime(2026, 5, 15));
+      // Anchor to the in-memory window (previous + current month) rather than
+      // fixed calendar dates. `allExpenses` (= `_expenses`) only holds the
+      // months loaded by `_loadExpensesInternal`, which is keyed off the real
+      // wall-clock month. Hardcoded dates (e.g. 2026-04 / 2026-05) silently
+      // rot out of the window once the suite runs in a later month, so derive
+      // both endpoints from `today()` to keep the row resident.
+      final now = DateHelper.today();
+      final prev = DateHelper.subtractMonths(now, 1);
+      final start = DateHelper.normalize(DateTime.utc(prev.year, prev.month, 15));
+      final later = DateHelper.normalize(DateTime.utc(now.year, now.month, 15));
 
       final id = await state.addExpense(
         makeExpense(state, amount: 50, date: start),
       );
-      // Use `allExpenses` (the unfiltered cache) — `state.expenses` is
-      // filtered by `selectedMonth`, which doesn't include April when
-      // the harness boots in the current month.
+      // Use `allExpenses` (the windowed cache) — `state.expenses` is filtered
+      // by `selectedMonth`, which doesn't include the previous month.
       final original = state.allExpenses.firstWhere((e) => e.id == id);
-      expect(original.date.month, 4);
+      expect(original.date.month, prev.month);
 
       await state.updateExpense(
         Expense(
@@ -382,7 +389,7 @@ void main() {
       );
 
       final updated = state.allExpenses.firstWhere((e) => e.id == id);
-      expect(updated.date.month, 5,
+      expect(updated.date.month, now.month,
           reason: 'date-edit must persist on the underlying row');
       expect(updated.amount, closeTo(original.amount, 0.001),
           reason: 'date edit must not touch the amount');
