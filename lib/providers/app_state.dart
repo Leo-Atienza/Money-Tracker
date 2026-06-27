@@ -23,6 +23,7 @@ import '../services/onboarding_service.dart';
 import '../utils/pin_security_helper.dart';
 import '../utils/secure_window.dart';
 import '../utils/home_widget_helper.dart';
+import '../utils/crash_log.dart';
 import 'dart:async';
 
 class AppState extends ChangeNotifier {
@@ -57,6 +58,13 @@ class AppState extends ChangeNotifier {
   bool _isInitialized = false;
   bool get isOnboardingComplete => _isOnboardingComplete;
   bool get isInitialized => _isInitialized;
+
+  // M17: surface a failed initial load so the UI can show a "tap to retry"
+  // affordance instead of a silently blank/stale Home. Set in the catch of
+  // _loadDataInternal; cleared on a successful load.
+  Object? _lastLoadError;
+  Object? get lastLoadError => _lastLoadError;
+  bool get hasLoadError => _lastLoadError != null;
 
   int _lastAutoCreatedCount = 0;
   int get lastAutoCreatedCount => _lastAutoCreatedCount;
@@ -319,39 +327,60 @@ class AppState extends ChangeNotifier {
     _backgroundProcessingEpoch++;
     _categoryRenameInProgress = false;
 
-    _isOnboardingComplete = await _onboardingService.isOnboardingComplete();
+    // M17: loadData() is fire-and-forget from main.dart and the resume handler.
+    // Pre-fix, a throw from any loader / _autoRolloverBudgets /
+    // _calculateAndStoreCarryover skipped _safeNotify() entirely, leaving an
+    // empty/stale Home with no error and no retry. Now we always notify (in
+    // finally) with whatever loaded and record the error for the UI to surface.
+    try {
+      _isOnboardingComplete = await _onboardingService.isOnboardingComplete();
 
-    await _loadSettings();
-    await _loadAccounts();
+      await _loadSettings();
+      await _loadAccounts();
 
-    await Future.wait([
-      _loadCategories(),
-      _loadExpenses(),
-      _loadIncomes(),
-      _loadBudgets(),
-      _loadQuickTemplates(),
-      _loadRecurringExpenses(),
-      _loadRecurringIncomes(),
-      _loadTags(),
-      _loadMonthlyBalances(),
-    ]);
+      await Future.wait([
+        _loadCategories(),
+        _loadExpenses(),
+        _loadIncomes(),
+        _loadBudgets(),
+        _loadQuickTemplates(),
+        _loadRecurringExpenses(),
+        _loadRecurringIncomes(),
+        _loadTags(),
+        _loadMonthlyBalances(),
+      ]);
 
-    // FIX: Simplified null check - no need to check _currentAccount twice
-    if (_categories.isEmpty && _currentAccount?.id != null) {
-      await _createDefaultCategoriesForAccount(_currentAccount!.id!);
-      await _loadCategories();
+      // FIX: Simplified null check - no need to check _currentAccount twice
+      if (_categories.isEmpty && _currentAccount?.id != null) {
+        await _createDefaultCategoriesForAccount(_currentAccount!.id!);
+        await _loadCategories();
+      }
+
+      await _autoRolloverBudgets();
+      await _calculateAndStoreCarryover();
+
+      _isInitialized = true;
+      _lastLoadError = null;
+    } catch (e, st) {
+      _lastLoadError = e;
+      if (kDebugMode) debugPrint('loadData failed: $e');
+      // Preserve the diagnostic trail we'd otherwise swallow by catching.
+      CrashLog.record(e, stack: st, context: 'loadData');
+    } finally {
+      _safeNotify();
     }
 
-    await _autoRolloverBudgets();
-    await _calculateAndStoreCarryover();
-
-    _isInitialized = true;
-    _safeNotify();
-
-    // Update home screen widget with latest data
+    // Update home screen widget with latest data (best-effort, already guarded).
     _updateHomeWidget();
 
     _processRecurringInBackground();
+  }
+
+  /// M17: re-run the initial load after a failure surfaced via [hasLoadError].
+  Future<void> retryLoadData() async {
+    _lastLoadError = null;
+    _safeNotify();
+    await loadData();
   }
 
   /// Update the home screen widget with current financial summary
@@ -453,7 +482,19 @@ class AppState extends ChangeNotifier {
   Future<void> _scheduleAllBillReminders() async {
     for (final recurring in _recurringExpenses) {
       if (recurring.shouldBeActive && recurring.id != null) {
-        await _notificationHelper.scheduleBillReminder(recurring, currencySymbol: currency);
+        await _notificationHelper.scheduleBillReminder(recurring, currencySymbol: currency, reminderTime: _reminderTime);
+      }
+    }
+  }
+
+  /// M21: cancel every scheduled bill reminder for the current account's
+  /// recurring expenses. Uses per-feature cancel IDs (NOT cancelAll) so
+  /// toggling bill reminders off never wipes budget/monthly notifications.
+  Future<void> _cancelAllBillReminders() async {
+    for (final recurring in _recurringExpenses) {
+      final id = recurring.id;
+      if (id != null) {
+        await _notificationHelper.cancelBillReminder(id);
       }
     }
   }
@@ -723,9 +764,17 @@ class AppState extends ChangeNotifier {
         _monthlyBalances[_monthKey(balance.month)] = balance;
       }
       await _loadExpensesInternal();
-      await _checkBudgetAlerts(expense.category);
       _safeNotify();
       _updateHomeWidget();
+      // M18: budget-alert dispatch runs AFTER the UI is refreshed and is
+      // wrapped so a throwing notifications plugin (revoked permission, OEM
+      // quirk) can't reject the addExpense future — the expense is already
+      // committed; failing here would show a false error and risk a dup entry.
+      try {
+        await _checkBudgetAlerts(expense.category);
+      } catch (e) {
+        if (kDebugMode) debugPrint('Budget alert dispatch failed: $e');
+      }
       return expenseId;
     });
   }
@@ -1739,7 +1788,7 @@ class AppState extends ChangeNotifier {
       final recurringId = recurring.id;
       if (recurringId != null) {
         if (recurring.isActive && _billRemindersEnabled) {
-          await _notificationHelper.scheduleBillReminder(recurring, currencySymbol: currency);
+          await _notificationHelper.scheduleBillReminder(recurring, currencySymbol: currency, reminderTime: _reminderTime);
         } else {
           await _notificationHelper.cancelBillReminder(recurringId);
         }
@@ -1844,6 +1893,7 @@ class AppState extends ChangeNotifier {
         await _notificationHelper.rescheduleEndOfMonthBillReminders(
           activeRecurring,
           currencySymbol: currency,
+          reminderTime: _reminderTime,
         );
       } catch (e) {
         if (kDebugMode) {
@@ -2178,9 +2228,43 @@ class AppState extends ChangeNotifier {
   Future<void> toggleDarkMode() async { _isDarkMode = !_isDarkMode; await SettingsHelper.setDarkMode(_isDarkMode); _safeNotify(); }
   Future<void> setThemeMode(String mode) async { _themeMode = mode; _isDarkMode = mode == 'dark'; await SettingsHelper.setThemeMode(mode); _safeNotify(); }
   Future<void> changeCurrency(String code) async { await _writeMutex.synchronized(() async { _currencyCode = code; if (_currentAccount != null) await _db.updateAccount(_currentAccount!.copyWith(currencyCode: code)); _safeNotify(); }); }
-  Future<void> toggleBillReminders(bool value) async { _billRemindersEnabled = value; await SettingsHelper.setBillReminders(value); _safeNotify(); }
+  Future<void> toggleBillReminders(bool value) async {
+    _billRemindersEnabled = value;
+    await SettingsHelper.setBillReminders(value);
+    _safeNotify();
+    // M21: schedule/cancel immediately. Pre-fix, enabling did nothing until the
+    // next background pass and disabling never cancelled (stale notifications
+    // kept firing). Notification I/O is best-effort — never block the toggle.
+    try {
+      if (value) {
+        if (await _notificationHelper.areNotificationsEnabled()) {
+          await _scheduleAllBillReminders();
+        }
+      } else {
+        await _cancelAllBillReminders();
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('toggleBillReminders scheduling failed: $e');
+    }
+  }
   Future<void> toggleBudgetAlerts(bool value) async { _budgetAlertsEnabled = value; await SettingsHelper.setBudgetAlerts(value); _safeNotify(); }
-  Future<void> toggleMonthlySummary(bool value) async { _monthlySummaryEnabled = value; await SettingsHelper.setMonthlySummary(value); _safeNotify(); }
+  Future<void> toggleMonthlySummary(bool value) async {
+    _monthlySummaryEnabled = value;
+    await SettingsHelper.setMonthlySummary(value);
+    _safeNotify();
+    // M21: schedule/cancel immediately, mirroring toggleBillReminders.
+    try {
+      if (value) {
+        if (await _notificationHelper.areNotificationsEnabled()) {
+          await _notificationHelper.scheduleMonthlyReports();
+        }
+      } else {
+        await _notificationHelper.cancelMonthlyReports();
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('toggleMonthlySummary scheduling failed: $e');
+    }
+  }
   Future<void> toggleShowTransactionColors(bool value) async { _showTransactionColors = value; await SettingsHelper.setShowTransactionColors(value); _safeNotify(); }
   Future<void> setTransactionColorIntensity(double value) async { _transactionColorIntensity = value.clamp(0.0, 1.0); await SettingsHelper.setTransactionColorIntensity(_transactionColorIntensity); _safeNotify(); }
   Future<void> setReminderTime(TimeOfDay time) async { _reminderTime = time; await SettingsHelper.setReminderHour(time.hour); await SettingsHelper.setReminderMinute(time.minute); _safeNotify(); }

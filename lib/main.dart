@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'providers/app_state.dart';
 import 'theme/app_colors.dart';
@@ -47,18 +46,9 @@ Future<String> _resolveAppVersion() async {
   }
 }
 
-// Top-level function for notification tap handling
-@pragma('vm:entry-point')
-void notificationTapBackground(NotificationResponse notificationResponse) {
-  // FIX: Handle notification taps when app is in background
-  // Store the payload so we can navigate when the app resumes
-  NotificationPayloadStore.storePendingPayload(notificationResponse.payload);
-  if (kDebugMode) {
-    debugPrint(
-      'Notification tapped in background: ${notificationResponse.payload}',
-    );
-  }
-}
+// The background notification-tap handler `notificationTapBackground` lives in
+// `utils/notification_payload_store.dart` so `NotificationHelper` can wire it
+// without importing this entrypoint. It is imported above and used by both.
 
 void main() {
   // FIX Phase 3a: Wrap the entire startup in `runZonedGuarded` so any async

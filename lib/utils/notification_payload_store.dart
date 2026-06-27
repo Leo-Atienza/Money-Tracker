@@ -1,6 +1,23 @@
 import 'dart:convert';
 
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// Top-level background-isolate handler for notification taps.
+///
+/// Must be a top-level function annotated with `@pragma('vm:entry-point')`
+/// so the engine can resolve it across the isolate boundary when the app is
+/// terminated/backgrounded. It cannot navigate (no live UI), so it just
+/// persists the payload; the foreground reads it back via
+/// [NotificationPayloadStore.consumePendingPayloads] on resume.
+///
+/// Lives here (not in `main.dart`) so [NotificationHelper] can wire it into
+/// `flutter_local_notifications` without importing the app entrypoint (a
+/// forbidden self-import).
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse response) {
+  NotificationPayloadStore.storePendingPayload(response.payload);
+}
 
 /// Stores notification payloads for background tap handling.
 ///

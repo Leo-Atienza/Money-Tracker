@@ -1,3 +1,4 @@
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:budget_tracker/utils/notification_payload_store.dart';
@@ -7,6 +8,39 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+  });
+
+  // M19: the background-isolate tap handler must persist the payload so the
+  // foreground can route it on resume. Pre-fix this handler was unreachable
+  // (never wired into flutter_local_notifications.initialize).
+  group('notificationTapBackground', () {
+    test('persists the tapped payload to the queue', () async {
+      notificationTapBackground(
+        const NotificationResponse(
+          notificationResponseType:
+              NotificationResponseType.selectedNotification,
+          payload: 'recurring_expenses',
+        ),
+      );
+      // Handler stores asynchronously; give the microtask/IO a turn.
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(
+        await NotificationPayloadStore.consumePendingPayload(),
+        'recurring_expenses',
+      );
+    });
+
+    test('null payload from a tap is a no-op', () async {
+      notificationTapBackground(
+        const NotificationResponse(
+          notificationResponseType:
+              NotificationResponseType.selectedNotification,
+          payload: null,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(await NotificationPayloadStore.consumePendingPayload(), isNull);
+    });
   });
 
   group('storePendingPayload', () {

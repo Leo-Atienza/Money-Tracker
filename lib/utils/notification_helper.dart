@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -6,6 +7,10 @@ import 'package:timezone/data/latest.dart' as tz;
 import '../models/recurring_expense_model.dart';
 import '../models/budget_model.dart';
 import 'clock.dart';
+import 'notification_payload_store.dart';
+
+/// Default time-of-day for bill reminders when the user hasn't set one.
+const TimeOfDay _defaultReminderTime = TimeOfDay(hour: 9, minute: 0);
 
 class NotificationHelper {
   static final NotificationHelper _instance = NotificationHelper._internal();
@@ -86,7 +91,18 @@ class NotificationHelper {
       iOS: iosSettings,
     );
 
-    await _notifications.initialize(initSettings);
+    // M19: wire BOTH tap callbacks so notification taps are actually routed.
+    // Foreground/just-resumed taps land in `onDidReceiveNotificationResponse`;
+    // taps that wake a terminated app land in the background isolate handler.
+    // Both persist the payload to `NotificationPayloadStore`, which the
+    // foreground drains via `_checkPendingNotification` on resume.
+    await _notifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (response) {
+        NotificationPayloadStore.storePendingPayload(response.payload);
+      },
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
+    );
     _initialized = true;
   }
 
@@ -147,7 +163,11 @@ class NotificationHelper {
 
   // ========== BILL REMINDERS ==========
 
-  Future<void> scheduleBillReminder(RecurringExpense expense, {String currencySymbol = '\$'}) async {
+  Future<void> scheduleBillReminder(
+    RecurringExpense expense, {
+    String currencySymbol = '\$',
+    TimeOfDay reminderTime = _defaultReminderTime,
+  }) async {
     if (!expense.isActive || expense.id == null) return;
 
     await initialize();
@@ -219,8 +239,12 @@ class NotificationHelper {
       // scheduled. `rescheduleEndOfMonthBillReminders` calls this on every
       // recurring-processor run; without the skip we would cancel+rebook the
       // same notification on every app start.
-      final reminderTime = reminderDate.copyWith(hour: 9, minute: 0);
-      final reminderEpoch = reminderTime.millisecondsSinceEpoch;
+      // M20: honor the user's configured reminder time instead of hardcoding 09:00.
+      final scheduledFor = reminderDate.copyWith(
+        hour: reminderTime.hour,
+        minute: reminderTime.minute,
+      );
+      final reminderEpoch = scheduledFor.millisecondsSinceEpoch;
       final prefs = await SharedPreferences.getInstance();
       final storedEpoch = prefs.getInt(_eomBillKey(expenseId));
       if (storedEpoch == reminderEpoch) {
@@ -238,11 +262,13 @@ class NotificationHelper {
         _billReminderIdBase + expenseId,
         '💡 Bill Reminder',
         '${expense.description} ($currencySymbol${expense.amount.toStringAsFixed(2)}) due tomorrow',
-        tz.TZDateTime.from(reminderTime, tz.local),
+        tz.TZDateTime.from(scheduledFor, tz.local),
         billReminderDetails,
         androidScheduleMode: canUseExact
             ? AndroidScheduleMode.exactAllowWhileIdle
             : AndroidScheduleMode.inexactAllowWhileIdle,
+        // M19: route taps to the recurring-items screen.
+        payload: 'recurring_expenses',
         // NO matchDateTimeComponents - this is a one-time notification
       );
 
@@ -258,11 +284,20 @@ class NotificationHelper {
         _billReminderIdBase + expenseId,
         '💡 Bill Reminder',
         '${expense.description} ($currencySymbol${expense.amount.toStringAsFixed(2)}) due tomorrow',
-        tz.TZDateTime.from(reminderDate.copyWith(hour: 9, minute: 0), tz.local),
+        // M20: honor the user's configured reminder time instead of 09:00.
+        tz.TZDateTime.from(
+          reminderDate.copyWith(
+            hour: reminderTime.hour,
+            minute: reminderTime.minute,
+          ),
+          tz.local,
+        ),
         billReminderDetails,
         androidScheduleMode: canUseExact
             ? AndroidScheduleMode.exactAllowWhileIdle
             : AndroidScheduleMode.inexactAllowWhileIdle,
+        // M19: route taps to the recurring-items screen.
+        payload: 'recurring_expenses',
         matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime,
       );
     }
@@ -298,6 +333,7 @@ class NotificationHelper {
   Future<void> rescheduleEndOfMonthBillReminders(
     List<RecurringExpense> recurringExpenses, {
     String currencySymbol = '\$',
+    TimeOfDay reminderTime = _defaultReminderTime,
   }) async {
     if (recurringExpenses.isEmpty) return;
     await initialize();
@@ -306,7 +342,11 @@ class NotificationHelper {
         if (!recurring.isActive) continue;
         if (recurring.id == null) continue;
         if (recurring.dayOfMonth < 29) continue; // only end-of-month bills
-        await scheduleBillReminder(recurring, currencySymbol: currencySymbol);
+        await scheduleBillReminder(
+          recurring,
+          currencySymbol: currencySymbol,
+          reminderTime: reminderTime,
+        );
       } catch (e) {
         if (kDebugMode) {
           debugPrint(
@@ -366,6 +406,8 @@ class NotificationHelper {
         ),
         iOS: const DarwinNotificationDetails(),
       ),
+      // M19: route taps to the budgets view.
+      payload: 'budget_alert:${budget.id ?? 0}',
     );
   }
 
