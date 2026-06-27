@@ -779,6 +779,12 @@ class DatabaseHelper {
         databaseNameOverride ?? _defaultDatabaseName,
       ));
       if (await live.exists()) {
+        // L29: flush committed WAL pages into the main .db before the
+        // single-file copy. On Android sqflite defaults to WAL journal mode,
+        // where recent committed pages live in the `-wal` sidecar — copying
+        // only the .db would yield a stale/torn snapshot. Still inside the
+        // try so it stays non-fatal (the backup is a nice-to-have).
+        await db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
         backupFile = File('${live.path}.v18-backup');
         await live.copy(backupFile.path);
       }
@@ -1449,46 +1455,16 @@ class DatabaseHelper {
       rethrow;
     }
 
-    // FIX: Delete orphaned tags in batches to prevent OOM
-    const batchSize = 500;
-
-    // Batch delete tags for expenses
-    int tagExpenseOffset = 0;
-    while (true) {
-      final expenseIdsBatch = await db.query(
-        'expenses',
-        columns: ['id'],
-        where: 'account_id = ?',
-        whereArgs: [id],
-        limit: batchSize,
-        offset: tagExpenseOffset,
-      );
-      if (expenseIdsBatch.isEmpty) break;
-
-      for (final expenseRow in expenseIdsBatch) {
-        await db.delete('transaction_tags', where: 'transaction_id = ? AND transaction_type = ?', whereArgs: [expenseRow['id'], 'expense']);
-      }
-      tagExpenseOffset += batchSize;
-    }
-
-    // Batch delete tags for income
-    int tagIncomeOffset = 0;
-    while (true) {
-      final incomeIdsBatch = await db.query(
-        'income',
-        columns: ['id'],
-        where: 'account_id = ?',
-        whereArgs: [id],
-        limit: batchSize,
-        offset: tagIncomeOffset,
-      );
-      if (incomeIdsBatch.isEmpty) break;
-
-      for (final incomeRow in incomeIdsBatch) {
-        await db.delete('transaction_tags', where: 'transaction_id = ? AND transaction_type = ?', whereArgs: [incomeRow['id'], 'income']);
-      }
-      tagIncomeOffset += batchSize;
-    }
+    // L28: the standalone, autocommit transaction_tags batch-purge that used
+    // to run here was both redundant and non-atomic — if the process was
+    // killed after it stripped tag links but before the final transaction
+    // deleted the rows, live transactions were left with their tag
+    // associations silently removed. The AFTER-DELETE triggers
+    // `trg_transaction_tags_cleanup_expense` / `_income` (created above and in
+    // the v18->v19 migration) already purge the junction rows atomically when
+    // `txn.delete('expenses'/'income', ...)` runs inside the transaction
+    // below, so dropping the pre-purge closes the inconsistency window with
+    // no loss of coverage.
 
     // Delete all associated data atomically
     return await db.transaction((txn) async {
@@ -3769,6 +3745,15 @@ class DatabaseHelper {
           final category = map['category'];
           final month = map['month'];
           if (category is! String || month is! String) {
+            stats.rowsSkipped++;
+            continue;
+          }
+          // L31 (Phase 4.9: reject malformed months early): budgets.month is
+          // string-compared with `LIKE 'YYYY-MM%'` / range filters elsewhere,
+          // so a hand-edited/corrupt backup month like 'garbage' or '99999-13'
+          // would insert a permanently-invisible budget row. Mirror the date
+          // validation applied to expense/income rows.
+          if (!RegExp(r'^\d{4}-\d{2}').hasMatch(month)) {
             stats.rowsSkipped++;
             continue;
           }
