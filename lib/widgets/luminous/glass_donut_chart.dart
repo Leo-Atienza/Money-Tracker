@@ -53,7 +53,7 @@ class GlassDonutChart extends StatelessWidget {
       width: size,
       height: size,
       child: CustomPaint(
-        painter: _DonutPainter(
+        painter: DonutPainter(
           slices: slices,
           thickness: thickness,
           sliceGap: sliceGap,
@@ -67,13 +67,17 @@ class GlassDonutChart extends StatelessWidget {
   }
 }
 
-class _DonutPainter extends CustomPainter {
+/// Painter for [GlassDonutChart]. Public + `@visibleForTesting` only so the
+/// [shouldRepaint] contract can be asserted directly in unit tests; treat it
+/// as private to this library otherwise.
+@visibleForTesting
+class DonutPainter extends CustomPainter {
   final List<DonutSlice> slices;
   final double thickness;
   final double sliceGap;
   final Color trackColor;
 
-  _DonutPainter({
+  DonutPainter({
     required this.slices,
     required this.thickness,
     required this.sliceGap,
@@ -113,7 +117,7 @@ class _DonutPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _DonutPainter oldDelegate) {
+  bool shouldRepaint(covariant DonutPainter oldDelegate) {
     if (oldDelegate.thickness != thickness ||
         oldDelegate.sliceGap != sliceGap ||
         oldDelegate.trackColor != trackColor ||

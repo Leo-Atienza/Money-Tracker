@@ -35,6 +35,11 @@ void main() {
   // would be exercising a different code path, so assert the precondition.
   final bool runningOnAndroid = Platform.isAndroid;
 
+  // The Android-branch tests below drive the SDK 29/30/33 paths through the
+  // @visibleForTesting seams. Always clear them so an override never leaks
+  // into the non-Android contract tests above.
+  tearDown(PermissionHelper.debugResetForTest);
+
   group('PermissionHelper.requestStoragePermission (non-Android host)', () {
     testWidgets('returns true on non-Android without touching any channel',
         (tester) async {
@@ -234,6 +239,238 @@ void main() {
 
       expect(find.byType(SnackBar), findsNothing);
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Android SDK branches — exercised via the @visibleForTesting seams
+  // (debugIsAndroidOverride + debugAndroidSdkOverride). These reach the
+  // permission_handler channel, which we mock directly.
+  //
+  // Protocol (permission_handler_platform_interface 4.3.0):
+  //   * Permission.storage.value == 15
+  //   * checkPermissionStatus(15) -> int status
+  //   * requestPermissions([15]) -> {15: int status}
+  //   * status ints: 0 denied, 1 granted, 2 restricted, 4 permanentlyDenied
+  // ---------------------------------------------------------------------------
+  group('PermissionHelper Android SDK branches', () {
+    const permissionChannel =
+        MethodChannel('flutter.baseflow.com/permissions/methods');
+    const int kStorage = 15;
+    const int kDenied = 0;
+    const int kGranted = 1;
+    const int kRestricted = 2;
+    const int kPermanentlyDenied = 4;
+
+    late List<MethodCall> calls;
+    late TestDefaultBinaryMessenger messenger;
+    // Per-test configurable channel responses.
+    late int checkStatus;
+    late int requestStatus;
+
+    setUp(() {
+      calls = <MethodCall>[];
+      checkStatus = kGranted;
+      requestStatus = kGranted;
+      messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(permissionChannel, (call) async {
+        calls.add(call);
+        switch (call.method) {
+          case 'checkPermissionStatus':
+            return checkStatus;
+          case 'requestPermissions':
+            return <int, int>{kStorage: requestStatus};
+          default:
+            return null;
+        }
+      });
+      // Force the Android path; SDK is set per-test.
+      PermissionHelper.debugIsAndroidOverride = true;
+    });
+
+    tearDown(() {
+      messenger.setMockMethodCallHandler(permissionChannel, null);
+    });
+
+    int statusChecks() =>
+        calls.where((c) => c.method == 'checkPermissionStatus').length;
+    int requests() =>
+        calls.where((c) => c.method == 'requestPermissions').length;
+
+    // Mounts a minimal tree (MaterialApp provides the Navigator the dialog
+    // path needs) and returns a context BELOW it. The non-dialog branches
+    // never touch the context, so we can await the future directly in the
+    // test body — method-channel mock responses resolve on microtasks, which
+    // a plain `await` drains without frame-pump counting.
+    Future<BuildContext> mountContext(WidgetTester tester) async {
+      late BuildContext ctx;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (c) {
+                ctx = c;
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ),
+      );
+      return ctx;
+    }
+
+    group('requestStoragePermission', () {
+      testWidgets('SDK 33+ returns true without touching the channel',
+          (tester) async {
+        PermissionHelper.debugAndroidSdkOverride = 33;
+        final ctx = await mountContext(tester);
+        final granted = await PermissionHelper.requestStoragePermission(ctx);
+
+        expect(granted, isTrue);
+        expect(calls, isEmpty,
+            reason: 'SAF on API 33+ needs no permission call');
+      });
+
+      testWidgets('SDK 30 granted -> true (status check, no request)',
+          (tester) async {
+        PermissionHelper.debugAndroidSdkOverride = 30;
+        checkStatus = kGranted;
+        final ctx = await mountContext(tester);
+        final granted = await PermissionHelper.requestStoragePermission(ctx);
+
+        expect(granted, isTrue);
+        expect(statusChecks(), 1);
+        expect(requests(), 0);
+      });
+
+      testWidgets('SDK 30 restricted (SAF-only) -> true', (tester) async {
+        PermissionHelper.debugAndroidSdkOverride = 30;
+        checkStatus = kRestricted;
+        final ctx = await mountContext(tester);
+        final granted = await PermissionHelper.requestStoragePermission(ctx);
+
+        expect(granted, isTrue);
+        expect(requests(), 0);
+      });
+
+      testWidgets('SDK 30 permanentlyDenied -> true without requesting',
+          (tester) async {
+        PermissionHelper.debugAndroidSdkOverride = 30;
+        checkStatus = kPermanentlyDenied;
+        final ctx = await mountContext(tester);
+        final granted = await PermissionHelper.requestStoragePermission(ctx);
+
+        expect(granted, isTrue, reason: 'SAF works regardless on API 30+');
+        expect(requests(), 0);
+      });
+
+      testWidgets('SDK 30 denied -> requests, then true regardless',
+          (tester) async {
+        PermissionHelper.debugAndroidSdkOverride = 30;
+        checkStatus = kDenied;
+        requestStatus = kDenied; // even a denied request still returns true
+        final ctx = await mountContext(tester);
+        final granted = await PermissionHelper.requestStoragePermission(ctx);
+
+        expect(granted, isTrue);
+        expect(statusChecks(), 1);
+        expect(requests(), 1);
+      });
+
+      testWidgets('SDK 29 already granted -> true', (tester) async {
+        PermissionHelper.debugAndroidSdkOverride = 29;
+        checkStatus = kGranted;
+        final ctx = await mountContext(tester);
+        final granted = await PermissionHelper.requestStoragePermission(ctx);
+
+        expect(granted, isTrue);
+        expect(statusChecks(), 1);
+        expect(requests(), 0);
+      });
+
+      testWidgets('SDK 29 denied then request granted -> true', (tester) async {
+        PermissionHelper.debugAndroidSdkOverride = 29;
+        checkStatus = kDenied;
+        requestStatus = kGranted;
+        final ctx = await mountContext(tester);
+        final granted = await PermissionHelper.requestStoragePermission(ctx);
+
+        expect(granted, isTrue);
+        expect(statusChecks(), 1);
+        expect(requests(), 1);
+      });
+
+      testWidgets('SDK 29 denied then request denied -> false', (tester) async {
+        PermissionHelper.debugAndroidSdkOverride = 29;
+        checkStatus = kDenied;
+        requestStatus = kDenied;
+        final ctx = await mountContext(tester);
+        final granted = await PermissionHelper.requestStoragePermission(ctx);
+
+        expect(granted, isFalse);
+        expect(requests(), 1);
+      });
+
+      testWidgets(
+          'SDK 29 permanentlyDenied -> shows settings dialog; Cancel -> false',
+          (tester) async {
+        PermissionHelper.debugAndroidSdkOverride = 29;
+        checkStatus = kPermanentlyDenied;
+
+        bool? result;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (ctx) => ElevatedButton(
+                  onPressed: () async => result = await PermissionHelper
+                      .requestStoragePermission(ctx),
+                  child: const Text('go'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('go'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Storage Permission Required'), findsOneWidget);
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+
+        expect(result, isFalse);
+        expect(requests(), 0,
+            reason: 'permanentlyDenied goes straight to the dialog');
+      });
+    });
+
+    group('hasStoragePermission', () {
+      test('SDK 30+ returns true without checking status', () async {
+        PermissionHelper.debugAndroidSdkOverride = 30;
+        final granted = await PermissionHelper.hasStoragePermission();
+
+        expect(granted, isTrue);
+        expect(statusChecks(), 0, reason: 'SAF on API 30+ needs no status read');
+      });
+
+      test('SDK 29 granted -> true', () async {
+        PermissionHelper.debugAndroidSdkOverride = 29;
+        checkStatus = kGranted;
+        final granted = await PermissionHelper.hasStoragePermission();
+
+        expect(granted, isTrue);
+        expect(statusChecks(), 1);
+      });
+
+      test('SDK 29 denied -> false', () async {
+        PermissionHelper.debugAndroidSdkOverride = 29;
+        checkStatus = kDenied;
+        final granted = await PermissionHelper.hasStoragePermission();
+
+        expect(granted, isFalse);
+        expect(statusChecks(), 1);
+      });
     });
   });
 }

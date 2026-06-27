@@ -11,11 +11,33 @@ class PermissionHelper {
   // Cache the Android SDK version to avoid repeated platform channel calls
   static int? _cachedAndroidSdk;
 
+  /// Test seam: override the platform-is-Android check. `null` (the default)
+  /// defers to the real [Platform.isAndroid]. The unit-test host is not
+  /// Android, so without this the Android SDK branches are unreachable.
+  @visibleForTesting
+  static bool? debugIsAndroidOverride;
+
+  /// Test seam: force the detected Android SDK version, bypassing the platform
+  /// channel. `null` (the default) uses real detection.
+  @visibleForTesting
+  static int? debugAndroidSdkOverride;
+
+  /// Test seam: clear both overrides and the cached SDK so each test starts
+  /// from a clean slate. Call in `tearDown`.
+  @visibleForTesting
+  static void debugResetForTest() {
+    debugIsAndroidOverride = null;
+    debugAndroidSdkOverride = null;
+    _cachedAndroidSdk = null;
+  }
+
+  static bool get _isAndroid => debugIsAndroidOverride ?? Platform.isAndroid;
+
   /// Request storage permissions for file operations
   /// Returns true if permission granted, false otherwise
   static Future<bool> requestStoragePermission(BuildContext context) async {
     // iOS doesn't need explicit storage permissions for file picker
-    if (!Platform.isAndroid) {
+    if (!_isAndroid) {
       return true;
     }
 
@@ -117,7 +139,10 @@ class PermissionHelper {
   /// Get actual Android SDK version using platform channel
   /// Returns 0 if not on Android or if detection fails
   static Future<int> _getAndroidSdkVersion() async {
-    if (!Platform.isAndroid) return 0;
+    // Test seam wins over real detection.
+    if (debugAndroidSdkOverride != null) return debugAndroidSdkOverride!;
+
+    if (!_isAndroid) return 0;
 
     // Return cached value if available
     if (_cachedAndroidSdk != null) {
@@ -234,7 +259,7 @@ class PermissionHelper {
   /// Check if storage permission is currently granted
   /// For Android 11+, this always returns true since SAF handles file access
   static Future<bool> hasStoragePermission() async {
-    if (!Platform.isAndroid) {
+    if (!_isAndroid) {
       return true;
     }
 

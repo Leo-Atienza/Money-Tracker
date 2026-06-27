@@ -239,6 +239,80 @@ void main() {
     });
   });
 
+  // Direct assertions on the painter's shouldRepaint contract, via the
+  // @visibleForTesting DonutPainter seam. The widget tests above only observe
+  // it indirectly (no throw on rebuild); here we pin the exact boolean.
+  group('DonutPainter.shouldRepaint (direct)', () {
+    const trackA = Color(0x11223344);
+    const trackB = Color(0x55667788);
+    final base = <DonutSlice>[
+      const DonutSlice(label: 'A', value: 60, color: Colors.red),
+      const DonutSlice(label: 'B', value: 40, color: Colors.blue),
+    ];
+
+    DonutPainter painter({
+      List<DonutSlice>? slices,
+      double thickness = 28,
+      double sliceGap = 0.04,
+      Color trackColor = trackA,
+    }) {
+      return DonutPainter(
+        slices: slices ?? base,
+        thickness: thickness,
+        sliceGap: sliceGap,
+        trackColor: trackColor,
+      );
+    }
+
+    test('false when nothing changed (same slice list)', () {
+      expect(painter().shouldRepaint(painter()), isFalse);
+    });
+
+    test('false for an equal-but-distinct slice list', () {
+      final copy = <DonutSlice>[
+        const DonutSlice(label: 'A', value: 60, color: Colors.red),
+        const DonutSlice(label: 'B', value: 40, color: Colors.blue),
+      ];
+      expect(painter(slices: copy).shouldRepaint(painter()), isFalse);
+    });
+
+    test('true when thickness changes', () {
+      expect(painter(thickness: 30).shouldRepaint(painter()), isTrue);
+    });
+
+    test('true when sliceGap changes', () {
+      expect(painter(sliceGap: 0.08).shouldRepaint(painter()), isTrue);
+    });
+
+    test('true when trackColor changes', () {
+      expect(painter(trackColor: trackB).shouldRepaint(painter()), isTrue);
+    });
+
+    test('true when slice count changes', () {
+      final three = <DonutSlice>[
+        ...base,
+        const DonutSlice(label: 'C', value: 20, color: Colors.green),
+      ];
+      expect(painter(slices: three).shouldRepaint(painter()), isTrue);
+    });
+
+    test('true when a slice value changes', () {
+      final changed = <DonutSlice>[
+        const DonutSlice(label: 'A', value: 10, color: Colors.red),
+        const DonutSlice(label: 'B', value: 40, color: Colors.blue),
+      ];
+      expect(painter(slices: changed).shouldRepaint(painter()), isTrue);
+    });
+
+    test('true when a slice color changes', () {
+      final changed = <DonutSlice>[
+        const DonutSlice(label: 'A', value: 60, color: Colors.orange),
+        const DonutSlice(label: 'B', value: 40, color: Colors.blue),
+      ];
+      expect(painter(slices: changed).shouldRepaint(painter()), isTrue);
+    });
+  });
+
   group('DonutLegend', () {
     // Case 1: one row per slice with label + formatted value.
     testWidgets('renders one row per slice with label and formatted value',
