@@ -746,7 +746,6 @@ class BackupHelper {
       // FIX: Create timestamped backup of current database before replacing (for safety)
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final preRestoreBackup = '${dbPath}_pre_restore_$timestamp.db';
-      final preRestoreFile = File(preRestoreBackup);
 
       // Also keep .bak for immediate rollback
       final backupPath = '$dbPath.bak';
@@ -806,12 +805,10 @@ class BackupHelper {
           await backupFile.delete();
         }
 
-        // Keep pre-restore backup for 7 days as safety net
-        Future.delayed(const Duration(days: 7), () async {
-          if (await preRestoreFile.exists()) {
-            await preRestoreFile.delete();
-          }
-        });
+        // L34: the pre-restore safety backup is reaped by
+        // DatabaseHelper.cleanOrphanedBackupFiles() (startup maintenance),
+        // which deletes `*_pre_restore_*` files older than 7 days. The old
+        // in-memory Future.delayed(7d) never survived an app restart.
 
         return RestoreResult.success;
       } catch (e) {
@@ -1188,16 +1185,10 @@ class BackupHelper {
           );
         }
 
-        // Clean up pre-restore backup after successful restore
-        final preRestoreFile = File(preRestoreBackup);
-        if (await preRestoreFile.exists()) {
-          // Keep it for 7 days as safety net
-          Future.delayed(const Duration(days: 7), () async {
-            if (await preRestoreFile.exists()) {
-              await preRestoreFile.delete();
-            }
-          });
-        }
+        // L34: the pre-restore safety backup is reaped by
+        // DatabaseHelper.cleanOrphanedBackupFiles() (startup maintenance),
+        // which deletes `*_pre_restore_*` files older than 7 days. The old
+        // in-memory Future.delayed(7d) never survived an app restart.
 
         return RestoreResult.success;
       } catch (e) {

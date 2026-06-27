@@ -53,6 +53,18 @@ class DatabaseHelper {
   /// replace the DB anyway and the file may not exist on the very first call.
   @visibleForTesting
   static Future<void> resetForTesting() async {
+    // Wait for any in-flight initialization to settle before tearing down.
+    // Nulling `_initCompleter` mid-init orphans the in-flight completer; the
+    // in-flight init then completes the NEXT test's completer, and that test's
+    // own init double-completes it → "Bad state: Future already completed".
+    // Mirrors the guard in [closeDatabase].
+    if (_initCompleter != null && !_initCompleter!.isCompleted) {
+      try {
+        await _initCompleter!.future;
+      } catch (_) {
+        // Ignore init failures while resetting.
+      }
+    }
     try {
       await _database?.close();
     } catch (_) {
@@ -943,6 +955,13 @@ class DatabaseHelper {
     required String createSql,
     required List<String> indexSql,
   }) async {
+    // L33 (defense-in-depth): table identifiers are compile-time constants
+    // today, but this method interpolates [tableName] straight into raw DDL.
+    // Reject anything that isn't a plain SQL identifier so a future caller
+    // can't thread untrusted input into the statements below.
+    if (!RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(tableName)) {
+      throw ArgumentError('Unsafe table identifier: $tableName');
+    }
     final tmpName = '${tableName}_v19_tmp';
     await txn.execute(createSql.replaceFirst(tableName, tmpName));
     // INSERT INTO ... SELECT * FROM works only when column order matches.
@@ -1557,14 +1576,62 @@ class DatabaseHelper {
     } catch (e) {
       if (kDebugMode) debugPrint('Error during orphaned file cleanup: $e');
     }
+
+    // L34: sweep stale pre-restore safety backups. They were previously
+    // scheduled for deletion via an in-memory Future.delayed(7 days) that
+    // never survives an app restart, so they accumulated forever. Delete any
+    // `*_pre_restore_*` file in the databases dir older than 7 days.
+    try {
+      final dbDir = Directory(await getDatabasesPath());
+      if (await dbDir.exists()) {
+        final cutoff = DateTime.now().subtract(const Duration(days: 7));
+        await for (final entity in dbDir.list()) {
+          if (entity is File && entity.path.contains('_pre_restore_')) {
+            try {
+              final stat = await entity.stat();
+              if (stat.modified.isBefore(cutoff)) {
+                await entity.delete();
+                cleanedCount++;
+              }
+            } catch (e) {
+              if (kDebugMode) {
+                debugPrint('Could not delete stale pre-restore backup: $e');
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Error sweeping pre-restore backups: $e');
+    }
+
     return cleanedCount;
   }
 
   /// Get list of deleted accounts that can be restored
+  /// Pure read of the soft-deleted accounts list (most-recent first).
+  ///
+  /// L30: the destructive 30-day purge that used to run here as a side effect
+  /// moved to [purgeExpiredDeletedAccounts], invoked from [performMaintenance].
+  /// A list query must not delete data.
   Future<List<Map<String, dynamic>>> getDeletedAccounts() async {
     final db = await database;
+    return await db.query(
+      'deleted_accounts',
+      orderBy: 'deletedAt DESC',
+    );
+  }
+
+  /// L30: purge soft-deleted accounts older than 30 days — removes their
+  /// backup files (tracking any that fail to delete) and their DB rows.
+  /// Called from [performMaintenance], never from a read path.
+  Future<void> purgeExpiredDeletedAccounts() async {
+    final db = await database;
     // FIX: Use UTC to avoid timezone-dependent expiration
-    final cutoffDate = DateTime.now().toUtc().subtract(const Duration(days: 30)).toIso8601String();
+    final cutoffDate = DateTime.now()
+        .toUtc()
+        .subtract(const Duration(days: 30))
+        .toIso8601String();
 
     // FIX: Clean up old backup files before deleting database records
     final oldAccounts = await db.query(
@@ -1592,11 +1659,6 @@ class DatabaseHelper {
       'deleted_accounts',
       where: 'deletedAt < ?',
       whereArgs: [cutoffDate],
-    );
-
-    return await db.query(
-      'deleted_accounts',
-      orderBy: 'deletedAt DESC',
     );
   }
 
@@ -3009,6 +3071,13 @@ class DatabaseHelper {
       }
     } catch (e) {
       if (kDebugMode) debugPrint('Error during orphaned file cleanup: $e');
+    }
+
+    // L30: purge expired soft-deleted accounts (moved off the read path).
+    try {
+      await purgeExpiredDeletedAccounts();
+    } catch (e) {
+      if (kDebugMode) debugPrint('Error purging expired deleted accounts: $e');
     }
   }
 

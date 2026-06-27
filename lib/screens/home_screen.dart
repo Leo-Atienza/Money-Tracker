@@ -1026,7 +1026,8 @@ class _QuickAddBar extends StatelessWidget {
       (s) => (s.quickTemplates, s.currency),
     );
     final templates = templatesAndCurrency.$1;
-    final currency = templatesAndCurrency.$2;
+    // currency stays in the select tuple so the bar rebuilds when it changes;
+    // amounts below render via appState.formatWithCurrency (M16 grouping).
     final appState = context.read<AppState>();
 
     return Column(
@@ -1055,7 +1056,7 @@ class _QuickAddBar extends StatelessWidget {
                   padding: const EdgeInsets.only(right: 8),
                   child: Semantics(
                     label:
-                        '${template.name}, $currency${template.amount.toStringAsFixed(0)}, ${isIncome ? 'income' : 'expense'}',
+                        '${template.name}, ${appState.formatWithCurrency(template.amount, decimalDigits: 0)}, ${isIncome ? 'income' : 'expense'}',
                     button: true,
                     child: InkWell(
                       onTap: () async {
@@ -1098,7 +1099,8 @@ class _QuickAddBar extends StatelessWidget {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              '$currency${template.amount.toStringAsFixed(0)}',
+                              appState.formatWithCurrency(template.amount,
+                                  decimalDigits: 0),
                               style: TextStyle(
                                 fontSize: 13,
                                 color: isIncome

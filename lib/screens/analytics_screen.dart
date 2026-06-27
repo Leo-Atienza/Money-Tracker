@@ -133,6 +133,9 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart>
   }
 
   Future<void> _loadTrends() async {
+    // L27: guard the eager setState — _loadTrends is fired from a listener and
+    // can race a dispose, and setState after dispose throws.
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
