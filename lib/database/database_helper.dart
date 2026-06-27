@@ -777,13 +777,17 @@ class DatabaseHelper {
       backupFile = null;
     }
 
-    // FK off for the rebuild — SQLite recommends this when recreating tables
-    // that other tables reference. Turning it back on inside the transaction
-    // re-enables enforcement for the remainder of the session.
-    await db.execute('PRAGMA foreign_keys = OFF');
-
+    // L52: `_onUpgrade` already runs inside sqflite's implicit transaction, so
+    // `PRAGMA foreign_keys = OFF` here was a SILENT NO-OP (SQLite ignores it
+    // while a transaction is open). FK enforcement therefore stayed ON during
+    // the 12-step table rebuilds below — a pre-v19 DB with any orphaned row, or
+    // a transient mid-rebuild state, could trip an immediate FK error and brick
+    // the upgrade. `PRAGMA defer_foreign_keys = ON` DOES take effect inside a
+    // transaction: it defers FK checks to commit time, which is the correct
+    // idiom for in-transaction schema rebuilds. It auto-resets at commit.
     try {
       await db.transaction((txn) async {
+        await txn.execute('PRAGMA defer_foreign_keys = ON');
         // 4.2: trash tables. Both `deleted_expenses` and `deleted_income`
         // get FK + CASCADE on `account_id`. `deleted_accounts` intentionally
         // skipped — that table is the soft-delete pool for accounts and
@@ -911,9 +915,9 @@ class DatabaseHelper {
         );
       });
     } finally {
-      // Re-enable FK enforcement whether the migration succeeded or rolled
-      // back — leaving it OFF on the live connection would silently let
-      // future inserts violate constraints.
+      // L52: FK enforcement was never actually toggled off (defer_foreign_keys
+      // inside the txn auto-resets at commit), but assert the desired session
+      // state defensively — onConfigure also sets foreign_keys = ON.
       await db.execute('PRAGMA foreign_keys = ON');
     }
 

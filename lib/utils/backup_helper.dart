@@ -768,6 +768,24 @@ class BackupHelper {
           return RestoreResult.invalidFile;
         }
 
+        // L32/L36: refuse a raw .db created by a NEWER app version. SQLite
+        // won't downgrade a schema, so opening a too-new file would leave the
+        // user with no readable database. The comprehensive-restore path
+        // already guards schema_version; this is the equivalent guard for the
+        // plain .db path, read straight from the file's user_version header.
+        final incomingVersion = await _readSqliteUserVersion(tempFile);
+        if (incomingVersion != null &&
+            incomingVersion > DatabaseConstants.databaseVersion) {
+          if (kDebugMode) {
+            debugPrint(
+              'Refusing .db restore: user_version $incomingVersion > '
+              'app databaseVersion ${DatabaseConstants.databaseVersion}',
+            );
+          }
+          await tempFile.delete();
+          return RestoreResult.incompatibleVersion;
+        }
+
         // Close database before replacing
         await closeDatabase();
 
@@ -910,6 +928,27 @@ class BackupHelper {
 
     return false;
   }
+
+  /// L32/L36: read a SQLite database's `user_version` straight from its file
+  /// header — a 4-byte big-endian integer at byte offset 60 (per the SQLite
+  /// file-format spec). Returns null if the file is too short to hold a header.
+  /// Used by the raw-.db restore path to reject a too-new schema before it
+  /// replaces the live database.
+  @visibleForTesting
+  static Future<int?> readSqliteUserVersion(File file) async {
+    final raf = await file.open(mode: FileMode.read);
+    try {
+      if (await raf.length() < 64) return null;
+      await raf.setPosition(60);
+      final bytes = await raf.read(4);
+      if (bytes.length < 4) return null;
+      return (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+    } finally {
+      await raf.close();
+    }
+  }
+
+  Future<int?> _readSqliteUserVersion(File file) => readSqliteUserVersion(file);
 
   /// Validate that bytes represent a valid SQLite database
   bool _isValidSqliteFile(Uint8List bytes) {
