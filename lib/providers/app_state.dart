@@ -847,16 +847,15 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       final paymentDecimal = DecimalHelper.fromDouble(amount);
       final newAmountPaidDecimal = expense.amountPaidDecimal + paymentDecimal;
-      final remainingDecimal = expense.amountDecimal - newAmountPaidDecimal;
-      final tenCents = Decimal.parse('0.10');
       final Decimal finalAmountPaid;
       if (newAmountPaidDecimal >= expense.amountDecimal) {
-        // Cap at expense amount to prevent overpayment
-        finalAmountPaid = expense.amountDecimal;
-      } else if (remainingDecimal > Decimal.zero && remainingDecimal < tenCents) {
-        // Auto-round up if less than 10 cents remaining
+        // Cap at expense amount to prevent overpayment.
         finalAmountPaid = expense.amountDecimal;
       } else {
+        // M1: record exactly what was paid. The old "auto-round-up if < 10¢
+        // remaining" branch fabricated up to 9¢ per bill — invisible to the
+        // user and corrupting totalPaid / available-income / CSV+PDF exports.
+        // Users can intentionally clear a bill via the "Pay All" button.
         finalAmountPaid = newAmountPaidDecimal;
       }
       final updated = expense.copyWithDecimal(amountPaid: finalAmountPaid);

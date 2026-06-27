@@ -1209,11 +1209,11 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     final paymentStatus = expense.isPaid
         ? 'paid'
         : expense.amountPaid > 0
-            ? 'partially paid, ${appState.currency}${expense.remainingAmount.toStringAsFixed(2)} remaining'
+            ? 'partially paid, ${appState.formatWithCurrency(expense.remainingAmount)} remaining'
             : 'unpaid';
 
     return Semantics(
-      label: 'Expense: ${expense.description}, ${expense.category}, ${appState.currency}${expense.amount.toStringAsFixed(2)}, $paymentStatus. Double tap to add payment.',
+      label: 'Expense: ${expense.description}, ${expense.category}, ${appState.formatWithCurrency(expense.amount)}, $paymentStatus. Double tap to add payment.',
       button: true,
       // M14: lift the interactive actions onto the semantics node — the inner
       // subtree is ExcludeSemantics'd and the delete-swipe isn't TalkBack-
@@ -1434,7 +1434,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            '${appState.currency}${expense.amount.toStringAsFixed(2)}',
+                            // M16: grouped formatting to match the a11y label.
+                            appState.formatWithCurrency(expense.amount),
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -1451,7 +1452,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                                 borderRadius: BorderRadius.circular(8 - 2),
                               ),
                               child: Text(
-                                '${appState.currency}${expense.remainingAmount.toStringAsFixed(2)} left',
+                                // M16: grouped formatting.
+                                '${appState.formatWithCurrency(expense.remainingAmount)} left',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
@@ -1578,7 +1580,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       ) {
     final appColors = theme.extension<AppColors>()!;
     return Semantics(
-      label: 'Income: ${income.description}, ${income.category}, ${appState.currency}${income.amount.toStringAsFixed(2)}. Double tap to edit.',
+      label: 'Income: ${income.description}, ${income.category}, ${appState.formatWithCurrency(income.amount)}. Double tap to edit.',
       button: true,
       // M14: lift the interactive actions onto the semantics node (see expense).
       onTap: () => _showEditIncomeDialog(context, income),
@@ -1759,7 +1761,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                           ),
                           // Amount
                           Text(
-                            '+${appState.currency}${income.amount.toStringAsFixed(2)}',
+                            // M16: grouped formatting; keep the leading + sign.
+                            '+${appState.formatWithCurrency(income.amount)}',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,

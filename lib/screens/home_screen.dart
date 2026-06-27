@@ -767,7 +767,7 @@ class _GlassHomeExpenseTile extends StatelessWidget {
 
     return Semantics(
       label:
-          '${expense.description}, ${expense.category}, ${appState.currency}${expense.amount.toStringAsFixed(2)}, $statusText',
+          '${expense.description}, ${expense.category}, ${appState.formatWithCurrency(expense.amount)}, $statusText',
       button: true,
       child: Material(
         color: Colors.transparent,
@@ -833,7 +833,8 @@ class _GlassHomeExpenseTile extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '-${appState.currency}${expense.amount.toStringAsFixed(2)}',
+                  // M16: locale-aware grouping ($1,234.00) to match the a11y label.
+                  '-${appState.formatWithCurrency(expense.amount)}',
                   style: theme.textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -896,7 +897,8 @@ class _UpcomingBillsBanner extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                '${appState.currency}${totalDue.toStringAsFixed(0)} due',
+                // M16: grouped, zero-decimal ($1,234 due).
+                '${appState.formatWithCurrency(totalDue, decimalDigits: 0)} due',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: appColors.warningOrange,
@@ -927,7 +929,7 @@ class _UpcomingBillsBanner extends StatelessWidget {
 
             return Semantics(
               label:
-                  '${bill['description']}, ${appState.currency}${(bill['amount'] as double).toStringAsFixed(0)}, $dueText',
+                  '${bill['description']}, ${appState.formatWithCurrency(bill['amount'] as double, decimalDigits: 0)}, $dueText',
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
@@ -957,7 +959,9 @@ class _UpcomingBillsBanner extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '${appState.currency}${(bill['amount'] as double).toStringAsFixed(0)}',
+                      // M16: grouped, zero-decimal.
+                      appState.formatWithCurrency(bill['amount'] as double,
+                          decimalDigits: 0),
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,

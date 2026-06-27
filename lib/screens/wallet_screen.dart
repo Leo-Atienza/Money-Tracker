@@ -32,7 +32,19 @@ class WalletScreen extends StatelessWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const GlassTopAppBar(title: 'Wallet'),
+          // M15: the add-account action lives in the header (consistent with
+          // other Luminous screens). It was a default-positioned FAB that the
+          // global floating glass nav bar occluded on most phones.
+          GlassTopAppBar(
+            title: 'Wallet',
+            actions: [
+              IconButton(
+                tooltip: 'Add account',
+                icon: Icon(Icons.add, color: theme.colorScheme.onSurface),
+                onPressed: () => _showAddAccount(context),
+              ),
+            ],
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(
@@ -51,11 +63,6 @@ class WalletScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddAccount(context),
-        backgroundColor: theme.colorScheme.onSurface,
-        child: Icon(Icons.add, color: theme.colorScheme.surface),
       ),
     );
   }

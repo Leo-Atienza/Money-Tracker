@@ -437,18 +437,38 @@ void main() {
       expect(after.amountPaid, closeTo(80, 0.001));
     });
 
-    test('a payment leaving < 10c remaining auto-rounds to full', () async {
+    test('M1: a payment leaving a few cents records EXACTLY what was paid',
+        () async {
       final state = await bootstrap();
       final id = await state.addExpense(
         makeExpense(state, amount: 100),
       );
       final expense = state.expenses.firstWhere((e) => e.id == id);
 
-      await state.addPayment(expense, 99.95);
+      // Pre-M1 this auto-rounded to "fully paid", fabricating 3¢ the user
+      // never paid. It must now record exactly 99.97 and stay unpaid.
+      await state.addPayment(expense, 99.97);
 
       final after = state.expenses.firstWhere((e) => e.id == id);
-      expect(after.isPaid, isTrue,
-          reason: 'Sub-10c residue should be rounded up to fully paid');
+      expect(after.isPaid, isFalse,
+          reason: 'a 3¢ shortfall must NOT be rounded up to paid');
+      expect(after.amountPaid, closeTo(99.97, 0.001));
+      expect(after.remainingAmount, closeTo(0.03, 0.001));
+    });
+
+    test('M1: overpayment is still capped at the expense amount', () async {
+      final state = await bootstrap();
+      final id = await state.addExpense(
+        makeExpense(state, amount: 50),
+      );
+      final expense = state.expenses.firstWhere((e) => e.id == id);
+
+      await state.addPayment(expense, 75); // overshoot
+
+      final after = state.expenses.firstWhere((e) => e.id == id);
+      expect(after.isPaid, isTrue);
+      expect(after.amountPaid, closeTo(50, 0.001),
+          reason: 'overpayment caps at the expense amount, no fabrication');
     });
   });
 

@@ -792,7 +792,8 @@ class _BudgetProgress extends StatelessWidget {
       (s) => (s.currentMonthBudgets, s.currency),
     );
     final budgets = budgetsAndCurrency.$1;
-    final currency = budgetsAndCurrency.$2;
+    // currency stays in the select tuple so a currency change still rebuilds;
+    // the value is read via appState.formatWithCurrency below (M16).
     final appState = context.read<AppState>(); // For getCategorySpending
 
     if (budgets.isEmpty) {
@@ -850,7 +851,8 @@ class _BudgetProgress extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '$currency${spent.toStringAsFixed(0)} / $currency${budget.amount.toStringAsFixed(0)}',
+                            // M16: grouped, zero-decimal ($1,234 / $2,000).
+                            '${appState.formatWithCurrency(spent, decimalDigits: 0)} / ${appState.formatWithCurrency(budget.amount, decimalDigits: 0)}',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.onSurface,
                             ),
@@ -944,7 +946,9 @@ class _CategoryBreakdown extends StatelessWidget {
       (s) => (s.getCategorySpending(), s.currency),
     );
     final spending = spendingAndCurrency.$1;
-    final currency = spendingAndCurrency.$2;
+    // currency stays in the select tuple (rebuild on change); value read via
+    // appState.formatWithCurrency below (M16).
+    final appState = context.read<AppState>(); // M16: for grouped formatting
 
     if (spending.isEmpty) return const SizedBox.shrink();
 
@@ -971,7 +975,7 @@ class _CategoryBreakdown extends StatelessWidget {
 
             return Semantics(
               label:
-                  '${entry.key}, $currency${entry.value.toStringAsFixed(2)}, ${percentage.toStringAsFixed(1)}% of total spending',
+                  '${entry.key}, ${appState.formatWithCurrency(entry.value)}, ${percentage.toStringAsFixed(1)}% of total spending',
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: Row(
@@ -1010,7 +1014,8 @@ class _CategoryBreakdown extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          '$currency${entry.value.toStringAsFixed(2)}',
+                          // M16: grouped formatting to match the a11y label.
+                          appState.formatWithCurrency(entry.value),
                           style: theme.textTheme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w500,
                             color: theme.colorScheme.onSurface,

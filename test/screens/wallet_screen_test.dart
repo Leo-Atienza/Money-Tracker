@@ -103,10 +103,18 @@ void main() {
     expect(find.byType(BackButton), findsNothing);
   });
 
-  testWidgets('Add-account FAB is present', (tester) async {
+  testWidgets('M15: add-account action lives in the header, not a FAB',
+      (tester) async {
     await pumpHarness(tester);
     await tester.pump();
-    expect(find.byType(FloatingActionButton), findsOneWidget);
+    // M15: the FAB was occluded by the global nav bar, so the action moved
+    // into the GlassTopAppBar trailing slot (a tooltipped IconButton).
+    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(
+      find.widgetWithIcon(IconButton, Icons.add),
+      findsOneWidget,
+      reason: 'add-account IconButton should be in the header',
+    );
   });
 
   // -------------------------------------------------------------------------
