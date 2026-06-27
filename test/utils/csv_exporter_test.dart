@@ -1,6 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
+import 'package:decimal/decimal.dart';
 import 'package:budget_tracker/utils/csv_exporter.dart';
+import 'package:budget_tracker/models/expense_model.dart';
+import 'package:budget_tracker/models/income_model.dart';
 
 /// Recreates the private `_escapeCsv` logic for testing purposes.
 /// This mirrors the implementation in CsvExporter exactly.
@@ -445,6 +448,138 @@ void main() {
 
     test('comma and semicolon have different values', () {
       expect(CsvSeparator.comma.value, isNot(CsvSeparator.semicolon.value));
+    });
+  });
+
+  // -----------------------------------------------------------------
+  // 5. Report builders (M5) — the actual production CSV assembly, run
+  //    on a `compute()` isolate. These lock the assembled output so the
+  //    isolate relocation can't silently change a single byte.
+  // -----------------------------------------------------------------
+  group('CSV report builders', () {
+    final now = DateTime(2024, 3, 15, 10, 30);
+
+    Expense expense({
+      required double amount,
+      required double paid,
+      required String category,
+      required String description,
+      required DateTime date,
+    }) =>
+        Expense(
+          amount: Decimal.parse(amount.toStringAsFixed(2)),
+          category: category,
+          description: description,
+          date: date,
+          accountId: 1,
+          amountPaid: Decimal.parse(paid.toStringAsFixed(2)),
+        );
+
+    test('buildExpensesCsv assembles header, rows, summary, categories', () {
+      final csv = CsvExporter.buildExpensesCsv(CsvExpenseParams(
+        [
+          expense(
+              amount: 234.50,
+              paid: 234.50,
+              category: 'Food',
+              description: 'Lunch',
+              date: DateTime(2024, 3, 14)),
+          expense(
+              amount: 50.00,
+              paid: 0,
+              category: 'Transport',
+              description: 'Bus',
+              date: DateTime(2024, 3, 13)),
+        ],
+        CsvSeparator.comma,
+        now,
+      ));
+
+      expect(csv, contains('FinanceFlow - Expense Report'));
+      expect(csv, contains('Generated: 2024-03-15 10:30'));
+      expect(
+        csv,
+        contains('Date,Description,Category,Amount,Paid,Remaining,Status'),
+      );
+      expect(csv, contains('2024-03-14,Lunch,Food,234.50,234.50,0.00,Paid'));
+      expect(csv, contains('2024-03-13,Bus,Transport,50.00,0.00,50.00,Unpaid'));
+      expect(csv, contains('Total Transactions,2'));
+      expect(csv, contains('Total Amount,284.50'));
+      expect(csv, contains('--- BY CATEGORY ---'));
+      // Categories are sorted by amount desc: Food (234.50) before Transport.
+      expect(
+        csv.indexOf('Food,234.50'),
+        lessThan(csv.indexOf('Transport,50.00')),
+      );
+    });
+
+    test('buildExpensesCsv honors the European semicolon separator', () {
+      final csv = CsvExporter.buildExpensesCsv(CsvExpenseParams(
+        [
+          expense(
+              amount: 1234.50,
+              paid: 0,
+              category: 'Rent',
+              description: 'Flat',
+              date: DateTime(2024, 3, 1)),
+        ],
+        CsvSeparator.semicolon,
+        now,
+      ));
+      // de_DE: dot thousands, comma decimal → 1.234,50, fields semicolon-joined.
+      expect(csv, contains('2024-03-01;Flat;Rent;1.234,50;0,00;1.234,50;Unpaid'));
+    });
+
+    test('buildIncomeCsv assembles header, rows, summary', () {
+      final csv = CsvExporter.buildIncomeCsv(CsvIncomeParams(
+        [
+          Income(
+            amount: Decimal.parse('3000.00'),
+            category: 'Salary',
+            description: 'March pay',
+            date: DateTime(2024, 3, 1),
+            accountId: 1,
+          ),
+        ],
+        CsvSeparator.comma,
+        now,
+      ));
+      expect(csv, contains('FinanceFlow - Income Report'));
+      expect(csv, contains('Date,Description,Category,Amount'));
+      expect(csv, contains('2024-03-01,March pay,Salary,3,000.00'));
+      expect(csv, contains('Total Income,3,000.00'));
+    });
+
+    test('buildAllTransactionsCsv merges and date-sorts both streams', () {
+      final csv = CsvExporter.buildAllTransactionsCsv(CsvAllTxParams(
+        [
+          expense(
+              amount: 20.00,
+              paid: 20.00,
+              category: 'Food',
+              description: 'Coffee',
+              date: DateTime(2024, 3, 10)),
+        ],
+        [
+          Income(
+            amount: Decimal.parse('100.00'),
+            category: 'Gift',
+            description: 'Birthday',
+            date: DateTime(2024, 3, 12),
+            accountId: 1,
+          ),
+        ],
+        CsvSeparator.comma,
+        now,
+      ));
+      expect(csv, contains('Date,Type,Description,Category,Amount,Status'));
+      // Income is negated for expenses; net = 100 - 20 = 80.
+      expect(csv, contains('Net Balance,80.00'));
+      // Sorted date desc → the 03-12 income row precedes the 03-10 expense row.
+      expect(
+        csv.indexOf('2024-03-12,Income,Birthday'),
+        lessThan(csv.indexOf('2024-03-10,Expense,Coffee')),
+      );
     });
   });
 }

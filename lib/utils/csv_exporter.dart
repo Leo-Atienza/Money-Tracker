@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import '../models/expense_model.dart';
@@ -62,9 +63,32 @@ class CsvExporter {
     String currencySymbol, {
     CsvSeparator separator = CsvSeparator.comma,
   }) async {
+    final now = DateTime.now();
+    // M5: build the CSV body off the UI isolate — large exports otherwise
+    // serialize every row + summary synchronously on the main thread.
+    final csv = await compute(
+      buildExpensesCsv,
+      CsvExpenseParams(expenses, separator, now),
+    );
+
+    final directory = await getApplicationDocumentsDirectory();
+    final fileName =
+        'expenses_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv';
+    final file = File('${directory.path}/$fileName');
+
+    await file.writeAsString(csv);
+    return file;
+  }
+
+  /// Builds the expense-report CSV body. Pure computation (no platform
+  /// channels) so it is safe to run inside a `compute()` isolate.
+  @visibleForTesting
+  static String buildExpensesCsv(CsvExpenseParams params) {
+    final expenses = params.expenses;
+    final separator = params.separator;
+    final now = params.now;
     final csvData = StringBuffer();
     final sep = separator.value;
-    final now = DateTime.now();
 
     // Report header
     csvData.writeln('FinanceFlow - Expense Report');
@@ -122,14 +146,7 @@ class CsvExporter {
       );
     }
 
-    // Save to file
-    final directory = await getApplicationDocumentsDirectory();
-    final fileName =
-        'expenses_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv';
-    final file = File('${directory.path}/$fileName');
-
-    await file.writeAsString(csvData.toString());
-    return file;
+    return csvData.toString();
   }
 
   /// Formats a number for CSV export using locale-aware formatting.
@@ -191,9 +208,29 @@ class CsvExporter {
     String currencySymbol, {
     CsvSeparator separator = CsvSeparator.comma,
   }) async {
+    final now = DateTime.now();
+    // M5: build off the UI isolate (see exportExpenses).
+    final csv = await compute(
+      buildIncomeCsv,
+      CsvIncomeParams(incomes, separator, now),
+    );
+
+    final directory = await getApplicationDocumentsDirectory();
+    final fileName = 'income_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv';
+    final file = File('${directory.path}/$fileName');
+
+    await file.writeAsString(csv);
+    return file;
+  }
+
+  /// Builds the income-report CSV body. Pure computation; `compute()`-safe.
+  @visibleForTesting
+  static String buildIncomeCsv(CsvIncomeParams params) {
+    final incomes = params.incomes;
+    final separator = params.separator;
+    final now = params.now;
     final csvData = StringBuffer();
     final sep = separator.value;
-    final now = DateTime.now();
 
     // Report header
     csvData.writeln('FinanceFlow - Income Report');
@@ -236,13 +273,7 @@ class CsvExporter {
       );
     }
 
-    // Save to file
-    final directory = await getApplicationDocumentsDirectory();
-    final fileName = 'income_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv';
-    final file = File('${directory.path}/$fileName');
-
-    await file.writeAsString(csvData.toString());
-    return file;
+    return csvData.toString();
   }
 
   /// Exports all transactions (expenses + income) to a single CSV file.
@@ -252,9 +283,31 @@ class CsvExporter {
     String currencySymbol, {
     CsvSeparator separator = CsvSeparator.comma,
   }) async {
+    final now = DateTime.now();
+    // M5: build off the UI isolate (see exportExpenses).
+    final csv = await compute(
+      buildAllTransactionsCsv,
+      CsvAllTxParams(expenses, incomes, separator, now),
+    );
+
+    final directory = await getApplicationDocumentsDirectory();
+    final fileName =
+        'transactions_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv';
+    final file = File('${directory.path}/$fileName');
+
+    await file.writeAsString(csv);
+    return file;
+  }
+
+  /// Builds the combined-transactions CSV body. Pure computation; `compute()`-safe.
+  @visibleForTesting
+  static String buildAllTransactionsCsv(CsvAllTxParams params) {
+    final expenses = params.expenses;
+    final incomes = params.incomes;
+    final separator = params.separator;
+    final now = params.now;
     final csvData = StringBuffer();
     final sep = separator.value;
-    final now = DateTime.now();
 
     // Report header
     csvData.writeln('FinanceFlow - All Transactions Report');
@@ -329,14 +382,7 @@ class CsvExporter {
       'Net Balance$sep${_formatNumber(totalIncome - totalExpenses, separator)}',
     );
 
-    // Save to file
-    final directory = await getApplicationDocumentsDirectory();
-    final fileName =
-        'transactions_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv';
-    final file = File('${directory.path}/$fileName');
-
-    await file.writeAsString(csvData.toString());
-    return file;
+    return csvData.toString();
   }
 }
 
@@ -357,4 +403,30 @@ class _TransactionRow {
     required this.amount,
     required this.status,
   });
+}
+
+/// `compute()` payload for [CsvExporter.buildExpensesCsv]. Public so the pure
+/// builder can be unit-tested directly without spawning an isolate.
+class CsvExpenseParams {
+  final List<Expense> expenses;
+  final CsvSeparator separator;
+  final DateTime now;
+  CsvExpenseParams(this.expenses, this.separator, this.now);
+}
+
+/// `compute()` payload for [CsvExporter.buildIncomeCsv].
+class CsvIncomeParams {
+  final List<Income> incomes;
+  final CsvSeparator separator;
+  final DateTime now;
+  CsvIncomeParams(this.incomes, this.separator, this.now);
+}
+
+/// `compute()` payload for [CsvExporter.buildAllTransactionsCsv].
+class CsvAllTxParams {
+  final List<Expense> expenses;
+  final List<Income> incomes;
+  final CsvSeparator separator;
+  final DateTime now;
+  CsvAllTxParams(this.expenses, this.incomes, this.separator, this.now);
 }
