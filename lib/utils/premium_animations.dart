@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 /// Premium animation utilities for a polished app experience
 class PremiumAnimations {
@@ -59,6 +60,12 @@ class _AnimatedCounterState extends State<AnimatedCounter>
   late Animation<double> _animation;
   double _oldValue = 0;
 
+  // M16: cache a grouping NumberFormat (rebuilt only when decimalPlaces
+  // changes) so the per-frame _formatValue doesn't reconstruct it 30x/animation.
+  NumberFormat? _groupedFormat;
+  NumberFormat get _format => _groupedFormat ??=
+      NumberFormat.decimalPatternDigits(decimalDigits: widget.decimalPlaces);
+
   @override
   void initState() {
     super.initState();
@@ -73,6 +80,9 @@ class _AnimatedCounterState extends State<AnimatedCounter>
   @override
   void didUpdateWidget(AnimatedCounter oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.decimalPlaces != widget.decimalPlaces) {
+      _groupedFormat = null; // decimalDigits changed — rebuild the formatter
+    }
     if (oldWidget.value != widget.value) {
       _oldValue = oldWidget.value;
       _animation = Tween<double>(begin: _oldValue, end: widget.value).animate(
@@ -89,14 +99,19 @@ class _AnimatedCounterState extends State<AnimatedCounter>
   }
 
   String _formatValue(double value) {
+    // The sign is the caller's responsibility (via [prefix], e.g. '-\$'), so
+    // format the magnitude here — avoids a double sign on negative balances.
+    final v = value.abs();
     if (widget.compact) {
-      if (value.abs() >= 1000000) {
-        return '${(value / 1000000).toStringAsFixed(1)}M';
-      } else if (value.abs() >= 1000) {
-        return '${(value / 1000).toStringAsFixed(1)}K';
+      if (v >= 1000000) {
+        return '${(v / 1000000).toStringAsFixed(1)}M';
+      } else if (v >= 1000) {
+        return '${(v / 1000).toStringAsFixed(1)}K';
       }
     }
-    return value.toStringAsFixed(widget.decimalPlaces);
+    // M16: thousands grouping so the hero counters match their a11y label
+    // (formatWithCurrency), e.g. "2,845.00" not "2845.00".
+    return _format.format(v);
   }
 
   @override
