@@ -89,6 +89,87 @@ void main() {
     expect(secureBacking.containsKey('app_pin_salt'), isFalse);
   });
 
+  // ---------------------------------------------------------------
+  // H2: PINs are stored as PBKDF2-HMAC-SHA256, not single-round SHA-256.
+  // ---------------------------------------------------------------
+  test('H2: setPin stores a self-describing PBKDF2 hash, not SHA-256 hex',
+      () async {
+    await PinSecurityHelper.setPin('9027');
+
+    final stored = secureBacking['app_pin_hash']!;
+    // Modern format: `pbkdf2_sha256$<iterations>$<base64key>`.
+    expect(stored.startsWith('pbkdf2_sha256\$100000\$'), isTrue);
+    // It must NOT look like the old 64-hex-char SHA-256 digest.
+    expect(RegExp(r'^[0-9a-f]{64}$').hasMatch(stored), isFalse);
+    // The stored hash is never the plaintext PIN.
+    expect(stored.contains('9027'), isFalse);
+
+    expect(await PinSecurityHelper.verifyPin('9027'), isTrue);
+    expect(await PinSecurityHelper.verifyPin('9028'), isFalse);
+  });
+
+  test('H2: legacy salted SHA-256 verifies once then upgrades to PBKDF2',
+      () async {
+    // Simulate the deployed v4.x scheme: salted single-round SHA-256.
+    const pin = '4829';
+    final salt = base64.encode(utf8.encode('saltybits16chars'));
+    final legacyHash = sha256.convert(utf8.encode(salt + pin)).toString();
+
+    secureBacking['app_pin_hash'] = legacyHash;
+    secureBacking['app_pin_salt'] = salt;
+    secureBacking['pin_enabled'] = 'true';
+    secureBacking['pin_length'] = '4';
+
+    // First verify succeeds against the legacy hash...
+    expect(await PinSecurityHelper.verifyPin(pin), isTrue);
+
+    // ...and transparently re-persists as PBKDF2 with a fresh salt.
+    final upgraded = secureBacking['app_pin_hash']!;
+    expect(upgraded.startsWith('pbkdf2_sha256\$'), isTrue);
+    expect(upgraded, isNot(equals(legacyHash)));
+    expect(secureBacking['app_pin_salt'], isNot(equals(salt)));
+
+    // The upgraded hash still verifies the same PIN and rejects the wrong one.
+    expect(await PinSecurityHelper.verifyPin(pin), isTrue);
+    expect(await PinSecurityHelper.verifyPin('0000'), isFalse);
+  });
+
+  test('H2: legacy un-salted SHA-256 verifies once then upgrades to PBKDF2',
+      () async {
+    const pin = '4829';
+    final legacyHash = sha256.convert(utf8.encode(pin)).toString();
+
+    secureBacking['app_pin_hash'] = legacyHash;
+    // No salt — pre-salt-era user.
+    secureBacking['pin_enabled'] = 'true';
+    secureBacking['pin_length'] = '4';
+
+    expect(await PinSecurityHelper.verifyPin(pin), isTrue);
+
+    final upgraded = secureBacking['app_pin_hash']!;
+    expect(upgraded.startsWith('pbkdf2_sha256\$'), isTrue);
+    // A salt is now present (PBKDF2 requires one).
+    expect(secureBacking.containsKey('app_pin_salt'), isTrue);
+
+    expect(await PinSecurityHelper.verifyPin(pin), isTrue);
+  });
+
+  test('H2: wrong PIN against a legacy hash does NOT upgrade or wipe it',
+      () async {
+    const pin = '4829';
+    final legacyHash = sha256.convert(utf8.encode(pin)).toString();
+    secureBacking['app_pin_hash'] = legacyHash;
+    secureBacking['pin_enabled'] = 'true';
+    secureBacking['pin_length'] = '4';
+
+    expect(await PinSecurityHelper.verifyPin('0000'), isFalse);
+
+    // Hash unchanged — only a correct PIN triggers migration.
+    expect(secureBacking['app_pin_hash'], equals(legacyHash));
+    // The real PIN still works afterwards.
+    expect(await PinSecurityHelper.verifyPin(pin), isTrue);
+  });
+
   test('rejects invalid PIN format on setPin', () async {
     expect(await PinSecurityHelper.setPin('abc'), isFalse);
     expect(await PinSecurityHelper.setPin('12'), isFalse);
@@ -96,7 +177,7 @@ void main() {
     expect(secureBacking, isEmpty);
   });
 
-  test('legacy salted PIN is migrated to secure store on first verify',
+  test('legacy salted PIN migrates store (prefs→Keystore) AND algo (SHA→PBKDF2)',
       () async {
     // Simulate a user upgrading from a pre-6.2 build: hash + salt live in
     // SharedPreferences instead of the secure store.
@@ -117,8 +198,11 @@ void main() {
     expect(await PinSecurityHelper.getPinLength(), equals(4));
     expect(await PinSecurityHelper.verifyPin(pin), isTrue);
 
-    expect(secureBacking['app_pin_hash'], equals(legacyHash));
-    expect(secureBacking['app_pin_salt'], equals(salt));
+    // Storage migrated to Keystore AND the H2 algo upgrade re-derived the
+    // hash as PBKDF2 with a fresh salt (the legacy SHA-256 is gone).
+    expect(secureBacking['app_pin_hash'], startsWith('pbkdf2_sha256\$'));
+    expect(secureBacking['app_pin_hash'], isNot(equals(legacyHash)));
+    expect(secureBacking['app_pin_salt'], isNot(equals(salt)));
     expect(secureBacking['pin_enabled'], equals('true'));
     expect(secureBacking['pin_length'], equals('4'));
 

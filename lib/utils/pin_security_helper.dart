@@ -1,13 +1,26 @@
 import 'dart:convert';
 import 'dart:math';
-import 'package:crypto/crypto.dart';
+import 'package:crypto/crypto.dart' show sha256;
+import 'package:cryptography/cryptography.dart';
 import 'clock.dart';
 import 'secure_prefs.dart';
 
-/// Helper class for PIN-based app security
-/// Stores PIN as a salted hash (SHA-256) for security
-/// Salt prevents rainbow table attacks
-/// FIX P1-7: Added rate limiting to prevent brute-force attacks
+/// Helper class for PIN-based app security.
+///
+/// PINs are stored as a salted **PBKDF2-HMAC-SHA256** hash (100k iterations)
+/// so the on-disk secret resists offline brute force even though the PIN is
+/// only 4–6 digits (≤ 10^6 candidates). A single round of SHA-256 over
+/// `salt+pin` (the pre-H2 scheme) fell to a GPU in well under a second; the
+/// PBKDF2 work factor — the same one [BackupCrypto] already uses — raises a
+/// full sweep from milliseconds to days.
+///
+/// Stored hashes are **self-describing**: the modern form is
+/// `pbkdf2_sha256$<iterations>$<base64-key>`. Legacy forms (plain 64-char
+/// SHA-256 hex, salted or un-salted) are detected by the absence of that
+/// prefix and **transparently upgraded to PBKDF2 on the next successful
+/// verify** — the only point where the plaintext PIN is available without
+/// forcing the user to re-set it.
+///
 /// Phase 6.2: hash + salt + counters live in Keystore (via [SecurePrefs])
 /// instead of plain-text `SharedPreferences`. Existing prefs entries are
 /// migrated transparently on first read.
@@ -22,6 +35,13 @@ class PinSecurityHelper {
   static const String _lockoutUntilKey = 'pin_lockout_until';
   static const int _maxFailedAttempts = 5; // Lock after 5 failed attempts
   static const int _lockoutDurationMinutes = 5; // 5 minute lockout
+
+  /// H2: PBKDF2 parameters for the modern PIN hash. 100k iterations matches
+  /// [BackupCrypto.pbkdf2Iterations] and is the OWASP SHA-256 floor for
+  /// mobile. The derived key is 256 bits.
+  static const String _pbkdf2Prefix = 'pbkdf2_sha256';
+  static const int _pinPbkdf2Iterations = 100000;
+  static const int _derivedKeyBits = 256;
 
   /// Check if PIN protection is enabled
   static Future<bool> isPinEnabled() async {
@@ -41,7 +61,7 @@ class PinSecurityHelper {
     }
 
     final salt = _generateSalt();
-    final hashedPin = _hashPinWithSalt(pin, salt);
+    final hashedPin = await _hashPinWithSalt(pin, salt);
 
     await SecurePrefs.writeString(_pinHashKey, hashedPin);
     await SecurePrefs.writeString(_pinSaltKey, salt);
@@ -91,6 +111,7 @@ class PinSecurityHelper {
 
   /// Verify if the provided PIN matches the stored PIN
   /// FIX P1-7: Now includes rate limiting - returns false if locked out
+  /// H2: PBKDF2 verify + transparent upgrade of legacy SHA-256 hashes.
   static Future<bool> verifyPin(String pin) async {
     // FIX P1-7: Check for lockout first
     if (await isLockedOut()) {
@@ -104,22 +125,53 @@ class PinSecurityHelper {
       return false;
     }
 
-    // Support legacy PINs without salt (migrate on next PIN change).
     // FIX Bug #10: Use a constant-time comparison so an attacker with
     // precise timing access cannot learn the stored hash byte-by-byte.
-    bool isValid;
-    if (storedSalt == null) {
-      final inputHash = _hashPin(pin);
-      isValid = _constantTimeEquals(inputHash, storedHash);
+    //
+    // Three stored formats are possible:
+    //   1. Modern PBKDF2  — `pbkdf2_sha256$<iters>$<base64key>` (+ salt).
+    //   2. Legacy salted SHA-256 — 64-hex-char hash + a salt.
+    //   3. Legacy un-salted SHA-256 — 64-hex-char hash, no salt.
+    // Formats 2 and 3 are weak; on a successful verify they are re-derived
+    // as PBKDF2 and re-persisted (the H2 migrate-on-verify path).
+    final bool isValid;
+    var needsUpgrade = false;
+
+    if (storedHash.startsWith('$_pbkdf2Prefix\$')) {
+      if (storedSalt == null) {
+        // Malformed: a PBKDF2 hash with no salt cannot be re-derived.
+        isValid = false;
+      } else {
+        final iterations = _parsePbkdf2Iterations(storedHash);
+        final inputHash =
+            await _hashPinWithSalt(pin, storedSalt, iterations: iterations);
+        isValid = _constantTimeEquals(inputHash, storedHash);
+        // Future-proofing: upgrade if a stored hash predates an iteration bump.
+        needsUpgrade = isValid && iterations < _pinPbkdf2Iterations;
+      }
+    } else if (storedSalt == null) {
+      // Legacy un-salted SHA-256 (pre-salt era). L37: force-migrate on unlock.
+      isValid = _constantTimeEquals(_legacyHashPin(pin), storedHash);
+      needsUpgrade = isValid;
     } else {
-      final inputHash = _hashPinWithSalt(pin, storedSalt);
-      isValid = _constantTimeEquals(inputHash, storedHash);
+      // Legacy salted SHA-256 (the v4.x deployed scheme).
+      isValid = _constantTimeEquals(
+        _legacyHashPinWithSalt(pin, storedSalt),
+        storedHash,
+      );
+      needsUpgrade = isValid;
     }
 
     // FIX P1-7: Track failed attempts
     if (isValid) {
       // Successful login - clear failed attempts
       await _clearLockoutData();
+      if (needsUpgrade) {
+        // H2: re-derive and persist as PBKDF2. The plaintext PIN is only
+        // available at verify time, so this is the sole upgrade point that
+        // does not force the user to re-set their PIN.
+        await setPin(pin);
+      }
     } else {
       // Failed attempt - increment counter
       await _recordFailedAttempt();
@@ -219,35 +271,70 @@ class PinSecurityHelper {
     return null; // PIN is acceptable
   }
 
-  /// Hash the PIN using SHA-256 (legacy method without salt)
-  static String _hashPin(String pin) {
+  /// H2: Hash the PIN with [salt] using PBKDF2-HMAC-SHA256.
+  ///
+  /// The base64-encoded [salt] is decoded to raw bytes and used as the
+  /// PBKDF2 nonce; the derived 256-bit key is base64-encoded into a
+  /// self-describing `pbkdf2_sha256$<iterations>$<base64key>` string so
+  /// the iteration count travels with the hash and old hashes still verify
+  /// after a future iteration bump.
+  static Future<String> _hashPinWithSalt(
+    String pin,
+    String salt, {
+    int iterations = _pinPbkdf2Iterations,
+  }) async {
+    final pbkdf2 = Pbkdf2(
+      macAlgorithm: Hmac.sha256(),
+      iterations: iterations,
+      bits: _derivedKeyBits,
+    );
+    final derived = await pbkdf2.deriveKey(
+      secretKey: SecretKey(utf8.encode(pin)),
+      nonce: base64Decode(salt),
+    );
+    final keyBytes = await derived.extractBytes();
+    return '$_pbkdf2Prefix\$$iterations\$${base64Encode(keyBytes)}';
+  }
+
+  /// Parse the iteration count out of a `pbkdf2_sha256$<iters>$<key>` hash,
+  /// falling back to the current default if the field is missing/garbled.
+  static int _parsePbkdf2Iterations(String storedHash) {
+    final parts = storedHash.split(r'$');
+    if (parts.length >= 2) {
+      return int.tryParse(parts[1]) ?? _pinPbkdf2Iterations;
+    }
+    return _pinPbkdf2Iterations;
+  }
+
+  /// Legacy: hash the PIN using SHA-256 with no salt (pre-salt-era format).
+  /// Retained only to verify (and then upgrade) pre-H2 stored hashes.
+  static String _legacyHashPin(String pin) {
     final bytes = utf8.encode(pin);
     final digest = sha256.convert(bytes);
     return digest.toString();
   }
 
-  /// Hash the PIN with salt using SHA-256
-  static String _hashPinWithSalt(String pin, String salt) {
+  /// Legacy: hash the PIN with salt using SHA-256 (the v4.x deployed format).
+  /// Retained only to verify (and then upgrade) pre-H2 stored hashes.
+  static String _legacyHashPinWithSalt(String pin, String salt) {
     final bytes = utf8.encode(salt + pin);
     final digest = sha256.convert(bytes);
     return digest.toString();
   }
 
-  /// FIX Bug #10: Constant-time comparison of two hex hash strings.
+  /// FIX Bug #10: Constant-time comparison of two hash strings.
   ///
   /// Dart's `==` on `String` short-circuits on the first differing code
   /// unit, which leaks the number of matching prefix bytes through the
   /// wall-clock time of `verifyPin`. For a local PIN check on an app
   /// binary this is a tiny risk — but the fix is cheap, so we take it.
   ///
-  /// Both inputs are SHA-256 hex strings, i.e. 64 ASCII characters.
-  /// `codeUnitAt(i)` returns the UTF-16 code unit which is identical to
-  /// the byte value for ASCII, so XORing and OR-accumulating is a valid
-  /// byte-level compare without allocating a `Uint8List`.
+  /// Inputs are ASCII (SHA-256 hex or the base64 PBKDF2 form), so
+  /// `codeUnitAt(i)` equals the byte value and XOR/OR-accumulating is a
+  /// valid byte-level compare without allocating a `Uint8List`.
   static bool _constantTimeEquals(String a, String b) {
-    // Length mismatch is unexpected in practice — SHA-256 is always 64
-    // hex chars — but a defensive early-return here leaks only length,
-    // which is a fixed constant anyway.
+    // Length mismatch is unexpected in practice but a defensive early-return
+    // here leaks only length, which is a fixed constant per format anyway.
     if (a.length != b.length) return false;
     var result = 0;
     for (var i = 0; i < a.length; i++) {
