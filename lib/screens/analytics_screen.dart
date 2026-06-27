@@ -795,6 +795,9 @@ class _BudgetProgress extends StatelessWidget {
     // currency stays in the select tuple so a currency change still rebuilds;
     // the value is read via appState.formatWithCurrency below (M16).
     final appState = context.read<AppState>(); // For getCategorySpending
+    // M6: single-pass spend-by-category, computed once for the whole budget
+    // list instead of re-scanning every expense + looping recurring per budget.
+    final spendTotals = appState.getCategorySpendTotals();
 
     if (budgets.isEmpty) {
       return _buildEmptyState(context, theme);
@@ -816,7 +819,7 @@ class _BudgetProgress extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             ...budgets.map((budget) {
-              final spent = appState.getSpentForCategory(budget.category);
+              final spent = spendTotals[budget.category] ?? 0.0;
               // FIX #3: Handle division by zero for budget percentage
               final percentage = budget.amount > 0
                   ? (spent / budget.amount * 100).clamp(0.0, 100.0)

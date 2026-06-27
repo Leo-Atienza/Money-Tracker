@@ -1142,6 +1142,44 @@ class AppState extends ChangeNotifier {
   }
 
   double getBudgetSpent(String category) => getBudgetSpentBreakdown(category)['total'] ?? 0.0;
+
+  /// M6: total spend (actual + projected recurring) per category in a SINGLE
+  /// pass over expenses and recurring, instead of [getBudgetSpent] re-scanning
+  /// every expense and looping all recurring once per budget. Call once before
+  /// a `budgets.map(...)` render loop, then look up `result[category] ?? 0`.
+  Map<String, double> getCategorySpendTotals() {
+    final actual = <String, Decimal>{};
+    for (final e in getExpensesForSelectedMonth()) {
+      actual[e.category] = (actual[e.category] ?? Decimal.zero) + e.amountDecimal;
+    }
+    final projected = <String, Decimal>{};
+    for (final recurring in _recurringExpenses) {
+      if (!recurring.shouldBeActive) continue;
+      final occurrencesInMonth =
+          _countRecurringOccurrencesInMonth(recurring, _selectedMonth);
+      if (occurrencesInMonth == 0) continue;
+      final alreadyCreatedCount = _expenses
+          .where((e) =>
+              e.description == recurring.description &&
+              e.category == recurring.category &&
+              e.amountDecimal == recurring.amountDecimal &&
+              _isSameMonth(e.date, _selectedMonth))
+          .length;
+      final remainingOccurrences = occurrencesInMonth - alreadyCreatedCount;
+      if (remainingOccurrences > 0) {
+        projected[recurring.category] =
+            (projected[recurring.category] ?? Decimal.zero) +
+                recurring.amountDecimal * Decimal.fromInt(remainingOccurrences);
+      }
+    }
+    final totals = <String, double>{};
+    for (final c in {...actual.keys, ...projected.keys}) {
+      totals[c] = _decimalToDouble(
+          (actual[c] ?? Decimal.zero) + (projected[c] ?? Decimal.zero));
+    }
+    return totals;
+  }
+
   double getBudgetSpentActual(String category) {
     final actualSpentDecimal = getExpensesForSelectedMonth().where((e) => e.category == category).map((e) => e.amountDecimal).fold(Decimal.zero, (sum, amount) => sum + amount);
     return _decimalToDouble(actualSpentDecimal);
