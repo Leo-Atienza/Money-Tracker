@@ -53,7 +53,7 @@ section "flutter test"
 # coverage (test file deleted, expectations weakened) still fails CI
 # even when the remaining tests pass. The floor is the previous-release
 # baseline + 50 — bump it each release to ratchet up coverage.
-TEST_COUNT_MIN=2050
+TEST_COUNT_MIN=2078
 TEST_OUT=$(mktemp)
 trap 'rm -f "$TEST_OUT"' EXIT
 if ! flutter test --concurrency=4 --reporter=expanded 2>&1 | tee "$TEST_OUT"; then

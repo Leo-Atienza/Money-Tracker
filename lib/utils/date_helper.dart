@@ -1,7 +1,16 @@
+import 'clock.dart';
+
 /// Date normalization utilities for consistent date handling across the app.
 ///
 /// CRITICAL: All dates in the app should use UTC midnight (00:00:00.000) to avoid
 /// timezone-related bugs and ensure consistent date comparisons.
+///
+/// "Now"-dependent helpers ([today], [getRelativeTime], and the [isPast] /
+/// [isFuture] / [isToday] family that delegate through [today]) read the
+/// current instant via [Clock.instance] rather than `DateTime.now()` directly.
+/// Production uses the real wall clock; tests swap in a [FakeClock] for
+/// deterministic time (incl. the midnight-rollover edge case) and to keep
+/// golden screenshots of relative-time strings stable.
 class DateHelper {
   /// Normalizes a DateTime to UTC midnight (00:00:00.000).
   ///
@@ -19,7 +28,7 @@ class DateHelper {
 
   /// Returns the current date normalized to UTC midnight.
   static DateTime today() {
-    final now = DateTime.now();
+    final now = Clock.instance.now();
     return DateTime.utc(now.year, now.month, now.day);
   }
 
@@ -142,7 +151,7 @@ class DateHelper {
   /// and formatted date for older dates.
   /// FIX P2-14: Now returns formatted date for older dates instead of empty string.
   static String getRelativeTime(DateTime date) {
-    final now = DateTime.now();
+    final now = Clock.instance.now();
     final normalizedDate = normalize(date);
     final normalizedNow = today();
 

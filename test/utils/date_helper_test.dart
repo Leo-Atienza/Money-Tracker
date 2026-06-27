@@ -1,7 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:budget_tracker/utils/clock.dart';
 import 'package:budget_tracker/utils/date_helper.dart';
 
 void main() {
+  // Reset the injected clock after every test so a FakeClock set in one test
+  // never leaks into the wall-clock-based tests that follow it.
+  tearDown(() {
+    Clock.instance = const Clock();
+  });
+
   // ---------------------------------------------------------------------------
   // normalize()
   // ---------------------------------------------------------------------------
@@ -1028,6 +1035,143 @@ void main() {
       expect(d.day, 29);
       expect(d.hour, 0);
       expect(d.isUtc, isTrue);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Clock injection — deterministic "now"-dependent behaviour.
+  //
+  // today() and getRelativeTime() now read the current instant through
+  // Clock.instance. With a FakeClock these become fully deterministic, which
+  // also pins relative-time strings for the golden screenshots. The tearDown
+  // above restores the real wall clock after each test.
+  // ---------------------------------------------------------------------------
+  group('today() with injected clock', () {
+    test('reflects the FakeClock instant, normalized to UTC midnight', () {
+      Clock.instance = FakeClock.fixed(DateTime(2026, 6, 15, 10, 30, 45));
+      final result = DateHelper.today();
+
+      expect(result, DateTime.utc(2026, 6, 15));
+      expect(result.hour, 0);
+      expect(result.isUtc, isTrue);
+    });
+
+    test('uses the clock day, not the real wall-clock day', () {
+      Clock.instance = FakeClock.fixed(DateTime(1999, 12, 31, 23, 59, 59));
+      expect(DateHelper.today(), DateTime.utc(1999, 12, 31));
+    });
+
+    test('midnight rollover: 23:59 vs 00:01 the next day yield different days',
+        () {
+      Clock.instance = FakeClock.fixed(DateTime(2026, 6, 15, 23, 59));
+      final beforeMidnight = DateHelper.today();
+
+      Clock.instance = FakeClock.fixed(DateTime(2026, 6, 16, 0, 1));
+      final afterMidnight = DateHelper.today();
+
+      expect(beforeMidnight, DateTime.utc(2026, 6, 15));
+      expect(afterMidnight, DateTime.utc(2026, 6, 16));
+      expect(DateHelper.daysBetween(beforeMidnight, afterMidnight), 1);
+    });
+  });
+
+  group('isPast / isFuture / isToday with injected clock', () {
+    setUp(() {
+      // Fixed reference: 2026-06-15 10:00 local.
+      Clock.instance = FakeClock.fixed(DateTime(2026, 6, 15, 10, 0));
+    });
+
+    test('isToday is true only for the clock day', () {
+      expect(DateHelper.isToday(DateTime(2026, 6, 15)), isTrue);
+      expect(DateHelper.isToday(DateTime(2026, 6, 15, 23, 59)), isTrue);
+      expect(DateHelper.isToday(DateTime(2026, 6, 14)), isFalse);
+      expect(DateHelper.isToday(DateTime(2026, 6, 16)), isFalse);
+    });
+
+    test('isPast is true strictly before the clock day', () {
+      expect(DateHelper.isPast(DateTime(2026, 6, 14)), isTrue);
+      expect(DateHelper.isPast(DateTime(2020, 1, 1)), isTrue);
+      expect(DateHelper.isPast(DateTime(2026, 6, 15)), isFalse);
+      expect(DateHelper.isPast(DateTime(2026, 6, 16)), isFalse);
+    });
+
+    test('isFuture is true strictly after the clock day', () {
+      expect(DateHelper.isFuture(DateTime(2026, 6, 16)), isTrue);
+      expect(DateHelper.isFuture(DateTime(2099, 1, 1)), isTrue);
+      expect(DateHelper.isFuture(DateTime(2026, 6, 15)), isFalse);
+      expect(DateHelper.isFuture(DateTime(2026, 6, 14)), isFalse);
+    });
+
+    test('midnight rollover flips a date from today to past', () {
+      final theDate = DateTime(2026, 6, 15, 12, 0);
+      expect(DateHelper.isToday(theDate), isTrue);
+      expect(DateHelper.isPast(theDate), isFalse);
+
+      // Advance the clock past midnight into the next day.
+      Clock.instance = FakeClock.fixed(DateTime(2026, 6, 16, 0, 1));
+      expect(DateHelper.isToday(theDate), isFalse);
+      expect(DateHelper.isPast(theDate), isTrue);
+    });
+  });
+
+  group('getRelativeTime() with injected clock', () {
+    // Reference instant: 2026-06-15 12:00 local — late enough in the day that
+    // "3h ago" stays on the same calendar day.
+    final reference = DateTime(2026, 6, 15, 12, 0);
+
+    setUp(() {
+      Clock.instance = FakeClock.fixed(reference);
+    });
+
+    test('"Just now" for the current instant', () {
+      expect(DateHelper.getRelativeTime(reference), 'Just now');
+    });
+
+    test('"Xm ago" for minutes earlier today', () {
+      final fiveMinAgo = reference.subtract(const Duration(minutes: 5));
+      expect(DateHelper.getRelativeTime(fiveMinAgo), '5m ago');
+    });
+
+    test('"Xh ago" for hours earlier today', () {
+      final threeHoursAgo = reference.subtract(const Duration(hours: 3));
+      expect(DateHelper.getRelativeTime(threeHoursAgo), '3h ago');
+    });
+
+    test('"Yesterday" for the prior calendar day', () {
+      final yesterday = DateTime(2026, 6, 14, 9, 0);
+      expect(DateHelper.getRelativeTime(yesterday), 'Yesterday');
+    });
+
+    test('"X days ago" for 2-6 days earlier', () {
+      for (var i = 2; i <= 6; i++) {
+        final daysAgo = DateTime(2026, 6, 15 - i, 12, 0);
+        expect(DateHelper.getRelativeTime(daysAgo), '$i days ago',
+            reason: '$i days before the clock day');
+      }
+    });
+
+    test('"Mon DD" for 7+ days ago within the clock year', () {
+      final earlier = DateTime(2026, 6, 1);
+      expect(DateHelper.getRelativeTime(earlier), 'Jun 1');
+    });
+
+    test('"Mon DD, YYYY" for a date in a different year', () {
+      final lastYear = DateTime(2020, 3, 9);
+      expect(DateHelper.getRelativeTime(lastYear), 'Mar 9, 2020');
+    });
+
+    test('future date renders as a formatted date string', () {
+      final future = DateTime(2027, 1, 20);
+      expect(DateHelper.getRelativeTime(future), 'Jan 20, 2027');
+    });
+
+    test('relative-time output is stable across repeated calls (golden-safe)',
+        () {
+      final yesterday = DateTime(2026, 6, 14, 9, 0);
+      final first = DateHelper.getRelativeTime(yesterday);
+      final second = DateHelper.getRelativeTime(yesterday);
+      expect(first, second);
+      expect(first, 'Yesterday');
     });
   });
 }
