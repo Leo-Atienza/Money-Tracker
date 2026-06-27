@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
@@ -20,9 +21,46 @@ class PdfExporter {
     DateTime? endDate,
     String? category,
   }) async {
+    final now = DateTime.now();
+    // M5: build + serialize the PDF off the UI isolate — large exports
+    // otherwise jank the main thread for the whole pw.save() pass.
+    final bytes = await compute(
+      buildExpensesPdf,
+      PdfExpenseParams(
+        expenses: expenses,
+        currencySymbol: currencySymbol,
+        title: title,
+        startDate: startDate,
+        endDate: endDate,
+        category: category,
+        now: now,
+      ),
+    );
+
+    // Save the PDF file
+    final output = await getTemporaryDirectory();
+    final fileName = 'expense_report_${now.millisecondsSinceEpoch}.pdf';
+    final file = File('${output.path}/$fileName');
+    await file.writeAsBytes(bytes);
+
+    return file;
+  }
+
+  /// Builds the expense-report PDF document. Pure computation (no platform
+  /// channels, base-14 fonts only) so it is safe to run inside a `compute()`
+  /// isolate.
+  @visibleForTesting
+  static Future<Uint8List> buildExpensesPdf(PdfExpenseParams params) async {
+    final expenses = params.expenses;
+    final currencySymbol = params.currencySymbol;
+    final title = params.title;
+    final startDate = params.startDate;
+    final endDate = params.endDate;
+    final category = params.category;
+    final now = params.now;
+
     final pdf = pw.Document();
     final dateFormat = DateFormat.yMMMd();
-    final now = DateTime.now();
     final reportTitle = title ?? 'Expense Report';
 
     // Group expenses by category for summary
@@ -348,13 +386,7 @@ class PdfExporter {
       ),
     );
 
-    // Save the PDF file
-    final output = await getTemporaryDirectory();
-    final fileName = 'expense_report_${now.millisecondsSinceEpoch}.pdf';
-    final file = File('${output.path}/$fileName');
-    await file.writeAsBytes(await pdf.save());
-
-    return file;
+    return pdf.save();
   }
 
   /// Export income to PDF
@@ -366,9 +398,40 @@ class PdfExporter {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
+    final now = DateTime.now();
+    // M5: build off the UI isolate (see exportExpensesToPdf).
+    final bytes = await compute(
+      buildIncomePdf,
+      PdfIncomeParams(
+        incomes: incomes,
+        currencySymbol: currencySymbol,
+        title: title,
+        startDate: startDate,
+        endDate: endDate,
+        now: now,
+      ),
+    );
+
+    final output = await getTemporaryDirectory();
+    final fileName = 'income_report_${now.millisecondsSinceEpoch}.pdf';
+    final file = File('${output.path}/$fileName');
+    await file.writeAsBytes(bytes);
+
+    return file;
+  }
+
+  /// Builds the income-report PDF document. Pure computation; `compute()`-safe.
+  @visibleForTesting
+  static Future<Uint8List> buildIncomePdf(PdfIncomeParams params) async {
+    final incomes = params.incomes;
+    final currencySymbol = params.currencySymbol;
+    final title = params.title;
+    final startDate = params.startDate;
+    final endDate = params.endDate;
+    final now = params.now;
+
     final pdf = pw.Document();
     final dateFormat = DateFormat.yMMMd();
-    final now = DateTime.now();
     final reportTitle = title ?? 'Income Report';
 
     // Group income by category for summary
@@ -627,12 +690,7 @@ class PdfExporter {
       ),
     );
 
-    final output = await getTemporaryDirectory();
-    final fileName = 'income_report_${now.millisecondsSinceEpoch}.pdf';
-    final file = File('${output.path}/$fileName');
-    await file.writeAsBytes(await pdf.save());
-
-    return file;
+    return pdf.save();
   }
 
   /// Export monthly summary to PDF (expenses + income + budgets)
@@ -647,9 +705,47 @@ class PdfExporter {
     required double totalExpenses,
     required double balance,
   }) async {
+    final now = DateTime.now();
+    // M5: build off the UI isolate (see exportExpensesToPdf).
+    final bytes = await compute(
+      buildMonthlySummaryPdf,
+      PdfMonthlySummaryParams(
+        expenses: expenses,
+        incomes: incomes,
+        budgets: budgets,
+        currencySymbol: currencySymbol,
+        monthName: monthName,
+        totalIncome: totalIncome,
+        totalExpenses: totalExpenses,
+        balance: balance,
+        now: now,
+      ),
+    );
+
+    final output = await getTemporaryDirectory();
+    final fileName = 'monthly_summary_${now.millisecondsSinceEpoch}.pdf';
+    final file = File('${output.path}/$fileName');
+    await file.writeAsBytes(bytes);
+
+    return file;
+  }
+
+  /// Builds the monthly-summary PDF document. Pure computation; `compute()`-safe.
+  @visibleForTesting
+  static Future<Uint8List> buildMonthlySummaryPdf(
+    PdfMonthlySummaryParams params,
+  ) async {
+    final expenses = params.expenses;
+    final budgets = params.budgets;
+    final currencySymbol = params.currencySymbol;
+    final monthName = params.monthName;
+    final totalIncome = params.totalIncome;
+    final totalExpenses = params.totalExpenses;
+    final balance = params.balance;
+    final now = params.now;
+
     final pdf = pw.Document();
     final dateFormat = DateFormat.yMMMd();
-    final now = DateTime.now();
 
     // Calculate category spending
     final Map<String, double> categorySpending = {};
@@ -871,11 +967,72 @@ class PdfExporter {
       ),
     );
 
-    final output = await getTemporaryDirectory();
-    final fileName = 'monthly_summary_${now.millisecondsSinceEpoch}.pdf';
-    final file = File('${output.path}/$fileName');
-    await file.writeAsBytes(await pdf.save());
-
-    return file;
+    return pdf.save();
   }
+}
+
+/// `compute()` payload for [PdfExporter.buildExpensesPdf]. Public so the pure
+/// builder can be unit-tested directly without spawning an isolate.
+class PdfExpenseParams {
+  final List<Expense> expenses;
+  final String currencySymbol;
+  final String? title;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final String? category;
+  final DateTime now;
+
+  PdfExpenseParams({
+    required this.expenses,
+    required this.currencySymbol,
+    required this.title,
+    required this.startDate,
+    required this.endDate,
+    required this.category,
+    required this.now,
+  });
+}
+
+/// `compute()` payload for [PdfExporter.buildIncomePdf].
+class PdfIncomeParams {
+  final List<Income> incomes;
+  final String currencySymbol;
+  final String? title;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final DateTime now;
+
+  PdfIncomeParams({
+    required this.incomes,
+    required this.currencySymbol,
+    required this.title,
+    required this.startDate,
+    required this.endDate,
+    required this.now,
+  });
+}
+
+/// `compute()` payload for [PdfExporter.buildMonthlySummaryPdf].
+class PdfMonthlySummaryParams {
+  final List<Expense> expenses;
+  final List<Income> incomes;
+  final List<Budget> budgets;
+  final String currencySymbol;
+  final String monthName;
+  final double totalIncome;
+  final double totalExpenses;
+  final double balance;
+  final DateTime now;
+
+  PdfMonthlySummaryParams({
+    required this.expenses,
+    required this.incomes,
+    required this.budgets,
+    required this.currencySymbol,
+    required this.monthName,
+    required this.totalIncome,
+    required this.totalExpenses,
+    required this.balance,
+    required this.now,
+  });
 }
