@@ -1,5 +1,7 @@
 # Session Handoff — v5.0.0 Release Branch
 
+> **📘 NEXT SESSION: read [`docs/NEXT_SESSION_HANDOFF.md`](docs/NEXT_SESSION_HANDOFF.md) FIRST.** It is the self-contained finish-and-ship plan: complete context + environment setup + the full ordered remaining-work plan (audit fixes → SQLCipher → goldens → perf → version bump → ship) + an exhaustive per-function test plan for the entire app (every model/util/DB/AppState/screen/widget function, marked ✅/🟡/❌). This file (Session 10 notes) is the supporting history.
+
 ---
 
 ## ⭐ Session 10 (2026-06-26) — autonomous audit + fix arc (READ THIS FIRST; supersedes older sections)
