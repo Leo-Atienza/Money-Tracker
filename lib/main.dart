@@ -183,8 +183,18 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     // can't pass. `initializeLockState` and the inactivity timer already gate
     // on pinEnabled — keep `_handlePaused` consistent so `isLocked == true`
     // always implies a PIN exists.
-    if (await appState.isPinEnabled()) {
-      appState.lock();
+    //
+    // Wrapped in try/catch so a secure-storage read failure can NEVER (a) skip
+    // the DB-close / subscription-dispose maintenance below, nor (b) trap a
+    // PIN-less user — on error we leave the app unlocked (fail-open for
+    // usability; the resume handler is a no-op when unlocked anyway).
+    try {
+      if (await appState.isPinEnabled()) {
+        appState.lock();
+      }
+    } catch (e, st) {
+      if (kDebugMode) debugPrint('isPinEnabled() on paused failed: $e');
+      CrashLog.record(e, stack: st, context: 'lifecycle_paused_pin_check');
     }
     try {
       // Update the home-screen widget with the latest financial summary
