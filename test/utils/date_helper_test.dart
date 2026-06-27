@@ -915,4 +915,119 @@ void main() {
       }
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // addDays()
+  //
+  // Source: normalize(date).add(Duration(days: days)). Operand is UTC midnight,
+  // so every result is UTC midnight and immune to DST hour drift. Used for
+  // weekly/biweekly recurring-transaction generation.
+  // ---------------------------------------------------------------------------
+  group('addDays()', () {
+    test('+7 days advances exactly one week at UTC midnight', () {
+      final result = DateHelper.addDays(DateTime.utc(2024, 1, 1), 7);
+
+      expect(result.year, 2024);
+      expect(result.month, 1);
+      expect(result.day, 8);
+      expect(result.hour, 0);
+      expect(result.minute, 0);
+      expect(result.second, 0);
+      expect(result.millisecond, 0);
+      expect(result.isUtc, isTrue);
+    });
+
+    test('+14 days advances exactly two weeks (biweekly)', () {
+      final result = DateHelper.addDays(DateTime.utc(2024, 1, 1), 14);
+
+      expect(result.year, 2024);
+      expect(result.month, 1);
+      expect(result.day, 15);
+      expect(result.isUtc, isTrue);
+    });
+
+    test('crosses a month boundary: Jan 30 + 5 = Feb 4', () {
+      final result = DateHelper.addDays(DateTime.utc(2024, 1, 30), 5);
+
+      expect(result.year, 2024);
+      expect(result.month, 2);
+      expect(result.day, 4);
+      expect(result.isUtc, isTrue);
+    });
+
+    test('crosses a year boundary: Dec 30 + 5 = Jan 4 next year', () {
+      final result = DateHelper.addDays(DateTime.utc(2024, 12, 30), 5);
+
+      expect(result.year, 2025);
+      expect(result.month, 1);
+      expect(result.day, 4);
+      expect(result.isUtc, isTrue);
+    });
+
+    test('respects leap day: Feb 28 + 1 = Feb 29 in a leap year', () {
+      final result = DateHelper.addDays(DateTime.utc(2024, 2, 28), 1);
+
+      expect(result.month, 2);
+      expect(result.day, 29);
+    });
+
+    test('skips Feb 29 in a non-leap year: Feb 28 + 1 = Mar 1', () {
+      final result = DateHelper.addDays(DateTime.utc(2023, 2, 28), 1);
+
+      expect(result.month, 3);
+      expect(result.day, 1);
+    });
+
+    test('negative days subtract: Jan 5 - 10 = Dec 26 previous year', () {
+      final result = DateHelper.addDays(DateTime.utc(2024, 1, 5), -10);
+
+      expect(result.year, 2023);
+      expect(result.month, 12);
+      expect(result.day, 26);
+      expect(result.isUtc, isTrue);
+    });
+
+    test('+0 days returns the normalized input', () {
+      final result = DateHelper.addDays(DateTime.utc(2024, 6, 15), 0);
+
+      expect(result, equals(DateHelper.normalize(DateTime.utc(2024, 6, 15))));
+      expect(result.day, 15);
+      expect(result.isUtc, isTrue);
+    });
+
+    test('normalizes a local input with a time component before adding', () {
+      // 14:30 local should be stripped to UTC midnight first, then advanced.
+      final result = DateHelper.addDays(DateTime(2024, 3, 8, 14, 30), 2);
+
+      expect(result.year, 2024);
+      expect(result.month, 3);
+      expect(result.day, 10);
+      expect(result.hour, 0);
+      expect(result.isUtc, isTrue);
+    });
+
+    test('is DST-immune: no hour drift across a spring-forward date', () {
+      // March 10, 2024 is US spring-forward. Because the operand is normalized
+      // UTC midnight, the result stays at 00:00 UTC with no skipped hour.
+      final result = DateHelper.addDays(DateTime.utc(2024, 3, 9), 1);
+
+      expect(result.year, 2024);
+      expect(result.month, 3);
+      expect(result.day, 10);
+      expect(result.hour, 0);
+      expect(result.minute, 0);
+      expect(result.isUtc, isTrue);
+    });
+
+    test('chaining biweekly additions stays on UTC midnight', () {
+      var d = DateHelper.addDays(DateTime.utc(2024, 1, 1), 14);
+      d = DateHelper.addDays(d, 14);
+
+      expect(d.year, 2024);
+      expect(d.month, 1);
+      expect(d.day, 29);
+      expect(d.hour, 0);
+      expect(d.isUtc, isTrue);
+    });
+  });
 }

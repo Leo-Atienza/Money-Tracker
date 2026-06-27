@@ -867,4 +867,108 @@ void main() {
       }
     });
   });
+
+  // =========================================================================
+  // Gap closure: ZAR 'R' single-char symbol vs 'EUR' code ordering
+  // (normalizeDecimalInput strips 3-char codes BEFORE 1-char symbols, so the
+  //  'R' inside "EUR" must never be mangled — handoff-flagged partial gap).
+  // =========================================================================
+  group('normalizeDecimalInput - ZAR R vs currency-code ordering', () {
+    test('strips ZAR R symbol from European-formatted value', () {
+      // 'R' is the ZAR symbol; code-first stripping leaves the number intact.
+      expect(CurrencyHelper.normalizeDecimalInput('R1.234,56'), '1234.56');
+    });
+
+    test('strips ZAR R symbol with trailing space', () {
+      expect(CurrencyHelper.normalizeDecimalInput('R 50'), '50');
+    });
+
+    test('strips ZAR code without touching the digits', () {
+      expect(CurrencyHelper.normalizeDecimalInput('ZAR 50'), '50');
+    });
+
+    test('a bare EUR code collapses to empty (R not mangled mid-code)', () {
+      // If symbols were stripped before codes, the 'R' in EUR would be removed
+      // first, leaving "EU" and breaking the code strip. Source order prevents
+      // that: code 'EUR' is removed whole -> empty string.
+      expect(CurrencyHelper.normalizeDecimalInput('EUR'), '');
+    });
+
+    test('strips EUR code from European-formatted value cleanly', () {
+      expect(CurrencyHelper.normalizeDecimalInput('EUR 1.234,56'), '1234.56');
+    });
+
+    test('parseDecimal round-trips a ZAR-symbol value', () {
+      expect(CurrencyHelper.parseDecimal('R1234.56'), 1234.56);
+    });
+  });
+
+  // =========================================================================
+  // Gap closure: formatAmount cache reuse (handoff-flagged minor gap).
+  // The _formatterCache is private; the only observable contract is that
+  // repeated calls with the same locale/decimalDigits stay consistent and
+  // that distinct (locale, digits) keys don't collide. Asserts behavioral
+  // idempotence rather than reaching into the private map.
+  // =========================================================================
+  group('formatAmount - cached formatter reuse', () {
+    test('repeated identical calls return the same string', () {
+      final results = List.generate(
+        50,
+        (_) => CurrencyHelper.formatAmount(1234.56, 'USD'),
+      );
+      expect(results.toSet(), {'1,234.56'},
+          reason: 'cache hit must not change the output');
+    });
+
+    test('same locale with different decimalDigits keeps distinct cache keys',
+        () {
+      // Cache key is "$locale:$decimalDigits" — different digit counts must
+      // not collide on the shared en_US locale.
+      expect(CurrencyHelper.formatAmount(1234.5, 'USD', decimalDigits: 0),
+          '1,235');
+      expect(CurrencyHelper.formatAmount(1234.5, 'USD', decimalDigits: 2),
+          '1,234.50');
+      // Re-issue the 0-digit call: the earlier 2-digit cache entry must not
+      // have clobbered it.
+      expect(CurrencyHelper.formatAmount(1234.5, 'USD', decimalDigits: 0),
+          '1,235');
+    });
+
+    test('interleaved locales stay independent across cache hits', () {
+      final usd1 = CurrencyHelper.formatAmount(1234.56, 'USD');
+      final eur1 = CurrencyHelper.formatAmount(1234.56, 'EUR');
+      final usd2 = CurrencyHelper.formatAmount(1234.56, 'USD');
+      final eur2 = CurrencyHelper.formatAmount(1234.56, 'EUR');
+      expect(usd1, '1,234.56');
+      expect(usd2, '1,234.56');
+      expect(eur1, '1.234,56');
+      expect(eur2, '1.234,56');
+    });
+  });
+
+  // =========================================================================
+  // Gap closure: formatCompact real-locale path on negatives / boundaries.
+  // (The catch-block manual K/M fallback is unreachable with valid locales —
+  //  see deferred note; these exercise the live NumberFormat.compact path.)
+  // =========================================================================
+  group('formatCompact - negatives and boundaries', () {
+    test('negative millions keep the sign and M suffix', () {
+      final result = CurrencyHelper.formatCompact(-1500000.0, 'USD');
+      expect(result, startsWith('-'));
+      expect(result, contains('M'));
+    });
+
+    test('value just under 1000 gets no suffix', () {
+      final result = CurrencyHelper.formatCompact(999.0, 'USD');
+      expect(result, isNot(contains('K')));
+      expect(result, isNot(contains('M')));
+      expect(result, contains('999'));
+    });
+
+    test('negative thousands keep the sign and K suffix', () {
+      final result = CurrencyHelper.formatCompact(-1500.0, 'USD');
+      expect(result, startsWith('-'));
+      expect(result, contains('K'));
+    });
+  });
 }

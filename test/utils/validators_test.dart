@@ -973,4 +973,70 @@ void main() {
       expect(diff, closeTo(3650, 1));
     });
   });
+
+  // ========================================================================
+  // validateTagName() — security asymmetry vs validateCategoryName()
+  //
+  // GAP (spec 🟡 Partial): validateTagName() has NO invalid-character regex,
+  // unlike validateCategoryName() which blocks `<>{}[]\\`|` and \x00.
+  // These tests PIN the deliberate absence of char-blocking: every character
+  // class that the category validator rejects is ACCEPTED as a tag name.
+  // If a future change adds char-blocking to tags, these tests must be
+  // revisited (they document intended behavior, not an aspiration).
+  // ========================================================================
+  group('validateTagName invalid-character asymmetry', () {
+    test('accepts angle brackets (blocked for categories)', () {
+      // <script> is rejected as a category but accepted as a tag.
+      expect(Validators.validateTagName('<script>', []), isNull);
+    });
+
+    test('accepts backslash (blocked for categories)', () {
+      expect(Validators.validateTagName('path\\name', []), isNull);
+    });
+
+    test('accepts curly braces (blocked for categories)', () {
+      expect(Validators.validateTagName('{json}', []), isNull);
+    });
+
+    test('accepts square brackets (blocked for categories)', () {
+      expect(Validators.validateTagName('[array]', []), isNull);
+    });
+
+    test('accepts backtick (blocked for categories)', () {
+      expect(Validators.validateTagName('name`cmd`', []), isNull);
+    });
+
+    test('accepts pipe character (blocked for categories)', () {
+      expect(Validators.validateTagName('a|b', []), isNull);
+    });
+
+    test('accepts null character (blocked for categories)', () {
+      // \x00 is rejected as a category name but is NOT screened for tags.
+      expect(Validators.validateTagName('bad\x00name', []), isNull);
+    });
+
+    test('accepts all category-blocked characters combined', () {
+      expect(Validators.validateTagName(r'<>{}[]\`|', []), isNull);
+    });
+
+    test('still rejects an invalid-char tag if it duplicates an existing tag',
+        () {
+      // The duplicate check runs regardless of characters present, since
+      // there is no char-blocking branch to short-circuit it.
+      expect(
+        Validators.validateTagName('<script>', ['<script>']),
+        'A tag with this name already exists',
+      );
+    });
+
+    test('still enforces max length on an invalid-char tag', () {
+      // 51 chars including a category-blocked char -> length error wins,
+      // proving the length branch is reached (no char-block guard before it).
+      final longInvalid = '<${'a' * 50}'; // 51 chars
+      expect(
+        Validators.validateTagName(longInvalid, []),
+        contains('too long'),
+      );
+    });
+  });
 }

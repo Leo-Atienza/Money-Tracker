@@ -393,5 +393,101 @@ void main() {
         expect(() => Budget.fromMap(<String, dynamic>{}), throwsArgumentError);
       });
     });
+
+    group('round-trip precision', () {
+      // Closes the 🟡 Partial round-trip gap in the spec: 3-dp amount
+      // truncation and a *round-tripped* (not constructor-only) large amount.
+      //
+      // Mechanics: toMap() stores DecimalHelper.toDouble(_amount) verbatim
+      // (no rounding — only finite/clamp guards). fromMap() restores via
+      // fromDoubleSafe -> fromDouble -> Decimal.parse(clamped.toStringAsFixed(2)),
+      // so the 2-dp truncation happens on deserialization, not construction.
+
+      test('3-dp amount stored exactly in the constructor (no truncation)', () {
+        // The constructor keeps the Decimal as-is; truncation is a round-trip
+        // artifact, so a freshly built Budget retains all three decimals.
+        final b = Budget(
+          category: 'Food',
+          amount: Decimal.parse('500.123'),
+          accountId: 1,
+          month: DateTime.utc(2024, 1, 1),
+        );
+        expect(b.amountDecimal, Decimal.parse('500.123'));
+      });
+
+      test('round-trip truncates a 3-dp amount to 2dp (rounds down)', () {
+        final b = Budget(
+          category: 'Food',
+          amount: Decimal.parse('500.123'), // 3rd dp = 3 -> drops
+          accountId: 2,
+          month: DateTime.utc(2024, 5, 1),
+        );
+        final restored = Budget.fromMap(b.toMap());
+        // (500.123).toStringAsFixed(2) == '500.12'
+        expect(restored.amountDecimal, Decimal.parse('500.12'));
+        expect(restored.amount, 500.12);
+      });
+
+      test('round-trip truncates a 3-dp amount to 2dp (rounds up)', () {
+        final b = Budget(
+          category: 'Food',
+          amount: Decimal.parse('500.128'), // 3rd dp = 8 -> rounds up
+          accountId: 3,
+          month: DateTime.utc(2024, 5, 1),
+        );
+        final restored = Budget.fromMap(b.toMap());
+        // (500.128).toStringAsFixed(2) == '500.13'
+        expect(restored.amountDecimal, Decimal.parse('500.13'));
+        expect(restored.amount, 500.13);
+      });
+
+      test('round-trip rounds .999 up across the integer boundary', () {
+        final b = Budget(
+          category: 'Food',
+          amount: Decimal.parse('250.999'),
+          accountId: 1,
+          month: DateTime.utc(2024, 7, 1),
+        );
+        final restored = Budget.fromMap(b.toMap());
+        // (250.999).toStringAsFixed(2) == '251.00'
+        expect(restored.amountDecimal, Decimal.parse('251.00'));
+        expect(restored.amount, 251.00);
+      });
+
+      test('round-trip preserves the max safe amount (999999999.99)', () {
+        // The 'edge cases > handles large amounts' test only checks the
+        // constructor. This drives the value through toMap -> fromMap so the
+        // DecimalHelper clamp ceiling (999999999.99) is exercised on the
+        // serialization path, not just at construction.
+        final b = Budget(
+          category: 'Food',
+          amount: Decimal.parse('999999999.99'),
+          accountId: 9,
+          month: DateTime.utc(2024, 12, 1),
+        );
+        final restored = Budget.fromMap(b.toMap());
+        expect(restored.amountDecimal, Decimal.parse('999999999.99'));
+        expect(restored.amount, closeTo(999999999.99, 0.01));
+        expect(restored.id, b.id);
+        expect(restored.category, b.category);
+        expect(restored.accountId, b.accountId);
+        expect(restored.month, b.month);
+      });
+
+      test('round-trip is idempotent after the first 2-dp truncation', () {
+        // First round-trip truncates 500.123 -> 500.12; a second round-trip
+        // must be a no-op (the value is already at 2dp).
+        final b = Budget(
+          category: 'Food',
+          amount: Decimal.parse('500.123'),
+          accountId: 4,
+          month: DateTime.utc(2024, 6, 1),
+        );
+        final once = Budget.fromMap(b.toMap());
+        final twice = Budget.fromMap(once.toMap());
+        expect(twice.amountDecimal, once.amountDecimal);
+        expect(twice.amountDecimal, Decimal.parse('500.12'));
+      });
+    });
   });
 }
