@@ -581,5 +581,73 @@ void main() {
         lessThan(csv.indexOf('2024-03-10,Expense,Coffee')),
       );
     });
+
+    // L23: summary totals fold in Decimal-space so the CSV summary matches the
+    // in-app (Decimal-folded) figures. These lock the accumulation across many
+    // same-category rows and a mixed expense/income net.
+    test('buildExpensesCsv folds many rows + category totals in Decimal (L23)',
+        () {
+      // 10 rows of 0.10 in one category, 3 of 1.05 in another.
+      final csv = CsvExporter.buildExpensesCsv(CsvExpenseParams(
+        [
+          for (var i = 0; i < 10; i++)
+            expense(
+                amount: 0.10,
+                paid: 0.10,
+                category: 'Snacks',
+                description: 'item $i',
+                date: DateTime(2024, 3, 14)),
+          for (var i = 0; i < 3; i++)
+            expense(
+                amount: 1.05,
+                paid: 0,
+                category: 'Bus',
+                description: 'ride $i',
+                date: DateTime(2024, 3, 13)),
+        ],
+        CsvSeparator.comma,
+        now,
+      ));
+
+      // 10 * 0.10 = 1.00 ; 3 * 1.05 = 3.15 ; grand total = 4.15.
+      expect(csv, contains('Total Amount,4.15'));
+      expect(csv, contains('Total Paid,1.00'));
+      expect(csv, contains('Total Remaining,3.15'));
+      // Category folds: Bus (3.15) sorts before Snacks (1.00).
+      expect(csv, contains('Bus,3.15'));
+      expect(csv, contains('Snacks,1.00'));
+      expect(csv.indexOf('Bus,3.15'), lessThan(csv.indexOf('Snacks,1.00')));
+    });
+
+    test('buildAllTransactionsCsv net balance folds in Decimal (L23)', () {
+      final csv = CsvExporter.buildAllTransactionsCsv(CsvAllTxParams(
+        [
+          for (var i = 0; i < 7; i++)
+            expense(
+                amount: 0.30,
+                paid: 0.30,
+                category: 'Misc',
+                description: 'e$i',
+                date: DateTime(2024, 3, 10)),
+        ],
+        [
+          for (var i = 0; i < 4; i++)
+            Income(
+              amount: Decimal.parse('1.10'),
+              category: 'Tips',
+              description: 'i$i',
+              date: DateTime(2024, 3, 12),
+              accountId: 1,
+            ),
+        ],
+        CsvSeparator.comma,
+        now,
+      ));
+
+      // income 4 * 1.10 = 4.40 ; expenses 7 * 0.30 = 2.10 ; net = 2.30.
+      expect(csv, contains('Total Income,4.40'));
+      expect(csv, contains('Total Expenses,2.10'));
+      expect(csv, contains('Net Balance,2.30'));
+    });
   });
 }

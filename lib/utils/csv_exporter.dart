@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:decimal/decimal.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
@@ -100,11 +101,14 @@ class CsvExporter {
       'Date${sep}Description${sep}Category${sep}Amount${sep}Paid${sep}Remaining${sep}Status',
     );
 
-    // Calculate totals while building data rows
-    double totalAmount = 0.0;
-    double totalPaid = 0.0;
-    double totalRemaining = 0.0;
-    final Map<String, double> categoryTotals = {};
+    // L23: accumulate the summary totals in Decimal-space so they fold the
+    // same way app_state does (app_state.dart:2196) and the CSV summary rows
+    // match the in-app figures bit-for-bit instead of drifting a cent over
+    // large datasets. Per-row cells stay double (single values, 2dp).
+    Decimal totalAmount = Decimal.zero;
+    Decimal totalPaid = Decimal.zero;
+    Decimal totalRemaining = Decimal.zero;
+    final Map<String, Decimal> categoryTotals = {};
 
     for (final expense in expenses) {
       final date = DateFormat('yyyy-MM-dd').format(expense.date);
@@ -120,21 +124,26 @@ class CsvExporter {
       );
 
       // Accumulate totals
-      totalAmount += expense.amount;
-      totalPaid += expense.amountPaid;
-      totalRemaining += expense.remainingAmount;
+      totalAmount += expense.amountDecimal;
+      totalPaid += expense.amountPaidDecimal;
+      totalRemaining += expense.remainingAmountDecimal;
       categoryTotals[expense.category] =
-          (categoryTotals[expense.category] ?? 0.0) + expense.amount;
+          (categoryTotals[expense.category] ?? Decimal.zero) +
+              expense.amountDecimal;
     }
 
     // Summary section
     csvData.writeln('');
     csvData.writeln('--- SUMMARY ---');
     csvData.writeln('Total Transactions$sep${expenses.length}');
-    csvData.writeln('Total Amount$sep${_formatNumber(totalAmount, separator)}');
-    csvData.writeln('Total Paid$sep${_formatNumber(totalPaid, separator)}');
     csvData.writeln(
-      'Total Remaining$sep${_formatNumber(totalRemaining, separator)}',
+      'Total Amount$sep${_formatNumber(totalAmount.toDouble(), separator)}',
+    );
+    csvData.writeln(
+      'Total Paid$sep${_formatNumber(totalPaid.toDouble(), separator)}',
+    );
+    csvData.writeln(
+      'Total Remaining$sep${_formatNumber(totalRemaining.toDouble(), separator)}',
     );
     csvData.writeln('');
     csvData.writeln('--- BY CATEGORY ---');
@@ -142,7 +151,7 @@ class CsvExporter {
       ..sort((a, b) => b.value.compareTo(a.value));
     for (final entry in sortedCategories) {
       csvData.writeln(
-        '${_escapeCsv(entry.key, separator)}$sep${_formatNumber(entry.value, separator)}',
+        '${_escapeCsv(entry.key, separator)}$sep${_formatNumber(entry.value.toDouble(), separator)}',
       );
     }
 
@@ -240,9 +249,9 @@ class CsvExporter {
     // Column header
     csvData.writeln('Date${sep}Description${sep}Category${sep}Amount');
 
-    // Calculate totals while building data rows
-    double totalAmount = 0.0;
-    final Map<String, double> categoryTotals = {};
+    // L23: Decimal-space accumulation (see buildExpensesCsv).
+    Decimal totalAmount = Decimal.zero;
+    final Map<String, Decimal> categoryTotals = {};
 
     for (final income in incomes) {
       final date = DateFormat('yyyy-MM-dd').format(income.date);
@@ -253,23 +262,26 @@ class CsvExporter {
       csvData.writeln('$date$sep$description$sep$category$sep$amount');
 
       // Accumulate totals
-      totalAmount += income.amount;
+      totalAmount += income.amountDecimal;
       categoryTotals[income.category] =
-          (categoryTotals[income.category] ?? 0.0) + income.amount;
+          (categoryTotals[income.category] ?? Decimal.zero) +
+              income.amountDecimal;
     }
 
     // Summary section
     csvData.writeln('');
     csvData.writeln('--- SUMMARY ---');
     csvData.writeln('Total Transactions$sep${incomes.length}');
-    csvData.writeln('Total Income$sep${_formatNumber(totalAmount, separator)}');
+    csvData.writeln(
+      'Total Income$sep${_formatNumber(totalAmount.toDouble(), separator)}',
+    );
     csvData.writeln('');
     csvData.writeln('--- BY CATEGORY ---');
     final sortedCategories = categoryTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     for (final entry in sortedCategories) {
       csvData.writeln(
-        '${_escapeCsv(entry.key, separator)}$sep${_formatNumber(entry.value, separator)}',
+        '${_escapeCsv(entry.key, separator)}$sep${_formatNumber(entry.value.toDouble(), separator)}',
       );
     }
 
@@ -322,8 +334,9 @@ class CsvExporter {
     // Combine and sort by date
     final allTransactions = <_TransactionRow>[];
 
-    double totalIncome = 0.0;
-    double totalExpenses = 0.0;
+    // L23: Decimal-space accumulation (see buildExpensesCsv).
+    Decimal totalIncome = Decimal.zero;
+    Decimal totalExpenses = Decimal.zero;
 
     for (final expense in expenses) {
       allTransactions.add(
@@ -336,7 +349,7 @@ class CsvExporter {
           status: expense.isPaid ? 'Paid' : 'Unpaid',
         ),
       );
-      totalExpenses += expense.amount;
+      totalExpenses += expense.amountDecimal;
     }
 
     for (final income in incomes) {
@@ -350,7 +363,7 @@ class CsvExporter {
           status: '-',
         ),
       );
-      totalIncome += income.amount;
+      totalIncome += income.amountDecimal;
     }
 
     // Sort by date descending
@@ -374,12 +387,14 @@ class CsvExporter {
     csvData.writeln('');
     csvData.writeln('--- SUMMARY ---');
     csvData.writeln('Total Transactions$sep${allTransactions.length}');
-    csvData.writeln('Total Income$sep${_formatNumber(totalIncome, separator)}');
     csvData.writeln(
-      'Total Expenses$sep${_formatNumber(totalExpenses, separator)}',
+      'Total Income$sep${_formatNumber(totalIncome.toDouble(), separator)}',
     );
     csvData.writeln(
-      'Net Balance$sep${_formatNumber(totalIncome - totalExpenses, separator)}',
+      'Total Expenses$sep${_formatNumber(totalExpenses.toDouble(), separator)}',
+    );
+    csvData.writeln(
+      'Net Balance$sep${_formatNumber((totalIncome - totalExpenses).toDouble(), separator)}',
     );
 
     return csvData.toString();

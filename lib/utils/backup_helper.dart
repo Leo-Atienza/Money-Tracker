@@ -99,7 +99,14 @@ Future<_RestoreIsolateResult> _decodeBackupInIsolate(
   _RestoreIsolateParams params,
 ) async {
   final backupData = jsonDecode(params.backupJson) as Map<String, dynamic>;
-  final dbBase64 = backupData['database'] as String;
+  // L55: a file can contain the literal substring `"database"` (the cheap
+  // contains() pre-check) yet carry a null/numeric/missing value. Guard the
+  // cast with a typed check that throws FormatException so the caller can map
+  // it to the clearer RestoreResult.invalidFile instead of a generic error.
+  final dbBase64 = backupData['database'];
+  if (dbBase64 is! String) {
+    throw const FormatException('missing or invalid database field');
+  }
   final dbBytes = base64Decode(dbBase64);
   final settings = backupData['settings'] as Map<String, dynamic>?;
   final schemaVersion = backupData['schema_version'];
@@ -1192,14 +1199,27 @@ class BackupHelper {
 
         return RestoreResult.success;
       } catch (e) {
-        // Rollback: restore from pre-restore backup
+        // Rollback: restore from pre-restore backup.
+        // L54: guard the cleanup steps so a partial failure (closeDatabase
+        // race, WAL-delete error, low-disk delete) cannot abort before the
+        // data-restoring copy runs. The copy is the one step that must always
+        // be attempted; if IT throws, the pre-restore file is still on disk
+        // for manual recovery.
         final preRestoreFile = File(preRestoreBackup);
         if (await preRestoreFile.exists()) {
-          await closeDatabase();
-          await Future.delayed(const Duration(milliseconds: 500));
-          await _deleteWalShmFiles(dbPath);
-          if (await dbFile.exists()) {
-            await dbFile.delete();
+          try {
+            await closeDatabase();
+            await Future.delayed(const Duration(milliseconds: 500));
+            await _deleteWalShmFiles(dbPath);
+            if (await dbFile.exists()) {
+              await dbFile.delete();
+            }
+          } catch (rollbackPrep) {
+            if (kDebugMode) {
+              debugPrint(
+                'Rollback prep failed (continuing to copy): $rollbackPrep',
+              );
+            }
           }
           await preRestoreFile.copy(dbPath);
         }
@@ -1207,6 +1227,10 @@ class BackupHelper {
       }
     } catch (e) {
       if (kDebugMode) debugPrint('Error restoring comprehensive backup: $e');
+      // L55: a truncated/garbage backup (missing/invalid database field or
+      // bad base64) surfaces as FormatException — report it as an invalid
+      // file so the user gets an actionable message instead of a generic one.
+      if (e is FormatException) return RestoreResult.invalidFile;
       return RestoreResult.error;
     }
   }
