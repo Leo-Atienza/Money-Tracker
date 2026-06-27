@@ -283,6 +283,30 @@ void main() {
           isNull,
         );
       });
+
+      test('tryFromMap returns null on a wrong-typed column (TypeError)', () {
+        // A column stored as the wrong type makes fromMap's `as num?` / `as int`
+        // casts throw TypeError, not ArgumentError. tryFromMap must catch both
+        // so a malformed row is dropped, not crash the whole bulk read.
+        expect(
+          Expense.tryFromMap({
+            'amount': 'not-a-number',
+            'category': 'Food',
+            'account_id': 1,
+            'date': '2024-01-01',
+          }),
+          isNull,
+        );
+        expect(
+          Expense.tryFromMap({
+            'amount': 10.0,
+            'category': 'Food',
+            'account_id': 'not-an-int',
+            'date': '2024-01-01',
+          }),
+          isNull,
+        );
+      });
     });
 
     group('copyWith()', () {

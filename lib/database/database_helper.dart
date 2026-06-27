@@ -2402,7 +2402,10 @@ class DatabaseHelper {
       where: 'account_id = ?',
       whereArgs: [accountId],
     );
-    return result.map((map) => RecurringExpense.fromMap(map)).toList();
+    return result
+        .map((map) => RecurringExpense.tryFromMap(map))
+        .whereType<RecurringExpense>()
+        .toList();
   }
 
   /// FIX: Optimized method to read only active recurring expenses
@@ -2414,7 +2417,10 @@ class DatabaseHelper {
       where: 'account_id = ? AND isActive = 1',
       whereArgs: [accountId],
     );
-    return result.map((map) => RecurringExpense.fromMap(map)).toList();
+    return result
+        .map((map) => RecurringExpense.tryFromMap(map))
+        .whereType<RecurringExpense>()
+        .toList();
   }
 
   Future<int> updateRecurringExpense(RecurringExpense expense) async {
@@ -3047,7 +3053,10 @@ class DatabaseHelper {
       where: 'account_id = ?',
       whereArgs: [accountId],
     );
-    return result.map((map) => RecurringIncome.fromMap(map)).toList();
+    return result
+        .map((map) => RecurringIncome.tryFromMap(map))
+        .whereType<RecurringIncome>()
+        .toList();
   }
 
   /// FIX: Optimized method to read only active recurring income
@@ -3059,7 +3068,10 @@ class DatabaseHelper {
       where: 'account_id = ? AND isActive = 1',
       whereArgs: [accountId],
     );
-    return result.map((map) => RecurringIncome.fromMap(map)).toList();
+    return result
+        .map((map) => RecurringIncome.tryFromMap(map))
+        .whereType<RecurringIncome>()
+        .toList();
   }
 
   Future<int> updateRecurringIncome(RecurringIncome income) async {

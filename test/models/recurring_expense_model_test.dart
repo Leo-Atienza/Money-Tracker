@@ -761,5 +761,51 @@ void main() {
         expect(restored.maxOccurrences, isNull);
       });
     });
+
+    // -----------------------------------------------------------------------
+    // tryFromMap() — bulk-read safety contract (surface-defect pin)
+    // -----------------------------------------------------------------------
+    group('tryFromMap()', () {
+      test('parses a valid row', () {
+        final parsed = RecurringExpense.tryFromMap(make(id: 7).toMap());
+        expect(parsed, isNotNull);
+        expect(parsed!.id, 7);
+        expect(parsed.description, 'Netflix');
+        expect(parsed.amount, closeTo(15.99, 0.001));
+      });
+
+      test('returns null on a row missing a required field', () {
+        // description / category / dayOfMonth / account_id assign straight into
+        // non-nullable fields → fromMap throws TypeError; tryFromMap must
+        // swallow it so one corrupt row cannot abort the whole bulk read.
+        expect(RecurringExpense.tryFromMap(<String, dynamic>{}), isNull);
+        expect(
+          RecurringExpense.tryFromMap(make().toMap()..remove('description')),
+          isNull,
+        );
+        expect(
+          RecurringExpense.tryFromMap(make().toMap()..remove('account_id')),
+          isNull,
+        );
+      });
+
+      test('returns null on a wrong-typed column', () {
+        expect(
+          RecurringExpense.tryFromMap(make().toMap()..['dayOfMonth'] = 'x'),
+          isNull,
+        );
+        expect(
+          RecurringExpense.tryFromMap(make().toMap()..['account_id'] = 'x'),
+          isNull,
+        );
+      });
+
+      test('raw fromMap still throws on a corrupt row', () {
+        expect(
+          () => RecurringExpense.fromMap(<String, dynamic>{}),
+          throwsA(isA<TypeError>()),
+        );
+      });
+    });
   });
 }

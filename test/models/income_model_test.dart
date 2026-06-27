@@ -261,6 +261,54 @@ void main() {
       });
     });
 
+    group('tryFromMap() — bulk-read safety contract', () {
+      test('parses a valid row', () {
+        final parsed = Income.tryFromMap({
+          'id': 7,
+          'amount': 100.0,
+          'category': 'Salary',
+          'description': 'Test',
+          'date': '2024-01-01',
+          'account_id': 1,
+        });
+        expect(parsed, isNotNull);
+        expect(parsed!.id, 7);
+        expect(parsed.amount, closeTo(100.0, 0.001));
+      });
+
+      test('returns null on missing required fields (ArgumentError)', () {
+        expect(Income.tryFromMap(<String, dynamic>{}), isNull);
+        expect(
+          Income.tryFromMap({'amount': 10.0, 'date': '2024-01-01'}),
+          isNull,
+        );
+      });
+
+      test('returns null on a wrong-typed column (TypeError)', () {
+        // `as num?` / `as int` casts in fromMap throw TypeError, not
+        // ArgumentError. tryFromMap must catch both so a malformed row is
+        // dropped instead of aborting the whole bulk read.
+        expect(
+          Income.tryFromMap({
+            'amount': 'not-a-number',
+            'category': 'Salary',
+            'account_id': 1,
+            'date': '2024-01-01',
+          }),
+          isNull,
+        );
+        expect(
+          Income.tryFromMap({
+            'amount': 10.0,
+            'category': 'Salary',
+            'account_id': 'not-an-int',
+            'date': '2024-01-01',
+          }),
+          isNull,
+        );
+      });
+    });
+
     group('copyWith()', () {
       test('copies with new id', () {
         final copy = income.copyWith(id: 99);

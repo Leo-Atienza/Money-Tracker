@@ -102,6 +102,24 @@ class RecurringExpense {
     };
   }
 
+  /// Best-effort parser — returns `null` on a malformed row instead of
+  /// throwing. Use in bulk-read paths so a single corrupt recurring-expense
+  /// row doesn't kill the whole query; pair with
+  /// `whereType<RecurringExpense>()` to drop nulls. Mirrors the
+  /// `Expense.tryFromMap` / `Income.tryFromMap` safety contract.
+  static RecurringExpense? tryFromMap(Map<String, dynamic> map) {
+    try {
+      return RecurringExpense.fromMap(map);
+    } on ArgumentError {
+      return null;
+    } on TypeError {
+      // Missing/wrong-typed required column (description / category /
+      // dayOfMonth / account_id) — fromMap assigns these straight into
+      // non-nullable fields, so a corrupt row throws TypeError here.
+      return null;
+    }
+  }
+
   factory RecurringExpense.fromMap(Map<String, dynamic> map) {
     // CRITICAL FIX: Use DateHelper for consistent normalization and error handling
     DateTime? parseDateTime(dynamic value, String fieldName) {

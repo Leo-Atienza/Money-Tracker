@@ -84,6 +84,12 @@ class Expense {
     try {
       return Expense.fromMap(map);
     } on ArgumentError {
+      // Missing required field (category / account_id).
+      return null;
+    } on TypeError {
+      // Wrong-typed column (e.g. amount or account_id stored as text) — the
+      // `as num?` / `as int` casts in fromMap throw TypeError, which must not
+      // leak past a bulk-read guard and abort the whole query.
       return null;
     }
   }
