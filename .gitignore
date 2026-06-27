@@ -35,6 +35,16 @@ doc/api/
 # Firebase CLI cache (project uses local-only storage; no Firebase runtime)
 .firebase/
 
+# Firebase per-platform config — contains project-identifying API keys.
+# Keys are not secrets in the AWS-key sense (they ship to clients anyway),
+# but they MUST be restricted in Google Cloud Console and SHOULD NOT live
+# in version control. Each developer regenerates via `flutterfire configure`.
+# See FIREBASE_SETUP.md for the bootstrap flow.
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
+
 # Generated knowledge graph artifacts (rebuild with `python -m graphify .`)
 graphify-out/
 
