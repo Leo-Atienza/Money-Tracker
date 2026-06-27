@@ -24,6 +24,13 @@ A 10-dimension adversarial Workflow audit (86 agents, every finding refute-verif
 5. **Perf (M3–M7)** — PDF/CSV on UI isolate (compute()), analytics O(n·m) rebuild, history non-virtualized groups + per-tile controllers, GlassPanel RepaintBoundary.
 6. Then the pre-existing roadmap: **6.1 SQLCipher** (now device-testable), **D.3 goldens**, **8.2 perf pass**, **8.4 version bump + CHANGELOG**, **8.5 ship**. See `docs/FINISH_LINE.md`.
 
+### Double-check pass (2026-06-27) — 2 more fixes found + landed
+Adversarially re-verified the above on the emulator and caught two more issues:
+- `fe13147` **fix(security)**: the `isPinEnabled()` gate I added to `_handlePaused` sat before its try block, so a secure-storage read error would have skipped the DB-close / widget-dispose maintenance. Wrapped it (maintenance always runs; fails open → never traps a PIN-less user). Verified: PIN-less background→resume stays on Home (no unlock screen).
+- `1d7cf3c` **fix(onboarding)**: "Load Sample Data" never worked on a fresh install — `_loadSampleData` called `addCategory('Transport')` which throws because Transport is a DEFAULT category, aborting the whole load. Now tolerates pre-existing categories. Verified: seeds $3000 income + 4 expenses, lands on Home at $2845.00.
+
+Full visual matrix verified on device: light + dark mode, empty + seeded data, onboarding + nav-tab + pushed routes all render the blob with legible glass. H1 re-lock verified with PIN (unlock screen re-appears on live resume) and FLAG_SECURE confirmed (black screenshot while locked). **All 6 session-10 commits are preflight-green (1893 pass / 3 skipped).** Confirmed audit finding **M14** is real on-device: visible amounts show `$2845.00`/`$3000.00` with no thousands separator while the a11y labels correctly show `$2,845.00`/`$3,000.00`.
+
 ### Notes for next session
 - `DateHelper.today()` uses raw `DateTime.now()` but `_selectedMonth` uses `Clock.instance` — a time-source inconsistency worth reconciling (and it makes the month-window untestable via Clock injection). Low priority but real.
 - Money is `Decimal` in Dart but stored as `REAL` in SQLite — "INTEGER cents" migration is explicitly v5.1 (out of scope).
