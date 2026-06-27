@@ -41,11 +41,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     try {
       final appState = context.read<AppState>();
 
-      await appState.addCategory('Groceries', type: 'expense');
-      await appState.addCategory('Transport', type: 'expense');
-      await appState.addCategory('Entertainment', type: 'expense');
-      await appState.addCategory('Salary', type: 'income');
-      await appState.addCategory('Freelance', type: 'income');
+      // Several of these names ('Transport', 'Entertainment', 'Salary',
+      // 'Freelance') ship as DEFAULT categories, and addCategory throws
+      // ArgumentError on a duplicate. Adding them unconditionally aborted the
+      // whole sample-data load on the very first call ('Transport'), so the
+      // button silently did nothing on a fresh install. Tolerate "already
+      // exists" — we only need each category to be present.
+      Future<void> ensureCategory(String name, String type) async {
+        try {
+          await appState.addCategory(name, type: type);
+        } on ArgumentError {
+          // Already exists (e.g. a default category) — nothing to do.
+        }
+      }
+
+      await ensureCategory('Groceries', 'expense');
+      await ensureCategory('Transport', 'expense');
+      await ensureCategory('Entertainment', 'expense');
+      await ensureCategory('Salary', 'income');
+      await ensureCategory('Freelance', 'income');
 
       final today = DateHelper.today();
       final dates = [
