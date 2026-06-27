@@ -5,6 +5,54 @@
 > (L100 Quality Upgrade) and was never shipped. The actual public release of
 > this bug-fix + crash-log pass is `4.4.0+6`.
 
+## 5.0.0+7 — 2026-06-27
+
+The Luminous release: a full glass-design refresh plus a security, correctness,
+accessibility and performance pass driven by a 62-finding audit.
+
+### Security
+- **PIN storage upgraded to PBKDF2-SHA256 (100,000 iterations).** The previous
+  single-round SHA-256 hash was trivially brute-forceable offline. Existing PINs
+  migrate transparently the next time you unlock — no re-enrolment needed.
+- The app now re-locks whenever it returns from the background, not only at cold
+  start, so your financial data isn't visible after a quick app switch.
+
+### Fixed
+- **Payments record exactly what you paid.** A payment that left a few cents
+  remaining is no longer silently rounded up and marked "fully paid".
+- **Amounts are grouped by locale everywhere** (e.g. `$2,845.00`), including the
+  home balance hero, history, analytics, bills and quick-add chips.
+- **Notifications work end to end:** tapping a reminder now opens the right
+  screen, the chosen Reminder Time is honored (was always 09:00), toggling a
+  reminder schedules or cancels it immediately, and a notification failure can
+  no longer abort saving an expense or leave the home screen stale.
+- A single corrupt row no longer drops an entire expense/income/recurring list —
+  bulk reads skip only the bad row.
+- **Data safety:** the v18→v19 database migration can no longer brick the
+  database; restoring a raw `.db` from a newer app version is refused up front;
+  stale pre-restore safety backups are now cleaned up; and the 30-day purge of
+  deleted accounts runs during maintenance instead of when you open the list.
+
+### Accessibility
+- Bottom navigation, month chevrons, category actions and the PIN keypad now
+  announce their roles and labels; large system font sizes no longer clip; and
+  swipe-to-delete in History has an equivalent screen-reader action.
+
+### Performance
+- Analytics budget spend is computed in a single pass; the History list is
+  virtualized with a capped entry animation; glass panels each get their own
+  repaint boundary; and CSV/PDF export now runs off the UI thread.
+
+### Changed
+- Full **Luminous** glass redesign across the app (home, history, analytics,
+  wallet, settings, budgets and dialogs).
+- "Add account" on the Wallet tab moved into the header — it was previously
+  hidden behind the floating navigation bar.
+
+### Removed
+- Several unreferenced premium-animation widgets and unused progress-indicator
+  helpers (dead code).
+
 ## 4.4.0+6 — 2026-04-14
 
 ### Fixed
