@@ -67,6 +67,12 @@ class HistoryList extends StatelessWidget {
   bool get _isAmountSort => sortOrder == 'highest' || sortOrder == 'lowest';
   bool get _isCategorySort => sortOrder == 'category';
 
+  /// M8: only the first N tiles per list/group get the staggered entrance
+  /// animation. Beyond this, tiles render plain so opening a busy month (or
+  /// the category-sort/all-time path with up to 1000 rows) doesn't spawn
+  /// hundreds of AnimationControllers + pending timers in a single frame.
+  static const int _staggerCap = 12;
+
   bool get _showLimitMessage =>
       showMonth && !hasMoreData && totalLoaded >= maxTotalResults;
 
@@ -94,9 +100,33 @@ class HistoryList extends StatelessWidget {
     }
     final sortedKeys = grouping.sortGroupKeys(grouped.keys, order);
 
-    final itemCount = sortedKeys.length +
-        (isLoadingMore && showMonth ? 1 : 0) +
-        (_showLimitMessage ? 1 : 0);
+    // M7: flatten groups into a single index space so the outer ListView.builder
+    // lazily builds each header and each tile. Pre-fix the builder virtualized
+    // only at the group-header level — a category-sort bucketing up to 1000
+    // items into a few giant Columns built them all eagerly, defeating
+    // virtualization. Each flat row is a header or an item tagged with its
+    // position in the group (for the M8 stagger cap).
+    final rows = <_HistoryRow>[];
+    for (final groupKey in sortedKeys) {
+      final String headerText;
+      if (_isCategorySort) {
+        headerText = groupKey.toUpperCase();
+      } else {
+        final date = DateTime.parse(groupKey);
+        headerText = showMonth
+            ? grouping.formatDateHeaderWithMonth(date)
+            : grouping.formatDateHeader(date);
+      }
+      rows.add(_HistoryRow.header(headerText));
+      final groupItems = grouped[groupKey]!;
+      for (var i = 0; i < groupItems.length; i++) {
+        rows.add(_HistoryRow.item(groupItems[i], i));
+      }
+    }
+
+    final hasSpinner = isLoadingMore && showMonth;
+    final itemCount =
+        rows.length + (hasSpinner ? 1 : 0) + (_showLimitMessage ? 1 : 0);
 
     return RefreshIndicator(
       onRefresh: onRefresh,
@@ -105,60 +135,44 @@ class HistoryList extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
         itemCount: itemCount,
         itemBuilder: (context, index) {
-          if (isLoadingMore && index == sortedKeys.length) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          if (_showLimitMessage && index == sortedKeys.length) {
+          if (index >= rows.length) {
+            // Trailing rows, in order: loading spinner then limit message.
+            if (hasSpinner && index == rows.length) {
+              return const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
             return _limitReachedTile(theme);
           }
 
-          final groupKey = sortedKeys[index];
-          final groupItems = grouped[groupKey]!;
-
-          final String headerText;
-          if (_isCategorySort) {
-            headerText = groupKey.toUpperCase();
-          } else {
-            final date = DateTime.parse(groupKey);
-            headerText = showMonth
-                ? grouping.formatDateHeaderWithMonth(date)
-                : grouping.formatDateHeader(date);
-          }
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 24, bottom: 14),
-                child: Text(
-                  headerText,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant.withAlpha(180),
-                    letterSpacing: 1.0,
-                  ),
+          final row = rows[index];
+          if (row.isHeader) {
+            return Padding(
+              padding: const EdgeInsets.only(top: 24, bottom: 14),
+              child: Text(
+                row.header!,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant.withAlpha(180),
+                  letterSpacing: 1.0,
                 ),
               ),
-              ...groupItems.asMap().entries.map((entry) {
-                final itemIndex = entry.key;
-                final item = entry.value;
-                if (item is Expense) {
-                  return StaggeredListItem(
-                    index: itemIndex,
-                    delay: const Duration(milliseconds: 25),
-                    child: expenseTileBuilder(context, item),
-                  );
-                }
-                return StaggeredListItem(
-                  index: itemIndex,
-                  delay: const Duration(milliseconds: 25),
-                  child: incomeTileBuilder(context, item as Income),
-                );
-              }),
-            ],
-          );
+            );
+          }
+
+          final item = row.item!;
+          final tile = item is Expense
+              ? expenseTileBuilder(context, item)
+              : incomeTileBuilder(context, item as Income);
+          // M8: stagger only the first N tiles per group.
+          if (row.indexInGroup < _staggerCap) {
+            return StaggeredListItem(
+              index: row.indexInGroup,
+              delay: const Duration(milliseconds: 25),
+              child: tile,
+            );
+          }
+          return tile;
         },
       ),
     );
@@ -188,26 +202,19 @@ class HistoryList extends StatelessWidget {
           }
 
           final item = items[index];
-          if (item is Expense) {
+          final tile = item is Expense
+              ? datedExpenseTileBuilder(context, item, showMonth: showMonth)
+              : datedIncomeTileBuilder(context, item as Income,
+                  showMonth: showMonth);
+          // M8: stagger only the first N tiles; the rest render plain.
+          if (index < _staggerCap) {
             return StaggeredListItem(
               index: index,
               delay: const Duration(milliseconds: 25),
-              child: datedExpenseTileBuilder(
-                context,
-                item,
-                showMonth: showMonth,
-              ),
+              child: tile,
             );
           }
-          return StaggeredListItem(
-            index: index,
-            delay: const Duration(milliseconds: 25),
-            child: datedIncomeTileBuilder(
-              context,
-              item as Income,
-              showMonth: showMonth,
-            ),
-          );
+          return tile;
         },
       ),
     );
@@ -250,6 +257,22 @@ class HistoryList extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A single flattened row in the grouped history list: either a section
+/// header or a transaction item tagged with its position within its group
+/// (used to cap the staggered entrance animation — see [HistoryList]).
+class _HistoryRow {
+  final String? header;
+  final dynamic item; // Expense | Income
+  final int indexInGroup;
+
+  const _HistoryRow.header(this.header)
+      : item = null,
+        indexInGroup = -1;
+  const _HistoryRow.item(this.item, this.indexInGroup) : header = null;
+
+  bool get isHeader => header != null;
 }
 
 /// Empty-state widget shown when no transactions match the current filters.

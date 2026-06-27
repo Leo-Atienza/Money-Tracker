@@ -399,6 +399,8 @@ class _CategoryTileRow extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
+              // M11: tooltip doubles as the accessible label on IconButton.
+              tooltip: 'Edit $category category',
               icon: Icon(
                 Icons.edit_outlined,
                 size: 20,
@@ -408,6 +410,7 @@ class _CategoryTileRow extends StatelessWidget {
             ),
             if (!isDefault)
               IconButton(
+                tooltip: 'Delete $category category',
                 icon: Icon(
                   Icons.delete_outline,
                   size: 20,

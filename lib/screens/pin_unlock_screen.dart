@@ -285,21 +285,27 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
   Widget _buildBackspaceButton(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: InkWell(
-        onTap: _isLoading ? null : _onBackspacePressed,
-        borderRadius: BorderRadius.circular(40),
-        child: Container(
-          width: 70,
-          height: 70,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: theme.colorScheme.surfaceContainerHighest,
-          ),
-          child: Center(
-            child: Icon(
-              Icons.backspace_outlined,
-              color: theme.colorScheme.onSurface,
-              size: 28,
+      // L42: the backspace is icon-only — give it a button role + label so
+      // TalkBack/VoiceOver announces it instead of an unlabeled tap target.
+      child: Semantics(
+        button: true,
+        label: 'Delete',
+        child: InkWell(
+          onTap: _isLoading ? null : _onBackspacePressed,
+          borderRadius: BorderRadius.circular(40),
+          child: Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: theme.colorScheme.surfaceContainerHighest,
+            ),
+            child: Center(
+              child: Icon(
+                Icons.backspace_outlined,
+                color: theme.colorScheme.onSurface,
+                size: 28,
+              ),
             ),
           ),
         ),

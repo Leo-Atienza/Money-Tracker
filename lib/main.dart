@@ -271,11 +271,18 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       // The nav-tab screens render over this too (MainNavigationScreen no
       // longer paints its own copy).
       builder: (context, child) {
-        return Stack(
-          children: [
-            const Positioned.fill(child: OrganicBlobBackground()),
-            if (child != null) child,
-          ],
+        // M12: clamp system text scaling so the fixed-height Luminous bars
+        // (GlassTopAppBar 64, home header 56, GlassSegmentedControl 40) don't
+        // clip at ~2.0 accessibility font sizes. Composed with the global
+        // OrganicBlobBackground introduced in 6a14555 — don't overwrite it.
+        return MediaQuery.withClampedTextScaling(
+          maxScaleFactor: 1.3,
+          child: Stack(
+            children: [
+              const Positioned.fill(child: OrganicBlobBackground()),
+              if (child != null) child,
+            ],
+          ),
         );
       },
       home: FutureBuilder<bool>(
@@ -284,7 +291,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // Show loading while checking onboarding status
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Scaffold(
-              backgroundColor: LuminousTokens.background,
+              // Trap #5: transparent so the global blob shows through — a
+              // fixed light background flashed on a dark-mode cold start.
+              backgroundColor: Colors.transparent,
               body: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,

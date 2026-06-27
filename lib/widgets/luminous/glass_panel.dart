@@ -28,28 +28,33 @@ class GlassPanel extends StatelessWidget {
         ? Colors.white.withValues(alpha: 0.22)
         : LuminousTokens.glassBorder;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: LuminousTokens.glassBlurSigma,
-          sigmaY: LuminousTokens.glassBlurSigma,
-        ),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(color: borderCol),
-            color: fill,
-            boxShadow: boxShadow ??
-                [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
+    // M9: isolate each panel's BackdropFilter under its own RepaintBoundary.
+    // Analytics stacks ~5 live 15-sigma blurs; without this any single panel
+    // repaint re-samples the whole shared backdrop for every panel.
+    return RepaintBoundary(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: LuminousTokens.glassBlurSigma,
+            sigmaY: LuminousTokens.glassBlurSigma,
           ),
-          child: Padding(padding: padding, child: child),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(borderRadius),
+              border: Border.all(color: borderCol),
+              color: fill,
+              boxShadow: boxShadow ??
+                  [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+            ),
+            child: Padding(padding: padding, child: child),
+          ),
         ),
       ),
     );
@@ -70,18 +75,21 @@ class GlassHeaderStrip extends StatelessWidget {
         : Colors.white.withValues(alpha: 0.4);
     final borderSide = Colors.white.withValues(alpha: isDark ? 0.18 : 0.4);
 
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: LuminousTokens.glassBlurSigma,
-          sigmaY: LuminousTokens.glassBlurSigma,
-        ),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: base,
-            border: Border(bottom: BorderSide(color: borderSide, width: 1)),
+    // M9: isolate the header strip's blur under its own RepaintBoundary too.
+    return RepaintBoundary(
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: LuminousTokens.glassBlurSigma,
+            sigmaY: LuminousTokens.glassBlurSigma,
           ),
-          child: child,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: base,
+              border: Border(bottom: BorderSide(color: borderSide, width: 1)),
+            ),
+            child: child,
+          ),
         ),
       ),
     );

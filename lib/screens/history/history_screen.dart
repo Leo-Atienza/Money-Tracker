@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/app_state.dart';
@@ -1212,8 +1213,23 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
             : 'unpaid';
 
     return Semantics(
-      label: 'Expense: ${expense.description}, ${expense.category}, ${appState.currency}${expense.amount.toStringAsFixed(2)}, $paymentStatus. Tap to add payment, long press to edit, swipe left to delete.',
+      label: 'Expense: ${expense.description}, ${expense.category}, ${appState.currency}${expense.amount.toStringAsFixed(2)}, $paymentStatus. Double tap to add payment.',
       button: true,
+      // M14: lift the interactive actions onto the semantics node — the inner
+      // subtree is ExcludeSemantics'd and the delete-swipe isn't TalkBack-
+      // performable, so without these a screen-reader user had no way to act.
+      onTap: () => _showAddPaymentDialog(context, expense),
+      onLongPress: () => _showAddPaymentDialog(context, expense),
+      customSemanticsActions: {
+        const CustomSemanticsAction(label: 'Delete'): () => _semanticDelete(
+              context,
+              theme,
+              appState,
+              type: 'expense',
+              id: expense.id!,
+              description: expense.description,
+            ),
+      },
       child: Padding(
         padding: const EdgeInsets.only(bottom: 16),
         child: Dismissible(
@@ -1251,7 +1267,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Error deleting expense: $e'),
-                  backgroundColor: Colors.red,
+                  // L48: use the semantic expense color, not raw Colors.red.
+                  backgroundColor: appColors.expenseRed,
                 ),
               );
             }
@@ -1561,8 +1578,21 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       ) {
     final appColors = theme.extension<AppColors>()!;
     return Semantics(
-      label: 'Income: ${income.description}, ${income.category}, ${appState.currency}${income.amount.toStringAsFixed(2)}. Long press to edit, swipe left to delete.',
+      label: 'Income: ${income.description}, ${income.category}, ${appState.currency}${income.amount.toStringAsFixed(2)}. Double tap to edit.',
       button: true,
+      // M14: lift the interactive actions onto the semantics node (see expense).
+      onTap: () => _showEditIncomeDialog(context, income),
+      onLongPress: () => _showEditIncomeDialog(context, income),
+      customSemanticsActions: {
+        const CustomSemanticsAction(label: 'Delete'): () => _semanticDelete(
+              context,
+              theme,
+              appState,
+              type: 'income',
+              id: income.id!,
+              description: income.description,
+            ),
+      },
       child: Padding(
         padding: const EdgeInsets.only(bottom: 16),
         child: Dismissible(
@@ -1789,6 +1819,52 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         ],
       ),
     );
+  }
+
+  /// M14: screen-reader-accessible delete. A directional `Dismissible` swipe
+  /// can't be performed via TalkBack/VoiceOver, so the outer `Semantics` node
+  /// exposes this through a `CustomSemanticsAction('Delete')`. Mirrors the
+  /// confirmDismiss → progress → delete → snackbar flow of the swipe path.
+  Future<void> _semanticDelete(
+    BuildContext context,
+    ThemeData theme,
+    AppState appState, {
+    required String type, // 'expense' | 'income'
+    required int id,
+    required String description,
+  }) async {
+    final confirmed = await _confirmDelete(context, theme, type, description);
+    if (confirmed != true) return;
+    if (!mounted || !context.mounted) return;
+    ProgressIndicatorHelper.show(context, message: 'Deleting $type...');
+    try {
+      if (_searchAllTime) {
+        setState(() {
+          if (type == 'expense') {
+            _allTimeExpenses.removeWhere((e) => e.id == id);
+          } else {
+            _allTimeIncome.removeWhere((i) => i.id == id);
+          }
+        });
+      }
+      if (type == 'expense') {
+        await appState.deleteExpense(id);
+      } else {
+        await appState.deleteIncome(id);
+      }
+      if (!mounted || !context.mounted) return;
+      ProgressIndicatorHelper.hide(context);
+      _showDeleteSnackbar(context, type == 'expense' ? 'Expense' : 'Income');
+    } catch (e) {
+      if (!mounted || !context.mounted) return;
+      ProgressIndicatorHelper.hide(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting $type: $e'),
+          backgroundColor: theme.extension<AppColors>()!.expenseRed,
+        ),
+      );
+    }
   }
 
   void _showDeleteSnackbar(BuildContext context, String type) {

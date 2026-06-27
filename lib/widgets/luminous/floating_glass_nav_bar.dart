@@ -70,35 +70,46 @@ class FloatingGlassNavBar extends StatelessWidget {
                 final inactive = cs.onSurfaceVariant.withValues(alpha: 0.55);
                 final active = LuminousTokens.primaryContainer;
 
+                // M10: announce tab role + selected state to TalkBack/VoiceOver.
+                // Label the node with the human-readable destination name (not
+                // the uppercased Text) so the reader doesn't spell "H-O-M-E".
                 return Expanded(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      onTap(i);
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            selected ? d.selectedIcon : d.icon,
-                            size: i == 2 ? 26 : 24,
-                            color: selected ? active : inactive,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            d.label.toUpperCase(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  fontSize: 10,
-                                  letterSpacing: 1,
-                                  color: cs.onSurface,
-                                ),
-                          ),
-                        ],
+                  child: Semantics(
+                    button: true,
+                    selected: selected,
+                    label: d.label,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        onTap(i);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              selected ? d.selectedIcon : d.icon,
+                              size: i == 2 ? 26 : 24,
+                              color: selected ? active : inactive,
+                            ),
+                            const SizedBox(height: 2),
+                            // L46: the selected label gets the active color too
+                            // (was always onSurface, so the active tab's text
+                            // never reflected selection).
+                            Text(
+                              d.label.toUpperCase(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    fontSize: 10,
+                                    letterSpacing: 1,
+                                    color: selected ? active : cs.onSurface,
+                                  ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

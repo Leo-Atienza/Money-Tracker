@@ -144,21 +144,14 @@ class HomeScreen extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                customBorder: const CircleBorder(),
-                                onTap: () =>
-                                    context.read<AppState>().goToPreviousMonth(),
-                                child: SizedBox(
-                                  width: 40,
-                                  height: 40,
-                                  child: Icon(
-                                    Icons.chevron_left,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
+                            // M13: labeled + >=48dp target (was a bare 40x40
+                            // unlabeled InkWell). Matches budget_screen.dart.
+                            AccessibilityHelper.semanticIconButton(
+                              icon: Icons.chevron_left,
+                              label: 'Previous month',
+                              color: theme.colorScheme.onSurfaceVariant,
+                              onPressed: () =>
+                                  context.read<AppState>().goToPreviousMonth(),
                             ),
                             Semantics(
                               label:
@@ -183,21 +176,14 @@ class HomeScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                customBorder: const CircleBorder(),
-                                onTap: () =>
-                                    context.read<AppState>().goToNextMonth(),
-                                child: SizedBox(
-                                  width: 40,
-                                  height: 40,
-                                  child: Icon(
-                                    Icons.chevron_right,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
+                            // M13: labeled + >=48dp target (was a bare 40x40
+                            // unlabeled InkWell).
+                            AccessibilityHelper.semanticIconButton(
+                              icon: Icons.chevron_right,
+                              label: 'Next month',
+                              color: theme.colorScheme.onSurfaceVariant,
+                              onPressed: () =>
+                                  context.read<AppState>().goToNextMonth(),
                             ),
                           ],
                         ),
