@@ -3443,17 +3443,22 @@ class DatabaseHelper {
         break;
     }
 
-    // Use UNION ALL to combine expenses and income into a single query
+    // Use UNION ALL to combine expenses and income into a single query.
+    // NOTE: account_id MUST be selected in both branches — Expense.fromMap /
+    // Income.fromMap (called directly below, not via the catch-protected
+    // tryFromMap) throw ArgumentError when account_id is absent. Omitting it
+    // made every matching search row throw. Both branches list account_id at
+    // the same position so UNION ALL stays column-aligned.
     final sql = '''
       SELECT
-        id, amount, category, description, date, 'expense' as type, amountPaid, paymentMethod
+        id, account_id, amount, category, description, date, 'expense' as type, amountPaid, paymentMethod
       FROM expenses
       WHERE account_id = ? AND ($expenseConditions)
 
       UNION ALL
 
       SELECT
-        id, amount, category, description, date, 'income' as type, NULL as amountPaid, NULL as paymentMethod
+        id, account_id, amount, category, description, date, 'income' as type, NULL as amountPaid, NULL as paymentMethod
       FROM income
       WHERE account_id = ? AND ($incomeConditions)
 
