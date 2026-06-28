@@ -7,7 +7,8 @@ import '../models/expense_model.dart';
 import '../utils/accessibility_helper.dart';
 import '../utils/haptic_helper.dart';
 import '../utils/date_helper.dart';
-import '../utils/premium_animations.dart' show PremiumPageRoute, AnimatedCounter;
+import '../utils/premium_animations.dart'
+    show PremiumPageRoute, AnimatedCounter;
 import '../widgets/category_tile.dart';
 import '../widgets/luminous/glass_surface.dart';
 import 'add_transaction_screen.dart';
@@ -67,8 +68,13 @@ class HomeScreen extends StatelessWidget {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color:
-                                      Colors.white.withValues(alpha: 0.4),
+                                  // L47: dim the ring in dark mode to match
+                                  // the dark glass header border.
+                                  color: Colors.white.withValues(
+                                    alpha: theme.brightness == Brightness.dark
+                                        ? 0.18
+                                        : 0.4,
+                                  ),
                                 ),
                               ),
                               child: CircleAvatar(
@@ -190,168 +196,190 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
 
-              // Financial Summary Card
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(LuminousTokens.containerPadding, 0, LuminousTokens.containerPadding, 0),
-                sliver: SliverToBoxAdapter(
-                  child: Semantics(
-                    label: 'Financial summary card',
-                    child: const _FinancialSummaryCard(),
-                  ),
-                ),
-              ),
-
-              // Upcoming Bills Banner
-              if (context.select<AppState, bool>(
-                (s) => s.getUpcomingBillsThisMonth().isNotEmpty,
-              ))
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  sliver: SliverToBoxAdapter(
-                    child: Semantics(
-                      label: 'Upcoming bills section',
-                      container: true,
-                      child: const _UpcomingBillsBanner(),
-                    ),
-                  ),
-                ),
-
-              // Quick Add Templates
-              if (context.select<AppState, bool>(
-                (s) => s.quickTemplates.isNotEmpty,
-              ))
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  sliver: SliverToBoxAdapter(
-                    child: Semantics(
-                      label: 'Quick add templates section',
-                      container: true,
-                      child: const _QuickAddBar(),
-                    ),
-                  ),
-                ),
-
-              // Recent Transactions
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  LuminousTokens.containerPadding,
-                  LuminousTokens.sectionMargin,
-                  LuminousTokens.containerPadding,
-                  LuminousTokens.stackGap,
-                ),
-                sliver: SliverToBoxAdapter(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Recent Transactions',
-                          style: theme.textTheme.headlineMedium,
+                    // Financial Summary Card
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(
+                          LuminousTokens.containerPadding,
+                          0,
+                          LuminousTokens.containerPadding,
+                          0),
+                      sliver: SliverToBoxAdapter(
+                        child: Semantics(
+                          label: 'Financial summary card',
+                          child: const _FinancialSummaryCard(),
                         ),
                       ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            PremiumPageRoute(page: const HistoryScreen()),
-                          );
-                        },
-                        child: Text(
-                          'SEE ALL',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            letterSpacing: 1.2,
+                    ),
+
+                    // Upcoming Bills Banner
+                    if (context.select<AppState, bool>(
+                      (s) => s.getUpcomingBillsThisMonth().isNotEmpty,
+                    ))
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                        sliver: SliverToBoxAdapter(
+                          child: Semantics(
+                            label: 'Upcoming bills section',
+                            container: true,
+                            child: const _UpcomingBillsBanner(),
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
 
-              // Expenses list (inside single glass sheet like stitch mock)
-              expenses.isEmpty
-                  ? SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Semantics(
-                        label:
-                            'No transactions this month, tap to add your first expense',
-                        button: true,
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              PremiumPageRoute(
-                                page: const AddTransactionScreen(
-                                  initialType: TransactionType.expense,
-                                ),
-                              ),
-                            );
-                          },
-                          behavior: HitTestBehavior.opaque,
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.receipt_long_outlined,
-                                  size: 64,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No transactions this month',
-                                  style: theme.textTheme.bodyLarge?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Tap to add',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
+                    // Quick Add Templates
+                    if (context.select<AppState, bool>(
+                      (s) => s.quickTemplates.isNotEmpty,
+                    ))
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                        sliver: SliverToBoxAdapter(
+                          child: Semantics(
+                            label: 'Quick add templates section',
+                            container: true,
+                            child: const _QuickAddBar(),
                           ),
                         ),
                       ),
-                    )
-                  : SliverPadding(
+
+                    // Recent Transactions
+                    SliverPadding(
                       padding: const EdgeInsets.fromLTRB(
                         LuminousTokens.containerPadding,
-                        0,
+                        LuminousTokens.sectionMargin,
                         LuminousTokens.containerPadding,
-                        140,
+                        LuminousTokens.stackGap,
                       ),
                       sliver: SliverToBoxAdapter(
-                        // FIX Phase 1.7: wrap the transactions GlassPanel in
-                        // a RepaintBoundary so the BackdropFilter (15-sigma
-                        // blur) doesn't force a repaint of the surrounding
-                        // CustomScrollView every time an unrelated widget
-                        // updates (e.g. the home-screen header refreshing).
-                        child: RepaintBoundary(
-                          child: GlassPanel(
-                            padding: EdgeInsets.zero,
-                            child: Column(
-                              children: [
-                                for (var i = 0; i < expenses.length; i++) ...[
-                                  if (i > 0)
-                                    Divider(
-                                      height: 1,
-                                      thickness: 1,
-                                      color: Colors.white
-                                          .withValues(alpha: 0.35),
-                                    ),
-                                  _GlassHomeExpenseTile(expense: expenses[i]),
-                                ],
-                              ],
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Recent Transactions',
+                                style: theme.textTheme.headlineMedium,
+                              ),
                             ),
-                          ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  PremiumPageRoute(page: const HistoryScreen()),
+                                );
+                              },
+                              child: Text(
+                                'SEE ALL',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.primary,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-            ],
+
+                    // Expenses list (inside single glass sheet like stitch mock)
+                    expenses.isEmpty
+                        ? SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Semantics(
+                              label:
+                                  'No transactions this month, tap to add your first expense',
+                              button: true,
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    PremiumPageRoute(
+                                      page: const AddTransactionScreen(
+                                        initialType: TransactionType.expense,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                behavior: HitTestBehavior.opaque,
+                                // L49: bias the centered empty-state up by the
+                                // floating nav-bar clearance so the "Tap to add"
+                                // CTA never sits behind the translucent nav pill on
+                                // short screens (the list branch already insets 140).
+                                child: Padding(
+                                  padding: EdgeInsets.only(
+                                    bottom: LuminousTokens.navBarHeightTotal +
+                                        MediaQuery.paddingOf(context).bottom,
+                                  ),
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.receipt_long_outlined,
+                                          size: 64,
+                                          color: theme
+                                              .colorScheme.onSurfaceVariant,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          'No transactions this month',
+                                          style: theme.textTheme.bodyLarge
+                                              ?.copyWith(
+                                            color: theme
+                                                .colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Tap to add',
+                                          style: theme.textTheme.bodyMedium
+                                              ?.copyWith(
+                                            color: theme.colorScheme.primary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                        : SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(
+                              LuminousTokens.containerPadding,
+                              0,
+                              LuminousTokens.containerPadding,
+                              140,
+                            ),
+                            sliver: SliverToBoxAdapter(
+                              // FIX Phase 1.7: wrap the transactions GlassPanel in
+                              // a RepaintBoundary so the BackdropFilter (15-sigma
+                              // blur) doesn't force a repaint of the surrounding
+                              // CustomScrollView every time an unrelated widget
+                              // updates (e.g. the home-screen header refreshing).
+                              child: RepaintBoundary(
+                                child: GlassPanel(
+                                  padding: EdgeInsets.zero,
+                                  child: Column(
+                                    children: [
+                                      for (var i = 0;
+                                          i < expenses.length;
+                                          i++) ...[
+                                        if (i > 0)
+                                          Divider(
+                                            height: 1,
+                                            thickness: 1,
+                                            color: Colors.white
+                                                .withValues(alpha: 0.35),
+                                          ),
+                                        _GlassHomeExpenseTile(
+                                            expense: expenses[i]),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                  ],
                 ),
               ),
             ),
@@ -569,7 +597,8 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final financialData = context.select<AppState, (double, double, double, double)>(
+    final financialData =
+        context.select<AppState, (double, double, double, double)>(
       (s) => (
         s.totalIncome,
         s.totalSpent,
@@ -582,11 +611,20 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
     final totalBalance = financialData.$3;
     final appState = context.read<AppState>();
 
-    BoxDecoration insetTile(BuildContext ctx) => BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: Colors.white.withValues(alpha: 0.3),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
-        );
+    // L47: the inset tiles sit on a GlassPanel that flips to a dark fill in
+    // dark mode. Hardcoded white-on-dark produced a bright milky patch with
+    // poor contrast, so dim the white alpha heavily in dark mode while
+    // keeping the light-mode look unchanged.
+    BoxDecoration insetTile(BuildContext ctx) {
+      final isDark = Theme.of(ctx).brightness == Brightness.dark;
+      return BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.white.withValues(alpha: isDark ? 0.06 : 0.3),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: isDark ? 0.10 : 0.4),
+        ),
+      );
+    }
 
     return ScaleTransition(
       scale: _scaleAnimation,
@@ -603,7 +641,8 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                   height: 128,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: theme.colorScheme.primaryContainer.withValues(alpha: 0.2),
+                    color: theme.colorScheme.primaryContainer
+                        .withValues(alpha: 0.2),
                   ),
                 ),
               ),
@@ -666,8 +705,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                                   Text(
                                     'Income',
                                     style: theme.textTheme.bodyMedium?.copyWith(
-                                      color:
-                                          theme.colorScheme.onSurfaceVariant,
+                                      color: theme.colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ],
@@ -711,8 +749,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                                   Text(
                                     'Expenses',
                                     style: theme.textTheme.bodyMedium?.copyWith(
-                                      color:
-                                          theme.colorScheme.onSurfaceVariant,
+                                      color: theme.colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ],
@@ -1075,7 +1112,8 @@ class _QuickAddBar extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
                           color: isIncome
-                              ? appColors.incomeGreen.withAlpha((255 * 0.1).round())
+                              ? appColors.incomeGreen
+                                  .withAlpha((255 * 0.1).round())
                               : theme.colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(

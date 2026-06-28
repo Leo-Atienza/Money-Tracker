@@ -162,15 +162,14 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart>
     final currency = context.select<AppState, String>((s) => s.currency);
 
     if (_isLoading) {
-      return Container(
-        height: 250,
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: theme.colorScheme.outline),
+      // L50: match the frosted GlassPanel surface/border/radius used by the
+      // empty + data states so the card doesn't visibly 'pop' from a flat
+      // opaque box to glass when loading finishes.
+      return const GlassPanel(
+        child: SizedBox(
+          height: 250,
+          child: Center(child: CircularProgressIndicator()),
         ),
-        child: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -1237,7 +1236,8 @@ class _MonthOverMonthInsights extends StatelessWidget {
   }) {
     final appColors = theme.extension<AppColors>()!;
     final isPositiveChange = change > 0;
-    final changeColor = isPositiveChange ? appColors.expenseRed : appColors.incomeGreen;
+    final changeColor =
+        isPositiveChange ? appColors.expenseRed : appColors.incomeGreen;
     final isNew = previous == 0 && current > 0;
     final isRemoved = previous > 0 && current == 0;
 

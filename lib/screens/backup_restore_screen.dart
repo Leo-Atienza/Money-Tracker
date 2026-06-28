@@ -176,7 +176,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             content: const Text(
               'Operation took too long and was cancelled. Your data is safe. Please try again.',
             ),
-            backgroundColor: Theme.of(context).extension<AppColors>()!.warningOrange,
+            backgroundColor:
+                Theme.of(context).extension<AppColors>()!.warningOrange,
             duration: const Duration(seconds: 5),
           ),
         );
@@ -305,7 +306,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(_getFriendlyErrorMessage(e)),
-              backgroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
+              backgroundColor:
+                  Theme.of(context).extension<AppColors>()!.expenseRed,
               duration: const Duration(seconds: 4),
             ),
           );
@@ -350,8 +352,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: dialogAppColors.warningOrange.withAlpha(20),
-                          borderRadius:
-                              BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: dialogAppColors.warningOrange.withAlpha(100),
                           ),
@@ -482,8 +483,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
                         color: dialogAppColors.expenseRed.withAlpha(20),
-                        borderRadius:
-                            BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         'Wrong passphrase — try again.',
@@ -505,9 +505,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       labelText: 'Passphrase',
                       suffixIcon: IconButton(
                         tooltip: obscure ? 'Show' : 'Hide',
-                        icon: Icon(obscure
-                            ? Icons.visibility_off
-                            : Icons.visibility),
+                        icon: Icon(
+                            obscure ? Icons.visibility_off : Icons.visibility),
                         onPressed: () => setDialogState(
                           () => obscure = !obscure,
                         ),
@@ -632,7 +631,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Backup saved successfully!'),
-            backgroundColor: Theme.of(context).extension<AppColors>()!.incomeGreen,
+            backgroundColor:
+                Theme.of(context).extension<AppColors>()!.incomeGreen,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -662,7 +662,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
-            backgroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
+            backgroundColor:
+                Theme.of(context).extension<AppColors>()!.expenseRed,
             duration: const Duration(seconds: 5),
           ),
         );
@@ -747,7 +748,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Backup created and ready to share!'),
-            backgroundColor: Theme.of(context).extension<AppColors>()!.incomeGreen,
+            backgroundColor:
+                Theme.of(context).extension<AppColors>()!.incomeGreen,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -761,7 +763,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_getFriendlyErrorMessage(e)),
-            backgroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
+            backgroundColor:
+                Theme.of(context).extension<AppColors>()!.expenseRed,
             duration: const Duration(seconds: 4),
           ),
         );
@@ -1186,6 +1189,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             leading: _isSelectionMode
                 ? IconButton(
                     icon: const Icon(Icons.close),
+                    tooltip: 'Cancel selection',
                     onPressed: _toggleSelectionMode,
                   )
                 : BackButton(color: theme.colorScheme.onSurface),
@@ -1205,6 +1209,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                           Icons.delete,
                           color: theme.extension<AppColors>()!.expenseRed,
                         ),
+                        tooltip: 'Delete selected backups',
                         onPressed: _deleteSelectedBackups,
                       ),
                   ]
@@ -1222,277 +1227,289 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                         LuminousTokens.containerPadding,
                         LuminousTokens.sectionMargin,
                       ),
-                children: [
-                  // Export Section
-                  _SectionCard(
-                    icon: Icons.backup,
-                    title: 'Export Backup',
-                    subtitle: 'Create a backup file of your data',
-                    color: theme.colorScheme.primary,
-                    child: Column(
                       children: [
-                        const SizedBox(height: 12),
-                        // CRITICAL FIX: Clarify that Save Backup lets user choose location
-                        ElevatedButton.icon(
-                          onPressed: (_isExporting || _isRestoring)
-                              ? null
-                              : _exportBackup,
-                          icon: _isExporting
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
-                                  ),
-                                )
-                              : const Icon(Icons.save_alt),
-                          label: Text(
-                            _isExporting ? 'Creating...' : 'Save Backup',
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.colorScheme.primary,
-                            foregroundColor: theme.colorScheme.onPrimary,
-                            minimumSize: const Size(double.infinity, 48),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          child: Text(
-                            'Choose where to save the backup file',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        // CRITICAL FIX: Clarify that Share creates backup in app folder AND opens share menu
-                        OutlinedButton.icon(
-                          onPressed: (_isExporting || _isRestoring)
-                              ? null
-                              : _shareBackup,
-                          icon: const Icon(Icons.share),
-                          label: const Text('Share Backup'),
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(double.infinity, 48),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          child: Text(
-                            'Create backup and share via apps (also saved to Recent Backups)',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Restore Section
-                  _SectionCard(
-                    icon: Icons.restore,
-                    title: 'Restore Backup',
-                    subtitle: 'Import data from a backup file',
-                    color: theme.colorScheme.tertiary,
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 12),
-                        ElevatedButton.icon(
-                          onPressed: (_isExporting || _isRestoring)
-                              ? null
-                              : _restoreBackup, // FIX: Disable during operations
-                          icon: _isRestoring
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
-                                  ),
-                                )
-                              : const Icon(Icons.upload),
-                          label: Text(
-                            _isRestoring
-                                ? 'Restoring...'
-                                : 'Choose Backup File',
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.colorScheme.tertiary,
-                            foregroundColor: theme.colorScheme.onTertiary,
-                            minimumSize: const Size(double.infinity, 48),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '⚠️ Warning: This will replace all current data',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.error,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // FIX: Recent Backups header with bulk select button
-                  Row(
-                    children: [
-                      Text(
-                        'RECENT BACKUPS',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.2,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const Spacer(),
-                      if (_backupsWithInfo.isNotEmpty && !_isSelectionMode)
-                        TextButton.icon(
-                          onPressed: _toggleSelectionMode,
-                          icon: const Icon(Icons.checklist, size: 18),
-                          label: const Text('Select'),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  if (_backupsWithInfo.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'No backups found',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    )
-                  else ...[
-                    // FIX: Show loaded backups (lazy loading) with selection mode support
-                    ..._backupsWithInfo.map((backupInfo) {
-                      final file = backupInfo['file'] as File;
-                      final isSelected = _selectedBackups.contains(file.path);
-
-                      return _BackupTile(
-                        backup: file,
-                        date: backupInfo['date'] as DateTime,
-                        size: backupInfo['size'] as int,
-                        isSelectionMode: _isSelectionMode,
-                        isSelected: isSelected,
-                        onTap: _isSelectionMode
-                            ? () => _toggleBackupSelection(file.path)
-                            : () => _restoreFromFile(
-                                  file,
-                                ), // FIX: Make tiles tappable for restore
-                        onDelete: () async {
-                          // FIX: Add error handling to delete operation with friendly messages
-                          try {
-                            final fileToDelete = backupInfo['file'] as File;
-                            await BackupHelper().deleteBackup(fileToDelete);
-                            await _loadBackups();
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Backup deleted successfully'),
-                                duration: Duration(seconds: 2),
+                        // Export Section
+                        _SectionCard(
+                          icon: Icons.backup,
+                          title: 'Export Backup',
+                          subtitle: 'Create a backup file of your data',
+                          color: theme.colorScheme.primary,
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 12),
+                              // CRITICAL FIX: Clarify that Save Backup lets user choose location
+                              ElevatedButton.icon(
+                                onPressed: (_isExporting || _isRestoring)
+                                    ? null
+                                    : _exportBackup,
+                                icon: _isExporting
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                            Colors.white,
+                                          ),
+                                        ),
+                                      )
+                                    : const Icon(Icons.save_alt),
+                                label: Text(
+                                  _isExporting ? 'Creating...' : 'Save Backup',
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: theme.colorScheme.primary,
+                                  foregroundColor: theme.colorScheme.onPrimary,
+                                  minimumSize: const Size(double.infinity, 48),
+                                ),
                               ),
-                            );
-                          } catch (e) {
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(_getFriendlyErrorMessage(e)),
-                                backgroundColor: Theme.of(context)
-                                    .extension<AppColors>()!
-                                    .expenseRed,
-                                duration: const Duration(seconds: 4),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
+                                child: Text(
+                                  'Choose where to save the backup file',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
-                            );
-                          }
-                        },
-                      );
-                    }),
-
-                    // FIX: Show "Load More" button if there are more backups to load
-                    if (_backupsWithInfo.length < _allBackupFiles.length) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          borderRadius:
-                              BorderRadius.circular(12),
-                          border: Border.all(color: theme.colorScheme.outline),
+                              const SizedBox(height: 8),
+                              // CRITICAL FIX: Clarify that Share creates backup in app folder AND opens share menu
+                              OutlinedButton.icon(
+                                onPressed: (_isExporting || _isRestoring)
+                                    ? null
+                                    : _shareBackup,
+                                icon: const Icon(Icons.share),
+                                label: const Text('Share Backup'),
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size(double.infinity, 48),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
+                                child: Text(
+                                  'Create backup and share via apps (also saved to Recent Backups)',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: Column(
+
+                        const SizedBox(height: 24),
+
+                        // Restore Section
+                        _SectionCard(
+                          icon: Icons.restore,
+                          title: 'Restore Backup',
+                          subtitle: 'Import data from a backup file',
+                          color: theme.colorScheme.tertiary,
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 12),
+                              ElevatedButton.icon(
+                                onPressed: (_isExporting || _isRestoring)
+                                    ? null
+                                    : _restoreBackup, // FIX: Disable during operations
+                                icon: _isRestoring
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                            Colors.white,
+                                          ),
+                                        ),
+                                      )
+                                    : const Icon(Icons.upload),
+                                label: Text(
+                                  _isRestoring
+                                      ? 'Restoring...'
+                                      : 'Choose Backup File',
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: theme.colorScheme.tertiary,
+                                  foregroundColor: theme.colorScheme.onTertiary,
+                                  minimumSize: const Size(double.infinity, 48),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '⚠️ Warning: This will replace all current data',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.error,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // FIX: Recent Backups header with bulk select button
+                        Row(
                           children: [
                             Text(
-                              'Showing ${_backupsWithInfo.length} of ${_allBackupFiles.length} backups',
-                              style: theme.textTheme.bodyMedium?.copyWith(
+                              'RECENT BACKUPS',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1.2,
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            OutlinedButton.icon(
-                              onPressed: _loadingMore
-                                  ? null
-                                  : () => _loadBackups(loadMore: true),
-                              icon: _loadingMore
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Icon(Icons.arrow_downward),
-                              label: Text(
-                                _loadingMore
-                                    ? 'Loading...'
-                                    : 'Load More Backups',
+                            const Spacer(),
+                            if (_backupsWithInfo.isNotEmpty &&
+                                !_isSelectionMode)
+                              TextButton.icon(
+                                onPressed: _toggleSelectionMode,
+                                icon: const Icon(Icons.checklist, size: 18),
+                                label: const Text('Select'),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
                               ),
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: const Size(double.infinity, 40),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        if (_backupsWithInfo.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'No backups found',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          )
+                        else ...[
+                          // FIX: Show loaded backups (lazy loading) with selection mode support
+                          ..._backupsWithInfo.map((backupInfo) {
+                            final file = backupInfo['file'] as File;
+                            final isSelected =
+                                _selectedBackups.contains(file.path);
+
+                            return _BackupTile(
+                              backup: file,
+                              date: backupInfo['date'] as DateTime,
+                              size: backupInfo['size'] as int,
+                              isSelectionMode: _isSelectionMode,
+                              isSelected: isSelected,
+                              onTap: _isSelectionMode
+                                  ? () => _toggleBackupSelection(file.path)
+                                  : () => _restoreFromFile(
+                                        file,
+                                      ), // FIX: Make tiles tappable for restore
+                              onDelete: () async {
+                                // FIX: Add error handling to delete operation with friendly messages
+                                try {
+                                  final fileToDelete =
+                                      backupInfo['file'] as File;
+                                  await BackupHelper()
+                                      .deleteBackup(fileToDelete);
+                                  await _loadBackups();
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content:
+                                          Text('Backup deleted successfully'),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                } catch (e) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content:
+                                          Text(_getFriendlyErrorMessage(e)),
+                                      backgroundColor: Theme.of(context)
+                                          .extension<AppColors>()!
+                                          .expenseRed,
+                                      duration: const Duration(seconds: 4),
+                                    ),
+                                  );
+                                }
+                              },
+                            );
+                          }),
+
+                          // FIX: Show "Load More" button if there are more backups to load
+                          if (_backupsWithInfo.length <
+                              _allBackupFiles.length) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color:
+                                    theme.colorScheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: theme.colorScheme.outline),
+                              ),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    'Showing ${_backupsWithInfo.length} of ${_allBackupFiles.length} backups',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  OutlinedButton.icon(
+                                    onPressed: _loadingMore
+                                        ? null
+                                        : () => _loadBackups(loadMore: true),
+                                    icon: _loadingMore
+                                        ? const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : const Icon(Icons.arrow_downward),
+                                    label: Text(
+                                      _loadingMore
+                                          ? 'Loading...'
+                                          : 'Load More Backups',
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      minimumSize:
+                                          const Size(double.infinity, 40),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ],
-              ),
-            ),
+                        ],
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),
@@ -1626,6 +1643,7 @@ class _BackupTile extends StatelessWidget {
                   Icons.delete_outline,
                   color: appColors.expenseRed,
                 ),
+                tooltip: 'Delete backup',
                 onPressed: () async {
                   // FIX: Show backup date/time in delete confirmation
                   final formattedDate = DateFormat.yMMMd().add_jm().format(

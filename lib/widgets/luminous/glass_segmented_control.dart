@@ -112,16 +112,23 @@ class _Segment extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(LuminousTokens.radiusPill),
         onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          height: 40,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected ? activeFill : Colors.transparent,
-            borderRadius: BorderRadius.circular(LuminousTokens.radiusPill),
+        // L44: the tap target is >=48dp (Material minimum) while the painted
+        // pill stays at 40dp, centered inside it.
+        child: SizedBox(
+          height: 48,
+          child: Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: selected ? activeFill : Colors.transparent,
+                borderRadius: BorderRadius.circular(LuminousTokens.radiusPill),
+              ),
+              child: Text(label, style: textStyle),
+            ),
           ),
-          child: Text(label, style: textStyle),
         ),
       ),
     );
