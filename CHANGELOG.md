@@ -5,6 +5,28 @@
 > (L100 Quality Upgrade) and was never shipped. The actual public release of
 > this bug-fix + crash-log pass is `4.4.0+6`.
 
+## 5.1.1+10 — 2026-06-29
+
+UI refresh: a cleaner, simpler look. The frosted-glass / floating-blob design
+was replaced with a flat, solid Material 3 style — easier to read and lighter
+on screen. No data, accounts, encryption, or settings are affected.
+
+### Changed
+- **Solid Material 3 surfaces everywhere.** Cards, top bars, list rows, inputs,
+  segmented controls, chips, and progress bars are now opaque and properly
+  contrasted instead of translucent "glass" over a blurred backdrop.
+- **Standard bottom navigation bar** replaces the floating glass pill (which
+  could overlap content, e.g. the Analytics donut chart).
+- Removed the animated background blob.
+
+### Fixed
+- The **Add Transaction "Save" button label was invisible** (same colour as the
+  button) — now legible in both light and dark mode.
+- **Category picker labels were being clipped**; grid cells are now sized to fit,
+  including at large accessibility text sizes.
+- Loading spinners on several buttons were invisible in dark mode.
+- Selected history filter chips now keep a readable label.
+
 ## 5.1.0+9 — 2026-06-29
 
 At-rest database encryption (Phase 6.1). Your financial data is now stored
