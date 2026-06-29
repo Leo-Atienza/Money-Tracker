@@ -3,7 +3,7 @@ description: A minimalistic money tracking app
 
 publish_to: 'none'
 
-version: 5.0.0+7
+version: 5.0.1+8
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

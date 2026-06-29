@@ -5,6 +5,51 @@
 > (L100 Quality Upgrade) and was never shipped. The actual public release of
 > this bug-fix + crash-log pass is `4.4.0+6`.
 
+## 5.0.1+8 — 2026-06-28
+
+A correctness + robustness patch on top of the Luminous release. No new
+features; this hardens money math, fixes two real bugs found by a large new
+test pass, and polishes accessibility.
+
+### Fixed
+- **Search no longer errors on a match.** Unified search (the History search
+  box) threw internally whenever it actually found a matching transaction, so
+  results could fail to appear; it now returns expenses and income correctly.
+- **Resetting or deleting the account you're viewing no longer hangs or shows
+  stale data.** Resetting the current account could deadlock (the app would
+  hang); deleting the current account left the old account's transactions on
+  screen until a refresh. Both now switch to your default account and reload
+  its data immediately.
+- **CSV export totals match the in-app figures to the cent.** The export
+  summary rows (Total Amount/Paid/Remaining, By Category, Net Balance) now fold
+  in exact decimal arithmetic instead of drifting on large datasets.
+- **Safer backup/restore:** a truncated or corrupt backup now reports a clear
+  "invalid file" instead of a generic error; the restore rollback can no longer
+  abort before restoring your data; a malformed month in a hand-edited backup
+  is skipped instead of creating an invisible budget row; and the pre-v19
+  migration safety copy now flushes the write-ahead log first so it's complete.
+
+### Accessibility
+- The Backup & Restore close / bulk-delete / per-row delete buttons now have
+  tooltips and screen-reader labels (an unlabeled data-loss control before).
+- Expense/Income/period segmented controls now meet the 48dp minimum touch
+  target while keeping their compact look.
+
+### Changed
+- Dark-mode polish: the home avatar ring and summary inset tiles no longer wash
+  out as bright patches over the dark glass; the Analytics loading card now
+  matches the frosted glass of the loaded state; payment-method chips derive
+  their colors from the theme so they shift between light and dark.
+
+### Internal
+- **+453 integration tests** closing the database and app-state per-function
+  coverage gaps (2,099 → 2,552 total), authored via a self-verifying multi-agent
+  workflow and integrated as full-suite-verified batches. Dates are now driven
+  through an injectable clock for deterministic testing.
+- Phase 6.1 (SQLCipher at-rest encryption) and the hero-screen golden tests
+  remain deferred with written rationale (see docs/) — the app already ships
+  PBKDF2 PIN hashing, encrypted backups, and FLAG_SECURE.
+
 ## 5.0.0+7 — 2026-06-27
 
 The Luminous release: a full glass-design refresh plus a security, correctness,
