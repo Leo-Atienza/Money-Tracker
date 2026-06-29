@@ -30,7 +30,7 @@ if ($LASTEXITCODE -ne 0) { FailWith 'flutter analyze reported issues' }
 Section 'flutter test'
 # Phase 7.10 (D.10): also gate on the pass count so a silent drop in
 # coverage still fails CI. Bump $TestCountMin each release.
-$TestCountMin = 2377
+$TestCountMin = 2552
 $TestOutput = & flutter test --concurrency=4 --reporter=expanded 2>&1
 $TestOutput | ForEach-Object { Write-Host $_ }
 if ($LASTEXITCODE -ne 0) { FailWith 'flutter test failed' }
