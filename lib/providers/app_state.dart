@@ -1496,27 +1496,34 @@ class AppState extends ChangeNotifier {
   /// FIX P0-1: Prevents deleting the last account to avoid invalid state.
   /// Throws ArgumentError if attempting to delete the last remaining account.
   Future<void> deleteAccount(int id) async {
+    bool deletedCurrent = false;
     await _writeMutex.synchronized(() async {
       // FIX P0-1: Prevent deleting the last account - app requires at least one account
       if (_accounts.length <= 1) {
         throw ArgumentError('Cannot delete the last account. At least one account must exist.');
       }
 
-      await _db.deleteAccount(id);
-      await _loadAccounts();
+      // Capture whether we're deleting the ACTIVE account BEFORE _loadAccounts
+      // resets _currentAccount to the default. The old post-reset
+      // `_currentAccount?.id == id` check was always false here (the id had
+      // just been reset away), so the fallback account's data was never
+      // reloaded and the deleted account's rows lingered stale in memory.
+      deletedCurrent = _currentAccount?.id == id;
 
-      if (_currentAccount?.id == id) {
-        // FIX P0-1: _accounts is guaranteed non-empty due to the check above
-        // Try to find a default account first, otherwise use the first available
-        _currentAccount = _accounts.firstWhere(
-          (a) => a.isDefault,
-          orElse: () => _accounts.first, // Safe: _accounts is not empty
-        );
-        clearFilters();
-        await _reloadAccountData();
-      }
-      _safeNotify();
+      await _db.deleteAccount(id);
+      await _loadAccounts(); // resets _currentAccount to the default account
     });
+
+    // Reload OUTSIDE the write mutex. _reloadAccountData drives the public
+    // loaders (_loadExpenses/_loadIncomes/...), each of which acquires
+    // _writeMutex itself — calling it inside the synchronized block above would
+    // deadlock, since the mutex is non-reentrant (see switchAccount, which
+    // reloads outside any mutex).
+    if (deletedCurrent) {
+      clearFilters();
+      await _reloadAccountData();
+    }
+    _safeNotify();
   }
 
   Future<void> resetAccount(int accountId) async {
@@ -1541,12 +1548,17 @@ class AppState extends ChangeNotifier {
         await txn.delete('deleted_expenses', where: 'account_id = ?', whereArgs: [accountId]);
         await txn.delete('deleted_income', where: 'account_id = ?', whereArgs: [accountId]);
       });
-      if (_currentAccount?.id == accountId) {
-        clearFilters();
-        await _reloadAccountData();
-      }
-      _safeNotify();
     });
+
+    // Reload OUTSIDE the write mutex (see deleteAccount). _reloadAccountData's
+    // loaders re-acquire _writeMutex, so reloading inside the synchronized
+    // block above deadlocked the (non-reentrant) mutex — resetting the CURRENT
+    // account would hang the app.
+    if (_currentAccount?.id == accountId) {
+      clearFilters();
+      await _reloadAccountData();
+    }
+    _safeNotify();
   }
 
   Future<List<Map<String, dynamic>>> getDeletedAccounts() async => await _db.getDeletedAccounts();
