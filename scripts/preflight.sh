@@ -53,7 +53,10 @@ section "flutter test"
 # coverage (test file deleted, expectations weakened) still fails CI
 # even when the remaining tests pass. The floor is the previous-release
 # baseline + 50 — bump it each release to ratchet up coverage.
-TEST_COUNT_MIN=2564
+# De-glass (2026-06-29): lowered 2564 -> 2536 after deleting 3 obsolete
+# glassmorphism test files (organic_blob_background, floating_glass_nav_bar,
+# glass_blur_perf) whose widgets were removed in the Material 3 revert.
+TEST_COUNT_MIN=2536
 TEST_OUT=$(mktemp)
 trap 'rm -f "$TEST_OUT"' EXIT
 if ! flutter test --concurrency=4 --reporter=expanded 2>&1 | tee "$TEST_OUT"; then

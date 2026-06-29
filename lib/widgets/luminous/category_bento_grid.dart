@@ -52,7 +52,10 @@ class CategoryBentoGrid extends StatelessWidget {
         crossAxisCount: columns,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
-        childAspectRatio: 0.95,
+        // Taller than wide so the icon + label fit without a vertical
+        // overflow, including at the clamped 1.3x accessibility text scale
+        // (0.95 clipped the label by ~8px).
+        childAspectRatio: 0.8,
       ),
       itemCount: items.length,
       itemBuilder: (context, i) {
@@ -84,13 +87,15 @@ class _BentoCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final tileFill = isDark
-        ? Colors.white.withValues(alpha: selected ? 0.14 : 0.05)
-        : Colors.white.withValues(alpha: selected ? 0.85 : 0.40);
+    final cs = theme.colorScheme;
+    // De-glass: solid cells; the selected cell gets a light tint of its
+    // category colour plus a stronger coloured border.
+    final tileFill = selected
+        ? item.color.withValues(alpha: 0.14)
+        : cs.surfaceContainerHighest;
     final border = selected
         ? item.color.withValues(alpha: 0.55)
-        : Colors.white.withValues(alpha: isDark ? 0.10 : 0.55);
+        : cs.outlineVariant.withValues(alpha: 0.6);
 
     return Semantics(
       button: true,

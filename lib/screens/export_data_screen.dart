@@ -164,16 +164,17 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                     child: FilledButton.icon(
                       onPressed: _isExporting ? null : _exportData,
                       icon: _isExporting
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.onPrimary,
                               ),
                             )
                           : const Icon(Icons.file_download),
-                      label: Text(_isExporting ? 'Exporting...' : 'Export to CSV'),
+                      label:
+                          Text(_isExporting ? 'Exporting...' : 'Export to CSV'),
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
@@ -197,7 +198,8 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                               ),
                             )
                           : const Icon(Icons.picture_as_pdf),
-                      label: Text(_isExporting ? 'Exporting...' : 'Export to PDF'),
+                      label:
+                          Text(_isExporting ? 'Exporting...' : 'Export to PDF'),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
@@ -257,8 +259,10 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: (tint ?? theme.colorScheme.onSurface)
-                    .withValues(alpha: isSelected ? 0.18 : 0.08),
+                color: isSelected
+                    ? (tint ?? theme.colorScheme.primary)
+                        .withValues(alpha: 0.18)
+                    : theme.colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(

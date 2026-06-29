@@ -30,18 +30,14 @@ class GlassPillChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
+    // De-glass: solid unselected chip; selected keeps a light primary tint.
     final fill = selected
-        ? (activeColor ?? cs.primary).withValues(alpha: 0.18)
-        : (isDark
-            ? Colors.white.withValues(alpha: 0.06)
-            : Colors.white.withValues(alpha: 0.45));
+        ? (activeColor ?? cs.primary).withValues(alpha: 0.16)
+        : cs.surfaceContainerHighest;
     final border = selected
         ? (activeColor ?? cs.primary).withValues(alpha: 0.55)
-        : Colors.white.withValues(alpha: isDark ? 0.14 : 0.6);
-    final fg = selected
-        ? (activeColor ?? cs.primary)
-        : cs.onSurfaceVariant;
+        : cs.outlineVariant.withValues(alpha: 0.6);
+    final fg = selected ? (activeColor ?? cs.primary) : cs.onSurfaceVariant;
 
     return Semantics(
       button: onTap != null,

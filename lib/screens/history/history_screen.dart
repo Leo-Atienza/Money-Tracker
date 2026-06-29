@@ -580,7 +580,7 @@ class _HistoryScreenState extends State<HistoryScreen>
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 20),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withAlpha(100),
+                color: theme.colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: TabBar(
@@ -692,7 +692,14 @@ class _HistoryScreenState extends State<HistoryScreen>
               _loadAllTimeData();
             }
           },
-          labelStyle: TextStyle(fontSize: 13),
+          labelStyle: TextStyle(
+            fontSize: 13,
+            // Selected chips fill with onSurface, so the label must flip to
+            // surface to stay readable (was a muted onSurfaceVariant default).
+            color: isSelected
+                ? theme.colorScheme.surface
+                : theme.colorScheme.onSurface,
+          ),
           backgroundColor: theme.colorScheme.surface,
           selectedColor: theme.colorScheme.onSurface,
           checkmarkColor: theme.colorScheme.surface,
@@ -736,7 +743,14 @@ class _HistoryScreenState extends State<HistoryScreen>
               _loadAllTimeData();
             }
           },
-          labelStyle: TextStyle(fontSize: 13),
+          labelStyle: TextStyle(
+            fontSize: 13,
+            // Selected chips fill with onSurface, so the label must flip to
+            // surface to stay readable (was a muted onSurfaceVariant default).
+            color: isSelected
+                ? theme.colorScheme.surface
+                : theme.colorScheme.onSurface,
+          ),
           backgroundColor: theme.colorScheme.surface,
           selectedColor: theme.colorScheme.onSurface,
           checkmarkColor: theme.colorScheme.surface,

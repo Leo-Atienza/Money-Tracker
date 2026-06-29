@@ -31,11 +31,11 @@ enum TransactionType { expense, income }
 
 /// Phase 5.5 — unified Add Transaction screen. Replaces the legacy
 /// `AddHubScreen` (chooser), `AddExpenseScreen` (1,380 lines), and
-/// `AddIncomeScreen` (1,033 lines) with a single Luminous-styled form
+/// `AddIncomeScreen` (1,033 lines) with a single solid Material 3 form
 /// driven by a [GlassSegmentedControl] toggle.
 ///
 /// Used in two contexts:
-///   * As the **center tab** of the floating glass nav (`main.dart`) —
+///   * As the **center tab** of the bottom NavigationBar (`main.dart`) —
 ///     constructed without a navigator route above it, so
 ///     `Navigator.canPop` is false. The leading slot stays empty and
 ///     `_save` resets the form instead of popping.
@@ -986,7 +986,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   LuminousTokens.containerPadding,
                   LuminousTokens.basePx,
                   LuminousTokens.containerPadding,
-                  120 + MediaQuery.viewInsetsOf(context).bottom,
+                  24 + MediaQuery.viewInsetsOf(context).bottom,
                 ),
                 child: Form(
                   key: _formKey,
@@ -1059,16 +1059,27 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 elevation: 0,
               ),
               child: _isSaving
-                  ? const SizedBox(
+                  ? SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          _isExpense ? theme.colorScheme.surface : Colors.white,
+                        ),
                       ),
                     )
-                  : Text(saveLabel, style: theme.textTheme.titleMedium),
+                  : Text(
+                      saveLabel,
+                      // The textTheme bakes in color: onSurface, which would be
+                      // invisible on this onSurface-filled button. Track the
+                      // button's foregroundColor instead.
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: _isExpense
+                            ? theme.colorScheme.surface
+                            : Colors.white,
+                      ),
+                    ),
             ),
           ),
         ),

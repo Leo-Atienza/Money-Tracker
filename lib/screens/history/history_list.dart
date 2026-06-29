@@ -7,8 +7,10 @@ import 'history_grouping.dart' as grouping;
 
 /// Builder signatures kept narrow so the parent can plug its existing
 /// tile builders in without forcing a tile extraction.
-typedef ExpenseTileBuilder = Widget Function(BuildContext context, Expense expense);
-typedef IncomeTileBuilder = Widget Function(BuildContext context, Income income);
+typedef ExpenseTileBuilder = Widget Function(
+    BuildContext context, Expense expense);
+typedef IncomeTileBuilder = Widget Function(
+    BuildContext context, Income income);
 typedef DatedExpenseTileBuilder = Widget Function(
   BuildContext context,
   Expense expense, {
@@ -305,7 +307,7 @@ class HistoryEmptyState extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withAlpha(100),
+                color: theme.colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(

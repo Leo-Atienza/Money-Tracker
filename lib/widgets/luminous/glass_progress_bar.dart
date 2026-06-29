@@ -33,11 +33,9 @@ class GlassProgressBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
     final fillColor = color ?? cs.primary;
-    final trackColor = isDark
-        ? Colors.white.withValues(alpha: 0.10)
-        : Colors.black.withValues(alpha: 0.06);
+    // De-glass: solid track from the colorScheme.
+    final trackColor = cs.surfaceContainerHighest;
     final clamped = progress.clamp(0.0, 1.0);
 
     return Semantics(

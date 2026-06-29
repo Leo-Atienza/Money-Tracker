@@ -23,8 +23,6 @@ import 'utils/notification_helper.dart';
 import 'utils/notification_payload_store.dart';
 import 'utils/home_widget_helper.dart';
 import 'theme/luminous_app_theme.dart';
-import 'widgets/luminous/floating_glass_nav_bar.dart';
-import 'widgets/luminous/organic_blob_background.dart';
 import 'utils/premium_animations.dart';
 
 /// Resolves the current app version from the native bundle so it stays in
@@ -271,17 +269,18 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       // The nav-tab screens render over this too (MainNavigationScreen no
       // longer paints its own copy).
       builder: (context, child) {
-        // M12: clamp system text scaling so the fixed-height Luminous bars
-        // (GlassTopAppBar 64, home header 56, GlassSegmentedControl 40) don't
-        // clip at ~2.0 accessibility font sizes. Composed with the global
-        // OrganicBlobBackground introduced in 6a14555 — don't overwrite it.
+        // M12: clamp system text scaling so the fixed-height bars don't clip
+        // at ~2.0 accessibility font sizes.
+        //
+        // De-glass (2026-06-29): the global OrganicBlobBackground was removed.
+        // A solid surface backstop sits behind the Navigator so any route that
+        // still uses a transparent Scaffold paints on the theme surface instead
+        // of falling through to the bare (black) window.
         return MediaQuery.withClampedTextScaling(
           maxScaleFactor: 1.3,
-          child: Stack(
-            children: [
-              const Positioned.fill(child: OrganicBlobBackground()),
-              if (child != null) child,
-            ],
+          child: ColoredBox(
+            color: Theme.of(context).colorScheme.surface,
+            child: child ?? const SizedBox.shrink(),
           ),
         );
       },
@@ -291,9 +290,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // Show loading while checking onboarding status
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Scaffold(
-              // Trap #5: transparent so the global blob shows through — a
-              // fixed light background flashed on a dark-mode cold start.
-              backgroundColor: Colors.transparent,
               body: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -301,7 +297,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                     Icon(
                       Icons.account_balance_wallet_outlined,
                       size: 48,
-                      color: Theme.of(context).colorScheme.onSurface.withAlpha(100),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withAlpha(100),
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
@@ -309,7 +308,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                       height: 24,
                       child: CircularProgressIndicator(
                         strokeWidth: 2.5,
-                        color: Theme.of(context).colorScheme.onSurface.withAlpha(100),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withAlpha(100),
                       ),
                     ),
                   ],
@@ -376,30 +378,30 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   /// callbacks become no-ops.
   int _tabSwitchGeneration = 0;
 
-  static const List<FloatingGlassNavDestination> _navDestinations = [
-    FloatingGlassNavDestination(
-      icon: Icons.home_outlined,
-      selectedIcon: Icons.home_rounded,
+  static const List<NavigationDestination> _navDestinations = [
+    NavigationDestination(
+      icon: Icon(Icons.home_outlined),
+      selectedIcon: Icon(Icons.home_rounded),
       label: 'Home',
     ),
-    FloatingGlassNavDestination(
-      icon: Icons.receipt_long_outlined,
-      selectedIcon: Icons.receipt_long,
+    NavigationDestination(
+      icon: Icon(Icons.receipt_long_outlined),
+      selectedIcon: Icon(Icons.receipt_long),
       label: 'History',
     ),
-    FloatingGlassNavDestination(
-      icon: Icons.add_circle_outline,
-      selectedIcon: Icons.add_circle,
+    NavigationDestination(
+      icon: Icon(Icons.add_circle_outline),
+      selectedIcon: Icon(Icons.add_circle),
       label: 'Add',
     ),
-    FloatingGlassNavDestination(
-      icon: Icons.leaderboard_outlined,
-      selectedIcon: Icons.leaderboard,
+    NavigationDestination(
+      icon: Icon(Icons.leaderboard_outlined),
+      selectedIcon: Icon(Icons.leaderboard),
       label: 'Analytics',
     ),
-    FloatingGlassNavDestination(
-      icon: Icons.account_balance_wallet_outlined,
-      selectedIcon: Icons.account_balance_wallet,
+    NavigationDestination(
+      icon: Icon(Icons.account_balance_wallet_outlined),
+      selectedIcon: Icon(Icons.account_balance_wallet),
       label: 'Wallet',
     ),
   ];
@@ -621,53 +623,50 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
         onPanUpdate: (_) => _onUserInteraction(),
         behavior: HitTestBehavior.translucent,
         child: Scaffold(
-          backgroundColor: Colors.transparent,
-          body: Stack(
-            fit: StackFit.expand,
-            children: [
-              // OrganicBlobBackground is now painted globally in
-              // MyApp.build via MaterialApp.builder, so every route (not
-              // just the nav tabs) gets it. No local copy needed here.
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: IndexedStack(index: _currentIndex, children: _screens),
-              ),
-              Positioned(
-                left: 16,
-                right: 16,
-                bottom: 16 + MediaQuery.paddingOf(context).bottom,
-                // FIX Phase 1.7: isolate the nav bar's BackdropFilter
-                // behind a RepaintBoundary so the rest of the screen
-                // doesn't repaint when only the nav highlight pulses.
-                // Saves ~3-5ms per frame during scroll on Pixel 4a.
-                child: RepaintBoundary(
-                  child: FloatingGlassNavBar(
-                    currentIndex: _currentIndex,
-                    destinations: _navDestinations,
-                    onTap: (index) {
-                      if (index == _currentIndex) {
-                        Navigator.of(context)
-                            .popUntil((route) => route.isFirst);
-                      } else {
-                        // FIX Phase 1.8: guard the post-await callback
-                        // with (a) a generation token so rapid taps
-                        // discard stale fade-in callbacks, and
-                        // (b) `mounted` check so unmounting between
-                        // tap and animation completion doesn't crash.
-                        final gen = ++_tabSwitchGeneration;
-                        _fadeController.reverse().then((_) {
-                          if (!mounted || gen != _tabSwitchGeneration) {
-                            return;
-                          }
-                          setState(() => _currentIndex = index);
-                          _fadeController.forward();
-                        });
-                      }
-                    },
-                  ),
+          body: FadeTransition(
+            opacity: _fadeAnimation,
+            child: IndexedStack(index: _currentIndex, children: _screens),
+          ),
+          // De-glass (2026-06-29): the floating glass pill was replaced with a
+          // standard Material 3 NavigationBar pinned to the bottom. A 1px top
+          // hairline separates it from the body (matches the app's original
+          // bottom nav). The Scaffold insets the body above it automatically,
+          // so screens no longer need to reserve floating-nav clearance.
+          bottomNavigationBar: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .outlineVariant
+                      .withValues(alpha: 0.5),
+                  width: 1,
                 ),
               ),
-            ],
+            ),
+            child: NavigationBar(
+              selectedIndex: _currentIndex,
+              destinations: _navDestinations,
+              onDestinationSelected: (index) {
+                if (index == _currentIndex) {
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                } else {
+                  // FIX Phase 1.8: guard the post-await callback with (a) a
+                  // generation token so rapid taps discard stale fade-in
+                  // callbacks, and (b) a `mounted` check so unmounting between
+                  // tap and animation completion doesn't crash.
+                  final gen = ++_tabSwitchGeneration;
+                  HapticFeedback.selectionClick();
+                  _fadeController.reverse().then((_) {
+                    if (!mounted || gen != _tabSwitchGeneration) {
+                      return;
+                    }
+                    setState(() => _currentIndex = index);
+                    _fadeController.forward();
+                  });
+                }
+              },
+            ),
           ),
         ),
       ),

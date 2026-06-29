@@ -33,13 +33,9 @@ class GlassSegmentedControl<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
-    final activeFill = isDark
-        ? Colors.white.withValues(alpha: 0.12)
-        : Colors.white.withValues(alpha: 0.85);
-    final containerFill = isDark
-        ? Colors.white.withValues(alpha: 0.04)
-        : Colors.black.withValues(alpha: 0.04);
+    // De-glass: solid track + solid active pill drawn from the colorScheme.
+    final activeFill = cs.surface;
+    final containerFill = cs.surfaceContainerHighest;
 
     return Semantics(
       container: true,
@@ -49,7 +45,7 @@ class GlassSegmentedControl<T> extends StatelessWidget {
           color: containerFill,
           borderRadius: BorderRadius.circular(LuminousTokens.radiusPill),
           border: Border.all(
-            color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.4),
+            color: cs.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
         child: Padding(

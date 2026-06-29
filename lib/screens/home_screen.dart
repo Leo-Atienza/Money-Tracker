@@ -68,13 +68,10 @@ class HomeScreen extends StatelessWidget {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  // L47: dim the ring in dark mode to match
-                                  // the dark glass header border.
-                                  color: Colors.white.withValues(
-                                    alpha: theme.brightness == Brightness.dark
-                                        ? 0.18
-                                        : 0.4,
-                                  ),
+                                  // De-glass: solid hairline ring from the
+                                  // colorScheme (was a translucent white edge).
+                                  color: theme.colorScheme.outlineVariant
+                                      .withValues(alpha: 0.6),
                                 ),
                               ),
                               child: CircleAvatar(
@@ -298,15 +295,11 @@ class HomeScreen extends StatelessWidget {
                                   );
                                 },
                                 behavior: HitTestBehavior.opaque,
-                                // L49: bias the centered empty-state up by the
-                                // floating nav-bar clearance so the "Tap to add"
-                                // CTA never sits behind the translucent nav pill on
-                                // short screens (the list branch already insets 140).
+                                // De-glass: the standard bottom NavigationBar
+                                // insets the body above it, so the empty state
+                                // only needs a modest bottom margin now.
                                 child: Padding(
-                                  padding: EdgeInsets.only(
-                                    bottom: LuminousTokens.navBarHeightTotal +
-                                        MediaQuery.paddingOf(context).bottom,
-                                  ),
+                                  padding: const EdgeInsets.only(bottom: 24),
                                   child: Center(
                                     child: Column(
                                       mainAxisAlignment:
@@ -347,14 +340,12 @@ class HomeScreen extends StatelessWidget {
                               LuminousTokens.containerPadding,
                               0,
                               LuminousTokens.containerPadding,
-                              140,
+                              24,
                             ),
                             sliver: SliverToBoxAdapter(
-                              // FIX Phase 1.7: wrap the transactions GlassPanel in
-                              // a RepaintBoundary so the BackdropFilter (15-sigma
-                              // blur) doesn't force a repaint of the surrounding
-                              // CustomScrollView every time an unrelated widget
-                              // updates (e.g. the home-screen header refreshing).
+                              // Isolate the transactions panel under a
+                              // RepaintBoundary so unrelated header refreshes
+                              // don't repaint the whole list.
                               child: RepaintBoundary(
                                 child: GlassPanel(
                                   padding: EdgeInsets.zero,
@@ -611,167 +602,143 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
     final totalBalance = financialData.$3;
     final appState = context.read<AppState>();
 
-    // L47: the inset tiles sit on a GlassPanel that flips to a dark fill in
-    // dark mode. Hardcoded white-on-dark produced a bright milky patch with
-    // poor contrast, so dim the white alpha heavily in dark mode while
-    // keeping the light-mode look unchanged.
+    // De-glass: the Income/Expenses tiles nested in the balance card are solid
+    // surfaces drawn from the colorScheme so they read as distinct cards in
+    // both light and dark mode (was a translucent white wash).
     BoxDecoration insetTile(BuildContext ctx) {
-      final isDark = Theme.of(ctx).brightness == Brightness.dark;
+      final cs = Theme.of(ctx).colorScheme;
       return BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: Colors.white.withValues(alpha: isDark ? 0.06 : 0.3),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: isDark ? 0.10 : 0.4),
-        ),
+        color: cs.surface,
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
       );
     }
 
     return ScaleTransition(
       scale: _scaleAnimation,
       child: GlassPanel(
-        child: Stack(
-          clipBehavior: Clip.none,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Positioned(
-              top: -40,
-              right: -40,
-              child: IgnorePointer(
-                child: Container(
-                  width: 128,
-                  height: 128,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: theme.colorScheme.primaryContainer
-                        .withValues(alpha: 0.2),
+            Semantics(
+              label:
+                  'Total balance ${appState.formatWithCurrency(totalBalance)}',
+              liveRegion: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Total Balance',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 4),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: AnimatedCounter(
+                      value: totalBalance,
+                      prefix: totalBalance < 0
+                          ? '-${appState.currency}'
+                          : appState.currency,
+                      compact: totalBalance.abs() > 100000,
+                      decimalPlaces: totalBalance.abs() > 100000 ? 1 : 2,
+                      style: theme.textTheme.displayLarge
+                          ?.copyWith(fontSize: 34, height: 41 / 34),
+                    ),
+                  ),
+                ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: LuminousTokens.stackGap),
+            Row(
               children: [
-                Semantics(
-                  label:
-                      'Total balance ${appState.formatWithCurrency(totalBalance)}',
-                  liveRegion: true,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Total Balance',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
+                Expanded(
+                  child: Semantics(
+                    label: 'Income ${appState.formatWithCurrency(totalIncome)}',
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: insetTile(context),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.arrow_downward_rounded,
+                                size: 18,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Income',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: AnimatedCounter(
+                              value: totalIncome,
+                              prefix: appState.currency,
+                              compact: totalIncome > 100000,
+                              decimalPlaces: totalIncome > 100000 ? 1 : 2,
+                              style: theme.textTheme.headlineMedium,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: AnimatedCounter(
-                          value: totalBalance,
-                          prefix: totalBalance < 0
-                              ? '-${appState.currency}'
-                              : appState.currency,
-                          compact: totalBalance.abs() > 100000,
-                          decimalPlaces: totalBalance.abs() > 100000 ? 1 : 2,
-                          style: theme.textTheme.displayLarge
-                              ?.copyWith(fontSize: 34, height: 41 / 34),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: LuminousTokens.stackGap),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Semantics(
-                        label:
-                            'Income ${appState.formatWithCurrency(totalIncome)}',
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: insetTile(context),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(width: LuminousTokens.stackGap),
+                Expanded(
+                  child: Semantics(
+                    label:
+                        'Expenses ${appState.formatWithCurrency(totalSpent)}',
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: insetTile(context),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.arrow_downward_rounded,
-                                    size: 18,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Income',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
+                              Icon(
+                                Icons.arrow_upward_rounded,
+                                size: 18,
+                                color: theme.colorScheme.onSurfaceVariant,
                               ),
-                              const SizedBox(height: 8),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerLeft,
-                                child: AnimatedCounter(
-                                  value: totalIncome,
-                                  prefix: appState.currency,
-                                  compact: totalIncome > 100000,
-                                  decimalPlaces: totalIncome > 100000 ? 1 : 2,
-                                  style: theme.textTheme.headlineMedium,
+                              const SizedBox(width: 8),
+                              Text(
+                                'Expenses',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: LuminousTokens.stackGap),
-                    Expanded(
-                      child: Semantics(
-                        label:
-                            'Expenses ${appState.formatWithCurrency(totalSpent)}',
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: insetTile(context),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.arrow_upward_rounded,
-                                    size: 18,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Expenses',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerLeft,
-                                child: AnimatedCounter(
-                                  value: totalSpent,
-                                  prefix: appState.currency,
-                                  compact: totalSpent > 100000,
-                                  decimalPlaces: totalSpent > 100000 ? 1 : 2,
-                                  style: theme.textTheme.headlineMedium,
-                                ),
-                              ),
-                            ],
+                          const SizedBox(height: 8),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: AnimatedCounter(
+                              value: totalSpent,
+                              prefix: appState.currency,
+                              compact: totalSpent > 100000,
+                              decimalPlaces: totalSpent > 100000 ? 1 : 2,
+                              style: theme.textTheme.headlineMedium,
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),

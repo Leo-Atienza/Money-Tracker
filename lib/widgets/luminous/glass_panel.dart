@@ -1,9 +1,12 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import '../../theme/luminous_app_theme.dart';
 
-/// Frosted glass panel: white ~45% + blur 25 + 1px highlight edge.
+/// Solid Material 3 card surface.
+///
+/// De-glass (2026-06-29): formerly a frosted `BackdropFilter` panel. Now a
+/// plain opaque container drawn from the colorScheme container roles, with a
+/// hairline border and a soft shadow in light mode. The class name + API are
+/// kept so the ~20 screens that build on it compile unchanged.
 class GlassPanel extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -20,48 +23,39 @@ class GlassPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final fill = isDark
-        ? Colors.black.withValues(alpha: 0.45)
-        : LuminousTokens.glassFill;
-    final borderCol = isDark
-        ? Colors.white.withValues(alpha: 0.22)
-        : LuminousTokens.glassBorder;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final fill = isDark ? cs.surfaceContainerHigh : cs.surfaceContainer;
+    final borderCol = cs.outlineVariant.withValues(alpha: isDark ? 0.4 : 0.6);
 
-    // M9: isolate each panel's BackdropFilter under its own RepaintBoundary.
-    // Analytics stacks ~5 live 15-sigma blurs; without this any single panel
-    // repaint re-samples the whole shared backdrop for every panel.
-    return RepaintBoundary(
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(color: borderCol),
+        color: fill,
+        boxShadow: boxShadow ??
+            (isDark
+                ? null
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]),
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: LuminousTokens.glassBlurSigma,
-            sigmaY: LuminousTokens.glassBlurSigma,
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(borderRadius),
-              border: Border.all(color: borderCol),
-              color: fill,
-              boxShadow: boxShadow ??
-                  [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-            ),
-            child: Padding(padding: padding, child: child),
-          ),
-        ),
+        child: Padding(padding: padding, child: child),
       ),
     );
   }
 }
 
-/// Top app bar strip: blurred frosted strip with bottom hairline (redesign header).
+/// Top app bar strip: solid surface strip with a bottom hairline.
+///
+/// De-glass (2026-06-29): the blurred frosted strip is now an opaque
+/// `colorScheme.surface` strip. API unchanged.
 class GlassHeaderStrip extends StatelessWidget {
   final Widget child;
 
@@ -69,29 +63,18 @@ class GlassHeaderStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final base = isDark
-        ? Colors.black.withValues(alpha: 0.4)
-        : Colors.white.withValues(alpha: 0.4);
-    final borderSide = Colors.white.withValues(alpha: isDark ? 0.18 : 0.4);
-
-    // M9: isolate the header strip's blur under its own RepaintBoundary too.
-    return RepaintBoundary(
-      child: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: LuminousTokens.glassBlurSigma,
-            sigmaY: LuminousTokens.glassBlurSigma,
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: base,
-              border: Border(bottom: BorderSide(color: borderSide, width: 1)),
-            ),
-            child: child,
+    final cs = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: cs.surface,
+        border: Border(
+          bottom: BorderSide(
+            color: cs.outlineVariant.withValues(alpha: 0.5),
+            width: 1,
           ),
         ),
       ),
+      child: child,
     );
   }
 }

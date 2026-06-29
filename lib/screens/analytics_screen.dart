@@ -39,7 +39,7 @@ class AnalyticsScreen extends StatelessWidget {
                 LuminousTokens.containerPadding,
                 LuminousTokens.stackGap,
                 LuminousTokens.containerPadding,
-                100,
+                LuminousTokens.sectionMargin,
               ),
               child: Column(
                 children: [
@@ -162,9 +162,9 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart>
     final currency = context.select<AppState, String>((s) => s.currency);
 
     if (_isLoading) {
-      // L50: match the frosted GlassPanel surface/border/radius used by the
-      // empty + data states so the card doesn't visibly 'pop' from a flat
-      // opaque box to glass when loading finishes.
+      // L50: match the GlassPanel surface/border/radius used by the empty +
+      // data states so the loading card doesn't visibly 'pop' when loading
+      // finishes.
       return const GlassPanel(
         child: SizedBox(
           height: 250,
@@ -1191,7 +1191,7 @@ class _MonthOverMonthInsights extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withAlpha(100),
+          color: theme.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(

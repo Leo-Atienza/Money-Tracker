@@ -10,8 +10,8 @@ import '../widgets/luminous/glass_panel.dart';
 /// Phase 5.9a — Onboarding Luminous redesign.
 ///
 /// Each slide renders inside a [GlassPanel]; page indicators use the
-/// Luminous primary tint; CTAs are filled / outlined buttons over the
-/// `OrganicBlobBackground` provided by the global theme.
+/// primary tint; CTAs are filled / outlined buttons over the solid app
+/// background.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 

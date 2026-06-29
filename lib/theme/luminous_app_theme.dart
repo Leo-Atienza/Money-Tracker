@@ -32,7 +32,8 @@ TextTheme _luminousTextTheme(ColorScheme cs) {
 
   return TextTheme(
     displayLarge: hanken(34, FontWeight.w800, height: 41, letterSpacing: -0.5),
-    headlineMedium: hanken(24, FontWeight.w700, height: 30, letterSpacing: -0.3),
+    headlineMedium:
+        hanken(24, FontWeight.w700, height: 30, letterSpacing: -0.3),
     titleLarge: hanken(20, FontWeight.w600, height: 26, letterSpacing: -0.2),
     bodyLarge: hanken(17, FontWeight.w400, height: 24, letterSpacing: -0.2),
     bodyMedium: hanken(15, FontWeight.w400, height: 20, letterSpacing: 0),
@@ -120,30 +121,34 @@ ThemeData buildLuminousTheme({
   required Brightness brightness,
   required ThemeExtension<dynamic> appColorsExtension,
 }) {
-  final cs =
-      brightness == Brightness.light ? luminousLightScheme() : luminousDarkScheme();
+  final cs = brightness == Brightness.light
+      ? luminousLightScheme()
+      : luminousDarkScheme();
   final textTheme = _luminousTextTheme(cs);
   final isDark = brightness == Brightness.dark;
 
+  // De-glass (2026-06-29): every surface is now solid. The Luminous glass +
+  // OrganicBlobBackground layer was removed in favour of the clean, minimalist
+  // Material 3 look the app originally shipped with. Surfaces draw from the
+  // colorScheme container roles so light/dark both read as flat, opaque cards.
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
     colorScheme: cs,
-    scaffoldBackgroundColor: Colors.transparent,
+    scaffoldBackgroundColor: cs.surface,
     textTheme: textTheme,
     appBarTheme: AppBarTheme(
       elevation: 0,
       scrolledUnderElevation: 0,
-      backgroundColor: Colors.transparent,
+      backgroundColor: cs.surface,
       foregroundColor: cs.onSurface,
       titleTextStyle: textTheme.headlineMedium,
-      systemOverlayStyle: isDark
-          ? SystemUiOverlayStyle.light
-          : SystemUiOverlayStyle.dark,
+      systemOverlayStyle:
+          isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
     ),
     cardTheme: CardThemeData(
       elevation: 0,
-      color: Colors.transparent,
+      color: cs.surfaceContainer,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(LuminousTokens.radiusCard),
@@ -151,41 +156,52 @@ ThemeData buildLuminousTheme({
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: isDark
-          ? Colors.white.withValues(alpha: 0.08)
-          : Colors.white.withValues(alpha: 0.35),
+      fillColor: cs.surfaceContainerHighest,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(
-          color: LuminousTokens.glassBorder.withValues(alpha: isDark ? 0.35 : 1),
-        ),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(
-          color: LuminousTokens.glassBorder.withValues(alpha: isDark ? 0.25 : 0.8),
-        ),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(
-          color: LuminousTokens.primary.withValues(alpha: 0.85),
-          width: 1.5,
-        ),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: cs.primary, width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: Colors.transparent,
+      backgroundColor: cs.surface,
       elevation: 0,
-      indicatorColor: cs.primaryContainer.withValues(alpha: 0.35),
+      // De-glass: a soft primary-tinted pill with a green selected icon/label
+      // (the default seeded indicator was blue secondaryContainer, which put a
+      // low-contrast white icon on a pale blue pill).
+      indicatorColor: cs.primary.withValues(alpha: isDark ? 0.30 : 0.14),
+      iconTheme: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        return IconThemeData(
+          size: 26,
+          color: selected ? cs.primary : cs.onSurfaceVariant,
+        );
+      }),
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        return TextStyle(
+          fontFamily: 'HankenGrotesk',
+          fontSize: 11,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          color: selected ? cs.primary : cs.onSurfaceVariant,
+        );
+      }),
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      backgroundColor: cs.inverseSurface.withValues(alpha: 0.92),
-      contentTextStyle: textTheme.bodyMedium?.copyWith(color: cs.onInverseSurface),
+      backgroundColor: cs.inverseSurface,
+      contentTextStyle:
+          textTheme.bodyMedium?.copyWith(color: cs.onInverseSurface),
     ),
     extensions: [appColorsExtension],
   );

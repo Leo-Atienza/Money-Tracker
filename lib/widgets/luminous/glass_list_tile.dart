@@ -54,16 +54,14 @@ class GlassListTile extends StatelessWidget {
     final cs = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
     final tint = iconColor ?? cs.primary;
-    final tileColor = isDark
-        ? Colors.white.withValues(alpha: 0.04)
-        : Colors.white.withValues(alpha: 0.30);
-
+    // De-glass: rows are transparent so the solid parent panel surface shows
+    // through; dividers (drawn by GlassListSection) separate them.
     final content = Container(
       constraints: const BoxConstraints(
         minHeight: LuminousTokens.touchTargetMin + 4,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: tileColor,
+      color: Colors.transparent,
       child: Row(
         children: [
           if (icon != null) ...[

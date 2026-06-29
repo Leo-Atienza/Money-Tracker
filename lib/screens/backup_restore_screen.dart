@@ -1243,14 +1243,14 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                                     ? null
                                     : _exportBackup,
                                 icon: _isExporting
-                                    ? const SizedBox(
+                                    ? SizedBox(
                                         width: 20,
                                         height: 20,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
                                           valueColor:
                                               AlwaysStoppedAnimation<Color>(
-                                            Colors.white,
+                                            theme.colorScheme.onPrimary,
                                           ),
                                         ),
                                       )
@@ -1322,14 +1322,14 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                                     ? null
                                     : _restoreBackup, // FIX: Disable during operations
                                 icon: _isRestoring
-                                    ? const SizedBox(
+                                    ? SizedBox(
                                         width: 20,
                                         height: 20,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
                                           valueColor:
                                               AlwaysStoppedAnimation<Color>(
-                                            Colors.white,
+                                            theme.colorScheme.onTertiary,
                                           ),
                                         ),
                                       )
