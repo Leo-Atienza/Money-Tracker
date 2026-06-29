@@ -3,7 +3,7 @@ description: A minimalistic money tracking app
 
 publish_to: 'none'
 
-version: 5.0.1+8
+version: 5.1.0+9
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -17,6 +17,10 @@ dependencies:
 
   # Database
   sqflite: ^2.3.3
+  # Phase 6.1: at-rest SQLCipher (AES-256) encryption on Android/iOS/macOS.
+  # Reuses sqflite_common, so it coexists with sqflite + the sqflite_common_ffi
+  # desktop/test factory. Driven via lib/database/db_open.dart.
+  sqflite_sqlcipher: ^3.4.0
   path: ^1.9.0
 
   # File & Storage

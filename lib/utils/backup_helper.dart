@@ -12,8 +12,10 @@ import 'package:sqflite/sqflite.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/database.dart';
 import '../database/database_helper.dart';
+import '../database/db_open.dart';
 import '../providers/app_state.dart';
 import 'backup_crypto.dart';
+import 'db_encryption.dart';
 
 /// Phase 6.3 — passphrase request callback for encrypted restores.
 ///
@@ -154,6 +156,53 @@ class BackupHelper {
     if (!BackupCrypto.isEncryptedEnvelope(contents)) return contents;
     if (passphrase == null || passphrase.isEmpty) return null;
     return BackupCrypto.decrypt(contents, passphrase);
+  }
+
+  /// Phase 6.1 — a `.etbackup` embeds the raw database bytes, so when the live
+  /// database is encrypted at rest the backup isolate must read a *plaintext*
+  /// copy. Otherwise the backup would carry ciphertext that only this device's
+  /// Keystore key could open and that fails the SQLite-header validation on
+  /// restore. Returns the path the isolate should read; [isTemp] is true when
+  /// it is a throwaway plaintext export the caller must delete afterwards.
+  static Future<({String path, bool isTemp})> _backupSource(
+    String dbPath,
+  ) async {
+    if (!await isEncryptedDatabaseFile(dbPath)) {
+      return (path: dbPath, isTemp: false);
+    }
+    final password = await DbEncryption.getOrCreateKey();
+    if (password == null) {
+      // Encrypted file but no retrievable key — a catastrophic state in which
+      // the app itself can't open the DB. Embed as-is rather than fail outright.
+      return (path: dbPath, isTemp: false);
+    }
+    final tmpDir = await getTemporaryDirectory();
+    final dest = path.join(
+      tmpDir.path,
+      'ff-backup-plaintext-${DateTime.now().millisecondsSinceEpoch}.db',
+    );
+    await exportPlaintextCopy(dbPath: dbPath, password: password, dest: dest);
+    return (path: dest, isTemp: true);
+  }
+
+  /// Deletes a throwaway plaintext source created by [_backupSource].
+  static Future<void> _cleanupBackupSource(
+    ({String path, bool isTemp}) source,
+  ) async {
+    if (!source.isTemp) return;
+    for (final p in <String>[
+      source.path,
+      '${source.path}-wal',
+      '${source.path}-shm',
+      '${source.path}-journal',
+    ]) {
+      try {
+        final f = File(p);
+        if (await f.exists()) await f.delete();
+      } catch (_) {
+        // Best-effort temp cleanup.
+      }
+    }
   }
 
   // Export full backup
@@ -484,12 +533,24 @@ class BackupHelper {
         debugPrint('Settings loaded: ${settings.keys.join(", ")}');
       }
 
-      // Run backup creation in isolate to avoid OOM and UI freeze
+      // Run backup creation in isolate to avoid OOM and UI freeze.
+      // Phase 6.1: feed the isolate a plaintext source when the DB is encrypted
+      // so the embedded bytes stay portable; clean up the temp afterwards.
       if (kDebugMode) debugPrint('Creating backup in isolate...');
-      final backupJson = await compute(
-        _createBackupInIsolate,
-        _BackupIsolateParams(dbPath, settings, DatabaseConstants.databaseVersion),
-      );
+      final backupSource = await _backupSource(dbPath);
+      final String backupJson;
+      try {
+        backupJson = await compute(
+          _createBackupInIsolate,
+          _BackupIsolateParams(
+            backupSource.path,
+            settings,
+            DatabaseConstants.databaseVersion,
+          ),
+        );
+      } finally {
+        await _cleanupBackupSource(backupSource);
+      }
       if (kDebugMode) {
         debugPrint(
           'Backup JSON created, size: ${backupJson.length} characters',
@@ -625,11 +686,22 @@ class BackupHelper {
         'reminderMinute': prefs.getInt('reminderMinute') ?? 0,
       };
 
-      // FIX: Create comprehensive backup in isolate
-      final backupJson = await compute(
-        _createBackupInIsolate,
-        _BackupIsolateParams(dbPath, settings, DatabaseConstants.databaseVersion),
-      );
+      // FIX: Create comprehensive backup in isolate.
+      // Phase 6.1: plaintext source when encrypted, cleaned up afterwards.
+      final backupSource = await _backupSource(dbPath);
+      final String backupJson;
+      try {
+        backupJson = await compute(
+          _createBackupInIsolate,
+          _BackupIsolateParams(
+            backupSource.path,
+            settings,
+            DatabaseConstants.databaseVersion,
+          ),
+        );
+      } finally {
+        await _cleanupBackupSource(backupSource);
+      }
 
       // Phase 6.3 — encrypt the JSON before sharing if a passphrase
       // was provided. Shared files are higher-risk than local saves

@@ -5,6 +5,31 @@
 > (L100 Quality Upgrade) and was never shipped. The actual public release of
 > this bug-fix + crash-log pass is `4.4.0+6`.
 
+## 5.1.0+9 — 2026-06-29
+
+At-rest database encryption (Phase 6.1). Your financial data is now stored
+encrypted on disk, and existing data migrates automatically and safely on the
+first launch after updating.
+
+### Added
+- **At-rest encryption (SQLCipher / AES-256).** The local database is now
+  encrypted on disk. A 256-bit key is generated once and stored in the Android
+  Keystore (hardware-backed where available); it never leaves the device and is
+  independent of your PIN. This layers on top of the existing Keystore-backed
+  PIN, AES-GCM encrypted backups, and screenshot blocking (`FLAG_SECURE`).
+- **Automatic, fail-safe migration.** On the first launch after updating, an
+  existing plaintext database is migrated to encrypted in place. The original is
+  replaced only after the encrypted copy is written, re-opened with the key, and
+  verified to hold every row — and a plaintext recovery copy is kept. If
+  anything fails, your data is left untouched and the migration retries on the
+  next launch, so updating can never lose data.
+
+### Changed
+- **Backups stay portable.** A `.etbackup` created from an encrypted database
+  now embeds a decrypted copy of the data, so it still restores on a fresh
+  install or a different device (optionally still wrapped in a passphrase
+  envelope for transport).
+
 ## 5.0.1+8 — 2026-06-28
 
 A correctness + robustness patch on top of the Luminous release. No new

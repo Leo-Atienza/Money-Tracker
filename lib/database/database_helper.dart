@@ -17,6 +17,8 @@ import '../models/monthly_balance_model.dart';
 import '../constants/database.dart';
 import '../utils/decimal_helper.dart';
 import '../utils/date_helper.dart';
+import '../utils/db_encryption.dart';
+import 'db_open.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -195,12 +197,18 @@ class DatabaseHelper {
       databaseNameOverride ?? _defaultDatabaseName,
     );
 
-    return await openDatabase(
-      dbPath,
+    // Phase 6.1: resolve the at-rest encryption passphrase. Null on the FFI
+    // test runner / desktop, or when no key can be durably persisted, in which
+    // case [openAppDatabase] opens a plaintext database exactly as before.
+    final password = await _resolveEncryptionPassword();
+
+    return await openAppDatabase(
+      dbPath: dbPath,
       // Phase 4: bumped 18 → 19. Source of truth is
       // `DatabaseConstants.databaseVersion`. See the `if (oldVersion < 19)`
       // block in [_onUpgrade] for the migration details.
       version: DatabaseConstants.databaseVersion,
+      password: password,
       // FIX #4: Enable SQLite foreign key enforcement
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
@@ -208,6 +216,19 @@ class DatabaseHelper {
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
+  }
+
+  /// Phase 6.1: the SQLCipher passphrase, or null to open plaintext.
+  ///
+  /// Returns null on every path that must stay plaintext: the integration
+  /// test runner (which sets [databaseNameOverride]), any non-mobile platform
+  /// (no SQLCipher plugin — the FFI factory drives those), or a Keystore
+  /// failure where no durable key could be obtained ([DbEncryption.getOrCreateKey]
+  /// swallows its own errors and returns null).
+  Future<String?> _resolveEncryptionPassword() async {
+    if (databaseNameOverride != null) return null;
+    if (!cipherPlatform) return null;
+    return DbEncryption.getOrCreateKey();
   }
 
   Future<void> _onCreate(Database db, int version) async {
