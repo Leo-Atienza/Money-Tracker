@@ -5,6 +5,22 @@
 > (L100 Quality Upgrade) and was never shipped. The actual public release of
 > this bug-fix + crash-log pass is `4.4.0+6`.
 
+## 5.1.2+11 — 2026-06-29
+
+Black-and-white look, plus an important lock-screen fix.
+
+### Changed
+- **Monochrome theme.** The app's colours are now black/white/grey: buttons,
+  the navigation bar, links, and headers are neutral instead of green. Income
+  (green) and expense (red) amounts, category icons, and charts keep their
+  colours so they stay easy to read. Use **Settings → Transaction Colors** to
+  tint transaction cards by category or keep them clean.
+
+### Fixed
+- **The PIN unlock screen could appear on app startup even if you never set a
+  PIN**, with no way past it. Fixed — the app now waits for the real lock state
+  before deciding whether to ask for a PIN.
+
 ## 5.1.1+10 — 2026-06-29
 
 UI refresh: a cleaner, simpler look. The frosted-glass / floating-blob design

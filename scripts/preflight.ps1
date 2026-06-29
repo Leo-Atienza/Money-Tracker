@@ -32,7 +32,8 @@ Section 'flutter test'
 # coverage still fails CI. Bump $TestCountMin each release.
 # De-glass (2026-06-29): lowered 2564 -> 2536 after deleting 3 obsolete
 # glassmorphism test files whose widgets were removed in the M3 revert.
-$TestCountMin = 2536
+# 2026-06-29: +3 (PIN cold-start race regression tests) -> 2539.
+$TestCountMin = 2539
 $TestOutput = & flutter test --concurrency=4 --reporter=expanded 2>&1
 $TestOutput | ForEach-Object { Write-Host $_ }
 if ($LASTEXITCODE -ne 0) { FailWith 'flutter test failed' }

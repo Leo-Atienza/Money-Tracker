@@ -56,7 +56,8 @@ section "flutter test"
 # De-glass (2026-06-29): lowered 2564 -> 2536 after deleting 3 obsolete
 # glassmorphism test files (organic_blob_background, floating_glass_nav_bar,
 # glass_blur_perf) whose widgets were removed in the Material 3 revert.
-TEST_COUNT_MIN=2536
+# 2026-06-29: +3 (PIN cold-start race regression tests) -> 2539.
+TEST_COUNT_MIN=2539
 TEST_OUT=$(mktemp)
 trap 'rm -f "$TEST_OUT"' EXIT
 if ! flutter test --concurrency=4 --reporter=expanded 2>&1 | tee "$TEST_OUT"; then
