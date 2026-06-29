@@ -101,6 +101,18 @@ class AppState extends ChangeNotifier {
   static const Duration _lockTimeout = Duration(minutes: 3);
   bool _isDisposed = false; // FIX: Track disposed state to prevent timer callback crashes
 
+  // FIX (cold-start lock race): `_isLocked` defaults to `true` (fail-closed)
+  // and is only reset to the real PIN state once [initializeLockState] finishes
+  // its async secure-storage read. That method runs fire-and-forget from
+  // main.dart, while the UI's PIN gate (`_checkPinLock`) runs from a separate
+  // post-frame callback. If the gate wins that race it reads the stale `true`
+  // default and presents the unlock screen to a user who never set a PIN —
+  // trapping them, since no PIN can dismiss it. This completer lets the gate
+  // await the real resolution first; on resume it is already complete, so the
+  // lock-on-resume path takes no extra latency.
+  final Completer<void> _lockStateReady = Completer<void>();
+  Future<void> get lockStateReady => _lockStateReady.future;
+
   // ============== FILTERS ==============
   String _filterCategory = 'All';
   DateTimeRange? _dateRange;
@@ -2425,12 +2437,20 @@ class AppState extends ChangeNotifier {
 
   /// Initialize lock state based on PIN settings
   Future<void> initializeLockState() async {
-    final pinEnabled = await PinSecurityHelper.isPinEnabled();
-    _isLocked = pinEnabled; // Start locked if PIN is enabled
-    // Phase 6.5: set FLAG_SECURE so screenshots / Recents thumbnails are
-    // blocked from the very first frame when a PIN is configured. Cheap
-    // and idempotent — re-runs on every cold start.
-    unawaited(SecureWindow.setSecure(pinEnabled));
+    try {
+      final pinEnabled = await PinSecurityHelper.isPinEnabled();
+      _isLocked = pinEnabled; // Start locked if PIN is enabled
+      // Phase 6.5: set FLAG_SECURE so screenshots / Recents thumbnails are
+      // blocked from the very first frame when a PIN is configured. Cheap
+      // and idempotent — re-runs on every cold start.
+      unawaited(SecureWindow.setSecure(pinEnabled));
+    } finally {
+      // Signal the UI gate that the real PIN state is now known. Completed in
+      // `finally` so an unexpected secure-storage failure can never leave the
+      // gate awaiting forever. Guarded because cold start may invoke this more
+      // than once (post-frame callback + a defensive re-run).
+      if (!_lockStateReady.isCompleted) _lockStateReady.complete();
+    }
   }
 
   /// Unlock the app (called after successful PIN verification)

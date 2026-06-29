@@ -527,9 +527,23 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   /// on every resume, so it is guarded against re-entrant presentation.
   Future<void> _checkPinLock() async {
     if (!mounted) return;
-    if (_pinRouteActive) return;
 
     final appState = context.read<AppState>();
+    // Cold-start ordering guard: initializeLockState() runs fire-and-forget
+    // from MyApp and resolves the real PIN state behind an async secure-storage
+    // read. This post-frame check can win that race and observe the fail-closed
+    // `isLocked == true` default before the PIN state is known — which would
+    // present the unlock screen to a user who never set a PIN and trap them
+    // (no PIN can dismiss it). Wait for the resolution first. On resume this
+    // future is already complete, so the lock-on-resume path takes no extra
+    // latency.
+    await appState.lockStateReady;
+    if (!mounted) return;
+
+    // Re-entrancy + state guards are kept together AFTER the await so the
+    // check-then-set of `_pinRouteActive` stays atomic (no await between them)
+    // and a second resume can't push a duplicate unlock route.
+    if (_pinRouteActive) return;
     if (!appState.isLocked) return;
 
     _pinRouteActive = true;

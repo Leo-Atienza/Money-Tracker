@@ -977,6 +977,66 @@ void main() {
     });
   });
 
+  // Regression: a cold-start ordering race presented the PIN unlock screen to
+  // users who never set a PIN. `_isLocked` defaults to `true` (fail-closed) and
+  // is only reset once initializeLockState() finishes its async secure-storage
+  // read; the UI gate (`_checkPinLock`) ran from a separate post-frame callback
+  // and could read the stale `true` before that resolution — trapping the user
+  // on a screen no PIN could dismiss. The fix exposes `lockStateReady` and the
+  // gate awaits it before reading `isLocked`.
+  group('cold-start lock-state race (regression)', () {
+    test('lockStateReady stays pending until initializeLockState resolves',
+        () async {
+      final state = AppState();
+      var ready = false;
+      final readyFuture = state.lockStateReady.then((_) => ready = true);
+
+      // Let any synchronous/microtask completion settle. The gate MUST still be
+      // pending — completing it early (e.g. in the constructor) would re-open
+      // the race this guards against.
+      await Future<void>.delayed(Duration.zero);
+      expect(ready, isFalse,
+          reason: 'lock-state gate must not resolve before the PIN state is '
+              'read');
+
+      await state.initializeLockState();
+      await readyFuture;
+      expect(ready, isTrue,
+          reason: 'gate resolves once initializeLockState finishes');
+      state.dispose();
+    });
+
+    test('no PIN: isLocked is false after awaiting lockStateReady', () async {
+      final state = AppState();
+      // Fail-closed default before the real PIN state is resolved.
+      expect(state.isLocked, isTrue);
+
+      // Mirror main.dart: kick off init fire-and-forget, then gate on readiness
+      // exactly as the fixed `_checkPinLock` does.
+      final init = state.initializeLockState();
+      await state.lockStateReady;
+
+      expect(state.isLocked, isFalse,
+          reason: 'a user who never set a PIN must end up unlocked — the gate '
+              'must never present the unlock screen here');
+      await init;
+      state.dispose();
+    });
+
+    test('PIN set: isLocked is true after awaiting lockStateReady', () async {
+      final state = AppState();
+      await PinSecurityHelper.setPin('9027');
+
+      final init = state.initializeLockState();
+      await state.lockStateReady;
+
+      expect(state.isLocked, isTrue,
+          reason: 'a configured PIN must still gate access after the fix');
+      await init;
+      state.dispose();
+    });
+  });
+
   group('unlock / lock', () {
     test('unlock clears the lock and notifies', () async {
       final state = await bootstrap();
