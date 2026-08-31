@@ -57,7 +57,12 @@ section "flutter test"
 # glassmorphism test files (organic_blob_background, floating_glass_nav_bar,
 # glass_blur_perf) whose widgets were removed in the Material 3 revert.
 # 2026-06-29: +3 (PIN cold-start race regression tests) -> 2539.
-TEST_COUNT_MIN=2539
+# 2026-08-30: 2539 -> 2474. Deleted 5 dead-code files that nothing in
+# lib/ imported (accessible_button, glass_bar_chart, glass_donut_chart,
+# permission_helper, snackbar_helper) along with the 65 tests that only
+# ever exercised them. The gate must track REAL coverage: leaving it at
+# 2539 would have meant padding the suite with tests for dead code.
+TEST_COUNT_MIN=2474
 TEST_OUT=$(mktemp)
 trap 'rm -f "$TEST_OUT"' EXIT
 if ! flutter test --concurrency=4 --reporter=expanded 2>&1 | tee "$TEST_OUT"; then

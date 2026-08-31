@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 import 'dart:async';
-import 'package:path_provider/path_provider.dart';
 import '../utils/backup_helper.dart';
 import '../providers/app_state.dart';
 import '../theme/app_colors.dart';
@@ -38,56 +37,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     _loadBackups();
   }
 
-  /// FIX: Check if there's enough storage space before backup operation
-  /// Returns true if enough space, false otherwise
-  /// NOTE: Currently not used as BackupHelper handles storage checks internally
-  /// Kept for potential future enhancements
-  // ignore: unused_element
-  Future<bool> _hasEnoughStorage({required int requiredBytes}) async {
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      // ignore: unused_local_variable
-      final stat = await dir.stat();
-      // We can't directly get available space in Dart, but we can check if we have write permission
-      // and estimate based on file sizes. For simplicity, we'll create a test file.
-      // A more robust solution would use platform channels to get actual free space.
-
-      // Estimate: if required is > 100MB, warn the user
-      const largeFileThreshold = 100 * 1024 * 1024; // 100MB
-      if (requiredBytes > largeFileThreshold) {
-        return await _confirmLargeOperation(requiredBytes);
-      }
-      return true;
-    } catch (e) {
-      return true; // If we can't check, proceed anyway
-    }
-  }
-
-  /// FIX: Ask user to confirm large operations
-  Future<bool> _confirmLargeOperation(int bytes) async {
-    final sizeMB = (bytes / (1024 * 1024)).toStringAsFixed(1);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Large Backup'),
-        content: Text(
-          'This backup is $sizeMB MB. Make sure you have enough storage space available.\n\nContinue?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Continue'),
-          ),
-        ],
-      ),
-    );
-    return confirmed ?? false;
-  }
-
   /// FIX: Show user-friendly error message based on exception type
   String _getFriendlyErrorMessage(dynamic error) {
     final errorString = error.toString().toLowerCase();
@@ -117,77 +66,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       // Include partial error details for debugging
       final firstLine = error.toString().split('\n').first;
       return 'Error: ${firstLine.substring(0, 100.clamp(0, firstLine.length))}';
-    }
-  }
-
-  /// FIX: Show dialog with automatic timeout protection to prevent trap dialogs
-  /// Returns true if operation completed, false if timed out
-  /// NOTE: Currently not used as timeout is handled directly in restore operations
-  /// Kept for potential future enhancements
-  // ignore: unused_element
-  Future<bool> _showProgressDialogWithTimeout({
-    required String message,
-    required Future<void> Function() operation,
-    Duration timeout = const Duration(minutes: 2),
-  }) async {
-    bool dialogShown = false;
-    // ignore: unused_local_variable
-    bool operationCompleted = false;
-    bool timedOut = false;
-
-    try {
-      // Show progress dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => PopScope(
-          canPop: false,
-          child: AlertDialog(
-            content: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(width: 20),
-                Expanded(child: Text(message)),
-              ],
-            ),
-          ),
-        ),
-      );
-      dialogShown = true;
-
-      // Run operation with timeout
-      await operation().timeout(
-        timeout,
-        onTimeout: () {
-          timedOut = true;
-          throw TimeoutException(
-            'Operation timed out after ${timeout.inSeconds} seconds',
-          );
-        },
-      );
-
-      operationCompleted = true;
-      return true;
-    } catch (e) {
-      if (timedOut && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Operation took too long and was cancelled. Your data is safe. Please try again.',
-            ),
-            backgroundColor:
-                Theme.of(context).extension<AppColors>()!.warningOrange,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-      rethrow;
-    } finally {
-      // Always close dialog if it was shown
-      if (mounted && dialogShown) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
     }
   }
 
