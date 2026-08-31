@@ -54,7 +54,7 @@ class GlassPillChip extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: fill,
             borderRadius: BorderRadius.circular(LuminousTokens.radiusPill),
@@ -65,7 +65,7 @@ class GlassPillChip extends StatelessWidget {
             children: [
               if (icon != null) ...[
                 Icon(icon, size: LuminousTokens.iconSm, color: fg),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
               ],
               Text(
                 label,

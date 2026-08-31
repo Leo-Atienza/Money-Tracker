@@ -193,7 +193,7 @@ class RecurringExpensesView extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
                   'Netflix \$15 on day 1 • Rent \$1200 on day 5',
                   textAlign: TextAlign.center,
@@ -820,7 +820,7 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
                       color: theme.colorScheme.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(
                     '$currencySymbol${duplicate.amount.toStringAsFixed(2)} • ${duplicate.category} • Day ${duplicate.dayOfMonth}',
                     style: theme.textTheme.bodyMedium?.copyWith(

@@ -1415,7 +1415,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                                 color: category?.color,
                                 icon: category?.icon,
                               ),
-                              const SizedBox(width: 14),
+                              const SizedBox(width: 16),
                               // Details
                               Expanded(
                                 child: Column(
@@ -1818,7 +1818,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                             color: category?.color,
                             icon: category?.icon,
                           ),
-                          const SizedBox(width: 14),
+                          const SizedBox(width: 16),
                           // Details
                           Expanded(
                             child: Column(

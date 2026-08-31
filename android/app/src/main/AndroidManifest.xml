@@ -3,15 +3,29 @@
     <!-- Notification permissions -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!--
-    SCHEDULE_EXACT_ALARM is the user-grantable exact-alarm permission, and it is
-    the correct one for bill reminders. Its sibling USE_EXACT_ALARM is
-    deliberately NOT declared: Google Play restricts that one to apps whose core
-    function is an alarm/clock/timer or a calendar showing event notifications,
-    and requesting it from a budgeting app gets the listing rejected. The
-    notification scheduler already degrades to inexact alarms when the exact
-    permission is not granted — see NotificationHelper.canScheduleExactAlarms.
+    Both exact-alarm permissions are declared, and the pair is deliberate.
+
+    SCHEDULE_EXACT_ALARM is user-grantable, and from Android 14 it is DENIED BY
+    DEFAULT for apps that are not clocks or calendars. On its own, a fresh
+    install would schedule every bill reminder as an inexact alarm — still
+    delivered, but deferrable by hours in Doze — until the user found the
+    toggle in system settings themselves.
+
+    USE_EXACT_ALARM is a normal permission granted at INSTALL time with no user
+    interaction, which is what makes reminders simply work on a fresh install.
+
+    ⚠️ USE_EXACT_ALARM MUST BE REMOVED BEFORE ANY GOOGLE PLAY SUBMISSION.
+    Play restricts it to apps whose core function is an alarm/clock/timer or a
+    calendar showing event notifications; a budgeting app requesting it gets the
+    listing rejected. It is kept here only because this app is distributed as a
+    direct APK download, where no review applies. The moment Play is on the
+    table, delete the USE_EXACT_ALARM line — the app already degrades correctly
+    without it (NotificationHelper.canScheduleExactAlarms picks the inexact
+    schedule mode, and the Notifications screen shows a banner wired to
+    requestExactAlarmPermission so the user can grant it).
     -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.VIBRATE" />
 

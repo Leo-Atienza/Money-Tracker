@@ -168,7 +168,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
           if (_useIncomeBalance && hasIncome) ...[
             const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: appColors.incomeGreen.withAlpha(10),
                 borderRadius: BorderRadius.circular(8),
@@ -453,7 +453,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                     child: TextButton(
                       onPressed: () => Navigator.pop(context),
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
                       child: const Text('Cancel'),
                     ),
@@ -474,7 +474,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                               theme.colorScheme.surfaceContainerHighest,
                           disabledForegroundColor:
                               theme.colorScheme.onSurfaceVariant,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
