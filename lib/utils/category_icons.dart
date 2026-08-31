@@ -15,6 +15,23 @@ class CategoryIcons {
     'Education': Icons.school_rounded,
     'Bills': Icons.receipt_long_rounded,
     'Other': Icons.more_horiz_rounded,
+    // `onboarding_screen` creates a "Groceries" category for the sample data,
+    // and it was in neither this map nor the colour table — so the very first
+    // category a new user sees fell through to the generic placeholder icon
+    // and a neutral grey. Spotted on a device frame, not in a test.
+    'Groceries': Icons.local_grocery_store_rounded,
+    // Common names a user is likely to type when creating their own category.
+    // A lookup miss is not an error — it just means a duller default — so
+    // matching a few extra names is cheap and makes custom categories feel
+    // considered rather than unfinished.
+    'Grocery': Icons.local_grocery_store_rounded,
+    'Restaurant': Icons.restaurant_menu_rounded,
+    'Utilities': Icons.bolt_rounded,
+    'Rent': Icons.home_rounded,
+    'Travel': Icons.flight_rounded,
+    'Fitness': Icons.fitness_center_rounded,
+    'Pets': Icons.pets_rounded,
+    'Subscriptions': Icons.subscriptions_rounded,
   };
 
   /// Default icons for income categories (by name)
@@ -45,6 +62,7 @@ class CategoryIcons {
 
     // Food & Drink
     Icons.restaurant_rounded,
+    Icons.restaurant_menu_rounded,
     Icons.local_cafe_rounded,
     Icons.fastfood_rounded,
     Icons.local_grocery_store_rounded,
@@ -94,6 +112,7 @@ class CategoryIcons {
     Icons.science_rounded,
 
     // Home & Utilities
+    Icons.bolt_rounded,
     Icons.home_rounded,
     Icons.electrical_services_rounded,
     Icons.water_drop_rounded,
