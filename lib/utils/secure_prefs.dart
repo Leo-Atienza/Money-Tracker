@@ -31,13 +31,21 @@ class SecurePrefs {
   /// `secure_prefs_test.dart`. Production code never touches this.
   @visibleForTesting
   static FlutterSecureStorage storage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      // `encryptedSharedPreferences: true` lets the plugin store under
-      // Jetpack EncryptedSharedPreferences on devices where the Keystore
-      // wrap-and-unwrap dance is unreliable. The wrapper itself is still
-      // backed by an AES key from Keystore.
-      encryptedSharedPreferences: true,
-    ),
+    // v10 dropped the deprecated Jetpack Security backend (Google deprecated
+    // the library) in favour of its own ciphers — RSA-OAEP-SHA256 for the key
+    // and AES-GCM for the value. The old `encryptedSharedPreferences: true`
+    // flag is now a no-op that the plugin ignores, so it is gone; values
+    // written by v9 are re-encrypted automatically on first access because
+    // `migrateOnAlgorithmChange` defaults to true.
+    //
+    // DO NOT jump this dependency to v11 in the same release as v10. v11
+    // deletes the legacy algorithms outright, so a device that has not yet
+    // run a v10 build has nothing to migrate *from* — and the values stored
+    // here are not recoverable secrets. `db_encryption_key` is the SQLCipher
+    // key for the whole database, so losing it means the user's data is
+    // permanently undecryptable. v11 is only safe once a v10 build has
+    // shipped and been run.
+    aOptions: AndroidOptions(),
   );
 
   /// Read a string from the secure store. On a miss, lazily migrates from

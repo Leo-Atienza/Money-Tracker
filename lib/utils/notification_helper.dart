@@ -97,7 +97,7 @@ class NotificationHelper {
     // Both persist the payload to `NotificationPayloadStore`, which the
     // foreground drains via `_checkPendingNotification` on resume.
     await _notifications.initialize(
-      initSettings,
+      settings: initSettings,
       onDidReceiveNotificationResponse: (response) {
         NotificationPayloadStore.storePendingPayload(response.payload);
       },
@@ -255,15 +255,16 @@ class NotificationHelper {
       // Cancel any prior schedule for this recurring (may be stale) before
       // booking the fresh one. Prevents leftover notifications from an earlier
       // due date still being delivered.
-      await _notifications.cancel(_billReminderIdBase + expenseId);
+      await _notifications.cancel(id: _billReminderIdBase + expenseId);
 
       // FIX P2-9: Use separate ID range to prevent collision with budget alerts
       await _notifications.zonedSchedule(
-        _billReminderIdBase + expenseId,
-        '💡 Bill Reminder',
-        '${expense.description} ($currencySymbol${expense.amount.toStringAsFixed(2)}) due tomorrow',
-        tz.TZDateTime.from(scheduledFor, tz.local),
-        billReminderDetails,
+        id: _billReminderIdBase + expenseId,
+        title: '💡 Bill Reminder',
+        body:
+            '${expense.description} ($currencySymbol${expense.amount.toStringAsFixed(2)}) due tomorrow',
+        scheduledDate: tz.TZDateTime.from(scheduledFor, tz.local),
+        notificationDetails: billReminderDetails,
         androidScheduleMode: canUseExact
             ? AndroidScheduleMode.exactAllowWhileIdle
             : AndroidScheduleMode.inexactAllowWhileIdle,
@@ -281,18 +282,19 @@ class NotificationHelper {
       if (expenseId == null) return; // Cannot schedule without ID
       // FIX P2-9: Use separate ID range to prevent collision with budget alerts
       await _notifications.zonedSchedule(
-        _billReminderIdBase + expenseId,
-        '💡 Bill Reminder',
-        '${expense.description} ($currencySymbol${expense.amount.toStringAsFixed(2)}) due tomorrow',
+        id: _billReminderIdBase + expenseId,
+        title: '💡 Bill Reminder',
+        body:
+            '${expense.description} ($currencySymbol${expense.amount.toStringAsFixed(2)}) due tomorrow',
         // M20: honor the user's configured reminder time instead of 09:00.
-        tz.TZDateTime.from(
+        scheduledDate: tz.TZDateTime.from(
           reminderDate.copyWith(
             hour: reminderTime.hour,
             minute: reminderTime.minute,
           ),
           tz.local,
         ),
-        billReminderDetails,
+        notificationDetails: billReminderDetails,
         androidScheduleMode: canUseExact
             ? AndroidScheduleMode.exactAllowWhileIdle
             : AndroidScheduleMode.inexactAllowWhileIdle,
@@ -305,7 +307,7 @@ class NotificationHelper {
 
   Future<void> cancelBillReminder(int expenseId) async {
     // FIX P2-9: Use the correct ID range for bill reminders
-    await _notifications.cancel(_billReminderIdBase + expenseId);
+    await _notifications.cancel(id: _billReminderIdBase + expenseId);
 
     // FIX Bug #6: Also clear the end-of-month idempotency marker so a
     // subsequent `scheduleBillReminder` call is not short-circuited by a
@@ -390,10 +392,10 @@ class NotificationHelper {
 
     // FIX P3-17: Use localized channel names
     await _notifications.show(
-      notificationId,
-      title,
-      body,
-      NotificationDetails(
+      id: notificationId,
+      title: title,
+      body: body,
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           'budget_alerts',
           _budgetAlertsChannelName,
@@ -430,11 +432,11 @@ class NotificationHelper {
 
     // FIX P3-17: Use localized channel names
     await _notifications.zonedSchedule(
-      9999, // Unique ID for monthly reports
-      '📊 Monthly Summary',
-      'Your spending report is ready!',
-      tz.TZDateTime.from(scheduledDate, tz.local),
-      NotificationDetails(
+      id: 9999, // Unique ID for monthly reports
+      title: '📊 Monthly Summary',
+      body: 'Your spending report is ready!',
+      scheduledDate: tz.TZDateTime.from(scheduledDate, tz.local),
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           'monthly_reports',
           _monthlyReportsChannelName,
@@ -456,7 +458,7 @@ class NotificationHelper {
   }
 
   Future<void> cancelMonthlyReports() async {
-    await _notifications.cancel(9999);
+    await _notifications.cancel(id: 9999);
   }
 
   Future<void> showMonthlySummary(double totalSpent, double budget, {String currencySymbol = '\$'}) async {
@@ -467,10 +469,11 @@ class NotificationHelper {
 
     // FIX P3-17: Use localized channel names
     await _notifications.show(
-      9999,
-      '📊 Monthly Summary',
-      '$status Spent $currencySymbol${totalSpent.toStringAsFixed(2)} ($percentage% of budget)',
-      NotificationDetails(
+      id: 9999,
+      title: '📊 Monthly Summary',
+      body:
+          '$status Spent $currencySymbol${totalSpent.toStringAsFixed(2)} ($percentage% of budget)',
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           'monthly_reports',
           _monthlyReportsChannelName,

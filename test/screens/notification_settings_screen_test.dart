@@ -143,8 +143,10 @@ void main() {
 /// skipped. Every override is a no-op or returns a benign default.
 class _FakeNotificationsPlatform extends FlutterLocalNotificationsPlatform
     with MockPlatformInterfaceMixin {
+  // flutter_local_notifications v20 converted these from positional to named
+  // parameters; the overrides have to match the new signatures.
   @override
-  Future<void> cancel(int id, {String? tag}) async {}
+  Future<void> cancel({required int id, String? tag}) async {}
 
   @override
   Future<void> cancelAll() async {}
@@ -165,28 +167,26 @@ class _FakeNotificationsPlatform extends FlutterLocalNotificationsPlatform
   }
 
   @override
-  Future<void> periodicallyShow(
-    int id,
+  Future<void> periodicallyShow({
+    required int id,
     String? title,
     String? body,
-    RepeatInterval repeatInterval, {
-    String? payload,
+    required RepeatInterval repeatInterval,
   }) async {}
 
   @override
-  Future<void> periodicallyShowWithDuration(
-    int id,
+  Future<void> periodicallyShowWithDuration({
+    required int id,
     String? title,
     String? body,
-    Duration repeatDurationInterval, {
-    String? payload,
+    required Duration repeatDurationInterval,
   }) async {}
 
   @override
-  Future<void> show(
-    int id,
+  Future<void> show({
+    required int id,
     String? title,
-    String? body, {
+    String? body,
     String? payload,
   }) async {}
 }
