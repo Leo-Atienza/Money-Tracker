@@ -212,8 +212,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                       child: Text(
                         _currentPage == 2 ? 'Get Started' : 'Next',
+                        // `titleMedium` bakes in `color: onSurface`, which
+                        // silently overrides the button's `foregroundColor`.
+                        // On the monochrome dark scheme `primary` is near-white
+                        // and `onSurface` is near-white too, so this rendered as
+                        // an unlabelled grey slab — the very first button a new
+                        // user sees. Track the button's own foreground instead.
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onPrimary,
                         ),
                       ),
                     ),

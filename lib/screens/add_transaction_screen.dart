@@ -12,6 +12,7 @@ import '../services/onboarding_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/luminous_app_theme.dart';
 import '../utils/category_icons.dart';
+import '../utils/color_contrast_helper.dart';
 import '../utils/currency_helper.dart';
 import '../utils/date_helper.dart';
 import '../utils/decimal_helper.dart';
@@ -533,7 +534,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             const SizedBox(height: 8),
             Container(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: (isExceed
                         ? appColors.warningOrange
@@ -1050,8 +1051,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 backgroundColor: _isExpense
                     ? theme.colorScheme.onSurface
                     : appColors.incomeGreen,
-                foregroundColor:
-                    _isExpense ? theme.colorScheme.surface : Colors.white,
+                // The income variant used a hardcoded Colors.white, which fails
+                // WCAG AA on incomeGreen in BOTH themes — measured 4.12:1 in
+                // light and 2.36:1 in dark against the 4.5:1 floor for body
+                // text. Ask the contrast helper instead of guessing: it returns
+                // black here, giving 5.10:1 light / 8.88:1 dark.
+                foregroundColor: _saveLabelColor(theme, appColors),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -1065,7 +1070,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          _isExpense ? theme.colorScheme.surface : Colors.white,
+                          _saveLabelColor(theme, appColors),
                         ),
                       ),
                     )
@@ -1075,9 +1080,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       // invisible on this onSurface-filled button. Track the
                       // button's foregroundColor instead.
                       style: theme.textTheme.titleMedium?.copyWith(
-                        color: _isExpense
-                            ? theme.colorScheme.surface
-                            : Colors.white,
+                        color: _saveLabelColor(theme, appColors),
                       ),
                     ),
             ),
@@ -1085,6 +1088,21 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         ),
       ),
     );
+  }
+
+  /// Foreground colour for the Save button, which is filled with two very
+  /// different backgrounds: `onSurface` for an expense (near-black in light,
+  /// near-white in dark) and `incomeGreen` for income.
+  ///
+  /// The expense case inverts cleanly, so `surface` is always correct. The
+  /// income case does not — `incomeGreen` is a mid-tone that is chosen to be
+  /// readable *as text on a surface*, not to be used as a fill, and white on it
+  /// measures 4.12:1 in light and 2.36:1 in dark against a 4.5:1 requirement.
+  /// Asking [ColorContrastHelper] for the right ink is both correct today and
+  /// self-correcting if the palette is ever retuned.
+  Color _saveLabelColor(ThemeData theme, AppColors appColors) {
+    if (_isExpense) return theme.colorScheme.surface;
+    return ColorContrastHelper.getContrastingTextColor(appColors.incomeGreen);
   }
 
   Widget _buildAmountCard(ThemeData theme, String currency) {
