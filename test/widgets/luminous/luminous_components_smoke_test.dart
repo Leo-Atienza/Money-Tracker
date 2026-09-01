@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:budget_tracker/widgets/luminous/category_bento_grid.dart';
-import 'package:budget_tracker/widgets/luminous/glass_bar_chart.dart';
-import 'package:budget_tracker/widgets/luminous/glass_donut_chart.dart';
 import 'package:budget_tracker/widgets/luminous/glass_list_section.dart';
 import 'package:budget_tracker/widgets/luminous/glass_list_tile.dart';
 import 'package:budget_tracker/widgets/luminous/glass_pill_chip.dart';
@@ -119,46 +117,6 @@ void main() {
       );
       final semantics = tester.getSemantics(find.byType(GlassProgressBar));
       expect(semantics.value, '125%');
-    });
-  });
-
-  group('GlassDonutChart', () {
-    testWidgets('renders slices + center widget', (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          const GlassDonutChart(
-            size: 200,
-            slices: [
-              DonutSlice(label: 'A', value: 60, color: Colors.red),
-              DonutSlice(label: 'B', value: 40, color: Colors.blue),
-            ],
-            center: Text('TOTAL'),
-          ),
-        ),
-      );
-      expect(find.text('TOTAL'), findsOneWidget);
-    });
-  });
-
-  group('GlassBarChart', () {
-    testWidgets('renders without throwing on empty data', (tester) async {
-      await tester.pumpWidget(_wrap(const GlassBarChart(data: [])));
-      // No exceptions — the painter early-returns on empty data.
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('renders bars for non-empty data', (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          const GlassBarChart(
-            data: [
-              BarDatum(label: 'Jan', value: 10),
-              BarDatum(label: 'Feb', value: 25),
-            ],
-          ),
-        ),
-      );
-      expect(tester.takeException(), isNull);
     });
   });
 

@@ -18,10 +18,10 @@ import 'budget_screen.dart';
 ///   * Five hero cards (`_MonthOverMonthInsights`, `_SpendingTrendsChart`,
 ///     `_SpendingChart`, `_BudgetProgress`, `_CategoryBreakdown`) each
 ///     wrap their content in `GlassPanel`.
-///   * Chart primitives still flow through `fl_chart` (donut/bar/line)
-///     for now — wholesale retirement to `GlassDonutChart` /
-///     `GlassBarChart` is deferred until those components have
-///     production-grade theming.
+///   * Chart primitives flow through `fl_chart` (donut/bar/line). The
+///     hand-rolled `GlassDonutChart`/`GlassBarChart` CustomPainters that once
+///     shadowed them were never adopted and have been removed; recover them
+///     from git history if a bespoke painter is ever wanted again.
 class AnalyticsScreen extends StatelessWidget {
   const AnalyticsScreen({super.key});
 

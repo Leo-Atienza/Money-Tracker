@@ -588,6 +588,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
     final financialData =
         context.select<AppState, (double, double, double, double)>(
       (s) => (
@@ -665,10 +666,20 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                         children: [
                           Row(
                             children: [
+                              // Up for income, down for expenses. This pair was
+                              // the other way round, which put an upward arrow
+                              // beside the word "Expenses" — read on the device
+                              // that says "expenses are up", the opposite of a
+                              // neutral label. Both arrows were also
+                              // onSurfaceVariant grey, so with the monochrome
+                              // palette the arrow direction was the *only*
+                              // thing separating the two tiles. Colour them
+                              // semantically: income and expense are exactly
+                              // the meanings AppColors exists to carry.
                               Icon(
-                                Icons.arrow_downward_rounded,
+                                Icons.arrow_upward_rounded,
                                 size: 18,
-                                color: theme.colorScheme.onSurfaceVariant,
+                                color: appColors.incomeGreen,
                               ),
                               const SizedBox(width: 8),
                               Text(
@@ -710,9 +721,9 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                           Row(
                             children: [
                               Icon(
-                                Icons.arrow_upward_rounded,
+                                Icons.arrow_downward_rounded,
                                 size: 18,
-                                color: theme.colorScheme.onSurfaceVariant,
+                                color: appColors.expenseRed,
                               ),
                               const SizedBox(width: 8),
                               Text(
@@ -795,7 +806,7 @@ class _GlassHomeExpenseTile extends StatelessWidget {
             );
           },
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             child: Row(
               children: [
                 CategoryTile(
@@ -806,7 +817,7 @@ class _GlassHomeExpenseTile extends StatelessWidget {
                   size: 48,
                   borderRadius: 24,
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -950,7 +961,7 @@ class _UpcomingBillsBanner extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         bill['description'] as String,

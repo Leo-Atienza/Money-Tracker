@@ -687,7 +687,7 @@ class _MonthlySummaryCard extends StatelessWidget {
                   size: 14,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Text(
                   'Category budgets total: $currency${appState.formatAmount(categoryBudgetTotal, decimalDigits: 0)}',
                   style: TextStyle(
@@ -743,7 +743,7 @@ class _MonthlySummaryCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.add, size: 16, color: theme.colorScheme.primary),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Text(
                     'Set overall monthly budget',
                     style: TextStyle(
@@ -1240,7 +1240,7 @@ class _BudgetList extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         Text(
                           'Actual: $currency${actualSpent.toStringAsFixed(0)}',
                           style: TextStyle(
@@ -1263,7 +1263,7 @@ class _BudgetList extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         Text(
                           'Projected: $currency${projectedSpent.toStringAsFixed(0)}',
                           style: TextStyle(
@@ -1376,7 +1376,7 @@ class _BudgetList extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(
                     'Set Food: \$500 to limit dining expenses',
                     textAlign: TextAlign.center,

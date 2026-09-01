@@ -151,7 +151,7 @@ class HistoryList extends StatelessWidget {
           final row = rows[index];
           if (row.isHeader) {
             return Padding(
-              padding: const EdgeInsets.only(top: 24, bottom: 14),
+              padding: const EdgeInsets.only(top: 24, bottom: 16),
               child: Text(
                 row.header!,
                 style: theme.textTheme.labelSmall?.copyWith(

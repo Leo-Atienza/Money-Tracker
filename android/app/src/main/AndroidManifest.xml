@@ -2,25 +2,43 @@
 
     <!-- Notification permissions -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!--
+    Both exact-alarm permissions are declared, and the pair is deliberate.
+
+    SCHEDULE_EXACT_ALARM is user-grantable, and from Android 14 it is DENIED BY
+    DEFAULT for apps that are not clocks or calendars. On its own, a fresh
+    install would schedule every bill reminder as an inexact alarm — still
+    delivered, but deferrable by hours in Doze — until the user found the
+    toggle in system settings themselves.
+
+    USE_EXACT_ALARM is a normal permission granted at INSTALL time with no user
+    interaction, which is what makes reminders simply work on a fresh install.
+
+    ⚠️ USE_EXACT_ALARM MUST BE REMOVED BEFORE ANY GOOGLE PLAY SUBMISSION.
+    Play restricts it to apps whose core function is an alarm/clock/timer or a
+    calendar showing event notifications; a budgeting app requesting it gets the
+    listing rejected. It is kept here only because this app is distributed as a
+    direct APK download, where no review applies. The moment Play is on the
+    table, delete the USE_EXACT_ALARM line — the app already degrades correctly
+    without it (NotificationHelper.canScheduleExactAlarms picks the inexact
+    schedule mode, and the Notifications screen shows a banner wired to
+    requestExactAlarmPermission so the user can grant it).
+    -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.VIBRATE" />
 
-    <!-- Storage permissions for backup/restore functionality -->
-    <!-- READ_EXTERNAL_STORAGE: Required for Android 12 and below to read files -->
-    <!-- This shows as "Files and media" in device settings on older Android versions -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-    <!-- WRITE_EXTERNAL_STORAGE: Required for Android 10 and below to write files -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="29" />
-
     <!--
-    NOTE: Android 13+ (API 33+) uses Storage Access Framework (SAF) which doesn't require
-    explicit permissions. The system file picker handles access automatically.
-    The READ_MEDIA_* permissions are NOT needed for backup/restore since we use SAF.
-    Removed to avoid confusion in device settings.
+    NO storage permissions are declared, deliberately. Every file the app writes
+    (backups, CSV, PDF) goes to app-private storage via
+    getApplicationDocumentsDirectory()/getTemporaryDirectory(), which needs no
+    permission on any API level. Restore/import reads through the Storage Access
+    Framework (file_picker issues ACTION_OPEN_DOCUMENT), which grants per-URI
+    access without a manifest permission, and sharing goes out through a
+    FileProvider. The old READ_EXTERNAL_STORAGE/WRITE_EXTERNAL_STORAGE entries
+    were never exercised by any code path and only made the app ask for
+    "Files and media" access it does not use.
     -->
 
     <application

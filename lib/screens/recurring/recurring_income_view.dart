@@ -952,7 +952,7 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
                       color: theme.colorScheme.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(
                     '$currencySymbol${duplicate.amount.toStringAsFixed(2)} • ${duplicate.category} • Day ${duplicate.dayOfMonth}',
                     style: theme.textTheme.bodyMedium?.copyWith(

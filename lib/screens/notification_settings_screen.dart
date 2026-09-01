@@ -32,6 +32,13 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   bool _permissionGranted = true;
   bool _checkingPermission = true;
 
+  /// Android 12+ gates exact alarms behind their own permission, and from
+  /// Android 14 it is denied by default for apps that are not clocks or
+  /// calendars. Without it the scheduler still books every reminder, but as an
+  /// inexact alarm the OS may defer by hours in Doze — so surface it rather
+  /// than let bill reminders quietly drift.
+  bool _exactAlarmsAllowed = true;
+
   /// Phase 2.7: resolve the helper once via `AppState` so tests can swap in a
   /// fake AppState with a mock helper.
   late final NotificationHelper _helper =
@@ -59,9 +66,11 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
 
   Future<void> _checkPermissionStatus() async {
     final granted = await _helper.areNotificationsEnabled();
+    final exactAllowed = await _helper.canScheduleExactAlarms();
     if (mounted) {
       setState(() {
         _permissionGranted = granted;
+        _exactAlarmsAllowed = exactAllowed;
         _checkingPermission = false;
       });
     }
@@ -181,6 +190,53 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                             }
                           },
                           child: const Text('Enable'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Exact-alarm banner. Only meaningful once notifications
+                // themselves are on — otherwise the banner above is the
+                // actionable one and showing both at once is just noise.
+                if (!_checkingPermission &&
+                    _permissionGranted &&
+                    !_exactAlarmsAllowed) ...[
+                  GlassPanel(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.schedule_rounded,
+                            color: appColors.warningOrange),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Reminders May Be Late',
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Allow exact alarms so bill reminders arrive '
+                                'at the time you set',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          // Opens the system screen; the resumed-lifecycle
+                          // observer re-runs _checkPermissionStatus when the
+                          // user comes back, so the banner clears itself.
+                          onPressed: _helper.requestExactAlarmPermission,
+                          child: const Text('Allow'),
                         ),
                       ],
                     ),

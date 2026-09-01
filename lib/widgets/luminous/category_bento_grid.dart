@@ -112,7 +112,7 @@ class _BentoCell extends StatelessWidget {
             borderRadius: BorderRadius.circular(LuminousTokens.radiusMd),
             border: Border.all(color: border, width: selected ? 1.4 : 1),
           ),
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

@@ -1369,30 +1369,13 @@ class _HistoryScreenState extends State<HistoryScreen>
                         c.name == expense.category && c.type == 'expense')
                     .firstOrNull;
 
-                // Parse category color for background (if enabled)
-                Color? bgColor;
-                if (appState.showTransactionColors) {
-                  // Calculate alpha based on intensity (10% to 40% depending on setting)
-                  final baseAlpha =
-                      theme.brightness == Brightness.dark ? 25 : 15;
-                  final maxAlpha =
-                      theme.brightness == Brightness.dark ? 100 : 80;
-                  final alpha = (baseAlpha +
-                          (maxAlpha - baseAlpha) *
-                              appState.transactionColorIntensity)
-                      .round();
-
-                  if (category?.color != null && category!.color!.isNotEmpty) {
-                    try {
-                      final colorValue = int.parse(
-                          category.color!.replaceFirst('#', ''),
-                          radix: 16);
-                      bgColor = Color(colorValue | 0xFF000000).withAlpha(alpha);
-                    } catch (_) {}
-                  }
-                  // Fallback: use red tint for expenses without custom color
-                  bgColor ??= Colors.red.withAlpha((alpha * 0.6).round());
-                }
+                final bgColor = _transactionTint(
+                  category: category,
+                  enabled: appState.showTransactionColors,
+                  brightness: theme.brightness,
+                  intensity: appState.transactionColorIntensity,
+                  fallback: appColors.expenseRed,
+                );
 
                 return Container(
                   decoration: BoxDecoration(
@@ -1432,7 +1415,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                                 color: category?.color,
                                 icon: category?.icon,
                               ),
-                              const SizedBox(width: 14),
+                              const SizedBox(width: 16),
                               // Details
                               Expanded(
                                 child: Column(
@@ -1777,8 +1760,7 @@ class _HistoryScreenState extends State<HistoryScreen>
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Error deleting income: $e'),
-                  backgroundColor:
-                      Theme.of(context).extension<AppColors>()!.expenseRed,
+                  backgroundColor: appColors.expenseRed,
                 ),
               );
             }
@@ -1792,31 +1774,13 @@ class _HistoryScreenState extends State<HistoryScreen>
                         (c) => c.name == income.category && c.type == 'income')
                     .firstOrNull;
 
-                // Parse category color for background (if enabled)
-                Color? bgColor;
-                if (appState.showTransactionColors) {
-                  // Calculate alpha based on intensity (10% to 40% depending on setting)
-                  final baseAlpha =
-                      theme.brightness == Brightness.dark ? 25 : 15;
-                  final maxAlpha =
-                      theme.brightness == Brightness.dark ? 100 : 80;
-                  final alpha = (baseAlpha +
-                          (maxAlpha - baseAlpha) *
-                              appState.transactionColorIntensity)
-                      .round();
-
-                  if (category?.color != null && category!.color!.isNotEmpty) {
-                    try {
-                      final colorValue = int.parse(
-                          category.color!.replaceFirst('#', ''),
-                          radix: 16);
-                      bgColor = Color(colorValue | 0xFF000000).withAlpha(alpha);
-                    } catch (_) {}
-                  }
-                  // Fallback: use green tint for income without custom color
-                  bgColor ??=
-                      appColors.incomeGreen.withAlpha((alpha * 0.6).round());
-                }
+                final bgColor = _transactionTint(
+                  category: category,
+                  enabled: appState.showTransactionColors,
+                  brightness: theme.brightness,
+                  intensity: appState.transactionColorIntensity,
+                  fallback: appColors.incomeGreen,
+                );
 
                 return Container(
                   decoration: BoxDecoration(
@@ -1854,7 +1818,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                             color: category?.color,
                             icon: category?.icon,
                           ),
-                          const SizedBox(width: 14),
+                          const SizedBox(width: 16),
                           // Details
                           Expanded(
                             child: Column(
@@ -2082,6 +2046,43 @@ class _HistoryScreenState extends State<HistoryScreen>
       },
     );
   }
+}
+
+/// Resolves the optional tinted row background for a transaction.
+///
+/// The expense list and the income list render this identically — same alpha
+/// ramp, same `#RRGGBB` parse, same fallback — differing only in which semantic
+/// colour backs a category that carries no custom colour. It used to be copied
+/// into both builders, and the copies had already drifted: the expense side
+/// fell back to a raw `Colors.red` instead of the brightness-aware,
+/// WCAG-checked `AppColors.expenseRed` the income side used.
+///
+/// Returns null when the user has the "Transaction Colors" setting off, which
+/// is the default — callers treat null as "use the plain surface colour".
+Color? _transactionTint({
+  required cat_model.Category? category,
+  required bool enabled,
+  required Brightness brightness,
+  required double intensity,
+  required Color fallback,
+}) {
+  if (!enabled) return null;
+
+  // ~10% to ~40% opacity depending on the user's intensity setting, lifted a
+  // little in dark mode where the same tint reads fainter on a dark surface.
+  final baseAlpha = brightness == Brightness.dark ? 25 : 15;
+  final maxAlpha = brightness == Brightness.dark ? 100 : 80;
+  final alpha = (baseAlpha + (maxAlpha - baseAlpha) * intensity).round();
+
+  final hex = category?.color;
+  if (hex != null && hex.isNotEmpty) {
+    // Category colours are user-editable strings, so a malformed one is
+    // expected rather than exceptional — fall through to the semantic
+    // fallback instead of throwing.
+    final parsed = int.tryParse(hex.replaceFirst('#', ''), radix: 16);
+    if (parsed != null) return Color(parsed | 0xFF000000).withAlpha(alpha);
+  }
+  return fallback.withAlpha((alpha * 0.6).round());
 }
 
 // Extension for capitalize

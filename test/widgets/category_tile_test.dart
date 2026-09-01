@@ -20,54 +20,69 @@ void main() {
   // CategoryColors.getDefaultColor
   // ==========================================================================
   group('CategoryColors.getDefaultColor', () {
+    // Anchor values. These are asserted literally so that editing the palette
+    // is a deliberate act with a failing test attached, rather than something
+    // that silently changes what every category looks like.
     test('known expense category returns its mapped color', () {
       expect(
         CategoryColors.getDefaultColor('Food', 'expense'),
-        const Color(0xFF8B5CF6),
+        const Color(0xFFA17045), // amber-clay
       );
       expect(
         CategoryColors.getDefaultColor('Transport', 'expense'),
-        const Color(0xFF3B82F6),
+        const Color(0xFF4A6FA5), // steel
       );
       expect(
         CategoryColors.getDefaultColor('Health', 'expense'),
-        const Color(0xFFEF4444),
+        const Color(0xFF3F7F7A), // teal — deliberately NOT red
       );
     });
 
     test('known income category returns its mapped color', () {
       expect(
         CategoryColors.getDefaultColor('Salary', 'income'),
-        const Color(0xFFD97706),
+        const Color(0xFF8A6B33), // bronze
       );
       expect(
         CategoryColors.getDefaultColor('Investment', 'income'),
-        const Color(0xFF10B981),
+        const Color(0xFF565A9B), // indigo — deliberately NOT green
       );
     });
 
-    test('unknown expense category falls back to expense red', () {
-      expect(
-        CategoryColors.getDefaultColor('NonsenseCategory', 'expense'),
-        const Color(0xFFEF4444),
-      );
+    test('an unknown category falls back to a neutral, not a status colour', () {
+      // A user-created category has no colour of its own. The old palette gave
+      // it expense-red or income-green, which made an arbitrary category chip
+      // look like a status indicator sitting next to an amount already using
+      // those exact colours. A neutral says "no colour assigned", which is
+      // the truth.
+      for (final type in ['expense', 'income']) {
+        final fallback = CategoryColors.getDefaultColor('NonsenseCategory', type);
+        final hsl = HSLColor.fromColor(fallback);
+        expect(
+          hsl.saturation,
+          lessThan(0.2),
+          reason: '$type fallback $fallback should be near-neutral',
+        );
+      }
     });
 
-    test('unknown income category falls back to income green', () {
-      expect(
-        CategoryColors.getDefaultColor('NonsenseCategory', 'income'),
-        const Color(0xFF10B981),
-      );
-    });
+    test('the type argument routes the lookup to the right map', () {
+      // Proven with names that exist in only ONE map, so this does not depend
+      // on two palette entries happening to differ. 'Salary' is income-only
+      // and 'Transport' is expense-only: asking for either under the wrong
+      // type must miss and fall through to that type's fallback.
+      final salaryAsIncome = CategoryColors.getDefaultColor('Salary', 'income');
+      final salaryAsExpense =
+          CategoryColors.getDefaultColor('Salary', 'expense');
+      expect(salaryAsIncome, isNot(equals(salaryAsExpense)),
+          reason: "'Salary' is in the income map only");
 
-    test('expense and income use separate color maps', () {
-      // "Other" exists in both maps but with different colors — prove the
-      // type argument actually routes the lookup.
-      final expenseOther =
-          CategoryColors.getDefaultColor('Other', 'expense');
-      final incomeOther =
-          CategoryColors.getDefaultColor('Other', 'income');
-      expect(expenseOther, isNot(equals(incomeOther)));
+      final transportAsExpense =
+          CategoryColors.getDefaultColor('Transport', 'expense');
+      final transportAsIncome =
+          CategoryColors.getDefaultColor('Transport', 'income');
+      expect(transportAsExpense, isNot(equals(transportAsIncome)),
+          reason: "'Transport' is in the expense map only");
     });
   });
 

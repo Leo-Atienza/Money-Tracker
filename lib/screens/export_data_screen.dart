@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 import 'dart:io';
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -584,6 +585,18 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
           final budgets = appState.currentMonthBudgets;
           final monthName = DateFormat.yMMMM().format(appState.selectedMonth);
 
+          // L23: fold the money in Decimal space so these totals match the CSV
+          // export of the same month exactly, and derive the balance from the
+          // same two sums instead of re-folding both lists a second time.
+          final incomeDecimal = filteredIncome.fold(
+            Decimal.zero,
+            (sum, i) => sum + i.amountDecimal,
+          );
+          final expenseDecimal = filteredExpenses.fold(
+            Decimal.zero,
+            (sum, e) => sum + e.amountDecimal,
+          );
+
           file = await PdfExporter.exportMonthlySummaryToPdf(
             expenses: filteredExpenses,
             incomes: filteredIncome,
@@ -591,13 +604,9 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
             currencySymbol: appState.currency,
             currencyCode: appState.currencyCode,
             monthName: monthName,
-            totalIncome: filteredIncome.fold(0.0, (sum, i) => sum + i.amount),
-            totalExpenses: filteredExpenses.fold(
-              0.0,
-              (sum, e) => sum + e.amount,
-            ),
-            balance: filteredIncome.fold(0.0, (sum, i) => sum + i.amount) -
-                filteredExpenses.fold(0.0, (sum, e) => sum + e.amount),
+            totalIncome: incomeDecimal.toDouble(),
+            totalExpenses: expenseDecimal.toDouble(),
+            balance: (incomeDecimal - expenseDecimal).toDouble(),
           );
           exportMessage =
               'PDF summary created with ${filteredExpenses.length + filteredIncome.length} transactions';

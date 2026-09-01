@@ -60,7 +60,7 @@ class GlassListTile extends StatelessWidget {
       constraints: const BoxConstraints(
         minHeight: LuminousTokens.touchTargetMin + 4,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       color: Colors.transparent,
       child: Row(
         children: [

@@ -1,43 +1,26 @@
 import 'package:flutter/material.dart';
+import '../theme/category_palette.dart';
 import '../utils/category_icons.dart';
 import '../widgets/color_picker.dart';
 
-/// Premium default colors for categories (matching modern finance app aesthetics)
-/// These are used when no custom color is set for a category
+/// Default colours for categories.
+///
+/// The table itself now lives in `theme/category_palette.dart` — a colour map
+/// in a widget file is how palettes drift out of reach of the theme. This
+/// forwarder is kept so the existing call sites and tests do not have to move
+/// in the same change.
 class CategoryColors {
   CategoryColors._();
 
-  /// Default colors for expense categories by name
-  static const Map<String, Color> expenseColors = {
-    'Food': Color(0xFF8B5CF6), // Violet/Purple
-    'Restaurant': Color(0xFF8B5CF6), // Violet/Purple
-    'Transport': Color(0xFF3B82F6), // Blue
-    'Shopping': Color(0xFF10B981), // Emerald/Green
-    'Grocery': Color(0xFF10B981), // Emerald/Green
-    'Entertainment': Color(0xFFEC4899), // Pink
-    'Health': Color(0xFFEF4444), // Red
-    'Education': Color(0xFF6366F1), // Indigo
-    'Bills': Color(0xFF6366F1), // Indigo (Electric/Utilities)
-    'Utilities': Color(0xFF6366F1), // Indigo
-    'Other': Color(0xFF64748B), // Slate
-  };
+  /// Default colours for expense categories by name.
+  static Map<String, Color> get expenseColors => CategoryPalette.expenseColors;
 
-  /// Default colors for income categories by name
-  static const Map<String, Color> incomeColors = {
-    'Salary': Color(0xFFD97706), // Amber/Brown
-    'Freelance': Color(0xFF14B8A6), // Teal/Cyan
-    'Investment': Color(0xFF10B981), // Emerald
-    'Gift': Color(0xFFEC4899), // Pink
-    'Other': Color(0xFF10B981), // Emerald
-  };
+  /// Default colours for income categories by name.
+  static Map<String, Color> get incomeColors => CategoryPalette.incomeColors;
 
-  /// Get default color for a category
-  static Color getDefaultColor(String categoryName, String categoryType) {
-    if (categoryType == 'income') {
-      return incomeColors[categoryName] ?? const Color(0xFF10B981);
-    }
-    return expenseColors[categoryName] ?? const Color(0xFFEF4444);
-  }
+  /// Get default colour for a category.
+  static Color getDefaultColor(String categoryName, String categoryType) =>
+      CategoryPalette.getDefaultColor(categoryName, categoryType);
 }
 
 /// A visual category indicator tile with colored background and icon.
