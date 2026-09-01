@@ -1,35 +1,71 @@
 # Release signing & APK size
 
-## Why this exists
+## Current state: debug-signed, and that is OK for now
 
-Every FinanceFlow release up to and including **v5.1.2+11** was signed with the
+Every FinanceFlow release up to and including **v5.1.2+11** is signed with the
 Android **debug** keystore, because `android/app/build.gradle.kts` carried
-Flutter's stock `signingConfig = signingConfigs.getByName("debug")` line and its
-`TODO: Add your own signing config` was never done. Those APKs were published
-publicly at `https://leo-money-tracker.vercel.app/downloads/money-tracker.apk`.
+Flutter's stock `signingConfig = signingConfigs.getByName("debug")` and its
+`TODO` was never done. Those APKs are published at
+`https://leo-money-tracker.vercel.app/downloads/money-tracker.apk`.
 
-That matters for three reasons, worst first:
+**This is not urgent to change.** An earlier version of this document claimed
+the debug key made the app forgeable by anyone. That was wrong, and the
+correction matters because it changes the priority:
 
-1. **The debug signing key is public.** Every Android SDK install ships the same
-   `~/.android/debug.keystore` with alias `androiddebugkey` and password
-   `android`. Anyone who downloads the published APK can build a modified
-   FinanceFlow, sign it with *their* debug key, and Android will accept it as a
-   legitimate **in-place update** over the real one — no uninstall prompt, no
-   signature warning. For an app holding SQLCipher-encrypted financial records,
-   that is a real path to a malicious "update".
-2. **The key is not durable.** `debug.keystore` is machine-local and is
-   regenerated whenever it is missing (new laptop, SDK reinstall, cleared
-   `~/.android`). If it changes, the signature no longer matches and existing
-   users **can never update in place again** — they must uninstall first. With
-   `android:allowBackup="false"` and an encrypted database, uninstall means
-   irreversible total data loss for that user.
-3. **Google Play rejects debug-signed uploads outright.**
+> `~/.android/debug.keystore` is **randomly generated per machine** on first
+> debug build. Every developer's copy shares the alias `androiddebugkey` and the
+> password `android`, but **not the key pair**. Someone else's debug key
+> therefore cannot sign an update that installs over this app — Android rejects
+> the signature mismatch exactly as it would for any other stranger's key.
 
-The build is now wired to use a real keystore when one is present. It is not
-possible for the repo to carry the keystore itself, so the steps below are
-yours to run once.
+So of the three reasons originally given here:
 
-## One-time setup
+| Claim | Verdict |
+|---|---|
+| Anyone can forge an in-place update with their own debug key | **False.** Keys are per-machine random. |
+| Google Play rejects debug-signed uploads | True, but **moot** — this app is not distributed through Play. |
+| The key is not durable | **True, and the one that actually matters.** |
+
+### The risk that is real: losing the key
+
+`C:\Users\leooa\.android\debug.keystore` is a **2.6 KB single point of failure.**
+It is the only key that can ever ship an update to an existing install. If it is
+lost — new laptop, SDK reinstall, disk failure, or clearing `~/.android` while
+troubleshooting Android tooling, which people do routinely — then every user
+running a previous build is stuck. Android refuses the update, and because
+`android:allowBackup="false"` and the database is encrypted, their only way
+forward is to uninstall, which destroys their data.
+
+For reference, the key currently signing production:
+
+```
+Owner:      C=US, O=Android, CN=Android Debug
+SHA-1:      2F:EB:6A:C3:76:DB:41:4E:5C:D7:C0:AA:A4:8D:38:5D:A5:89:1D:6C
+Valid until Dec 13 2055
+```
+
+That fingerprint is public information — it is readable from any published APK
+with `apksigner verify --print-certs` — so it is safe to record here, and it
+lets you confirm a recovered backup is the right file.
+
+### What to do about it
+
+**Now, and it takes a minute: back up `debug.keystore`.** Copy
+`C:\Users\leooa\.android\debug.keystore` into your password manager or an
+encrypted offline copy. That solves update continuity completely, costs nothing,
+and disrupts no users. Do not commit it — its password is public, so the file
+itself is the secret.
+
+**Later, generate a real keystore when either becomes true:**
+
+- you decide to publish on Google Play, which requires it; or
+- the app has enough users that stranding them would genuinely hurt.
+
+The migration below is priced per user: nearly free while the install base is
+small, painful once it is not. So if you expect real growth, doing it early is
+the cheaper option — but it is a judgement call, not a security emergency.
+
+## Generating a real keystore (when you want one)
 
 ### 1. Generate the keystore
 
@@ -113,8 +149,10 @@ destroys their data**. So the release that switches keys must:
 2. State plainly that they must uninstall the old version, install the new one,
    and restore from that backup.
 
-This is a one-time cost, unavoidable, and it only gets more expensive the longer
-the debug-signed builds stay in circulation.
+This is a one-time cost, unavoidable, and it scales with the number of people
+already running a debug-signed build — which is the whole argument for deciding
+early rather than drifting into it. It is not, however, a reason to switch
+today: as long as `debug.keystore` is backed up, staying on it costs nothing.
 
 ## APK size
 

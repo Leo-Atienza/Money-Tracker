@@ -22,19 +22,24 @@ val restrictAbisToArm: Boolean = run {
 }
 
 // Release signing material. `android/key.properties` is gitignored (along with
-// *.jks / *.keystore) and is NOT committed — see `docs/RELEASE_SIGNING.md` for
-// how to generate the keystore and write this file.
+// *.jks / *.keystore) and is NOT committed — see `docs/RELEASE_SIGNING.md`.
 //
-// When the file is absent the build still works, but falls back to the debug
-// key and prints a warning. That fallback exists so `flutter run --release` and
-// a fresh clone keep working; it must never be used for a build that is handed
-// to a user, because the debug key's password is public ("androiddebugkey" /
-// "android"), which lets anyone forge an in-place update.
+// When the file is absent the build falls back to the debug key. That is the
+// project's CURRENT DELIBERATE STATE, not a bug to be alarmed by: this app ships
+// as a direct APK download rather than through Play, and a debug-signed build
+// installs and updates fine there.
 //
-// Do NOT rely on that warning to catch a debug-signed release: `flutter build
-// apk` suppresses Gradle's output on success, so it never reaches the terminal.
-// `scripts/verify-release-apk.sh` inspects the built artifact instead, and is
-// the gate the ship pipeline actually runs.
+// Note the debug key is randomly generated per machine — the alias and password
+// are well known ("androiddebugkey" / "android") but the key pair is not shared,
+// so a stranger's debug key cannot sign an update over this app. The real
+// exposure is losing ~/.android/debug.keystore, which is the only key that can
+// ever update an existing install. Back it up.
+//
+// `scripts/verify-release-apk.sh` is the ship gate. It warns (exit 0) when this
+// fallback is in play, and fails only when key.properties exists yet the APK is
+// still debug-signed — i.e. the config silently did not take effect. Gradle's
+// own logger.warn below cannot be relied on: `flutter build apk` suppresses
+// Gradle output on success, so it never reaches the terminal.
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) {
@@ -117,11 +122,13 @@ android {
                 logger.warn(
                     "\n" +
                     "**********************************************************************\n" +
-                    "  WARNING: signing the RELEASE build with the DEBUG key.\n" +
+                    "  NOTE: signing the RELEASE build with the DEBUG key.\n" +
                     "  android/key.properties was not found.\n" +
-                    "  This APK must NOT be distributed: the debug key is public, so\n" +
-                    "  anyone can sign a forged update that Android accepts in place.\n" +
-                    "  See docs/RELEASE_SIGNING.md to set up a real keystore.\n" +
+                    "  For a direct APK download this is fine and is the current\n" +
+                    "  deliberate state. But ~/.android/debug.keystore is then the\n" +
+                    "  ONLY key that can ever update an existing install — if it is\n" +
+                    "  lost, users must uninstall (which destroys their data).\n" +
+                    "  BACK IT UP. See docs/RELEASE_SIGNING.md.\n" +
                     "**********************************************************************\n"
                 )
                 signingConfigs.getByName("debug")

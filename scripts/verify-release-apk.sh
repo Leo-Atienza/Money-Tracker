@@ -1,18 +1,27 @@
 #!/usr/bin/env bash
 #
-# Pre-publish gate for the release APK.
+# Pre-publish check for the release APK.
 #
 # Why this exists rather than relying on the Gradle warning: `flutter build apk`
 # suppresses Gradle's output on success (a successful release build prints about
 # four lines), so the `logger.warn` in android/app/build.gradle.kts is invisible
-# in practice. A debug-signed APK would sail through unnoticed — which is
-# exactly how every release up to v5.1.2 shipped signed with the public Android
-# debug key.
+# in practice. Checking the built artifact is the only approach that survives
+# that.
 #
-# This inspects the built artifact itself and refuses to pass it if:
-#   1. it is signed with the debug key (anyone can forge an in-place update),
-#   2. it still carries x86/x86_64 native libraries (emulator-only dead weight),
-#   3. the file is missing or suspiciously small.
+# What it enforces:
+#   1. the artifact exists and is a plausible size,
+#   2. the signature matches the project's intent — see below,
+#   3. no x86/x86_64 native libraries (emulator-only dead weight in a download).
+#
+# On signing, the check is conditional rather than absolute, because
+# debug-signed is the CURRENT DELIBERATE STATE of this project:
+#
+#   * android/key.properties present + APK debug-signed -> FAIL. The signing
+#     config silently did not take effect, which is a real misconfiguration.
+#   * android/key.properties absent -> WARN, exit 0. The app is distributed as
+#     a direct APK download, not through Play, so a debug-signed build is
+#     shippable. What matters is that the key is never lost — see
+#     docs/RELEASE_SIGNING.md.
 #
 # Usage:  ./scripts/verify-release-apk.sh [path/to/app-release.apk]
 # Exit 0 = safe to publish. Non-zero = do not publish.
@@ -60,13 +69,29 @@ fi
 
 CERTS=$("$APKSIGNER" verify --print-certs "$APK" 2>&1) || fail "apksigner could not verify $APK"
 DN=$(printf '%s\n' "$CERTS" | grep -m1 'certificate DN:' || true)
-printf '    %s\n' "${DN:-<no DN reported>}"
+SHA=$(printf '%s\n' "$CERTS" | grep -m1 -i 'SHA-1 digest' || true)
+printf '    %s\n    %s\n' "${DN:-<no DN reported>}" "${SHA:-<no SHA-1 reported>}"
 
-if printf '%s\n' "$DN" | grep -qi 'CN=Android Debug'; then
-  fail "APK is signed with the ANDROID DEBUG KEY. Do not publish it.
-       The debug key's password is public (androiddebugkey/android), so anyone
-       could sign a forged update that Android installs over this app.
-       Set up android/key.properties — see docs/RELEASE_SIGNING.md."
+IS_DEBUG_SIGNED=false
+printf '%s\n' "$DN" | grep -qi 'CN=Android Debug' && IS_DEBUG_SIGNED=true
+
+if [[ "$IS_DEBUG_SIGNED" == true ]]; then
+  if [[ -f android/key.properties ]]; then
+    fail "android/key.properties EXISTS but the APK is still debug-signed.
+       The release signing config did not take effect — most likely storeFile
+       does not resolve, or the build ran before the file was created. Check
+       with:  cd android && ./gradlew :app:signingReport
+       The release variant must report 'Config: release'."
+  fi
+
+  printf '%b    NOTE: debug-signed. That is expected — this project has no\n' "$YELLOW"
+  printf '    android/key.properties yet, and for a direct APK download (no\n'
+  printf '    Play Store) a debug-signed build installs and updates fine.%b\n' "$RESET"
+  printf '    The debug key is randomly generated per machine, so this is NOT\n'
+  printf '    a "anyone can forge an update" problem. The real exposure is\n'
+  printf '    losing it: ~/.android/debug.keystore is the ONLY key that can\n'
+  printf '    ever ship an update to existing installs. Back it up.\n'
+  printf '    See docs/RELEASE_SIGNING.md.\n'
 fi
 
 # --- 3. no emulator-only ABIs ------------------------------------------------

@@ -13,14 +13,17 @@
 
 ## Shipping the APK
 
-**Signing — gate every publish on `scripts/verify-release-apk.sh`.** The release
-build uses `android/key.properties` when present and otherwise falls back to the
-debug key. Do NOT rely on the Gradle warning to catch that: `flutter build apk`
-suppresses Gradle output on success, so the warning is invisible in a normal
-build. The script inspects the built APK itself (`apksigner`) and exits non-zero
-if it is debug-signed or still carries x86 libraries. See
-[docs/RELEASE_SIGNING.md](docs/RELEASE_SIGNING.md), which also covers the
-one-way update break on the first properly-signed release.
+**Signing — gate every publish on `scripts/verify-release-apk.sh`.** Releases are
+currently **debug-signed on purpose**: this app ships as a direct APK download,
+not through Play, where that installs and updates fine. The debug key is
+randomly generated per machine, so it is not a forgery risk — the real exposure
+is that `~/.android/debug.keystore` is the only key that can ever update an
+existing install, so **back it up**. The script warns about that (exit 0) and
+fails only when `android/key.properties` exists yet the APK is still
+debug-signed, or when x86 libraries are present. Do not rely on the Gradle
+warning — `flutter build apk` suppresses Gradle output on success. See
+[docs/RELEASE_SIGNING.md](docs/RELEASE_SIGNING.md), which covers backing up the
+key and the one-way update break whenever a real keystore is adopted.
 
 **Build flags:** the published APK is built `--target-platform
 android-arm64,android-arm`. That drops the x86_64 slice (~29 MB, emulator-only)
