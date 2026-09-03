@@ -53,7 +53,18 @@ class HomeWidgetHelper {
       );
       final totalExpenses = totals.expenses;
       final totalIncome = totals.income;
-      final balance = totalIncome - totalExpenses;
+      // Mirror the in-app balance: with Carry Over Balance on, everything
+      // carried into this month (all prior income minus all prior expenses)
+      // is part of the number on the launcher too.
+      var carriedOver = 0.0;
+      if (appState.carryoverEnabled) {
+        final prior = await db.calculateNetBalanceBefore(
+          appState.currentAccountId,
+          DateTime.utc(now.year, now.month, 1),
+        );
+        carriedOver = prior.income - prior.expenses;
+      }
+      final balance = totalIncome - totalExpenses + carriedOver;
       final currencyCode = appState.currencyCode;
       final currencySymbol = appState.currency;
 

@@ -45,19 +45,20 @@ class AccessibilityHelper {
     double size = 24.0,
     Color? color,
   }) {
-    return Semantics(
-      label: label,
-      button: true,
-      child: IconButton(
-        icon: Icon(icon, size: size),
-        onPressed: onPressed,
-        color: color,
-        tooltip: label,
-        // Ensure minimum touch target
-        constraints: const BoxConstraints(
-          minWidth: minTouchTargetSize,
-          minHeight: minTouchTargetSize,
-        ),
+    // IconButton's `tooltip` doubles as its accessibility label, so the
+    // button already exposes one node with the label, the button flag and
+    // the tap action. The previous outer `Semantics(label:, button:)`
+    // wrapper produced a second node — TalkBack read "Previous month,
+    // button" twice for every header button on Home and Budgets.
+    return IconButton(
+      icon: Icon(icon, size: size),
+      onPressed: onPressed,
+      color: color,
+      tooltip: label,
+      // Ensure minimum touch target
+      constraints: const BoxConstraints(
+        minWidth: minTouchTargetSize,
+        minHeight: minTouchTargetSize,
       ),
     );
   }

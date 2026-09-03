@@ -106,6 +106,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   bool get _isEdit => widget.expense != null || widget.income != null;
   bool get _isExpense => _type == TransactionType.expense;
 
+  /// Whether this instance was pushed as its own route (from Home, History,
+  /// an edit) rather than mounted as the Add tab of the nav shell.
+  ///
+  /// Not `Navigator.canPop(context)`: the shell's root `PopScope(canPop:
+  /// false)` makes the root route "handle pops internally", and any route
+  /// pushed above the tab (Settings, a dialog) makes `canPop` true while the
+  /// tab is rebuilt underneath it — a theme change while Settings was open
+  /// left the tab with a stale back arrow that then fired the shell's
+  /// go-Home pop AND the discard dialog. `isFirst` is a property of the route
+  /// this widget lives in and does not move.
+  bool _isPushed(BuildContext context) =>
+      ModalRoute.of(context)?.isFirst == false;
+
   @override
   void initState() {
     super.initState();
@@ -353,7 +366,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
       final messenger = ScaffoldMessenger.of(context);
       final navigator = Navigator.of(context);
-      final canPop = navigator.canPop();
+      final canPop = _isPushed(context);
       final saveLabel = _isExpense ? 'Expense' : 'Income';
       final monthName = DateFormat.MMMM().format(_selectedDate);
 
@@ -373,7 +386,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           : SnackBar(
               content: Row(
                 children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
+                  // Same ink as the text on this green: white measures
+                  // 2.36:1 against incomeGreen in dark mode.
+                  Icon(
+                    Icons.check_circle,
+                    color: ColorContrastHelper.getContrastingTextColor(
+                      appColors.incomeGreen,
+                    ),
+                  ),
                   const SizedBox(width: 12),
                   Text(
                     _isEdit ? '$saveLabel updated' : '$saveLabel added',
@@ -879,15 +899,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _initialCategory ??= _selectedCategory;
     }
 
-    final canPop = Navigator.canPop(context);
+    final canPop = _isPushed(context);
     final saveLabel = _isEdit
         ? 'Update ${_isExpense ? "Expense" : "Income"}'
         : 'Add ${_isExpense ? "Expense" : "Income"}';
 
     return PopScope(
-      canPop: !_isFormDirty(),
+      // As the Add TAB this screen is never popped — a back press is handled
+      // by the nav shell (it returns to Home) and the form survives in the
+      // IndexedStack — so there is nothing to discard. Only the pushed
+      // instance guards its edits.
+      canPop: !canPop || !_isFormDirty(),
       onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
+        if (didPop || !canPop) return;
         final shouldDiscard = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(

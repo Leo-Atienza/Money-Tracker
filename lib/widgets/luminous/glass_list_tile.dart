@@ -134,7 +134,12 @@ class GlassListTile extends StatelessWidget {
       ),
     );
 
-    if (onTap == null) return content;
+    // One accessibility node per row. Without this, TalkBack read the label
+    // and the trailing Switch as two unrelated things — the switch had no
+    // name, and the section heading above leaked into it.
+    final row = MergeSemantics(child: content);
+
+    if (onTap == null) return row;
 
     return Material(
       color: Colors.transparent,
@@ -143,7 +148,7 @@ class GlassListTile extends StatelessWidget {
           HapticFeedback.selectionClick();
           onTap!();
         },
-        child: content,
+        child: row,
       ),
     );
   }

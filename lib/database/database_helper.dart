@@ -2447,6 +2447,44 @@ class DatabaseHelper {
     return (income: totalIncome, expenses: totalExpenses);
   }
 
+  /// Everything the account earned and spent strictly BEFORE the month that
+  /// starts on [monthStart]. `income - expenses` of this result is the balance
+  /// carried into that month — the whole "leftover money moves to the next
+  /// month" rule folded across every prior month in one aggregate query.
+  ///
+  /// Computing it from the transaction rows, rather than chaining stored
+  /// `monthly_balances` rows month by month, means the value cannot go stale:
+  /// a back-dated edit three months ago is reflected the next time any later
+  /// month is computed, and a month the app was never opened in does not
+  /// break the chain.
+  ///
+  /// `date` holds 10-char `YYYY-MM-DD` strings, so `date < 'YYYY-MM-01'` is an
+  /// exact boundary (same reasoning as [calculateMonthBalance]).
+  Future<({double income, double expenses})> calculateNetBalanceBefore(
+    int accountId,
+    DateTime monthStart,
+  ) async {
+    final db = await database;
+    final boundary =
+        DateHelper.toDateString(DateHelper.startOfMonth(monthStart));
+
+    final incomeResult = await db.rawQuery(
+      'SELECT COALESCE(SUM(amount), 0) AS total FROM income '
+      'WHERE account_id = ? AND date < ?',
+      [accountId, boundary],
+    );
+    final expenseResult = await db.rawQuery(
+      'SELECT COALESCE(SUM(amount), 0) AS total FROM expenses '
+      'WHERE account_id = ? AND date < ?',
+      [accountId, boundary],
+    );
+
+    return (
+      income: (incomeResult.first['total'] as num?)?.toDouble() ?? 0.0,
+      expenses: (expenseResult.first['total'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+
   // ============== RECURRING EXPENSE METHODS ==============
 
   Future<int> createRecurringExpense(RecurringExpense expense) async {

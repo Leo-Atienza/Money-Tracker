@@ -8,6 +8,7 @@ A comprehensive personal finance application built with Flutter, designed to hel
 *   **Transaction Tracking:** Easily add expenses and income.
 *   **Recurring Transactions:** Automate bills and salary entries.
 *   **Budgeting:** Set monthly limits per category and get alerted.
+*   **Carry-over:** Whatever is left at the end of a month (surplus or deficit) rolls into the next one; switch it off in Settings to start every month from zero.
 *   **Analytics:** Visual charts to understand spending patterns.
 *   **Multiple Accounts:** Manage personal and business finances separately.
 *   **Data Safety:** Local backup/restore and CSV export.

@@ -44,9 +44,12 @@ class _LoadingSkeletonState extends State<LoadingSkeleton>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = isDark ? Colors.grey[800]! : Colors.grey[300]!;
-    final highlightColor = isDark ? Colors.grey[700]! : Colors.grey[100]!;
+    // Surface-container roles, so the shimmer sits on the same neutral ramp
+    // as the panels it stands in for (was raw Colors.grey, which no theme
+    // change could reach).
+    final cs = Theme.of(context).colorScheme;
+    final baseColor = cs.surfaceContainerHighest;
+    final highlightColor = cs.surfaceContainerHigh;
 
     return AnimatedBuilder(
       animation: _animation,

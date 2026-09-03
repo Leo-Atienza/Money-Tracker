@@ -9,6 +9,7 @@ import '../../utils/validators.dart';
 import '../../utils/date_helper.dart';
 import '../../utils/premium_animations.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/color_contrast_helper.dart';
 
 /// Opens the "Add recurring income" bottom sheet.
 ///
@@ -421,19 +422,26 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
                   onPressed: _isSaving ? null : _save,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: appColors.incomeGreen,
-                    foregroundColor: Colors.white,
+                    // White on incomeGreen measures 4.12:1 light / 2.36:1
+                    // dark — the same failure the Add-Income Save button
+                    // had. Ask the contrast helper (it returns black here).
+                    foregroundColor: ColorContrastHelper.getContrastingTextColor(
+                      appColors.incomeGreen,
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                   child: _isSaving
-                      ? const SizedBox(
+                      ? SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: ColorContrastHelper.getContrastingTextColor(
+                              appColors.incomeGreen,
+                            ),
                           ),
                         )
                       : const Text('Save'),
@@ -659,7 +667,9 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
                       fontWeight:
                           isSelected ? FontWeight.w600 : FontWeight.w500,
                       color: isSelected
-                          ? Colors.white
+                          ? ColorContrastHelper.getContrastingTextColor(
+                              appColors.incomeGreen,
+                            )
                           : theme.colorScheme.onSurface,
                     ),
                   ),

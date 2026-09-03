@@ -1,3 +1,0 @@
-Try `flutter pub outdated` for more information.
-Analyzing Money-Tracker...                                      
-No issues found! (ran in 11.4s)
