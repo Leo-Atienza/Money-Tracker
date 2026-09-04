@@ -30,7 +30,7 @@ jobs:
           # Pinned to the version the suite is green on locally. Bump
           # deliberately, not implicitly — a Flutter minor can change widget
           # layout and break golden-ish widget tests.
-          flutter-version: '3.38.5'
+          flutter-version: '3.47.2'
           channel: stable
           cache: true
 
@@ -63,7 +63,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.38.5'
+          flutter-version: '3.47.2'
           channel: stable
           cache: true
 

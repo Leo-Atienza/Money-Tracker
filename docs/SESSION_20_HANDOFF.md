@@ -85,12 +85,38 @@ rescheduling fix above), and at **10:29:04** `dumpsys notification` held
 - Settings has no back arrow; leave it with the system BACK key. The Add tab opens with the
   keyboard up, so a bottom-nav tap while on it hits the keyboard.
 
+## Part 2 — Flutter 3.47.2 SDK bump (v5.3.1+14, same day)
+Leo asked to finish everything, which included the two items the first part left open.
+
+- **SDK:** `flutter upgrade` moved the machine to **3.47.2 / Dart 3.13.2** (was 3.38.5 /
+  3.10.4; rollback is `git -C C:/Users/leooa/develop/flutter checkout 3.38.5` plus
+  `flutter doctor`). CI pin bumped to match in `.github/workflows/ci.yml`.
+- **Packages:** `file_picker` 12.2.0, `share_plus` 13.3.0, `package_info_plus` 10.2.1,
+  `pdf` 3.13.0, `sqflite` 2.4.3 (+ `sqflite_common` 2.5.11, `sqflite_common_ffi` 2.4.2+1),
+  `win32` 6.4.0. `flutter_secure_storage` stays at 10.x on purpose (v11 destroys user data —
+  see `docs/DEPENDENCY_STATUS.md`).
+- **Android toolchain:** Flutter 3.47 refuses Gradle < 8.14, so Gradle 8.11.1 → **8.14.3**,
+  AGP 8.9.1 → **8.13.2**, Kotlin 2.1.0 → **2.2.20** — the smallest versions inside the Flutter
+  tool's documented ranges. The SDK's own template is now Gradle 9.3.1 / AGP 9.1.0 / Kotlin
+  2.4.0 (AGP 9 = new Gradle DSL); deliberately not taken in the same pass.
+- **file_picker 12 migration** (`lib/utils/backup_helper.dart`): static `FilePicker.pickFile()`
+  / `saveFile()` (returns `Uri?`); a SAF pick has no file path, so restore reads it with
+  `readAsBytes()`. The JSON `importBackup` path and its confirmation/restore helpers had no
+  callers anywhere and were deleted rather than migrated.
+- **Flutter 3.47 fallout, all real findings:** a new debug assertion for a `ListTile` under a
+  decorated box with no `Material` (its ripple was hidden) fired in Wallet and Recurring —
+  `GlassPanel` and `AnimatedPressCard` now carry a transparent `Material` inside their clip,
+  and the recurring-income row moved its fill/border onto the tile. The new
+  `unawaited_return_in_try_block` lint caught `db_open.dart` returning the integrity
+  row-count future before `finally` closed the connection — now awaited.
+- **`warningOrange`** (light set) → `#B45309`: 4.0:1 on the darkest light surface, 3.7:1 on
+  the darkest lavender one (was 2.5–2.9:1). `luminous_theme_test` now holds all four money
+  colours to 3:1 on every surface role in Light and Purple.
+- Gates: `flutter analyze` clean; preflight green **2507 pass / 3 skip** on 3.47.2.
+
 ## Still open
-- **Flutter ≥ 3.41.6 SDK bump** (unblocks `file_picker` 12, `share_plus` 13,
-  `package_info_plus` 10, `pdf` 3.13, `sqflite` 2.4.3). Machine-wide change, no FVM in the
-  repo — deliberately left for Leo.
-- `warningOrange` (orange 800) is 2.9–3.1:1 on the light surfaces in both Light and Purple;
-  pre-existing, only used for 12 px "Pay Bill"/"left" tags and the 75 % budget tier.
+- **AGP 9 / Gradle 9 / Kotlin 2.4** (the current `flutter create` template) — not needed by
+  anything yet; take it deliberately with the suite and a device walk as the gate.
 - Cook-log row for the tactile skill only after Leo's feedback on Purple (craft.md 5b).
 
 ## Release record

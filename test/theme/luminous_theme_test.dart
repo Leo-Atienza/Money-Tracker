@@ -180,15 +180,17 @@ void main() {
           );
         }
       }
-      // warningOrange is below 3:1 on the neutral light surfaces as well; it
-      // is the light theme's own limitation, not one the lavender adds.
-      for (final c in ['incomeGreen', 'expenseRed', 'infoBlue']) {
-        for (final role in [cs.surface, cs.surfaceContainerLow, cs.surfaceContainer]) {
-          expect(
-            ColorContrastHelper.contrastRatio(colours[c]!, role),
-            greaterThanOrEqualTo(ColorContrastHelper.minContrastLargeText),
-            reason: '$c on $role',
-          );
+      // All four clear the 3:1 floor on every surface an amount, tag or tier
+      // renders on - in Light and in Purple.
+      for (final c in colours.entries) {
+        for (final r in roles.entries) {
+          for (final surface in [r.value.$1, r.value.$2]) {
+            expect(
+              ColorContrastHelper.contrastRatio(c.value, surface),
+              greaterThanOrEqualTo(ColorContrastHelper.minContrastLargeText),
+              reason: '${c.key} on ${r.key} $surface',
+            );
+          }
         }
       }
     });

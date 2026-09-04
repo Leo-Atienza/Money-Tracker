@@ -5,6 +5,30 @@
 > (L100 Quality Upgrade) and was never shipped. The actual public release of
 > this bug-fix + crash-log pass is `4.4.0+6`.
 
+## 5.3.1+14 — 2026-09-04
+
+Toolchain release: Flutter 3.38.5 → 3.47.2 (Dart 3.13.2) and the five packages
+that were waiting on it. No new features.
+
+### Changed
+- Flutter 3.47.2 / Dart 3.13.2; Gradle 8.14.3, Android Gradle Plugin 8.13.2,
+  Kotlin 2.2.20.
+- `file_picker` 12.2 (a Storage Access Framework pick is now read through the
+  picker instead of assuming a file path), `share_plus` 13.3,
+  `package_info_plus` 10.2, `pdf` 3.13, `sqflite` 2.4.3.
+- The light-theme warning colour (the "Pay Bill" / "left" tags and the 75 %
+  budget tier) is now an amber that clears 3:1 on every light and lavender
+  surface; it was 2.5–2.9:1 before.
+
+### Fixed
+- Rows inside cards (Wallet accounts, Recurring items) now have a proper ink
+  surface, so a tap shows its ripple. Flutter 3.47 flagged the old layout.
+- The encrypted-database integrity check awaited its row count before closing
+  the connection; a new analyzer lint caught the ordering.
+
+### Removed
+- A JSON "import backup" code path that nothing in the app called.
+
 ## 5.3.0+13 — 2026-09-04
 
 A third appearance, and the last screens moved onto the type ladder.

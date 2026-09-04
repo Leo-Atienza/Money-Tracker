@@ -1,14 +1,45 @@
-# Dependency status (2026-08-30)
+# Dependency status (2026-09-04)
 
 Everything that can be upgraded on the current toolchain has been. The seven
 packages below are deliberately pinned below their latest release. Each entry
 says what blocks it, so nobody has to re-derive it — and so nobody "helpfully"
 bumps `flutter_secure_storage` to v11 and destroys user databases.
 
-Toolchain at the time of writing: **Flutter 3.38.5 / Dart 3.10.4**, AGP 8.9.1,
-Gradle 8.11.1, Kotlin 2.1.0.
+Toolchain at the time of writing: **Flutter 3.47.2 / Dart 3.13.2**, AGP 8.13.2,
+Gradle 8.14.3, Kotlin 2.2.20.
 
-## Upgraded in this pass
+## Upgraded on 2026-09-04 (the Flutter SDK bump, v5.3.1+14)
+
+Flutter 3.38.5 → **3.47.2** (Dart 3.10.4 → 3.13.2), done on its own branch with
+the full suite as the gate, as the previous pass recommended. That cleared the
+whole `win32 6.x` knot at once:
+
+| Package | From | To | Note |
+|---|---|---|---|
+| `file_picker` | 10.3.10 | **12.2.0** | Federated rewrite. `FilePicker.platform.*` is gone: `pickFile()` is static and returns `PlatformFile?`, `saveFile()` returns `Uri?`, and a SAF pick is a `content://` URI with **no file path** — restore now reads it with `PlatformFile.readAsBytes()`. The dead JSON `importBackup` path (no callers) was deleted instead of migrated. |
+| `share_plus` | 12.0.2 | **13.3.0** | |
+| `package_info_plus` | 8.3.1 | **10.2.1** | Needs AGP ≥ 8.12.1 / Kotlin 2.2 — see toolchain below. |
+| `pdf` | 3.12.0 | **3.13.0** | Needed Dart ≥ 3.12. |
+| `sqflite` (+ `sqflite_common` 2.5.11, `sqflite_common_ffi` 2.4.2+1) | 2.4.2+1 | **2.4.3** | Needed Dart ≥ 3.12. |
+| `win32` | 5.15.0 | **6.4.0** | Transitive; Windows-desktop only. |
+
+**Android toolchain.** Flutter 3.47's Gradle plugin refuses Gradle < 8.14, so the
+wrapper moved 8.11.1 → **8.14.3**, AGP 8.9.1 → **8.13.2** and Kotlin 2.1.0 →
+**2.2.20**. Those are the smallest versions inside the Flutter tool's documented
+compatibility ranges (`flutter_tools/lib/src/android/gradle_utils.dart`). The SDK's
+own `flutter create` template now defaults to Gradle 9.3.1 / AGP 9.1.0 / Kotlin
+2.4.0 — AGP 9 switches to the new Gradle DSL and was deliberately **not** taken in
+the same pass; it is the next toolchain step when there is a reason for it.
+
+**Flutter 3.47 debug assertions that fired in the suite.** A `ListTile` under a
+`DecoratedBox` with a fill (and no `Material` between them) now asserts, because
+the fill hides the ripple. `GlassPanel` and `AnimatedPressCard` gained a
+transparent `Material` inside their clip, and the recurring-income row moved its
+fill/border onto the tile (`tileColor` + `shape`). A new lint
+(`unawaited_return_in_try_block`) also caught `db_open.dart` returning the
+integrity row-count future before its `finally` closed the connection.
+
+## Upgraded on 2026-08-30
 
 | Package | From | To | Note |
 |---|---|---|---|
@@ -45,29 +76,13 @@ Since this app is distributed as a direct APK download with no forced-update
 channel, there is no way to guarantee a given user passed through v10. Treat v11
 as gated on a v10 release having been in the wild long enough.
 
-### Gated on the Flutter SDK (the `win32 6.x` cluster)
+### The `win32 6.x` cluster — cleared on 2026-09-04
 
-`file_picker` 12, `share_plus` 13, and `package_info_plus` 10 form one
-inseparable knot:
-
-- `file_picker` ≥12 → `windows_file_picker` → `win32 ^6.3.0`
-- `share_plus` ≥13.1 → `win32 ^6.0.1`
-- `share_plus` <13.1 → `win32 ^5.5.3` — conflicts with `file_picker` 12
-- `package_info_plus` <10 → `win32 <6` — conflicts with `share_plus` 13
-- `package_info_plus` 10 → **requires Flutter 3.41.6 / Dart 3.11.0**
-
-We are on Flutter 3.38.5 / Dart 3.10.4, so the whole cluster is stuck until
-Flutter itself is upgraded. Upgrading Flutter is its own project — it can shift
-widget layout under a 2474-test suite — and was deliberately not bundled into
-this pass.
-
-Note `win32` is only a *Windows desktop* concern; it is irrelevant to the
-shipped Android app. It still blocks resolution because pub solves across all
-platform targets present in the repo. A `dependency_overrides` hack could force
-it, at the cost of silently breaking the Windows build — not worth it.
-
-`package_info_plus` 9 is separately blocked: it needs AGP ≥8.12.1, Gradle ≥8.13,
-and Kotlin 2.2.0; we are on 8.9.1 / 8.11.1 / 2.1.0.
+`file_picker` 12, `share_plus` 13 and `package_info_plus` 10 were one
+inseparable knot gated on Flutter ≥ 3.41.6; the 3.47.2 bump above resolved
+all three (see the 2026-09-04 table). Kept here only so the history of *why*
+they were pinned survives: the knot was `win32`, a Windows-desktop-only
+transitive that pub still solves for because the `windows/` directory exists.
 
 ### `app_settings` — pinned at 7.x
 
@@ -84,13 +99,17 @@ deliberately (and re-run the suite) if you want v9.
 The app is Android-only in practice, so this is a bookkeeping constraint rather
 than a functional one.
 
-### `pdf` 3.13.0 / `sqflite` 2.4.3
+## Remaining gates
 
-Both need Dart ≥3.12. Same Flutter-SDK gate as above.
-
-## The single unblock
-
-Upgrading Flutter to **≥3.41.6** clears `file_picker`, `share_plus`,
-`package_info_plus`, `pdf`, and `sqflite` in one move. That is the highest-value
-next step for dependency health — and it should be done on its own branch with
-the full suite as the gate, not folded into unrelated work.
+- **`flutter_secure_storage` 11** — the data-loss gate above. Still pinned at
+  10.x; nothing about the SDK bump changes that reasoning.
+- **`app_settings` 8** — needs the machine-wide Swift Package Manager switch.
+  Still pinned at 7.x.
+- **AGP 9 / Gradle 9 / Kotlin 2.4** — the current `flutter create` template.
+  Flutter 3.47 already warns at build time that support for Gradle 8.14.3,
+  AGP 8.13.2 and Kotlin 2.2.20 "will soon be dropped" and asks for Gradle
+  >= 9.1.0, AGP >= 9.0.1, Kotlin >= 2.3.20. The Flutter migrator also wrote
+  `android.newDsl=false` and `android.builtInKotlin=false` into
+  `android/gradle.properties` to keep the 8.x behaviour. Take the 9.x set
+  deliberately on its own branch, with the suite and a device walk as the
+  gate, before the next Flutter minor.

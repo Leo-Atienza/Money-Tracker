@@ -364,7 +364,16 @@ class _AnimatedPressCardState extends State<AnimatedPressCard>
                   ),
                 ],
               ),
-              child: ClipRRect(borderRadius: radius, child: widget.child),
+              // A transparent Material above the fill gives any ListTile or
+              // InkWell inside the card a surface to paint ink on; without it
+              // the fill hides the ripple (a Flutter 3.47 debug assertion).
+              child: ClipRRect(
+                borderRadius: radius,
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: widget.child,
+                ),
+              ),
             ),
           );
         },

@@ -54,16 +54,18 @@ class RecurringIncomeView extends StatelessWidget {
           index: index,
           child: Container(
           margin: const EdgeInsets.only(bottom: 16),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: rec.isActive
-                  ? appColors.incomeGreen.withAlpha(100)
-                  : theme.colorScheme.outline,
-            ),
-          ),
+          // The fill and border live on the tile itself: a decorated ancestor
+          // would hide the ripple, which Flutter 3.47 now asserts on.
           child: ListTile(
+            tileColor: theme.colorScheme.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: rec.isActive
+                    ? appColors.incomeGreen.withAlpha(100)
+                    : theme.colorScheme.outline,
+              ),
+            ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 24,
               vertical: 12,

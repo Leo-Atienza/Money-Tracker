@@ -275,119 +275,6 @@ class BackupHelper {
     }
   }
 
-  // Import backup
-  Future<void> importBackup(BuildContext context) async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-      );
-
-      if (result != null &&
-          result.files.isNotEmpty &&
-          result.files.first.path != null) {
-        final file = File(result.files.first.path!);
-        final content = await file.readAsString();
-        final data = jsonDecode(content);
-
-        // Validate backup format
-        if (data['version'] == null || data['expenses'] == null) {
-          throw Exception('Invalid backup file format');
-        }
-
-        if (context.mounted) {
-          _showRestoreConfirmation(context, data);
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Import failed: ${e.toString()}')),
-        );
-      }
-    }
-  }
-
-  void _showRestoreConfirmation(
-    BuildContext context,
-    Map<String, dynamic> data,
-  ) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Restore Backup?'),
-        content: const Text(
-          'This will append the data from the backup to your current data. Duplicates may occur if you import the same data twice.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _performRestore(context, data);
-            },
-            child: const Text('Restore'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// FIX Bug #3 & Bug #9: Restore a JSON backup by writing directly through
-  /// DatabaseHelper instead of the AppState mutators.
-  ///
-  /// The old implementation looped over each section and called
-  /// appState.addExpense / addIncome / addRecurringExpense / setBudget, all of
-  /// which resolved account_id from the CURRENT UI account (collapsing every
-  /// historical row onto one account) and wrote budgets against _selectedMonth
-  /// (collapsing every historical budget into the current month). Worst: a
-  /// failure mid-restore left the database in a half-restored state because
-  /// each mutator committed its own write.
-  ///
-  /// The new path delegates to DatabaseHelper.restoreFromJsonBackup, which:
-  ///   - Validates the backup's schema_version (Bug #9) before any writes.
-  ///   - Wraps every insert in a single db.transaction so partial failures
-  ///     roll back cleanly.
-  ///   - Preserves original account_id / month / date fields exactly,
-  ///     remapping account_id only when the backup came from a device with
-  ///     different account numbering.
-  Future<void> _performRestore(
-    BuildContext context,
-    Map<String, dynamic> data,
-  ) async {
-    final appState = context.read<AppState>();
-    try {
-      final stats = await DatabaseHelper().restoreFromJsonBackup(data);
-
-      // Reload AppState from the freshly restored database so the UI
-      // reflects the newly inserted rows immediately.
-      await appState.loadData();
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Restored ${stats.total} items successfully'),
-          ),
-        );
-      }
-    } on BackupRestoreException catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Restore error: ${e.toString()}')),
-        );
-      }
-    }
-  }
-
   // Export CSV (simplified)
   Future<void> exportCsv(BuildContext context) async {
     try {
@@ -583,18 +470,18 @@ class BackupHelper {
       // The file picker will handle writing the bytes to the user-selected location
       if (kDebugMode) debugPrint('Showing file picker with bytes...');
       try {
-        final savedPath = await FilePicker.platform.saveFile(
+        // file_picker 12: static API, returns the Uri the user chose.
+        final savedUri = await FilePicker.saveFile(
           dialogTitle: 'Save Backup',
           fileName: fileName,
           type: FileType.any,
           bytes: bytes,
-          lockParentWindow: true,
         );
 
-        if (savedPath != null) {
-          if (kDebugMode) debugPrint('SAF save successful: $savedPath');
+        if (savedUri != null) {
+          if (kDebugMode) debugPrint('SAF save successful: $savedUri');
           if (kDebugMode) debugPrint('=== BACKUP SAVE COMPLETE ===');
-          return savedPath;
+          return savedUri.toString();
         } else {
           if (kDebugMode) debugPrint('User cancelled file picker');
           return null;
@@ -762,27 +649,25 @@ class BackupHelper {
         onStart?.call(); // Show loading immediately since we have the file
       } else {
         // Pick backup file FIRST (user might cancel here - don't show loading yet)
-        final result = await FilePicker.platform.pickFiles(
-          type: FileType.any,
-          allowMultiple: false,
-        );
+        // file_picker 12: static single-pick API, null when cancelled.
+        final pickedFile = await FilePicker.pickFile(type: FileType.any);
 
-        if (result == null || result.files.isEmpty) {
+        if (pickedFile == null) {
           return RestoreResult.cancelled;
         }
 
-        final pickedFile = result.files.first;
         fileName = pickedFile.name;
 
         // FIX: Now that file is selected, notify UI to show loading dialog
         onStart?.call();
 
-        if (pickedFile.path != null) {
-          actualSourceFile = File(pickedFile.path!);
-        } else if (pickedFile.bytes != null) {
-          sourceBytes = pickedFile.bytes!;
+        final pickedPath = pickedFile.path;
+        if (pickedPath != null) {
+          actualSourceFile = File(pickedPath);
         } else {
-          return RestoreResult.fileNotFound;
+          // A SAF pick is a content:// URI with no file path; read it through
+          // the picker instead of assuming a path exists.
+          sourceBytes = await pickedFile.readAsBytes();
         }
       }
 
