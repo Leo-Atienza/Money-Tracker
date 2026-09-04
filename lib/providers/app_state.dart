@@ -27,6 +27,18 @@ import '../utils/crash_log.dart';
 import 'dart:async';
 
 class AppState extends ChangeNotifier {
+  /// [initialThemeMode] is the persisted `theme_mode` read in `main()` before
+  /// `runApp`, so the very first frame already paints the chosen appearance.
+  /// Without it every cold start flashed the neutral light scheme until
+  /// `_loadSettings` finished — invisible for Light, a flash for Dark and a
+  /// white flash for Purple. `_loadSettings` still re-reads it.
+  AppState({String? initialThemeMode}) {
+    if (initialThemeMode != null) {
+      _themeMode = initialThemeMode;
+      _isDarkMode = initialThemeMode == 'dark';
+    }
+  }
+
   final DatabaseHelper _db = DatabaseHelper();
   final NotificationHelper _notificationHelper = NotificationHelper();
   final OnboardingService _onboardingService = OnboardingService();
@@ -1874,9 +1886,24 @@ class AppState extends ChangeNotifier {
 
   Future<void> addRecurringExpense(RecurringExpense recurring) async {
     await _writeMutex.synchronized(() async {
-      await _db.createRecurringExpense(recurring);
+      final id = await _db.createRecurringExpense(recurring);
       await _loadRecurringExpenses();
       _safeNotify();
+      // Book the reminder now, like updateRecurringExpense does. Before this
+      // a new bill's reminder was only scheduled by the next launch (or by
+      // toggling Bill Reminders), so a bill added today and due tomorrow
+      // never reminded. Best-effort: notification I/O must not fail the add.
+      if (recurring.isActive && _billRemindersEnabled) {
+        try {
+          await _notificationHelper.scheduleBillReminder(
+            recurring.copyWith(id: id),
+            currencySymbol: currency,
+            reminderTime: _reminderTime,
+          );
+        } catch (e) {
+          if (kDebugMode) debugPrint('addRecurringExpense reminder failed: $e');
+        }
+      }
     });
   }
 
@@ -2377,7 +2404,24 @@ class AppState extends ChangeNotifier {
     _updateHomeWidget();
   }
   Future<void> setTransactionColorIntensity(double value) async { _transactionColorIntensity = value.clamp(0.0, 1.0); await SettingsHelper.setTransactionColorIntensity(_transactionColorIntensity); _safeNotify(); }
-  Future<void> setReminderTime(TimeOfDay time) async { _reminderTime = time; await SettingsHelper.setReminderHour(time.hour); await SettingsHelper.setReminderMinute(time.minute); _safeNotify(); }
+  Future<void> setReminderTime(TimeOfDay time) async {
+    _reminderTime = time;
+    await SettingsHelper.setReminderHour(time.hour);
+    await SettingsHelper.setReminderMinute(time.minute);
+    _safeNotify();
+    // Re-book every pending bill reminder at the new time. Before this the
+    // new time only took effect on the next launch (or after toggling bill
+    // reminders off and on again). Notification I/O is best-effort, as in
+    // toggleBillReminders — it must never block the setting itself.
+    try {
+      if (_billRemindersEnabled &&
+          await _notificationHelper.areNotificationsEnabled()) {
+        await _scheduleAllBillReminders();
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('setReminderTime rescheduling failed: $e');
+    }
+  }
 
   void setFilterCategory(String category) { _filterCategory = category; _invalidateExpenseCache(); _safeNotify(); }
   void setDateRange(DateTime? start, DateTime? end) { _dateRange = (start != null && end != null) ? DateTimeRange(start: start, end: end) : null; _invalidateExpenseCache(); _safeNotify(); }

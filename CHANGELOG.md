@@ -5,6 +5,44 @@
 > (L100 Quality Upgrade) and was never shipped. The actual public release of
 > this bug-fix + crash-log pass is `4.4.0+6`.
 
+## 5.3.0+13 — 2026-09-04
+
+A third appearance, and the last screens moved onto the type ladder.
+
+### Added
+- **Purple theme.** Settings → Theme now offers **Light, Dark, Purple** and
+  Follow System. Purple is a lavender appearance: pale violet surfaces, a
+  single violet for buttons, links and the selected tab, and a violet-cast
+  ink instead of pure black. It is always light (it does not follow the
+  system dark setting). Income green, expense red and your category colours
+  are unchanged, and every text colour is contrast-checked against every
+  surface in the automated suite, the same way the neutral themes are.
+
+### Changed
+- History, Category Manager and Wallet no longer carry their own font
+  sizes; every label uses the app's type roles, so text scaling and the
+  Hanken Grotesk weights are consistent across screens. The History title
+  now matches the other screens' title size, and the small tags (PAID,
+  payment method, dates) use the label roles.
+- Primary buttons, the "+" buttons, selected filter chips and the Wallet
+  "Active" badge now fill with the theme's primary colour. In Light and Dark
+  that is the same near-black / near-white as before; in Purple it is the
+  violet.
+- The chosen theme is read before the first frame, so a cold start no
+  longer flashes the light scheme for Dark and Purple users.
+
+### Fixed
+- Bill reminders: a newly added recurring bill now books its reminder
+  immediately (previously only the next launch, or switching Bill Reminders
+  off and on, scheduled it), and changing the default reminder time now
+  re-books every pending reminder at the new time instead of waiting for the
+  next launch. Verified on a device: an exact alarm was booked the moment the
+  time changed.
+- The "Disable PIN", "Verify Current PIN" and encrypted-backup passphrase
+  dialogs logged "A TextEditingController was used after being disposed" to
+  the Crash Log every time they closed. They now own their text controllers
+  for the life of the dialog.
+
 ## 5.2.0+12 — 2026-09-03
 
 Month-to-month carry-over, and a polish pass driven by rendering every

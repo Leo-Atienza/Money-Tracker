@@ -24,7 +24,7 @@
 *   **Budget Management:** Set monthly spending limits per category.
 *   **History View:** Browse transactions by month with daily breakdowns.
 *   **Advanced Statistics:** Visualize spending with Analytics charts and insights.
-*   **Dark Mode:** Built-in support for light and dark themes.
+*   **Themes:** Light, Dark and Purple (lavender) appearances, or follow the system setting.
 *   **Local Storage & Backup:** Data is securely stored on the device using SQLite, with backup/restore functionality.
 *   **Notifications:** Bill reminders, budget alerts, and monthly summaries.
 *   **Export:** Export data to CSV for external analysis.
@@ -73,7 +73,7 @@ Navigate to the **Settings** screen (Gear icon) to manage:
 *   **Add Account:** Create new accounts to keep finances separate.
 
 #### Appearance & Preferences
-*   **Dark Mode:** Toggle between Light and Dark themes.
+*   **Theme:** Choose Light, Dark, Purple, or Follow System.
 *   **Currency:** Select your preferred currency symbol.
 *   **Categories:** Add, edit, or delete custom categories.
 

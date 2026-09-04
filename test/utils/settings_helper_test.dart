@@ -22,6 +22,11 @@ void main() {
       expect(await SettingsHelper.getThemeMode(), 'dark');
     });
 
+    test('purple round-trips like the other modes', () async {
+      await SettingsHelper.setThemeMode('purple');
+      expect(await SettingsHelper.getThemeMode(), 'purple');
+    });
+
     test('migrates legacy dark_mode=true to themeMode=dark', () async {
       SharedPreferences.setMockInitialValues({'dark_mode': true});
       expect(await SettingsHelper.getThemeMode(), 'dark');

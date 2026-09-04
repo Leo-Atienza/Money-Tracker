@@ -69,8 +69,8 @@ class QuickTemplatesScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddTemplateDialog(context),
-        backgroundColor: theme.colorScheme.onSurface,
-        foregroundColor: theme.colorScheme.surface,
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: theme.colorScheme.onPrimary,
         icon: const Icon(Icons.add),
         label: const Text('Add Template'),
       ),

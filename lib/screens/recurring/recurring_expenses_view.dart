@@ -591,8 +591,8 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
                 child: ElevatedButton(
                   onPressed: _isSaving ? null : _save,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.onSurface,
-                    foregroundColor: theme.colorScheme.surface,
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),

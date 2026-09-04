@@ -71,15 +71,13 @@ class HistoryFilterBar extends StatelessWidget {
               child: TextField(
                 controller: searchController,
                 onChanged: onSearchChanged,
-                style: TextStyle(
-                  fontSize: 15,
+                style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurface,
                 ),
                 decoration: InputDecoration(
                   hintText: 'Search transactions...',
-                  hintStyle: TextStyle(
+                  hintStyle: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant.withAlpha(150),
-                    fontSize: 14,
                   ),
                   prefixIcon: Icon(
                     Icons.search_rounded,
@@ -161,7 +159,7 @@ class HistoryFilterBar extends StatelessWidget {
           ],
         ),
         onSelected: onAllTimeChanged,
-        labelStyle: const TextStyle(fontSize: 13),
+        labelStyle: theme.textTheme.bodySmall,
         backgroundColor: theme.colorScheme.surface,
         selectedColor: theme.colorScheme.primary.withAlpha(30),
         checkmarkColor: theme.colorScheme.primary,
@@ -195,7 +193,7 @@ class HistoryFilterBar extends StatelessWidget {
         onSelected: (_) => onDateRangeRequested(),
         onDeleted: hasRange ? onDateRangeCleared : null,
         deleteIcon: hasRange ? const Icon(Icons.close, size: 16) : null,
-        labelStyle: const TextStyle(fontSize: 13),
+        labelStyle: theme.textTheme.bodySmall,
         backgroundColor: theme.colorScheme.surface,
         selectedColor: theme.colorScheme.primary.withAlpha(30),
         checkmarkColor: theme.colorScheme.primary,
@@ -226,7 +224,7 @@ class HistoryFilterBar extends StatelessWidget {
           ],
         ),
         onSelected: (_) => onShowSortOptions(),
-        labelStyle: const TextStyle(fontSize: 13),
+        labelStyle: theme.textTheme.bodySmall,
         backgroundColor: theme.colorScheme.surface,
         selectedColor: theme.colorScheme.primary.withAlpha(30),
         checkmarkColor: theme.colorScheme.primary,

@@ -53,8 +53,8 @@ class CategoryManagerScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddCategory(context),
-        backgroundColor: theme.colorScheme.onSurface,
-        child: Icon(Icons.add, color: theme.colorScheme.surface),
+        backgroundColor: theme.colorScheme.primary,
+        child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
       ),
     );
   }
@@ -234,8 +234,7 @@ class _CategoryList extends StatelessWidget {
               delay: const Duration(milliseconds: 200),
               child: Text(
                 'No categories',
-                style: TextStyle(
-                  fontSize: 16,
+                style: theme.textTheme.titleMedium?.copyWith(
                   color: theme.colorScheme.onSurface,
                 ),
               ),
@@ -243,10 +242,8 @@ class _CategoryList extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Tap here or + to add a category',
-              style: TextStyle(
-                fontSize: 14,
+              style: theme.textTheme.labelLarge?.copyWith(
                 color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -380,17 +377,14 @@ class _CategoryTileRow extends StatelessWidget {
         ),
         title: Text(
           category,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
+          style: theme.textTheme.titleMedium?.copyWith(
             color: theme.colorScheme.onSurface,
           ),
         ),
         subtitle: isDefault
             ? Text(
                 'Default',
-                style: TextStyle(
-                  fontSize: 12,
+                style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               )
@@ -580,8 +574,7 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
                   Expanded(
                     child: Text(
                       _selectedColor == null ? 'No color' : 'Color selected',
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
@@ -639,8 +632,7 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
                   Expanded(
                     child: Text(
                       _selectedIcon != null ? 'Custom icon' : 'Default icon',
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
@@ -832,8 +824,7 @@ class _TypeChip extends StatelessWidget {
         child: Center(
           child: Text(
             label,
-            style: TextStyle(
-              fontSize: 14,
+            style: theme.textTheme.labelLarge?.copyWith(
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
               color: isSelected ? color : theme.colorScheme.onSurface,
             ),
@@ -886,17 +877,14 @@ class _IconPicker extends StatelessWidget {
           const SizedBox(height: 24),
           Text(
             'Choose Icon',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+            style: theme.textTheme.titleLarge?.copyWith(
               color: theme.colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Select an icon for this category',
-            style: TextStyle(
-              fontSize: 13,
+            style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
@@ -1042,9 +1030,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
           children: [
             Text(
               'Delete "${widget.categoryName}"?',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+              style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.onSurface,
               ),
             ),
@@ -1073,9 +1059,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                         Expanded(
                           child: Text(
                             'Impact Warning',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
+                            style: theme.textTheme.titleSmall?.copyWith(
                               color: theme.colorScheme.onSurface,
                             ),
                           ),
@@ -1085,8 +1069,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                     const SizedBox(height: 8),
                     Text(
                       '${widget.existingTransactionCount} existing transaction${widget.existingTransactionCount > 1 ? 's' : ''} will be affected',
-                      style: TextStyle(
-                        fontSize: 13,
+                      style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: theme.colorScheme.onSurface,
                       ),
@@ -1094,8 +1077,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                     const SizedBox(height: 4),
                     Text(
                       'This includes all historical transactions using "${widget.categoryName}"',
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
@@ -1106,9 +1088,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
               const SizedBox(height: 16),
               Text(
                 'What should happen to these transactions?',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                style: theme.textTheme.titleSmall?.copyWith(
                   color: theme.colorScheme.onSurface,
                 ),
               ),
@@ -1205,24 +1185,21 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                     if (widget.recurringExpenseCount > 0)
                       Text(
                         '• ${widget.recurringExpenseCount} recurring expense${widget.recurringExpenseCount > 1 ? 's' : ''}',
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     if (widget.recurringIncomeCount > 0)
                       Text(
                         '• ${widget.recurringIncomeCount} recurring income${widget.recurringIncomeCount > 1 ? 's' : ''}',
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     const SizedBox(height: 8),
                     Text(
                       'These will continue using "${widget.categoryName}" but it won\'t appear in category lists.',
-                      style: TextStyle(
-                        fontSize: 11,
+                      style: theme.textTheme.bodySmall?.copyWith(
                         fontStyle: FontStyle.italic,
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -1298,17 +1275,14 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                    style: theme.textTheme.titleSmall?.copyWith(
                       color: isSelected ? color : theme.colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      fontSize: 11,
+                    style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),

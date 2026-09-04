@@ -252,8 +252,8 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                 child: ElevatedButton(
                   onPressed: _applyFilters,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.onSurface,
-                    foregroundColor: theme.colorScheme.surface,
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),

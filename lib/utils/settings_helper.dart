@@ -37,8 +37,8 @@ class SettingsHelper {
     await prefs.setBool(_keyDarkMode, value);
   }
 
-  // FIX: Theme Mode - tri-state (light, dark, system)
-  // Returns 'light', 'dark', or 'system'
+  // Theme Mode: 'light', 'dark', 'purple' (fixed lavender appearance) or
+  // 'system'. Anything else is treated as 'system' by the theme resolver.
   static Future<String> getThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
 

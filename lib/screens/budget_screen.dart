@@ -106,10 +106,10 @@ class BudgetScreen extends StatelessWidget {
         button: true,
         child: FloatingActionButton(
           onPressed: () => showAddBudget(context),
-          backgroundColor: theme.colorScheme.onSurface,
+          backgroundColor: theme.colorScheme.primary,
           tooltip: 'Add budget',
           heroTag: 'budget_fab',
-          child: Icon(Icons.add, color: theme.colorScheme.surface),
+          child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
         ),
       ),
     );
@@ -1002,8 +1002,8 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
                 child: ElevatedButton(
                   onPressed: _isSaving ? null : _saveBudget,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.onSurface,
-                    foregroundColor: theme.colorScheme.surface,
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -1594,8 +1594,8 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
                 child: ElevatedButton(
                   onPressed: _isSaving ? null : _saveBudget,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.onSurface,
-                    foregroundColor: theme.colorScheme.surface,
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),

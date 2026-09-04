@@ -12,7 +12,7 @@ A comprehensive personal finance application built with Flutter, designed to hel
 *   **Analytics:** Visual charts to understand spending patterns.
 *   **Multiple Accounts:** Manage personal and business finances separately.
 *   **Data Safety:** Local backup/restore and CSV export.
-*   **Dark Mode:** Comfortable viewing at night.
+*   **Themes:** Light, Dark, or a lavender Purple — or follow the system setting.
 
 ## 📱 User Guide
 

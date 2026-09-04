@@ -75,16 +75,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     final appState = context.read<AppState>();
 
-    final themeSubtitle = themeMode == 'light'
-        ? 'Light'
-        : themeMode == 'dark'
-            ? 'Dark'
-            : 'Follow System';
-    final themeIcon = themeMode == 'light'
-        ? Icons.light_mode
-        : themeMode == 'dark'
-            ? Icons.dark_mode
-            : Icons.brightness_auto;
+    final themeSubtitle = switch (themeMode) {
+      'light' => 'Light',
+      'dark' => 'Dark',
+      'purple' => 'Purple',
+      _ => 'Follow System',
+    };
+    final themeIcon = switch (themeMode) {
+      'light' => Icons.light_mode,
+      'dark' => Icons.dark_mode,
+      'purple' => Icons.palette,
+      _ => Icons.brightness_auto,
+    };
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -547,6 +549,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
               onTap: () {
                 appState.setThemeMode('dark');
+                Navigator.pop(context);
+              },
+            ),
+            _buildThemeOption(
+              context,
+              icon: Icons.palette,
+              title: 'Purple',
+              subtitle: 'Lavender, always light',
+              isSelected: appState.themeMode == 'purple',
+              previewColors: {
+                'surface': luminousPurpleScheme().surface,
+                'onSurface': luminousPurpleScheme().onSurface,
+                'primary': luminousPurpleScheme().primary,
+              },
+              onTap: () {
+                appState.setThemeMode('purple');
                 Navigator.pop(context);
               },
             ),
@@ -1344,40 +1362,16 @@ class _PinSecuritySectionState extends State<_PinSecuritySection> {
   }
 
   Future<void> _changePin() async {
-    final currentPinController = TextEditingController();
-    final verified = await showDialog<bool>(
+    final prompt = await showDialog<_PinVerifyResult>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Verify Current PIN'),
-        content: TextField(
-          controller: currentPinController,
-          keyboardType: TextInputType.number,
-          maxLength: _pinLength,
-          obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Enter current PIN',
-            counterText: '',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              final isValid = await PinSecurityHelper.verifyPin(
-                currentPinController.text,
-              );
-              if (context.mounted) {
-                Navigator.pop(context, isValid);
-              }
-            },
-            child: const Text('Verify'),
-          ),
-        ],
+      builder: (_) => _PinVerifyDialog(
+        title: 'Verify Current PIN',
+        fieldLabel: 'Enter current PIN',
+        confirmLabel: 'Verify',
+        pinLength: _pinLength,
       ),
     );
+    final verified = prompt?.verified;
 
     if (verified == true && mounted) {
       final result = await Navigator.push<bool>(
@@ -1385,7 +1379,7 @@ class _PinSecuritySectionState extends State<_PinSecuritySection> {
         PremiumPageRoute(
           page: PinSetupScreen(
             isChangingPin: true,
-            oldPin: currentPinController.text,
+            oldPin: prompt!.pin,
           ),
         ),
       );
@@ -1412,52 +1406,20 @@ class _PinSecuritySectionState extends State<_PinSecuritySection> {
         ),
       );
     }
-
-    currentPinController.dispose();
   }
 
   Future<void> _disablePin() async {
-    final pinController = TextEditingController();
-    final verified = await showDialog<bool>(
+    final prompt = await showDialog<_PinVerifyResult>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Disable PIN'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Enter your PIN to disable app lock.'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: pinController,
-              keyboardType: TextInputType.number,
-              maxLength: _pinLength,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Enter PIN',
-                counterText: '',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              final isValid = await PinSecurityHelper.verifyPin(
-                pinController.text,
-              );
-              if (context.mounted) {
-                Navigator.pop(context, isValid);
-              }
-            },
-            child: const Text('Disable'),
-          ),
-        ],
+      builder: (_) => _PinVerifyDialog(
+        title: 'Disable PIN',
+        message: 'Enter your PIN to disable app lock.',
+        fieldLabel: 'Enter PIN',
+        confirmLabel: 'Disable',
+        pinLength: _pinLength,
       ),
     );
+    final verified = prompt?.verified;
 
     if (verified == true) {
       await PinSecurityHelper.disablePin();
@@ -1486,8 +1448,6 @@ class _PinSecuritySectionState extends State<_PinSecuritySection> {
         ),
       );
     }
-
-    pinController.dispose();
   }
 
   @override
@@ -1570,6 +1530,97 @@ class _PinSecuritySectionState extends State<_PinSecuritySection> {
             ),
           ),
         ],
+      ],
+    );
+  }
+}
+
+/// What [_PinVerifyDialog] pops with: `null` when cancelled, otherwise whether
+/// the entered [pin] verified.
+typedef _PinVerifyResult = ({bool verified, String pin});
+
+/// Asks for the current PIN and verifies it against [PinSecurityHelper].
+///
+/// The dialog owns its [TextEditingController] so it is disposed by the
+/// widget's own `dispose()`, after the route's exit transition. The previous
+/// shape disposed a method-scoped controller the moment `showDialog` returned
+/// — while the fading-out dialog was still rebuilding its `TextField` — and
+/// recorded "A TextEditingController was used after being disposed" in the
+/// Crash Log on every dismissal (device, 2026-09-04).
+class _PinVerifyDialog extends StatefulWidget {
+  const _PinVerifyDialog({
+    required this.title,
+    this.message,
+    required this.fieldLabel,
+    required this.confirmLabel,
+    required this.pinLength,
+  });
+
+  final String title;
+  final String? message;
+  final String fieldLabel;
+  final String confirmLabel;
+  final int pinLength;
+
+  @override
+  State<_PinVerifyDialog> createState() => _PinVerifyDialogState();
+}
+
+class _PinVerifyDialogState extends State<_PinVerifyDialog> {
+  final _controller = TextEditingController();
+  // A second tap on the confirm button before verifyPin resolves would pop
+  // twice — and the second pop takes the Settings screen with it.
+  bool _verifying = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_verifying) return;
+    setState(() => _verifying = true);
+    final pin = _controller.text;
+    final isValid = await PinSecurityHelper.verifyPin(pin);
+    if (!mounted) return;
+    Navigator.pop(context, (verified: isValid, pin: pin));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final message = widget.message;
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (message != null) ...[
+            Text(message),
+            const SizedBox(height: 16),
+          ],
+          TextField(
+            controller: _controller,
+            keyboardType: TextInputType.number,
+            maxLength: widget.pinLength,
+            obscureText: true,
+            onSubmitted: (_) => _submit(),
+            decoration: InputDecoration(
+              labelText: widget.fieldLabel,
+              counterText: '',
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: _verifying ? null : _submit,
+          child: Text(widget.confirmLabel),
+        ),
       ],
     );
   }

@@ -134,13 +134,92 @@ ColorScheme luminousDarkScheme() {
   );
 }
 
+// Purple (S20). A third, user-chosen appearance that sits beside Light and
+// Dark instead of modifying them: lavender surfaces, one violet for the
+// chrome, and a violet-cast ink in place of pure black so the page reads as
+// a single material. It is a light-brightness theme that never follows the
+// OS, so the status bar, shadow strength and every `brightness == dark`
+// branch in the screens take the light path.
+//
+// Colour still means something here. Income / expense / warning / info stay
+// the light-set semantic colours from `AppColors`, and category identity
+// colours are untouched — the violet is chrome, not status. Contrast is not
+// eyeballed: `test/theme/luminous_theme_test.dart` asserts every ink role
+// clears 4.5:1 on every surface role, that `primary` still reads as an icon on
+// its own tints (nav indicator, list-tile well), and that the semantic colours
+// keep the floor they have on the neutral light scheme.
+ColorScheme luminousPurpleScheme() {
+  return const ColorScheme(
+    brightness: Brightness.light,
+    primary: Color(0xFF5B44A6),
+    onPrimary: Color(0xFFFFFFFF),
+    primaryContainer: Color(0xFFE6DEFF),
+    onPrimaryContainer: Color(0xFF1D0A5A),
+    secondary: Color(0xFF5F5878),
+    onSecondary: Color(0xFFFFFFFF),
+    secondaryContainer: Color(0xFFE7E0F8),
+    onSecondaryContainer: Color(0xFF1D1834),
+    tertiary: Color(0xFF5F5878),
+    onTertiary: Color(0xFFFFFFFF),
+    tertiaryContainer: Color(0xFFE7E0F8),
+    onTertiaryContainer: Color(0xFF1D1834),
+    error: Color(0xFFBA1A1A),
+    onError: Color(0xFFFFFFFF),
+    errorContainer: Color(0xFFFFDAD6),
+    onErrorContainer: Color(0xFF410002),
+    surface: Color(0xFFF8F6FE),
+    onSurface: Color(0xFF1E1A2E),
+    surfaceContainerHighest: Color(0xFFE2DBEF),
+    surfaceContainerHigh: Color(0xFFE8E2F4),
+    surfaceContainer: Color(0xFFEEE9F8),
+    surfaceContainerLow: Color(0xFFF3F0FB),
+    surfaceContainerLowest: Color(0xFFFFFFFF),
+    onSurfaceVariant: Color(0xFF4E4762),
+    outline: Color(0xFF7E7794),
+    outlineVariant: Color(0xFFCFC7E0),
+    shadow: Color(0xFF000000),
+    scrim: Color(0xFF000000),
+    inverseSurface: Color(0xFF312D3F),
+    onInverseSurface: Color(0xFFF3EFFA),
+    inversePrimary: Color(0xFFC9B8FF),
+  );
+}
+
+/// Maps the persisted `theme_mode` string (see `SettingsHelper`) to what
+/// `MaterialApp.themeMode` needs. `'purple'` is a fixed light-brightness
+/// appearance, so it rides the `theme` slot under [ThemeMode.light] — see the
+/// `colorScheme` parameter of [buildLuminousTheme]. Anything unrecognised (a
+/// value written by a newer build, a hand-edited pref) degrades to following
+/// the OS rather than throwing.
+ThemeMode themeModeFor(String mode) {
+  switch (mode) {
+    case 'light':
+    case 'purple':
+      return ThemeMode.light;
+    case 'dark':
+      return ThemeMode.dark;
+    default:
+      return ThemeMode.system;
+  }
+}
+
 ThemeData buildLuminousTheme({
   required Brightness brightness,
   required ThemeExtension<dynamic> appColorsExtension,
+  // Replaces the neutral scheme for [brightness]; the Purple appearance
+  // passes [luminousPurpleScheme]. Its own brightness has to agree, because
+  // everything else in here (status-bar icons, shadow strength, and the
+  // `brightness == dark` branches in the screens) keys off [brightness].
+  ColorScheme? colorScheme,
 }) {
-  final cs = brightness == Brightness.light
-      ? luminousLightScheme()
-      : luminousDarkScheme();
+  assert(
+    colorScheme == null || colorScheme.brightness == brightness,
+    'colorScheme.brightness must match brightness',
+  );
+  final cs = colorScheme ??
+      (brightness == Brightness.light
+          ? luminousLightScheme()
+          : luminousDarkScheme());
   final textTheme = _luminousTextTheme(cs);
   final isDark = brightness == Brightness.dark;
 
