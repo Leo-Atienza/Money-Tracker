@@ -62,6 +62,26 @@ void main() {
       expect(await SettingsHelper.getThemeMode(), 'system');
       expect(notifyCount, 1);
     });
+
+    test('initialThemeMode seeds the first frame before settings load', () {
+      final seeded = AppState(initialThemeMode: 'purple');
+      addTearDown(seeded.dispose);
+      expect(seeded.themeMode, 'purple');
+      expect(seeded.isDarkMode, isFalse);
+
+      final dark = AppState(initialThemeMode: 'dark');
+      addTearDown(dark.dispose);
+      expect(dark.isDarkMode, isTrue);
+    });
+
+    test('purple theme: a fixed light appearance, isDarkMode false', () async {
+      await state.setThemeMode('purple');
+
+      expect(state.themeMode, 'purple');
+      expect(state.isDarkMode, isFalse);
+      expect(await SettingsHelper.getThemeMode(), 'purple');
+      expect(notifyCount, 1);
+    });
   });
 
   group('AppState.toggleDarkMode', () {

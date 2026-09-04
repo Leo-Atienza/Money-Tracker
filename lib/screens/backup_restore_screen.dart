@@ -202,132 +202,12 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   /// for "I'd rather not encrypt" is the CSV export, which is
   /// already on this screen. Forgotten-passphrase risk is called out
   /// explicitly in the dialog copy (R12 in the master plan).
-  Future<String?> _promptForBackupPassphrase() async {
-    final passphraseController = TextEditingController();
-    final confirmController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    String? validationError;
-    bool obscure = true;
-
-    final result = await showDialog<String>(
+  Future<String?> _promptForBackupPassphrase() {
+    return showDialog<String>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final dialogTheme = Theme.of(context);
-            final dialogAppColors = dialogTheme.extension<AppColors>()!;
-            return AlertDialog(
-              title: const Text('Encrypt backup'),
-              content: SingleChildScrollView(
-                child: Form(
-                  key: formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: dialogAppColors.warningOrange.withAlpha(20),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: dialogAppColors.warningOrange.withAlpha(100),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.lock_outline,
-                              size: 20,
-                              color: dialogAppColors.warningOrange,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Choose a passphrase. We cannot recover '
-                                'this file if you forget it.',
-                                style: dialogTheme.textTheme.bodySmall,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: passphraseController,
-                        obscureText: obscure,
-                        autofocus: true,
-                        decoration: InputDecoration(
-                          labelText: 'Passphrase',
-                          suffixIcon: IconButton(
-                            tooltip: obscure ? 'Show' : 'Hide',
-                            icon: Icon(obscure
-                                ? Icons.visibility_off
-                                : Icons.visibility),
-                            onPressed: () => setDialogState(
-                              () => obscure = !obscure,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: confirmController,
-                        obscureText: obscure,
-                        decoration: const InputDecoration(
-                          labelText: 'Confirm passphrase',
-                        ),
-                      ),
-                      if (validationError != null) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          validationError!,
-                          style: dialogTheme.textTheme.bodySmall?.copyWith(
-                            color: dialogTheme.colorScheme.error,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, null),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    final pw = passphraseController.text;
-                    final confirm = confirmController.text;
-                    if (pw.length < 6) {
-                      setDialogState(() {
-                        validationError =
-                            'Passphrase must be at least 6 characters.';
-                      });
-                      return;
-                    }
-                    if (pw != confirm) {
-                      setDialogState(() {
-                        validationError = 'Passphrases do not match.';
-                      });
-                      return;
-                    }
-                    Navigator.pop(dialogContext, pw);
-                  },
-                  child: const Text('Encrypt & Save'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (_) => const _BackupPassphraseDialog(),
     );
-
-    passphraseController.dispose();
-    confirmController.dispose();
-    return result;
   }
 
   /// Phase 6.3 — prompts the user for the passphrase when restoring
@@ -1559,6 +1439,146 @@ class _BackupTile extends StatelessWidget {
                 },
               ),
       ),
+    );
+  }
+}
+
+/// Passphrase prompt for an encrypted backup. Pops with the passphrase, or
+/// `null` on cancel.
+///
+/// Owns its two controllers so they are disposed with the widget, after the
+/// route's exit transition. The previous `StatefulBuilder` shape disposed
+/// method-scoped controllers the moment `showDialog` returned, while the
+/// fading-out dialog still rebuilt its fields — the same "used after being
+/// disposed" error the Crash Log recorded for the PIN dialogs.
+class _BackupPassphraseDialog extends StatefulWidget {
+  const _BackupPassphraseDialog();
+
+  @override
+  State<_BackupPassphraseDialog> createState() =>
+      _BackupPassphraseDialogState();
+}
+
+class _BackupPassphraseDialogState extends State<_BackupPassphraseDialog> {
+  final _passphraseController = TextEditingController();
+  final _confirmController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  String? _validationError;
+  bool _obscure = true;
+
+  @override
+  void dispose() {
+    _passphraseController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final pw = _passphraseController.text;
+    final confirm = _confirmController.text;
+    if (pw.length < 6) {
+      setState(() {
+        _validationError = 'Passphrase must be at least 6 characters.';
+      });
+      return;
+    }
+    if (pw != confirm) {
+      setState(() {
+        _validationError = 'Passphrases do not match.';
+      });
+      return;
+    }
+    Navigator.pop(context, pw);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dialogTheme = Theme.of(context);
+    final dialogAppColors = dialogTheme.extension<AppColors>()!;
+    final validationError = _validationError;
+    return AlertDialog(
+      title: const Text('Encrypt backup'),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: dialogAppColors.warningOrange.withAlpha(20),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: dialogAppColors.warningOrange.withAlpha(100),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.lock_outline,
+                      size: 20,
+                      color: dialogAppColors.warningOrange,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Choose a passphrase. We cannot recover '
+                        'this file if you forget it.',
+                        style: dialogTheme.textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _passphraseController,
+                obscureText: _obscure,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Passphrase',
+                  suffixIcon: IconButton(
+                    tooltip: _obscure ? 'Show' : 'Hide',
+                    icon: Icon(
+                      _obscure ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _confirmController,
+                obscureText: _obscure,
+                decoration: const InputDecoration(
+                  labelText: 'Confirm passphrase',
+                ),
+              ),
+              if (validationError != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  validationError,
+                  style: dialogTheme.textTheme.bodySmall?.copyWith(
+                    color: dialogTheme.colorScheme.error,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: _submit,
+          child: const Text('Encrypt & Save'),
+        ),
+      ],
     );
   }
 }

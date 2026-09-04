@@ -467,8 +467,8 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                         onPressed:
                             (isPaymentValid && !_isSaving) ? _addPayment : null,
                         style: FilledButton.styleFrom(
-                          backgroundColor: theme.colorScheme.onSurface,
-                          foregroundColor: theme.colorScheme.surface,
+                          backgroundColor: theme.colorScheme.primary,
+                          foregroundColor: theme.colorScheme.onPrimary,
                           // FIX: Show visual feedback when disabled
                           disabledBackgroundColor:
                               theme.colorScheme.surfaceContainerHighest,

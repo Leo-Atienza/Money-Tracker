@@ -568,8 +568,6 @@ class _HistoryScreenState extends State<HistoryScreen>
               child: Text(
                 'History',
                 style: theme.textTheme.headlineMedium?.copyWith(
-                  fontSize: 32,
-                  letterSpacing: -0.5,
                   color: theme.colorScheme.onSurface,
                 ),
               ),
@@ -601,12 +599,8 @@ class _HistoryScreenState extends State<HistoryScreen>
                 ),
                 indicatorSize: TabBarIndicatorSize.tab,
                 dividerColor: Colors.transparent,
-                labelStyle: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-                unselectedLabelStyle: const TextStyle(
-                  fontSize: 14,
+                labelStyle: theme.textTheme.labelLarge,
+                unselectedLabelStyle: theme.textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w500,
                 ),
                 padding: const EdgeInsets.all(4),
@@ -693,17 +687,16 @@ class _HistoryScreenState extends State<HistoryScreen>
               _loadAllTimeData();
             }
           },
-          labelStyle: TextStyle(
-            fontSize: 13,
-            // Selected chips fill with onSurface, so the label must flip to
-            // surface to stay readable (was a muted onSurfaceVariant default).
+          labelStyle: theme.textTheme.bodySmall?.copyWith(
+            // Selected chips fill with primary, so the label must flip to
+            // onPrimary to stay readable (was a muted onSurfaceVariant default).
             color: isSelected
-                ? theme.colorScheme.surface
+                ? theme.colorScheme.onPrimary
                 : theme.colorScheme.onSurface,
           ),
           backgroundColor: theme.colorScheme.surface,
-          selectedColor: theme.colorScheme.onSurface,
-          checkmarkColor: theme.colorScheme.surface,
+          selectedColor: theme.colorScheme.primary,
+          checkmarkColor: theme.colorScheme.onPrimary,
           side: BorderSide(
             color: isSelected
                 ? Colors.transparent
@@ -744,17 +737,16 @@ class _HistoryScreenState extends State<HistoryScreen>
               _loadAllTimeData();
             }
           },
-          labelStyle: TextStyle(
-            fontSize: 13,
-            // Selected chips fill with onSurface, so the label must flip to
-            // surface to stay readable (was a muted onSurfaceVariant default).
+          labelStyle: theme.textTheme.bodySmall?.copyWith(
+            // Selected chips fill with primary, so the label must flip to
+            // onPrimary to stay readable (was a muted onSurfaceVariant default).
             color: isSelected
-                ? theme.colorScheme.surface
+                ? theme.colorScheme.onPrimary
                 : theme.colorScheme.onSurface,
           ),
           backgroundColor: theme.colorScheme.surface,
-          selectedColor: theme.colorScheme.onSurface,
-          checkmarkColor: theme.colorScheme.surface,
+          selectedColor: theme.colorScheme.primary,
+          checkmarkColor: theme.colorScheme.onPrimary,
           side: BorderSide(
             color: isSelected
                 ? Colors.transparent
@@ -925,8 +917,7 @@ class _HistoryScreenState extends State<HistoryScreen>
       ),
       subtitle: Text(
         subtitle,
-        style: TextStyle(
-          fontSize: 12,
+        style: theme.textTheme.bodySmall?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
         ),
       ),
@@ -1236,9 +1227,7 @@ class _HistoryScreenState extends State<HistoryScreen>
           padding: const EdgeInsets.only(top: 8, bottom: 4, left: 4),
           child: Text(
             dateStr,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
+            style: theme.textTheme.labelMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
@@ -1269,9 +1258,7 @@ class _HistoryScreenState extends State<HistoryScreen>
           padding: const EdgeInsets.only(top: 8, bottom: 4, left: 4),
           child: Text(
             dateStr,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
+            style: theme.textTheme.labelMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
@@ -1431,9 +1418,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                                   children: [
                                     Text(
                                       expense.description,
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
+                                      style: theme.textTheme.titleMedium?.copyWith(
                                         color: theme.colorScheme.onSurface,
                                       ),
                                       maxLines: 1,
@@ -1444,10 +1429,8 @@ class _HistoryScreenState extends State<HistoryScreen>
                                       children: [
                                         Text(
                                           expense.category,
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: theme
-                                                .colorScheme.onSurfaceVariant,
+                                          style: theme.textTheme.bodySmall?.copyWith(
+                                            color: theme.colorScheme.onSurfaceVariant,
                                           ),
                                         ),
                                         // Show payment method tag
@@ -1458,11 +1441,8 @@ class _HistoryScreenState extends State<HistoryScreen>
                                                 horizontal: 6),
                                             child: Text(
                                               '•',
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                color: theme.colorScheme
-                                                    .onSurfaceVariant
-                                                    .withAlpha(120),
+                                              style: theme.textTheme.bodySmall?.copyWith(
+                                                color: theme.colorScheme.onSurfaceVariant.withAlpha(120),
                                               ),
                                             ),
                                           ),
@@ -1486,12 +1466,11 @@ class _HistoryScreenState extends State<HistoryScreen>
                                             ),
                                             child: Text(
                                               expense.paymentMethod,
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w500,
+                                              style: theme.textTheme.labelMedium?.copyWith(
                                                 color: _paymentMethodColor(
-                                                    expense.paymentMethod,
-                                                    theme.colorScheme),
+                                                  expense.paymentMethod,
+                                                  theme.colorScheme,
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -1511,21 +1490,15 @@ class _HistoryScreenState extends State<HistoryScreen>
                                                         horizontal: 6),
                                                     child: Text(
                                                       '•',
-                                                      style: TextStyle(
-                                                        fontSize: 10,
-                                                        color: theme.colorScheme
-                                                            .onSurfaceVariant
-                                                            .withAlpha(120),
+                                                      style: theme.textTheme.bodySmall?.copyWith(
+                                                        color: theme.colorScheme.onSurfaceVariant.withAlpha(120),
                                                       ),
                                                     ),
                                                   ),
                                                   Text(
                                                     relativeTime,
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: theme.colorScheme
-                                                          .onSurfaceVariant
-                                                          .withAlpha(150),
+                                                    style: theme.textTheme.bodySmall?.copyWith(
+                                                      color: theme.colorScheme.onSurfaceVariant.withAlpha(150),
                                                     ),
                                                   ),
                                                 ],
@@ -1546,9 +1519,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                                   Text(
                                     // M16: grouped formatting to match the a11y label.
                                     appState.formatWithCurrency(expense.amount),
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
+                                    style: theme.textTheme.titleMedium?.copyWith(
                                       color: appColors.expenseRed,
                                     ),
                                   ),
@@ -1567,9 +1538,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                                       child: Text(
                                         // M16: grouped formatting.
                                         '${appState.formatWithCurrency(expense.remainingAmount)} left',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w500,
+                                        style: theme.textTheme.labelMedium?.copyWith(
                                           color: appColors.warningOrange,
                                         ),
                                       ),
@@ -1598,11 +1567,8 @@ class _HistoryScreenState extends State<HistoryScreen>
                                           const SizedBox(width: 3),
                                           Text(
                                             'PAID',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w600,
+                                            style: theme.textTheme.labelSmall?.copyWith(
                                               color: appColors.incomeGreen,
-                                              letterSpacing: 0.5,
                                             ),
                                           ),
                                         ],
@@ -1645,8 +1611,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                                       expense.amountPaid > 0
                                           ? 'Pay More'
                                           : 'Pay Bill',
-                                      style: TextStyle(
-                                        fontSize: 12,
+                                      style: theme.textTheme.labelLarge?.copyWith(
                                         color: appColors.warningOrange,
                                       ),
                                     ),
@@ -1673,10 +1638,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                                     size: 16,
                                     color: theme.colorScheme.primary,
                                   ),
-                                  label: const Text(
-                                    'Edit Details',
-                                    style: TextStyle(fontSize: 12),
-                                  ),
+                                  label: const Text('Edit Details'),
                                   style: OutlinedButton.styleFrom(
                                     side: BorderSide(
                                         color: theme.colorScheme.primary
@@ -1841,9 +1803,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                               children: [
                                 Text(
                                   income.description,
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
+                                  style: theme.textTheme.titleMedium?.copyWith(
                                     color: theme.colorScheme.onSurface,
                                   ),
                                   maxLines: 1,
@@ -1854,10 +1814,8 @@ class _HistoryScreenState extends State<HistoryScreen>
                                   children: [
                                     Text(
                                       income.category,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color:
-                                            theme.colorScheme.onSurfaceVariant,
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.onSurfaceVariant,
                                       ),
                                     ),
                                     // Show relative time if available
@@ -1875,21 +1833,15 @@ class _HistoryScreenState extends State<HistoryScreen>
                                                         horizontal: 6),
                                                 child: Text(
                                                   '•',
-                                                  style: TextStyle(
-                                                    fontSize: 10,
-                                                    color: theme.colorScheme
-                                                        .onSurfaceVariant
-                                                        .withAlpha(120),
+                                                  style: theme.textTheme.bodySmall?.copyWith(
+                                                    color: theme.colorScheme.onSurfaceVariant.withAlpha(120),
                                                   ),
                                                 ),
                                               ),
                                               Text(
                                                 relativeTime,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: theme.colorScheme
-                                                      .onSurfaceVariant
-                                                      .withAlpha(150),
+                                                style: theme.textTheme.bodySmall?.copyWith(
+                                                  color: theme.colorScheme.onSurfaceVariant.withAlpha(150),
                                                 ),
                                               ),
                                             ],
@@ -1907,9 +1859,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                           Text(
                             // M16: grouped formatting; keep the leading + sign.
                             '+${appState.formatWithCurrency(income.amount)}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                            style: theme.textTheme.titleMedium?.copyWith(
                               color: appColors.incomeGreen,
                             ),
                           ),

@@ -147,17 +147,14 @@ class _AccountList extends StatelessWidget {
                 ),
                 title: Text(
                   account.name,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                  style: theme.textTheme.titleMedium?.copyWith(
                     color: theme.colorScheme.onSurface,
                   ),
                 ),
                 subtitle: account.isDefault
                     ? Text(
                         'Default Account',
-                        style: TextStyle(
-                          fontSize: 13,
+                        style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       )
@@ -169,15 +166,13 @@ class _AccountList extends StatelessWidget {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.onSurface,
+                          color: theme.colorScheme.primary,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           'Active',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.surface,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: theme.colorScheme.onPrimary,
                           ),
                         ),
                       )
@@ -273,10 +268,8 @@ class _AccountList extends StatelessWidget {
                                           Expanded(
                                             child: Text(
                                               'You\'ll see transactions and budgets for this account.',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color:
-                                                    theme.colorScheme.onSurface,
+                                              style: theme.textTheme.bodySmall?.copyWith(
+                                                color: theme.colorScheme.onSurface,
                                               ),
                                             ),
                                           ),
@@ -385,8 +378,7 @@ class _AccountList extends StatelessWidget {
                                           Expanded(
                                             child: Text(
                                               'You\'ll see transactions and budgets for this account.',
-                                              style: TextStyle(
-                                                fontSize: 12,
+                                              style: theme.textTheme.bodySmall?.copyWith(
                                                 color: theme.colorScheme.onSurface,
                                               ),
                                             ),
@@ -449,13 +441,14 @@ class _AccountList extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'No accounts',
-            style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface),
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.onSurface,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             'Tap + to create your first account',
-            style: TextStyle(
-              fontSize: 14,
+            style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
@@ -501,9 +494,7 @@ class _AccountList extends StatelessWidget {
           children: [
             Text(
               'Delete "${account.name}"?',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
+              style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.onSurface,
               ),
             ),
@@ -522,8 +513,7 @@ class _AccountList extends StatelessWidget {
                   Expanded(
                     child: Text(
                       'All transactions, budgets, and data in this account will be permanently deleted.',
-                      style: TextStyle(
-                        fontSize: 13,
+                      style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
@@ -534,8 +524,7 @@ class _AccountList extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'This action cannot be undone.',
-              style: TextStyle(
-                fontSize: 12,
+              style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.error,
                 fontWeight: FontWeight.w500,
               ),
@@ -773,9 +762,7 @@ class _DeletedAccountsSectionState extends State<_DeletedAccountsSection> {
                   ),
                   child: Text(
                     '${_deletedAccounts.length}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                    style: theme.textTheme.labelMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
@@ -793,8 +780,7 @@ class _DeletedAccountsSectionState extends State<_DeletedAccountsSection> {
           const SizedBox(height: 8),
           Text(
             'Accounts can be restored within 30 days of deletion.',
-            style: TextStyle(
-              fontSize: 12,
+            style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
@@ -826,9 +812,7 @@ class _DeletedAccountsSectionState extends State<_DeletedAccountsSection> {
                       children: [
                         Text(
                           account['name'] as String,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
+                          style: theme.textTheme.titleMedium?.copyWith(
                             color: theme.colorScheme.onSurface,
                           ),
                         ),

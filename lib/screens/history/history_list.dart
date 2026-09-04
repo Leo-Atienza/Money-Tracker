@@ -240,9 +240,7 @@ class HistoryList extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Result limit reached',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+            style: theme.textTheme.titleSmall?.copyWith(
               color: theme.colorScheme.onSurface,
             ),
           ),
@@ -250,8 +248,7 @@ class HistoryList extends StatelessWidget {
           Text(
             'Showing first $maxTotalResults results. Refine your search to see more specific items.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
+            style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),

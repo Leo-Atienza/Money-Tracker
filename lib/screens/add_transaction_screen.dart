@@ -1073,7 +1073,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               onPressed: _isSaving ? null : _save,
               style: ElevatedButton.styleFrom(
                 backgroundColor: _isExpense
-                    ? theme.colorScheme.onSurface
+                    ? theme.colorScheme.primary
                     : appColors.incomeGreen,
                 // The income variant used a hardcoded Colors.white, which fails
                 // WCAG AA on incomeGreen in BOTH themes — measured 4.12:1 in
@@ -1125,7 +1125,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   /// Asking [ColorContrastHelper] for the right ink is both correct today and
   /// self-correcting if the palette is ever retuned.
   Color _saveLabelColor(ThemeData theme, AppColors appColors) {
-    if (_isExpense) return theme.colorScheme.surface;
+    if (_isExpense) return theme.colorScheme.onPrimary;
     return ColorContrastHelper.getContrastingTextColor(appColors.incomeGreen);
   }
 

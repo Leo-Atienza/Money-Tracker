@@ -14,7 +14,7 @@ This document describes what the app does **and** everything typically needed to
 
 Money Tracker is a **local-first** Flutter app for recording and understanding personal money flow. There is **no remote backend**: data stays on the device in **SQLite** (`sqflite`). State is coordinated with **Provider** (`AppState`).
 
-The UI follows **Material 3** (`useMaterial3: true`), with **light / dark / system** theme modes and tooling aimed at **accessible contrast** (semantic money colors derived from WCAG-oriented helpers).
+The UI follows **Material 3** (`useMaterial3: true`), with **light / dark / purple / system** theme modes and tooling aimed at **accessible contrast** (semantic money colors derived from WCAG-oriented helpers).
 
 ---
 
@@ -112,7 +112,7 @@ Four root tabs in an `IndexedStack` (state preserved when switching tabs). **Lab
 | Section | Destinations |
 |---------|----------------|
 | **Accounts** | Account picker (modal / flow)—current account name shown on tile. |
-| **Appearance** | Theme mode (light / dark / system), **transaction card colors** toggle + **intensity slider** (0.1–1.0). |
+| **Appearance** | Theme mode (light / dark / purple / system), **transaction card colors** toggle + **intensity slider** (0.1–1.0). |
 | **Security** | PIN setup / management (`PinSetupScreen` embedded in `_PinSecurityCard`). |
 | **Preferences** | Currency picker; **Recurring Expenses**; **Recurring Income**; **Categories**; **Quick Templates**. |
 | **Insights** | **Budgets**; **Analytics**. |

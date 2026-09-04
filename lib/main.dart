@@ -24,6 +24,7 @@ import 'utils/notification_payload_store.dart';
 import 'utils/home_widget_helper.dart';
 import 'theme/luminous_app_theme.dart';
 import 'utils/premium_animations.dart';
+import 'utils/settings_helper.dart';
 
 /// Resolves the current app version from the native bundle so it stays in
 /// sync with `pubspec.yaml` → `version:`. Falls back to `'unknown'` only when
@@ -91,9 +92,13 @@ void main() {
       // Initialize date formatting
       await initializeDateFormatting();
 
+      // Read the theme before the first frame so Dark and Purple users do not
+      // get a flash of the light scheme while settings load (see AppState).
+      final initialThemeMode = await SettingsHelper.getThemeMode();
+
       runApp(
         ChangeNotifierProvider(
-          create: (_) => AppState(),
+          create: (_) => AppState(initialThemeMode: initialThemeMode),
           child: const MyApp(),
         ),
       );
@@ -243,6 +248,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final themeMode = context.select<AppState, String>((s) => s.themeMode);
+    // Purple is a fixed light-brightness appearance: it takes the `theme`
+    // slot, and themeModeFor() pins ThemeMode.light so darkTheme never
+    // applies while it is selected.
+    final purple = themeMode == 'purple';
 
     return MaterialApp(
       title: 'FinanceFlow',
@@ -250,16 +259,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       theme: buildLuminousTheme(
         brightness: Brightness.light,
         appColorsExtension: AppColors.fromBrightness(Brightness.light),
+        colorScheme: purple ? luminousPurpleScheme() : null,
       ),
       darkTheme: buildLuminousTheme(
         brightness: Brightness.dark,
         appColorsExtension: AppColors.fromBrightness(Brightness.dark),
       ),
-      themeMode: themeMode == 'light'
-          ? ThemeMode.light
-          : themeMode == 'dark'
-              ? ThemeMode.dark
-              : ThemeMode.system,
+      themeMode: themeModeFor(themeMode),
       // The Luminous design assumes an OrganicBlobBackground behind every
       // screen. Painting it here — below the Navigator but inside the Theme
       // scope — gives EVERY route the correct light/dark backdrop. Pushed

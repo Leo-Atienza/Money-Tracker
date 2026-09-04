@@ -175,6 +175,43 @@ void main() {
     expect(find.text('Each month starts from zero'), findsOneWidget);
   });
 
+  testWidgets(
+      'theme picker offers Light, Dark, Purple and Follow System; '
+      'choosing Purple persists it and updates the row', (tester) async {
+    final state = AppState();
+    await tester.runAsync(() => state.loadData());
+    await pumpHarness(tester, appState: state);
+    await tester.pumpAndSettle();
+
+    // Default is to follow the OS; the row subtitle says so.
+    expect(find.text('Follow System'), findsOneWidget);
+
+    await tester.tap(find.text('Theme'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Choose Theme'), findsOneWidget);
+    for (final option in ['Light', 'Dark', 'Purple']) {
+      expect(find.text(option), findsOneWidget, reason: option);
+    }
+    // Row subtitle + the sheet option.
+    expect(find.text('Follow System'), findsNWidgets(2));
+    expect(find.text('Lavender, always light'), findsOneWidget);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Purple'));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await tester.pumpAndSettle();
+
+    expect(state.themeMode, 'purple');
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('theme_mode'), 'purple');
+    // The sheet closed and the row now reads "Purple".
+    expect(find.text('Choose Theme'), findsNothing);
+    expect(find.text('Purple'), findsOneWidget);
+    expect(find.text('Follow System'), findsNothing);
+  });
+
   testWidgets('PIN section shows "Lock app with PIN" when disabled',
       (tester) async {
     // Empty secureBacking ⇒ PinSecurityHelper.isPinEnabled() resolves false.
