@@ -61,3 +61,6 @@ TRASH/
 
 # Flutter CLI crash dumps (regenerated on the next crash, never worth committing)
 flutter_*.log
+
+# Kotlin 2.2 compiler session files (created by the Gradle build)
+android/.kotlin/

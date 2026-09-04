@@ -46,7 +46,14 @@ class GlassPanel extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
-        child: Padding(padding: padding, child: child),
+        // Flutter 3.47 asserts when a ListTile (or any ink) sits on a
+        // DecoratedBox with no Material between them, because the fill would
+        // hide the ripple. A transparent Material above the fill lets the ink
+        // paint, and the ClipRRect keeps it inside the corners.
+        child: Material(
+          type: MaterialType.transparency,
+          child: Padding(padding: padding, child: child),
+        ),
       ),
     );
   }

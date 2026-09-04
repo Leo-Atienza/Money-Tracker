@@ -146,7 +146,11 @@ class ColorContrastHelper {
     } else {
       return StatusColors(
         success: Colors.green.shade700, // Sufficient contrast on light
-        warning: Colors.orange.shade800, // Sufficient contrast on light
+        // Orange 800 (#EF6C00) was 2.5-2.9:1 on the light surfaces - below
+        // the 3:1 floor the 12 px "Pay Bill" / "left" tags need. This amber
+        // clears 4.0:1 on the darkest light surface and 3.7:1 on the darkest
+        // lavender one (asserted in test/theme/luminous_theme_test.dart).
+        warning: const Color(0xFFB45309),
         error: Colors.red.shade700, // Sufficient contrast on light
         info: Colors.blue.shade700, // Sufficient contrast on light
       );
