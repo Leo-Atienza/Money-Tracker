@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../utils/color_contrast_helper.dart';
+
 class ColorPicker extends StatelessWidget {
   final String? selectedColor;
   final Function(String?) onColorSelected;
@@ -117,8 +119,17 @@ class ColorPicker extends StatelessWidget {
                             size: 24,
                           )
                         : isSelected
-                            ? const Icon(Icons.check,
-                                color: Colors.white, size: 24)
+                            // The swatch can be any hue the user picked;
+                            // a fixed white check disappears on the light
+                            // ones. Measure the ink against the swatch.
+                            ? Icon(
+                                Icons.check,
+                                color: ColorContrastHelper
+                                    .getContrastingTextColor(
+                                  parseColor(color),
+                                ),
+                                size: 24,
+                              )
                             : null,
                   ),
                 );

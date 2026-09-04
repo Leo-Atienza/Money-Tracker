@@ -5,6 +5,53 @@
 > (L100 Quality Upgrade) and was never shipped. The actual public release of
 > this bug-fix + crash-log pass is `4.4.0+6`.
 
+## 5.2.0+12 — 2026-09-03
+
+Month-to-month carry-over, and a polish pass driven by rendering every
+screen on a device in both themes.
+
+### Added
+- **Carry Over Balance.** Whatever is left at the end of a month — surplus
+  or deficit — now rolls into the next month. The Home balance includes it,
+  with a line underneath saying how much came from the previous month
+  ("+$120.00 carried over from August"). Turn it off in
+  **Settings → Preferences → Carry Over Balance** to make every month start
+  from zero. The launcher widget follows the same setting.
+- The carried balance is computed from your transaction history every time,
+  so editing or deleting something months back is reflected immediately —
+  there is no stored running total that can drift.
+
+### Fixed
+- Budgets: the carried-over amount printed as "$-78" (minus after the
+  symbol); the Income tile pointed its arrow downward; "Total Available" was
+  tinted red even when positive.
+- Setting an overall monthly budget no longer risks being wiped when the
+  month's carry-over is recomputed.
+- Add tab: a stale back arrow could appear on the tab after a theme change
+  while another screen was open, and pressing it prompted "Discard changes?"
+  on an empty form.
+- Analytics: the spending donut now uses each category's own colour (the
+  same one shown on Home and History) instead of an unrelated palette;
+  month-over-month amounts are formatted like the rest of the app ("$3,000").
+- Several buttons and icons used white ink on the income green / expense red
+  fills, which fails WCAG AA in dark mode (Recurring Income save button and
+  day chips, the Recurring "+" button, the swipe-to-delete icon, the colour
+  picker check). They now use the measured contrasting ink.
+- Text roles that were not defined in the theme (`bodySmall`, `labelLarge`,
+  `titleSmall` — about 50 call sites) rendered in Roboto instead of the app's
+  typeface.
+- Screen readers: header icon buttons were announced twice; settings switches
+  now read as one labelled control, and tapping anywhere on a switch row
+  toggles it.
+- Home transaction divider was a raw white hairline (invisible in light
+  mode, bright in dark).
+
+### Internal
+- `pubspec.lock` is now committed so CI resolves the same dependency set
+  that passed locally.
+- Removed vestigial Firebase config, IntelliJ module files, the in-repo
+  landing-page copy and old baseline logs (see TRASH-FILES.md).
+
 ## 5.1.2+11 — 2026-06-29
 
 Black-and-white look, plus an important lock-screen fix.

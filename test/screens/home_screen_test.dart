@@ -5,6 +5,7 @@ import 'package:budget_tracker/providers/app_state.dart';
 import 'package:budget_tracker/screens/home_screen.dart';
 import 'package:budget_tracker/theme/app_colors.dart';
 import 'package:budget_tracker/theme/luminous_app_theme.dart';
+import 'package:budget_tracker/utils/date_helper.dart';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -226,6 +227,45 @@ void main() {
       // expense has amountPaid = 0, so the available balance equals
       // totalIncome here.
       expect(state.availableIncomeBalance, 3000.0);
+    },
+  );
+
+  testWidgets(
+    'hero shows the carried-over line when last month left money over',
+    (tester) async {
+      final state = AppState();
+      await tester.runAsync(() async {
+        await state.loadData();
+        final lastMonth = DateHelper.subtractMonths(DateHelper.today(), 1);
+        await state.addIncome(Income(
+          amount: Decimal.parse('250'),
+          category: 'Salary',
+          description: 'late paycheck',
+          date: DateTime.utc(lastMonth.year, lastMonth.month, 15),
+          accountId: state.currentAccountId,
+        ));
+        await state.recalculateCarryovers();
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      });
+      await pumpHarness(tester, appState: state);
+      await pumpAndDrain(tester);
+
+      expect(state.carryoverForSelectedMonth, 250.0);
+      // The hero is income + carried-over - paid; nothing this month, so it
+      // IS the carried amount, and the line under it says where it came from.
+      expect(state.totalAvailableCash, 250.0);
+      expect(
+        find.textContaining('carried over from ${state.previousMonthName}'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('+\$250.00'), findsOneWidget);
+
+      // Turning the setting off drops the line and the hero falls back to
+      // this month's own figure.
+      await tester.runAsync(() => state.toggleCarryover(false));
+      await pumpAndDrain(tester);
+      expect(state.totalAvailableCash, 0.0);
+      expect(find.textContaining('carried over from'), findsNothing);
     },
   );
 

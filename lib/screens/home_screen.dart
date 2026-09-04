@@ -358,8 +358,14 @@ class HomeScreen extends StatelessWidget {
                                           Divider(
                                             height: 1,
                                             thickness: 1,
-                                            color: Colors.white
-                                                .withValues(alpha: 0.35),
+                                            // A raw white hairline was
+                                            // invisible on the light panel
+                                            // and a bright line on the dark
+                                            // one; the outline token reads
+                                            // the same in both themes.
+                                            color: theme
+                                                .colorScheme.outlineVariant
+                                                .withValues(alpha: 0.5),
                                           ),
                                         _GlassHomeExpenseTile(
                                             expense: expenses[i]),
@@ -589,19 +595,32 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final appColors = theme.extension<AppColors>()!;
-    final financialData =
-        context.select<AppState, (double, double, double, double)>(
+    final (
+      totalIncome,
+      totalSpent,
+      totalBalance,
+      carryover,
+      hasCarryover,
+      previousMonth,
+      currency,
+    ) = context.select<AppState,
+        (double, double, double, double, bool, String, String)>(
       (s) => (
         s.totalIncome,
         s.totalSpent,
-        s.availableIncomeBalance,
-        s.currency.length.toDouble(),
+        // Income + whatever was carried into this month - what has been paid
+        // so far. With Carry Over Balance off the middle term is zero and
+        // this is the plain income-minus-paid figure it always was.
+        s.totalAvailableCash,
+        s.carryoverForSelectedMonth,
+        s.hasCarryover,
+        s.previousMonthName,
+        s.currency,
       ),
     );
-    final totalIncome = financialData.$1;
-    final totalSpent = financialData.$2;
-    final totalBalance = financialData.$3;
     final appState = context.read<AppState>();
+    final carryoverSigned =
+        '${carryover < 0 ? '-' : '+'}$currency${appState.formatAmount(carryover.abs())}';
 
     // De-glass: the Income/Expenses tiles nested in the balance card are solid
     // surfaces drawn from the colorScheme so they read as distinct cards in
@@ -622,8 +641,10 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Semantics(
-              label:
-                  'Total balance ${appState.formatWithCurrency(totalBalance)}',
+              label: hasCarryover
+                  ? 'Total balance ${appState.formatWithCurrency(totalBalance)}, '
+                      'includes $carryoverSigned carried over from $previousMonth'
+                  : 'Total balance ${appState.formatWithCurrency(totalBalance)}',
               liveRegion: true,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -640,15 +661,25 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                     alignment: Alignment.centerLeft,
                     child: AnimatedCounter(
                       value: totalBalance,
-                      prefix: totalBalance < 0
-                          ? '-${appState.currency}'
-                          : appState.currency,
+                      prefix: totalBalance < 0 ? '-$currency' : currency,
                       compact: totalBalance.abs() > 100000,
                       decimalPlaces: totalBalance.abs() > 100000 ? 1 : 2,
                       style: theme.textTheme.displayLarge
                           ?.copyWith(fontSize: 34, height: 41 / 34),
                     ),
                   ),
+                  // Where the number came from. Only shown when something
+                  // actually carried in, so a fresh ledger stays quiet.
+                  if (hasCarryover) ...[
+                    const SizedBox(height: 8),
+                    ExcludeSemantics(
+                      child: _CarryoverLine(
+                        amount: carryover,
+                        signedLabel: carryoverSigned,
+                        previousMonth: previousMonth,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -756,6 +787,64 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
           ],
         ),
       ),
+    );
+  }
+}
+
+/// One quiet line under the hero: "+$120.00 carried over from August".
+///
+/// The amount keeps the income/expense colour because the sign is the whole
+/// message; the rest of the sentence is the ordinary secondary ink. The
+/// parent [Semantics] on the hero already reads this out, so the line itself
+/// is excluded from the accessibility tree.
+class _CarryoverLine extends StatelessWidget {
+  final double amount;
+  final String signedLabel;
+  final String previousMonth;
+
+  const _CarryoverLine({
+    required this.amount,
+    required this.signedLabel,
+    required this.previousMonth,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
+    final tint = amount < 0 ? appColors.expenseRed : appColors.incomeGreen;
+    final secondary = theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+
+    return Row(
+      children: [
+        Icon(
+          Icons.subdirectory_arrow_right_rounded,
+          size: LuminousTokens.iconSm,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: signedLabel,
+                  style: secondary?.copyWith(
+                    color: tint,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                TextSpan(text: ' carried over from $previousMonth'),
+              ],
+            ),
+            style: secondary,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }

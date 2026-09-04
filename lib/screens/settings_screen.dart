@@ -20,7 +20,7 @@ import 'export_data_screen.dart';
 import 'crash_log_screen.dart';
 import '../utils/pin_security_helper.dart';
 import '../theme/app_colors.dart';
-import '../theme/luminous_tokens.dart';
+import '../theme/luminous_app_theme.dart';
 import '../widgets/luminous/glass_list_section.dart';
 import '../widgets/luminous/glass_list_tile.dart';
 import '../widgets/luminous/glass_panel.dart';
@@ -60,8 +60,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       transactionColorIntensity,
       currencyCode,
       currency,
-    ) =
-        context.select<AppState, (String, String, bool, double, String, String)>(
+      carryoverEnabled,
+    ) = context.select<AppState,
+        (String, String, bool, double, String, String, bool)>(
       (s) => (
         s.currentAccount?.name ?? 'Main Account',
         s.themeMode,
@@ -69,6 +70,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         s.transactionColorIntensity,
         s.currencyCode,
         s.currency,
+        s.carryoverEnabled,
       ),
     );
     final appState = context.read<AppState>();
@@ -138,6 +140,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               onChanged: (value) =>
                                   appState.toggleShowTransactionColors(value),
                             ),
+                            // The whole row toggles, not just the switch.
+                            onTap: () => appState.toggleShowTransactionColors(
+                              !showTransactionColors,
+                            ),
                           ),
                           if (showTransactionColors)
                             _ColorIntensityTile(
@@ -162,6 +168,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 '${CurrencyHelper.getName(currencyCode)} ($currency)',
                             chevron: true,
                             onTap: () => _showCurrencyPicker(context),
+                          ),
+                          GlassListTile(
+                            icon: Icons.arrow_circle_right_outlined,
+                            label: 'Carry Over Balance',
+                            sublabel: carryoverEnabled
+                                ? 'Leftover money rolls into next month'
+                                : 'Each month starts from zero',
+                            trailing: Switch(
+                              value: carryoverEnabled,
+                              onChanged: (value) =>
+                                  appState.toggleCarryover(value),
+                            ),
+                            onTap: () =>
+                                appState.toggleCarryover(!carryoverEnabled),
                           ),
                           GlassListTile(
                             icon: Icons.repeat,
@@ -503,9 +523,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               icon: Icons.light_mode,
               title: 'Light',
               isSelected: appState.themeMode == 'light',
+              // Preview the real scheme, so the swatch can never drift from
+              // what the theme actually paints.
               previewColors: {
-                'surface': const Color(0xFFFAFAFA),
-                'onSurface': const Color(0xFF000000),
+                'surface': luminousLightScheme().surface,
+                'onSurface': luminousLightScheme().onSurface,
                 'primary': appColors.infoBlue,
               },
               onTap: () {
@@ -519,8 +541,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Dark',
               isSelected: appState.themeMode == 'dark',
               previewColors: {
-                'surface': const Color(0xFF121212),
-                'onSurface': const Color(0xFFFFFFFF),
+                'surface': luminousDarkScheme().surface,
+                'onSurface': luminousDarkScheme().onSurface,
                 'primary': appColors.infoBlue,
               },
               onTap: () {
@@ -1516,6 +1538,7 @@ class _PinSecuritySectionState extends State<_PinSecuritySection> {
               }
             },
           ),
+          onTap: () => _isPinEnabled ? _disablePin() : _setupPin(),
         ),
         if (_isPinEnabled) ...[
           GlassListTile(

@@ -153,6 +153,28 @@ void main() {
     }
   });
 
+  testWidgets('Carry Over Balance tile renders on, and the row toggles it',
+      (tester) async {
+    final state = AppState();
+    await tester.runAsync(() => state.loadData());
+    await pumpHarness(tester, appState: state);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Carry Over Balance'), findsOneWidget);
+    expect(find.text('Leftover money rolls into next month'), findsOneWidget);
+    expect(state.carryoverEnabled, isTrue);
+
+    // Tapping the row (not just the Switch) flips the setting.
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Carry Over Balance'));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await tester.pumpAndSettle();
+
+    expect(state.carryoverEnabled, isFalse);
+    expect(find.text('Each month starts from zero'), findsOneWidget);
+  });
+
   testWidgets('PIN section shows "Lock app with PIN" when disabled',
       (tester) async {
     // Empty secureBacking ⇒ PinSecurityHelper.isPinEnabled() resolves false.

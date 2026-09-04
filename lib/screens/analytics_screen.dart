@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../models/category_model.dart';
 import '../providers/app_state.dart';
 import '../utils/accessibility_helper.dart';
+import '../utils/color_contrast_helper.dart';
 import '../utils/premium_animations.dart';
 import '../theme/app_colors.dart';
+import '../theme/category_palette.dart';
 import '../theme/luminous_tokens.dart';
+import '../widgets/color_picker.dart';
 import '../widgets/luminous/glass_panel.dart';
 import '../widgets/luminous/glass_top_app_bar.dart';
 import 'budget_screen.dart';
+
+/// Whole-unit amount with thousands grouping ("3,000"). The comparison cards
+/// printed `toStringAsFixed(0)` — "$3000" — beside Home's "$3,000.00".
+String _wholeAmount(double value) =>
+    NumberFormat.decimalPatternDigits(decimalDigits: 0).format(value);
 
 /// Phase 5.4 — Analytics & Insights Luminous redesign.
 ///
@@ -562,12 +572,10 @@ class _SpendingChart extends StatelessWidget {
     final legendFontSize = screenWidth < 360 ? 12.0 : 14.0;
 
     // Optimize: Select only spending data and currency
-    final spendingAndCurrency =
-        context.select<AppState, (Map<String, double>, String)>(
-      (s) => (s.getCategorySpending(), s.currency),
+    final (rawSpending, currency, categories) = context.select<AppState,
+        (Map<String, double>, String, List<Category>)>(
+      (s) => (s.getCategorySpending(), s.currency, s.categories),
     );
-    final rawSpending = spendingAndCurrency.$1;
-    final currency = spendingAndCurrency.$2;
 
     if (rawSpending.isEmpty) {
       return _buildEmptyState(theme, 'No spending data this month');
@@ -582,6 +590,20 @@ class _SpendingChart extends StatelessWidget {
     // Group small categories into "Others"
     final spending = _groupSmallCategories(rawSpending, total);
     final colors = _getColors(theme);
+
+    // A slice wears its category's identity colour — the same tint the tile
+    // on Home and History uses — so "Groceries" is one colour everywhere in
+    // the app. The fixed palette below is only the fallback for a name that
+    // no longer exists as a category; "Others" is deliberately neutral.
+    final identity = <String, Color>{
+      for (final c in categories)
+        c.name: (c.color != null && c.color!.isNotEmpty)
+            ? ColorPicker.parseColor(c.color)
+            : CategoryPalette.getDefaultColor(c.name, c.type),
+    };
+    Color sliceColor(String name, int index) => name == 'Others'
+        ? theme.colorScheme.outline
+        : identity[name] ?? colors[index % colors.length];
 
     final categoryDescriptions = spending.entries
         .map(
@@ -618,13 +640,9 @@ class _SpendingChart extends StatelessWidget {
                     final data = entry.value;
                     final percentage = (data.value / total * 100);
 
-                    // Use a subtle gray for "Others" category that fits the design
-                    final bgColor = data.key == 'Others'
-                        ? (theme.brightness == Brightness.dark
-                            ? Colors.grey.shade600
-                            : Colors.grey.shade400)
-                        : colors[index % colors.length];
-                    final textColor = _getContrastingTextColor(bgColor);
+                    final bgColor = sliceColor(data.key, index);
+                    final textColor =
+                        ColorContrastHelper.getContrastingTextColor(bgColor);
 
                     // For tiny slices (<3%), don't show label at all
                     final bool isTinySlice = percentage < 3;
@@ -657,12 +675,8 @@ class _SpendingChart extends StatelessWidget {
               final percentageStr = percentage.toStringAsFixed(
                 percentage < 1 ? 1 : 0,
               );
-              // Use matching color for the legend
-              final legendColor = isOthers
-                  ? (theme.brightness == Brightness.dark
-                      ? Colors.grey.shade600
-                      : Colors.grey.shade400)
-                  : colors[index % colors.length];
+              // Same colour as the slice it labels.
+              final legendColor = sliceColor(data.key, index);
               return Semantics(
                 label:
                     '${data.key}, $currency${data.value.toStringAsFixed(2)}, $percentageStr percent',
@@ -742,18 +756,6 @@ class _SpendingChart extends StatelessWidget {
         Colors.amber.shade600,
       ];
     }
-  }
-
-  /// Returns black or white text color based on background luminance.
-  /// This ensures readable text on any pie chart slice color.
-  Color _getContrastingTextColor(Color bgColor) {
-    // Calculate relative luminance using the new Color API (Flutter 3.27+)
-    final luminance = (0.299 * (bgColor.r * 255) +
-            0.587 * (bgColor.g * 255) +
-            0.114 * (bgColor.b * 255)) /
-        255;
-    // Use black text on light backgrounds, white on dark
-    return luminance > 0.5 ? Colors.black : Colors.white;
   }
 
   Widget _buildEmptyState(ThemeData theme, String message) {
@@ -1182,7 +1184,7 @@ class _MonthOverMonthInsights extends StatelessWidget {
     } else if (current >= 10000) {
       formattedAmount = '$currency${(current / 1000).toStringAsFixed(1)}K';
     } else {
-      formattedAmount = '$currency${current.toStringAsFixed(0)}';
+      formattedAmount = '$currency${_wholeAmount(current)}';
     }
 
     return Semantics(
@@ -1298,7 +1300,7 @@ class _MonthOverMonthInsights extends StatelessWidget {
                         ? 'New this month'
                         : isRemoved
                             ? 'No spending this month'
-                            : '$currency${previous.toStringAsFixed(0)} → $currency${current.toStringAsFixed(0)}',
+                            : '$currency${_wholeAmount(previous)} → $currency${_wholeAmount(current)}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),

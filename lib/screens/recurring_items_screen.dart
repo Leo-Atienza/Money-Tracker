@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/luminous_tokens.dart';
+import '../utils/color_contrast_helper.dart';
 import '../widgets/luminous/glass_segmented_control.dart';
 import '../widgets/luminous/glass_top_app_bar.dart';
 import 'recurring/recurring_expenses_view.dart';
@@ -94,7 +95,12 @@ class _RecurringItemsScreenState extends State<RecurringItemsScreen> {
             _isExpense ? theme.colorScheme.onSurface : appColors.incomeGreen,
         child: Icon(
           Icons.add,
-          color: _isExpense ? theme.colorScheme.surface : Colors.white,
+          // Measured, not assumed: white fails AA on incomeGreen in dark mode.
+          color: _isExpense
+              ? theme.colorScheme.surface
+              : ColorContrastHelper.getContrastingTextColor(
+                  appColors.incomeGreen,
+                ),
         ),
       ),
     );

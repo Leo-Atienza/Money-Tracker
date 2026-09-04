@@ -30,15 +30,26 @@ TextTheme _luminousTextTheme(ColorScheme cs) {
     );
   }
 
+  // Every role the screens reach for is defined here. A role left out of
+  // this table is not "inherited" — ThemeData fills it from Material's
+  // default typography, i.e. Roboto at the default weight. bodySmall,
+  // labelLarge and titleSmall were used across ~50 call sites and were
+  // rendering in Roboto next to Hanken Grotesk until they were added.
   return TextTheme(
     displayLarge: hanken(34, FontWeight.w800, height: 41, letterSpacing: -0.5),
     headlineMedium:
         hanken(24, FontWeight.w700, height: 30, letterSpacing: -0.3),
+    headlineSmall:
+        hanken(20, FontWeight.w700, height: 26, letterSpacing: -0.2),
     titleLarge: hanken(20, FontWeight.w600, height: 26, letterSpacing: -0.2),
+    titleMedium: hanken(16, FontWeight.w600, height: 22),
+    titleSmall: hanken(14, FontWeight.w600, height: 20),
     bodyLarge: hanken(17, FontWeight.w400, height: 24, letterSpacing: -0.2),
     bodyMedium: hanken(15, FontWeight.w400, height: 20, letterSpacing: 0),
+    bodySmall: hanken(13, FontWeight.w400, height: 18, letterSpacing: 0),
+    labelLarge: hanken(14, FontWeight.w600, height: 20, letterSpacing: 0.1),
+    labelMedium: hanken(12, FontWeight.w600, height: 16, letterSpacing: 0.4),
     labelSmall: hanken(12, FontWeight.w600, height: 16, letterSpacing: 1.2),
-    titleMedium: hanken(16, FontWeight.w600, height: 22),
   );
 }
 
@@ -138,6 +149,10 @@ ThemeData buildLuminousTheme({
   // Material 3 look the app originally shipped with. Surfaces draw from the
   // colorScheme container roles so light/dark both read as flat, opaque cards.
   return ThemeData(
+    // Belt and braces for any text role not listed in _luminousTextTheme
+    // (display/headline sizes the app does not use): they still get the
+    // app's one typeface instead of Roboto.
+    fontFamily: 'HankenGrotesk',
     useMaterial3: true,
     brightness: brightness,
     colorScheme: cs,

@@ -20,6 +20,7 @@ import '../add_payment_dialog.dart';
 import 'history_filter_bar.dart';
 import 'history_list.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/color_contrast_helper.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -1326,8 +1327,15 @@ class _HistoryScreenState extends State<HistoryScreen>
               color: appColors.expenseRed,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.delete_outline_rounded,
-                color: Colors.white, size: 24),
+            child: Icon(
+              Icons.delete_outline_rounded,
+              // The dark-theme expenseRed is a light salmon; white on it is
+              // ~1.6:1. Pick the ink that actually clears AA.
+              color: ColorContrastHelper.getContrastingTextColor(
+                appColors.expenseRed,
+              ),
+              size: 24,
+            ),
           ),
           confirmDismiss: (direction) =>
               _confirmDelete(context, theme, 'expense', expense.description),
@@ -1732,8 +1740,15 @@ class _HistoryScreenState extends State<HistoryScreen>
               color: appColors.expenseRed,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.delete_outline_rounded,
-                color: Colors.white, size: 24),
+            child: Icon(
+              Icons.delete_outline_rounded,
+              // The dark-theme expenseRed is a light salmon; white on it is
+              // ~1.6:1. Pick the ink that actually clears AA.
+              color: ColorContrastHelper.getContrastingTextColor(
+                appColors.expenseRed,
+              ),
+              size: 24,
+            ),
           ),
           confirmDismiss: (direction) =>
               _confirmDelete(context, theme, 'income', income.description),

@@ -21,6 +21,7 @@ class SettingsHelper {
   // Transaction background colors toggle (default false for clean UI)
   // When enabled, shows transparent category color as background on transaction cards
   static const String _keyShowTransactionColors = 'show_transaction_colors';
+  static const String _keyCarryoverEnabled = 'carryover_enabled';
   // Transaction color intensity (0.0 - 1.0, default 0.5 = medium)
   static const String _keyTransactionColorIntensity =
       'transaction_color_intensity';
@@ -195,6 +196,19 @@ class SettingsHelper {
   static Future<void> setTransactionColorIntensity(double value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_keyTransactionColorIntensity, value.clamp(0.0, 1.0));
+  }
+
+  // Carry Over Balance (default true): whatever is left at the end of a month
+  // — surplus or deficit — rolls into the next month's balance. Off means
+  // every month starts from zero.
+  static Future<bool> getCarryoverEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyCarryoverEnabled) ?? true;
+  }
+
+  static Future<void> setCarryoverEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyCarryoverEnabled, value);
   }
 
   // Clear all settings (useful for testing or reset)

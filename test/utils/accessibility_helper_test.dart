@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsNode;
 import 'package:budget_tracker/utils/accessibility_helper.dart';
 
 void main() {
@@ -243,8 +244,12 @@ void main() {
         expect(tapped, isTrue);
       });
 
-      testWidgets('Semantics node carries label + button:true and tooltip == label',
+      testWidgets(
+          'exposes exactly ONE semantics node carrying label + button + tap',
           (tester) async {
+        // Disposed explicitly at the end: the framework checks for live
+        // handles BEFORE tearDown callbacks run.
+        final handle = tester.ensureSemantics();
         final widget = AccessibilityHelper.semanticIconButton(
           icon: Icons.delete,
           label: 'Delete',
@@ -252,13 +257,46 @@ void main() {
         );
         await tester.pumpWidget(MaterialApp(home: Scaffold(body: widget)));
 
-        final sem = tester
-            .widgetList<Semantics>(find.byType(Semantics))
-            .firstWhere((s) => s.properties.label == 'Delete');
-        expect(sem.properties.button, isTrue);
-
+        // The tooltip is what a screen reader announces.
         final iconButton = tester.widget<IconButton>(find.byType(IconButton));
         expect(iconButton.tooltip, 'Delete');
+
+        // Regression: the old Semantics(label, button) wrapper around the
+        // IconButton (which already carries its own node) made TalkBack
+        // announce every header button twice. Exactly one node must carry
+        // the label, and that node must be the actionable button.
+        // On Android the tooltip becomes the node's content description, so
+        // the actionable button node must be the one that carries it.
+        expect(
+          tester.getSemantics(find.byType(IconButton)),
+          matchesSemantics(
+            tooltip: 'Delete',
+            isButton: true,
+            hasTapAction: true,
+            hasEnabledState: true,
+            isEnabled: true,
+            isFocusable: true,
+            hasFocusAction: true,
+          ),
+        );
+
+        // ...and it must be the ONLY node that says "Delete".
+        var nodesSayingDelete = 0;
+        void walk(SemanticsNode node) {
+          final data = node.getSemanticsData();
+          if (data.label == 'Delete' || data.tooltip == 'Delete') {
+            nodesSayingDelete++;
+          }
+          node.visitChildren((child) {
+            walk(child);
+            return true;
+          });
+        }
+
+        walk(tester.getSemantics(find.byType(MaterialApp)));
+        expect(nodesSayingDelete, 1,
+            reason: 'a second node means the button is announced twice');
+        handle.dispose();
       });
 
       testWidgets('constraints enforce 48x48 minimum touch target',

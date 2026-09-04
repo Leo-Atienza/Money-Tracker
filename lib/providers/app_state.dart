@@ -94,6 +94,9 @@ class AppState extends ChangeNotifier {
   TimeOfDay _reminderTime = const TimeOfDay(hour: 9, minute: 0);
   bool _showTransactionColors = false; // Optional transparent background colors on transaction cards
   double _transactionColorIntensity = 0.5; // 0.0 - 1.0, how visible the background color is
+  // Leftover balance (surplus or deficit) rolls into the next month.
+  // Settings › Preferences › Carry Over Balance. Default on.
+  bool _carryoverEnabled = true;
 
   // ============== PIN LOCK STATE ==============
   bool _isLocked = true; // App starts locked if PIN is enabled
@@ -199,12 +202,20 @@ class AppState extends ChangeNotifier {
   int get currentAccountId => _currentAccount?.id ?? 1;
 
   DateTime get selectedMonth => _selectedMonth;
-  String get selectedMonthName {
-    final months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return '${months[_selectedMonth.month - 1]} ${_selectedMonth.year}';
+  static const List<String> _monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  String get selectedMonthName =>
+      '${_monthNames[_selectedMonth.month - 1]} ${_selectedMonth.year}';
+
+  /// Name of the month before the selected one ("August" while September is
+  /// selected). The Home hero uses it to say where a carried balance came
+  /// from.
+  String get previousMonthName {
+    final prev = DateHelper.subtractMonths(_selectedMonth, 1);
+    return _monthNames[prev.month - 1];
   }
 
   bool get isDarkMode => _isDarkMode;
@@ -217,6 +228,7 @@ class AppState extends ChangeNotifier {
   TimeOfDay get reminderTime => _reminderTime;
   bool get showTransactionColors => _showTransactionColors;
   double get transactionColorIntensity => _transactionColorIntensity;
+  bool get carryoverEnabled => _carryoverEnabled;
 
   String formatAmount(double amount, {int decimalDigits = 2}) {
     return CurrencyHelper.formatAmount(amount, _currencyCode, decimalDigits: decimalDigits);
@@ -269,15 +281,18 @@ class AppState extends ChangeNotifier {
     return totalCategoryBudget;
   }
 
-  /// Get the carryover amount for the selected month (from previous month)
-  double get carryoverForSelectedMonth {
-    final key = _monthKey(_selectedMonth);
-    final balance = _monthlyBalances[key];
-    return balance?.carryoverFromPrevious ?? 0.0;
-  }
+  /// Balance carried into the selected month from every month before it:
+  /// all prior income minus all prior expenses, so a surplus arrives as
+  /// extra money and a deficit as a debt. Zero while Carry Over Balance is
+  /// off in Settings — every figure derived from it (available cash,
+  /// projected balance, the Home hero) then falls back to a fresh-month view
+  /// without each caller checking the flag.
+  double get carryoverForSelectedMonth =>
+      _decimalToDouble(carryoverForSelectedMonthDecimal);
 
   /// Get the carryover as Decimal for precise calculations
   Decimal get carryoverForSelectedMonthDecimal {
+    if (!_carryoverEnabled) return Decimal.zero;
     final key = _monthKey(_selectedMonth);
     final balance = _monthlyBalances[key];
     return balance?.carryoverFromPreviousDecimal ?? Decimal.zero;
@@ -519,6 +534,7 @@ class AppState extends ChangeNotifier {
     _monthlySummaryEnabled = await SettingsHelper.getMonthlySummary();
     _showTransactionColors = await SettingsHelper.getShowTransactionColors();
     _transactionColorIntensity = await SettingsHelper.getTransactionColorIntensity();
+    _carryoverEnabled = await SettingsHelper.getCarryoverEnabled();
     final hour = await SettingsHelper.getReminderHour();
     final minute = await SettingsHelper.getReminderMinute();
     _reminderTime = TimeOfDay(hour: hour, minute: minute);
@@ -766,7 +782,10 @@ class AppState extends ChangeNotifier {
       // if the UPSERT failed (locked DB, disk full, app killed) the
       // user kept the expense row but the next-month carryover was
       // stale. Now both either commit together or roll back together.
-      final pendingBalances = await _prepareCarryoverUpserts(expense.date);
+      final pendingBalances = await _prepareCarryoverUpserts(
+        expense.date,
+        delta: -expense.amountDecimal,
+      );
       final expenseId = await _db.createExpenseWithCarryover(
         expense,
         pendingBalances,
@@ -932,7 +951,10 @@ class AppState extends ChangeNotifier {
 
     return await _writeMutex.synchronized(() async {
       // FIX Phase 1.6: atomic insert + carryover upserts. See addExpense.
-      final pendingBalances = await _prepareCarryoverUpserts(income.date);
+      final pendingBalances = await _prepareCarryoverUpserts(
+        income.date,
+        delta: income.amountDecimal,
+      );
       final incomeId = await _db.createIncomeWithCarryover(
         income,
         pendingBalances,
@@ -1297,17 +1319,21 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Calculate and store the carryover for the current month from the previous month
-  /// This should be called during app initialization and when navigating to a new month
+  /// Recompute the carryover for the current wall-clock month and, when the
+  /// user is looking at a different one, the selected month too. Runs at
+  /// load, on account switch, and after trash restores — anywhere the row set
+  /// may have changed under both views at once.
   Future<void> _calculateAndStoreCarryover() async {
-    final now = DateHelper.today();
-    final currentMonthStart = DateHelper.startOfMonth(now);
-
-    // Calculate carryover for current month from previous month
+    final currentMonthStart = DateHelper.startOfMonth(DateHelper.today());
     await _calculateCarryoverForMonth(currentMonthStart);
+
+    final selectedStart = DateHelper.startOfMonth(_selectedMonth);
+    if (!_isSameMonth(selectedStart, currentMonthStart)) {
+      await _calculateCarryoverForMonth(selectedStart);
+    }
   }
 
-  /// Calculate the carryover for a specific month from its previous month
+  /// Compute the carryover for [month] and persist it if it changed.
   Future<void> _calculateCarryoverForMonth(DateTime month) async {
     final newBalance = await _computeCarryoverForMonth(month);
     if (newBalance != null) {
@@ -1316,37 +1342,52 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// FIX Phase 1.6 — compute the carryover MonthlyBalance for `month`
-  /// WITHOUT writing it. Used by `addExpense` / `addIncome` to prepare
-  /// the upserts that will run atomically alongside the row insert.
-  /// Returns null when the cached value already matches (no write
-  /// needed).
-  Future<MonthlyBalance?> _computeCarryoverForMonth(DateTime month) async {
-    final prevMonth = DateHelper.startOfMonth(DateHelper.subtractMonths(month, 1));
-    final monthKey = _monthKey(month);
+  /// Compute the `MonthlyBalance` carrying into [month] WITHOUT writing it.
+  ///
+  /// The carryover is the account's whole history before [month] folded into
+  /// one number: every prior income minus every prior expense, straight from
+  /// the transaction rows (`calculateNetBalanceBefore`). The previous design
+  /// chained stored rows — `prev month net + prev month's stored carryover` —
+  /// which went stale whenever an older month was edited (only the month
+  /// after the edit and the selected month were refreshed) and silently
+  /// dropped everything older than the 12 cached rows. Folding from the rows
+  /// makes every month independent, so nothing can drift.
+  ///
+  /// [pendingDelta] is a row that is about to be inserted in the same SQLite
+  /// transaction as this upsert (see `_prepareCarryoverUpserts`): it is dated
+  /// [pendingDate] and is folded in iff that date falls before [month], so
+  /// the atomically-written value already includes the new row.
+  ///
+  /// Returns null when the cached value already matches (no write needed).
+  Future<MonthlyBalance?> _computeCarryoverForMonth(
+    DateTime month, {
+    Decimal? pendingDelta,
+    DateTime? pendingDate,
+  }) async {
+    final monthStart = DateHelper.startOfMonth(month);
+    final existingBalance = _monthlyBalances[_monthKey(monthStart)];
 
-    final existingBalance = _monthlyBalances[monthKey];
-
-    final prevMonthKey = _monthKey(prevMonth);
-    final prevBalance = _monthlyBalances[prevMonthKey];
-    final prevCarryover = prevBalance?.carryoverFromPreviousDecimal ?? Decimal.zero;
-
-    final prevMonthSums = await _db.calculateMonthBalance(
+    final sums = await _db.calculateNetBalanceBefore(
       currentAccountId,
-      prevMonth.year,
-      prevMonth.month,
+      monthStart,
     );
-    final prevMonthBalance = DecimalHelper.fromDouble(prevMonthSums.income) - DecimalHelper.fromDouble(prevMonthSums.expenses);
+    var totalCarryover = DecimalHelper.fromDouble(sums.income) -
+        DecimalHelper.fromDouble(sums.expenses);
 
-    final totalCarryover = prevMonthBalance + prevCarryover;
+    if (pendingDelta != null &&
+        pendingDate != null &&
+        DateHelper.normalize(pendingDate).isBefore(monthStart)) {
+      totalCarryover += pendingDelta;
+    }
 
     if (existingBalance == null ||
         existingBalance.carryoverFromPreviousDecimal != totalCarryover) {
       return MonthlyBalance(
         id: existingBalance?.id,
         carryoverFromPrevious: totalCarryover,
+        overallBudget: existingBalance?.overallBudgetDecimal,
         accountId: currentAccountId,
-        month: month,
+        month: monthStart,
       );
     }
     return null;
@@ -1355,45 +1396,43 @@ class AppState extends ChangeNotifier {
   /// FIX Phase 1.6 — collect the carryover MonthlyBalance upserts that
   /// must run atomically with a transaction-affecting insert. Mirrors
   /// `_recalculateCarryoverAfterTransaction` but returns the pending
-  /// writes instead of applying them.
+  /// writes instead of applying them. [delta] is the signed amount of the
+  /// row being inserted (positive income, negative expense) so the values
+  /// written alongside it already include it.
   Future<List<MonthlyBalance>> _prepareCarryoverUpserts(
-    DateTime transactionDate,
-  ) async {
+    DateTime transactionDate, {
+    required Decimal delta,
+  }) async {
     final result = <MonthlyBalance>[];
 
     final transactionMonth = DateHelper.startOfMonth(transactionDate);
     final nextMonth = DateHelper.addMonths(transactionMonth, 1);
-    final nextBalance = await _computeCarryoverForMonth(nextMonth);
+    final nextBalance = await _computeCarryoverForMonth(
+      nextMonth,
+      pendingDelta: delta,
+      pendingDate: transactionDate,
+    );
     if (nextBalance != null) result.add(nextBalance);
 
     final selectedStart = DateHelper.startOfMonth(_selectedMonth);
     if (!_isSameMonth(selectedStart, nextMonth)) {
-      final selBalance = await _computeCarryoverForMonth(selectedStart);
+      final selBalance = await _computeCarryoverForMonth(
+        selectedStart,
+        pendingDelta: delta,
+        pendingDate: transactionDate,
+      );
       if (selBalance != null) result.add(selBalance);
     }
 
     return result;
   }
 
-  /// Get the carryover for a specific month
+  /// Get the carryover for a specific month. Always recomputed from the
+  /// transaction rows — one aggregate query — so a cached row that predates
+  /// a back-dated edit can never be served.
   Future<double> getCarryoverForMonth(DateTime month) async {
-    final key = _monthKey(month);
-
-    // Check cache first
-    if (_monthlyBalances.containsKey(key)) {
-      return _monthlyBalances[key]!.carryoverFromPrevious;
-    }
-
-    // Load from database
-    final balance = await _db.getMonthlyBalance(currentAccountId, month);
-    if (balance != null) {
-      _monthlyBalances[key] = balance;
-      return balance.carryoverFromPrevious;
-    }
-
-    // Calculate if not found
     await _calculateCarryoverForMonth(month);
-    return _monthlyBalances[key]?.carryoverFromPrevious ?? 0.0;
+    return _monthlyBalances[_monthKey(month)]?.carryoverFromPrevious ?? 0.0;
   }
 
   /// Recalculate carryover for the selected month and all subsequent months
@@ -2268,12 +2307,13 @@ class AppState extends ChangeNotifier {
     _safeNotify();
   }
 
-  /// Ensure the carryover is loaded for the given month
+  /// Refresh the carryover for the month being navigated to. Always
+  /// recomputed (one aggregate query) rather than trusting the cached row:
+  /// an edit to an older month only refreshes the months it was made from,
+  /// so the row for a month the user last visited before that edit would
+  /// otherwise be served stale.
   Future<void> _ensureCarryoverLoaded(DateTime month) async {
-    final key = _monthKey(month);
-    if (!_monthlyBalances.containsKey(key)) {
-      await _calculateCarryoverForMonth(month);
-    }
+    await _calculateCarryoverForMonth(month);
   }
 
   Future<void> goToToday() async {
@@ -2327,6 +2367,15 @@ class AppState extends ChangeNotifier {
     }
   }
   Future<void> toggleShowTransactionColors(bool value) async { _showTransactionColors = value; await SettingsHelper.setShowTransactionColors(value); _safeNotify(); }
+  /// Turn month-to-month carry-over on or off. The stored balances are kept
+  /// current either way (they are cheap), so switching back on shows the
+  /// right figure immediately; only the getters are gated.
+  Future<void> toggleCarryover(bool value) async {
+    _carryoverEnabled = value;
+    await SettingsHelper.setCarryoverEnabled(value);
+    _safeNotify();
+    _updateHomeWidget();
+  }
   Future<void> setTransactionColorIntensity(double value) async { _transactionColorIntensity = value.clamp(0.0, 1.0); await SettingsHelper.setTransactionColorIntensity(_transactionColorIntensity); _safeNotify(); }
   Future<void> setReminderTime(TimeOfDay time) async { _reminderTime = time; await SettingsHelper.setReminderHour(time.hour); await SettingsHelper.setReminderMinute(time.minute); _safeNotify(); }
 

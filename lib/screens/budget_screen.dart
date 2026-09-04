@@ -309,11 +309,24 @@ class _MonthlySummaryCard extends StatelessWidget {
       totalIncome,
       carryover,
       hasCarryover,
+      carryoverEnabled,
       projectedBalance,
       hasOverallBudget,
       categoryBudgetTotal,
-    ) = context.select<AppState,
-        (String, double, double, double, double, bool, double, bool, double)>(
+    ) = context.select<
+        AppState,
+        (
+          String,
+          double,
+          double,
+          double,
+          double,
+          bool,
+          bool,
+          double,
+          bool,
+          double
+        )>(
       (s) => (
         s.currency,
         s.totalMonthlyBudget,
@@ -321,6 +334,7 @@ class _MonthlySummaryCard extends StatelessWidget {
         s.totalIncomeThisMonth,
         s.carryoverForSelectedMonth,
         s.hasCarryover,
+        s.carryoverEnabled,
         s.projectedEndOfMonthBalance,
         s.hasOverallMonthlyBudget,
         s.totalCategoryBudget,
@@ -333,18 +347,17 @@ class _MonthlySummaryCard extends StatelessWidget {
         totalBudget > 0 ? (totalSpent / totalBudget).clamp(0.0, 1.5) : 0.0;
     final budgetPercentage = (budgetProgress * 100).clamp(0.0, 150.0);
 
-    // Determine status color based on budget usage
+    // Status colour from the semantic tokens only: green under 75%,
+    // warning from 75%, red from 95%. (The old fourth tier used a raw
+    // Material amber that no theme could reach.)
     Color budgetStatusColor = appColors.incomeGreen;
     IconData budgetStatusIcon = Icons.check_circle;
     if (budgetPercentage >= 95) {
       budgetStatusColor = appColors.expenseRed;
       budgetStatusIcon = Icons.error;
-    } else if (budgetPercentage >= 85) {
+    } else if (budgetPercentage >= 75) {
       budgetStatusColor = appColors.warningOrange;
       budgetStatusIcon = Icons.warning;
-    } else if (budgetPercentage >= 75) {
-      budgetStatusColor = Colors.amber;
-      budgetStatusIcon = Icons.info;
     }
 
     return GlassPanel(
@@ -390,7 +403,9 @@ class _MonthlySummaryCard extends StatelessWidget {
                   value:
                       '$currency${appState.formatAmount(totalIncome, decimalDigits: 0)}',
                   valueColor: appColors.incomeGreen,
-                  icon: Icons.arrow_downward,
+                  // Up for income — the down arrow here was the same
+                  // inverted pair Home had, fixed in S18 on Home only.
+                  icon: Icons.arrow_upward,
                 ),
               ),
               if (hasCarryover) ...[
@@ -401,11 +416,13 @@ class _MonthlySummaryCard extends StatelessWidget {
                 ),
                 Expanded(
                   child: _SummaryItem(
-                    label: 'Carryover',
+                    label: 'Carried over',
+                    // Sign goes before the symbol: "-$78", never "$-78"
+                    // (formatAmount of a negative put the minus after "$").
                     value:
-                        '${carryover >= 0 ? '+' : ''}$currency${appState.formatAmount(carryover, decimalDigits: 0)}',
+                        '${carryover < 0 ? '-' : '+'}$currency${appState.formatAmount(carryover.abs(), decimalDigits: 0)}',
                     valueColor: carryover >= 0
-                        ? appColors.infoBlue
+                        ? appColors.incomeGreen
                         : appColors.expenseRed,
                     icon: carryover >= 0
                         ? Icons.trending_up
@@ -424,10 +441,10 @@ class _MonthlySummaryCard extends StatelessWidget {
                 vertical: 8,
               ),
               decoration: BoxDecoration(
-                color: (carryover >= 0
-                        ? appColors.infoBlue
-                        : appColors.expenseRed)
-                    .withValues(alpha: 0.1),
+                // A neutral container: the total is a plain figure, not a
+                // status. Tinting it red because the carry-in was negative
+                // read as "danger" on a positive number.
+                color: theme.colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -435,9 +452,7 @@ class _MonthlySummaryCard extends StatelessWidget {
                   Icon(
                     Icons.account_balance_wallet,
                     size: 16,
-                    color: carryover >= 0
-                        ? appColors.infoBlue
-                        : appColors.expenseRed,
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -586,11 +601,12 @@ class _MonthlySummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            projectedBalance >= 0
-                ? 'Will carry over to next month'
-                : 'Deficit will reduce next month\'s budget',
-            style: TextStyle(
-              fontSize: 11,
+            !carryoverEnabled
+                ? 'Carry-over is off in Settings'
+                : projectedBalance >= 0
+                    ? 'Will carry over to next month'
+                    : 'Deficit will reduce next month\'s balance',
+            style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
             softWrap: true,
@@ -1071,8 +1087,7 @@ class _SummaryItem extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 11,
+                style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
@@ -1081,11 +1096,7 @@ class _SummaryItem extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: valueColor,
-            ),
+            style: theme.textTheme.titleMedium?.copyWith(color: valueColor),
           ),
         ],
       ),
@@ -1135,14 +1146,11 @@ class _BudgetList extends StatelessWidget {
           statusColor = appColors.expenseRed;
           statusIcon =
               Icons.error; // CRITICAL FIX: Add icon for color-blind users
-        } else if (percentage >= 85) {
+        } else if (percentage >= 75) {
+          // Same three tiers as the summary card — tokens only, no raw amber.
           statusColor = appColors.warningOrange;
           statusIcon =
               Icons.warning; // CRITICAL FIX: Add icon for color-blind users
-        } else if (percentage >= 75) {
-          statusColor = Colors.amber;
-          statusIcon =
-              Icons.info; // CRITICAL FIX: Add icon for color-blind users
         }
 
         final statusLabel = AccessibilityHelper.getBudgetStatusLabel(
