@@ -112,7 +112,23 @@ Leo asked to finish everything, which included the two items the first part left
 - **`warningOrange`** (light set) → `#B45309`: 4.0:1 on the darkest light surface, 3.7:1 on
   the darkest lavender one (was 2.5–2.9:1). `luminous_theme_test` now holds all four money
   colours to 3:1 on every surface role in Light and Purple.
-- Gates: `flutter analyze` clean; preflight green **2507 pass / 3 skip** on 3.47.2.
+- Gates: `flutter analyze` clean; preflight green **2507 pass / 3 skip** on 3.47.2; debug
+  build green on the new toolchain; emulator smoke on that build (DB opened with data intact,
+  SAF picker opens from "Choose Backup File" and cancels to "Restore cancelled").
+- Windows gotcha met on the way: a leftover Gradle/Kotlin daemon held a lint-cache jar and
+  failed `:app:lintVitalAnalyzeRelease` twice ("being used by another process"). Fix was
+  `taskkill` on every java.exe daemon, move `build/app/intermediates/lint-cache` to trash,
+  rebuild. `verify-release-apk.sh` happily verified the *stale* APK in between — check the
+  mtime, always.
+
+### Release record (v5.3.1+14)
+- PR #15 squash-merged to `main` as `58ebd11` (tree identical to branch commit `519136d`),
+  tagged **`v5.3.1`** (`e3df6b9a`). CI on the PR under Flutter 3.47.2: preflight 3m25s,
+  release-APK build 7m6s, both green.
+- Release APK (arm64-v8a + armeabi-v7a, `verify-release-apk.sh` green): **57,174,234 B**
+  (2.3 MB smaller than v5.3.0), SHA-1 **`cad23cb8095c8103d585bdbb4aad6c99e3eee96c`**.
+- Landing repo commit `90fcc35`, `vercel --prod --yes`; the live download returned the same
+  SHA-1 with HTTP 200 and matching Content-Length.
 
 ## Still open
 - **AGP 9 / Gradle 9 / Kotlin 2.4** (the current `flutter create` template) — not needed by
