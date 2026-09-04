@@ -1,8 +1,25 @@
 # Session 19 handoff — audit, month-to-month carry-over, device-driven polish (2026-09-03)
 
-**Branch `feat/month-rollover-and-polish`, version bumped to `5.2.0+12`, not yet
-released.** Gate at the end of the session: `flutter analyze` clean, preflight green at
-**2489 pass / 3 skip** (ratcheted from 2477 in `scripts/preflight.{sh,ps1}`).
+**SHIPPED as v5.2.0+12.** PR #13 squash-merged to `main` as `64e343b`, tagged `v5.2.0`,
+APK live at https://leo-money-tracker.vercel.app/downloads/money-tracker.apk
+(59,379,901 B, SHA-1 `727ca10f601c3a4966ce6f2be63c6b84f7438034`, verified against the
+download). Gate at ship: `flutter analyze` clean, preflight green at **2489 pass / 3 skip**
+(ratcheted from 2477 in `scripts/preflight.{sh,ps1}`), `verify-release-apk.sh` green.
+
+## Release record
+- The push of the working branch was rejected: the token lacks the `workflow` OAuth scope
+  and the branch carried `.github/workflows/ci.yml` from the unpushed CI commit. The same
+  commit was cherry-picked onto a branch off `origin/main` (no workflow file), pushed,
+  opened as PR #13, and squash-merged. Local `main` still carries the CI commit on top,
+  plus this docs commit, both unpushable until `gh auth refresh -h github.com -s workflow`.
+- **Upgrade path verified on the emulator** (the S18 open item): a v5.1.2 debug build
+  (`flutter_secure_storage` 9.x) was installed clean, seeded with sample data and a
+  4-digit PIN, then updated in place to the v5.2.0 build. The v5.2.0 build asked for the
+  PIN, unlocked with it, opened the SQLCipher database, showed every transaction, and
+  computed the carry-over on that pre-existing data ("-$57.50 carried over from August").
+  That covers the secure-storage v9→v10 migration of both the PIN material and the DB key.
+- Landing repo commit `ab9fbc9`; `vercel --prod --yes` from the landing dir (its Git
+  integration is disconnected, per CLAUDE.md).
 
 ## What was asked
 Audit the app, fix/upgrade/improve, make it feel premium and frictionless, and add the
@@ -102,11 +119,12 @@ edits (its state lives on in the `IndexedStack`).
   Material swatches are the documented analytics fallback palette.
 
 ## Still open / for next session
-- **Push needs the `workflow` OAuth scope.** `main` carries the unpushed CI-workflow
-  commit; `gh auth refresh -h github.com -s workflow` in plain PowerShell, then push.
+- **Push needs the `workflow` OAuth scope.** Local `main` carries the unpushed CI-workflow
+  commit (and this docs commit); `gh auth refresh -h github.com -s workflow` in plain
+  PowerShell, then `git push`. Until then origin has no CI workflow.
 - **Typography ladder.** History (8 raw sizes), Category Manager (7), Wallet (6) still
   use raw `fontSize:` literals; tactile's three-sizes rule is unmet there.
 - **Flutter ≥3.41.6** unblocks `file_picker` 12, `share_plus` 13, `package_info_plus` 10,
   `pdf` 3.13, `sqflite` 2.4.3 at once (own branch; machine-wide SDK change — Leo's call).
-- Bill-reminder firing and the secure-storage v9→v10 migration remain unverified on a
-  device with real data (unchanged from S18).
+- Bill-reminder firing remains unverified on a device (unchanged from S18). The
+  secure-storage v9→v10 migration is now verified (see Release record).
