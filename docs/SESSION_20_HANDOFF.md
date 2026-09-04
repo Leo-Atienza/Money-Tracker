@@ -94,4 +94,12 @@ rescheduling fix above), and at **10:29:04** `dumpsys notification` held
 - Cook-log row for the tactile skill only after Leo's feedback on Purple (craft.md 5b).
 
 ## Release record
-Filled in at ship time — see the bottom of this file.
+- PR #14 squash-merged to `main` as `9ae3f12` (branch tree identical to the merge commit,
+  `git diff 0047a21 9ae3f12` empty), tagged **`v5.3.0`** (`42f00fd2`). CI on the PR: preflight
+  2m15s and release-APK build 6m43s, both green.
+- Release APK built `--target-platform android-arm64,android-arm`, `verify-release-apk.sh`
+  green (debug-signed on purpose, ABIs `arm64-v8a armeabi-v7a`), **59,445,517 B**,
+  SHA-1 **`d09be8b836daac127d114b34b887231ae094e661`**.
+- Landing repo commit `c7fc9b8`, `vercel --prod --yes` from the landing dir, then
+  `curl -sL https://leo-money-tracker.vercel.app/downloads/money-tracker.apk | sha1sum`
+  returned the same SHA-1 with HTTP 200 and matching Content-Length.
