@@ -130,6 +130,14 @@ Leo asked to finish everything, which included the two items the first part left
 - Landing repo commit `90fcc35`, `vercel --prod --yes`; the live download returned the same
   SHA-1 with HTTP 200 and matching Content-Length.
 
+## Branch hygiene (end of session)
+Deleted on the server: `security/untrack-leaked-firebase-config` (tip `11f1992`, May 2026 —
+its real fix, untracking + ignoring `google-services.json`, is already on `main`, and the rest
+was setup docs for Firebase, which the app no longer uses) and `release/v5.0.0` (tip `0eb62a7`,
+fully merged; `v5.0.0` is tagged). `claude/festive-germain` is a merged desktop-app session
+branch and was left alone. Both session branches from this record were deleted by their squash
+merges.
+
 ## Still open
 - **AGP 9 / Gradle 9 / Kotlin 2.4** (the current `flutter create` template) — not needed by
   anything yet; take it deliberately with the suite and a device walk as the gate.
