@@ -1,0 +1,3 @@
+# Flutter regenerates this file with LF on every pub get/build; autocrlf would
+# otherwise report it as modified after each build (line endings only).
+macos/Flutter/GeneratedPluginRegistrant.swift text eol=lf
