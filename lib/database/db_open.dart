@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart' as cipher;
 
@@ -35,6 +36,21 @@ typedef CipherVerifyFn = Future<int> Function({
   required String password,
 });
 
+/// The database file is SQLCipher-encrypted, but no key that opens it is
+/// available: the Keystore read failed, or the key is gone. Thrown instead of
+/// minting a replacement key (it could never decrypt the existing file) and
+/// instead of a plaintext open (on Android, sqflite treats the unreadable file
+/// as corrupt and deletes it). The file is left untouched, so the open fails
+/// into the app's load-error path and the next attempt retries.
+class DatabaseKeyUnavailableException implements Exception {
+  const DatabaseKeyUnavailableException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'DatabaseKeyUnavailableException: $message';
+}
+
 /// The 16-byte magic prefixing every *plaintext* SQLite file:
 /// `"SQLite format 3\0"`. A SQLCipher file's header is encrypted, so the
 /// absence of this magic is how a still-plaintext database is detected.
@@ -42,6 +58,15 @@ const List<int> _sqliteMagic = <int>[
   0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x20, 0x66, //
   0x6f, 0x72, 0x6d, 0x61, 0x74, 0x20, 0x33, 0x00,
 ];
+
+/// Suffix of the plaintext recovery copy [maybeMigrateToEncrypted] keeps beside
+/// the database until [sweepPlaintextRecoveryCopy] proves it can go.
+const String _recoveryCopySuffix = '.pre-sqlcipher-backup';
+
+/// Filename prefix of the throwaway plaintext copies the backup paths export to
+/// the temp directory ([exportPlaintextCopy]); [deleteStalePlaintextExports]
+/// reaps any that a killed backup left behind.
+const String plaintextExportPrefix = 'ff-backup-plaintext-';
 
 /// Platforms carrying the `sqflite_sqlcipher` native plugin. Everything else
 /// (the FFI test runner, Windows/Linux desktop) takes the plaintext path.
@@ -51,6 +76,10 @@ bool get cipherPlatform =>
 /// Opens the application database, encrypting at rest when a [password] is
 /// supplied on a [cipherPlatform]. Falls back to a plaintext open — never
 /// losing data — on any migration failure.
+///
+/// Never opens an encrypted file as plaintext: that cannot work, and on Android
+/// sqflite then treats the file as corrupt and DELETES it. With no key for an
+/// encrypted file this throws [DatabaseKeyUnavailableException] instead.
 Future<Database> openAppDatabase({
   required String dbPath,
   required int version,
@@ -59,13 +88,20 @@ Future<Database> openAppDatabase({
   required OnDatabaseVersionChangeFn onUpgrade,
   required String? password,
 }) async {
-  Future<Database> openPlaintext() => openDatabase(
-        dbPath,
-        version: version,
-        onConfigure: onConfigure,
-        onCreate: onCreate,
-        onUpgrade: onUpgrade,
+  Future<Database> openPlaintext() async {
+    if (await isEncryptedDatabaseFile(dbPath)) {
+      throw const DatabaseKeyUnavailableException(
+        'the database is encrypted; refusing to open it as plaintext',
       );
+    }
+    return openDatabase(
+      dbPath,
+      version: version,
+      onConfigure: onConfigure,
+      onCreate: onCreate,
+      onUpgrade: onUpgrade,
+    );
+  }
 
   // Plaintext path: tests/desktop FFI, or no key available.
   if (password == null || !cipherPlatform) {
@@ -82,6 +118,10 @@ Future<Database> openAppDatabase({
     await CrashLog.record(e, stack: st, context: 'sqlcipher_migration');
     return openPlaintext();
   }
+
+  // Retire the plaintext recovery copy (this launch's migration or an earlier
+  // one's) once the encrypted file proves it opens with the key.
+  await sweepPlaintextRecoveryCopy(dbPath: dbPath, password: password);
 
   return cipher.openDatabase(
     dbPath,
@@ -113,7 +153,7 @@ Future<void> maybeMigrateToEncrypted({
   final file = File(dbPath);
   if (!await _isPlaintextSqlite(file)) return; // absent or already encrypted
 
-  final backupPath = '$dbPath.pre-sqlcipher-backup';
+  final backupPath = '$dbPath$_recoveryCopySuffix';
   final tmpPath = '$dbPath.sqlcipher-tmp';
   final tmp = File(tmpPath);
 
@@ -150,8 +190,9 @@ Future<void> maybeMigrateToEncrypted({
       if (await file.exists()) await file.delete();
       await tmp.rename(dbPath);
     }
-    // `.pre-sqlcipher-backup` is intentionally left on disk; it is reaped by
-    // DatabaseHelper's orphaned-backup cleanup once the encrypted DB is proven.
+    // `.pre-sqlcipher-backup` is intentionally left on disk as the recovery
+    // copy; [sweepPlaintextRecoveryCopy] deletes it once the swapped-in file is
+    // proven to open with the key.
   } catch (_) {
     // Fail-safe: dbPath is still the intact plaintext (only deleted post-verify
     // above). Drop the temp and rethrow so the caller opens plaintext.
@@ -165,13 +206,38 @@ Future<void> maybeMigrateToEncrypted({
   }
 }
 
+/// Deletes the plaintext `.pre-sqlcipher-backup` [maybeMigrateToEncrypted]
+/// leaves beside [dbPath] (this launch's, or one an earlier build left behind)
+/// once the database is proven encrypted: the file at [dbPath] must be
+/// ciphertext that opens with [password] and passes `integrity_check`. Until
+/// then the copy is the only readable recovery path and stays; after that it is
+/// a full plaintext copy of the database defeating at-rest encryption. Never
+/// throws; a copy it could not prove or delete is retried on the next open.
+Future<void> sweepPlaintextRecoveryCopy({
+  required String dbPath,
+  required String password,
+  CipherVerifyFn? verifyFn,
+}) async {
+  final copy = File('$dbPath$_recoveryCopySuffix');
+  try {
+    if (!await copy.exists() || !await isEncryptedDatabaseFile(dbPath)) return;
+    await (verifyFn ?? _sqlcipherVerify)(dbPath: dbPath, password: password);
+    await copy.delete();
+  } catch (e, st) {
+    await CrashLog.record(e, stack: st, context: 'sqlcipher_recovery_copy');
+  }
+}
+
 /// True when the file at [dbPath] exists and is NOT a plaintext SQLite file —
 /// i.e. it is SQLCipher-encrypted. Lets the backup paths decide whether a
-/// plaintext export is needed before embedding the raw database bytes.
+/// plaintext export is needed before embedding the raw database bytes, and
+/// gates what would destroy an encrypted file (a new key, a plaintext open).
+/// A file shorter than the 16-byte header (0 bytes when an open was killed
+/// before its first write) holds no database yet, so it does not count.
 Future<bool> isEncryptedDatabaseFile(String dbPath) async {
-  final f = File(dbPath);
-  if (!await f.exists()) return false;
-  return !(await _isPlaintextSqlite(f));
+  final header = await _readHeader(File(dbPath));
+  if (header == null || header.length < _sqliteMagic.length) return false;
+  return !_hasSqliteMagic(header);
 }
 
 /// Writes a plaintext copy of the encrypted database at [dbPath] to [dest],
@@ -202,6 +268,34 @@ Future<void> exportPlaintextCopy({
   } finally {
     await src.close();
   }
+}
+
+/// Deletes plaintext backup exports ([plaintextExportPrefix], journals
+/// included) in [dir] last modified more than [maxAge] ago: each is an
+/// unencrypted copy of the whole database that a backup killed mid-way never
+/// cleaned up. The age gate spares the export of a backup running right now.
+/// Returns how many files were deleted; never throws.
+Future<int> deleteStalePlaintextExports(
+  Directory dir, {
+  Duration maxAge = const Duration(hours: 1),
+}) async {
+  final cutoff = DateTime.now().subtract(maxAge);
+  var deleted = 0;
+  try {
+    await for (final entity in dir.list()) {
+      if (entity is! File ||
+          !p.basename(entity.path).startsWith(plaintextExportPrefix)) {
+        continue;
+      }
+      if ((await entity.stat()).modified.isBefore(cutoff)) {
+        await entity.delete();
+        deleted++;
+      }
+    }
+  } catch (e, st) {
+    await CrashLog.record(e, stack: st, context: 'plaintext_export_sweep');
+  }
+  return deleted;
 }
 
 // --- production cipher operations (device-only; never run on the test runner)
@@ -297,19 +391,33 @@ Future<int> _userVersion(Database db, {String? schema}) async {
 }
 
 Future<bool> _isPlaintextSqlite(File f) async {
-  if (!await f.exists()) return false;
-  if (await f.length() < 16) return false;
-  final raf = await f.open();
+  final header = await _readHeader(f);
+  return header != null && _hasSqliteMagic(header);
+}
+
+/// The first 16 bytes of [f] (fewer when it is shorter), or null when it does
+/// not exist. A single open, so a file deleted mid-check reads as absent
+/// instead of failing between separate exists/length/read calls. Any other
+/// I/O error propagates: an unreadable file must not pass for "no database".
+Future<List<int>?> _readHeader(File f) async {
   try {
-    final header = await raf.read(16);
-    if (header.length < 16) return false;
-    for (var i = 0; i < _sqliteMagic.length; i++) {
-      if (header[i] != _sqliteMagic[i]) return false;
+    final raf = await f.open();
+    try {
+      return await raf.read(_sqliteMagic.length);
+    } finally {
+      await raf.close();
     }
-    return true;
-  } finally {
-    await raf.close();
+  } on PathNotFoundException {
+    return null;
   }
+}
+
+bool _hasSqliteMagic(List<int> header) {
+  if (header.length < _sqliteMagic.length) return false;
+  for (var i = 0; i < _sqliteMagic.length; i++) {
+    if (header[i] != _sqliteMagic[i]) return false;
+  }
+  return true;
 }
 
 Future<void> _deleteSidecars(String dbPath) async {

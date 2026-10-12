@@ -67,6 +67,17 @@ void main() {
     messenger.setMockMethodCallHandler(channel, null);
   });
 
+  test('every call ships resetOnError=false, so a failed read can never '
+      'make the plugin delete stored values', () async {
+    Object? options;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      options = (call.arguments as Map)['options'];
+      return null;
+    });
+    await SecurePrefs.readString('anything');
+    expect((options as Map?)?['resetOnError'], 'false');
+  });
+
   test('writeString persists to the secure store', () async {
     await SecurePrefs.writeString('greeting', 'hello');
     expect(secureBacking['greeting'], equals('hello'));
@@ -167,5 +178,46 @@ void main() {
     expect(prefs.getString('legacy_only'), equals('still-here'),
         reason:
             'legacy entry must NOT be deleted unless the secure write succeeded');
+  });
+
+  group('readStringStrict', () {
+    void failSecureReads() {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'read') {
+          throw PlatformException(code: 'Exception encountered');
+        }
+        return null;
+      });
+    }
+
+    test('returns the secure value', () async {
+      secureBacking['k'] = 'secure';
+      expect(await SecurePrefs.readStringStrict('k'), equals('secure'));
+    });
+
+    test('rethrows a read error instead of reporting a miss', () async {
+      failSecureReads();
+      await expectLater(
+        SecurePrefs.readStringStrict('k'),
+        throwsA(isA<PlatformException>()),
+      );
+    });
+
+    test('returns a legacy copy when the secure read fails', () async {
+      SharedPreferences.setMockInitialValues({'k': 'fell-back'});
+      failSecureReads();
+      expect(await SecurePrefs.readStringStrict('k'), equals('fell-back'));
+    });
+
+    test('a genuine miss still migrates the legacy value', () async {
+      SharedPreferences.setMockInitialValues({'k': 'legacy'});
+      expect(await SecurePrefs.readStringStrict('k'), equals('legacy'));
+      expect(secureBacking['k'], equals('legacy'));
+    });
+
+    test('readString keeps reporting a read error as a miss', () async {
+      failSecureReads();
+      expect(await SecurePrefs.readString('k'), isNull);
+    });
   });
 }

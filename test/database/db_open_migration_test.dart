@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:budget_tracker/database/db_open.dart';
+import 'package:budget_tracker/utils/crash_log.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -13,6 +14,10 @@ import 'package:path/path.dart' as p;
 /// plaintext database is replaced ONLY after a verified encrypted copy, and on
 /// any failure the original is left untouched. The real cipher is covered by
 /// on-device verification.
+///
+/// Also the guards around it: an encrypted file is never opened as plaintext,
+/// and the plaintext copies (the migration's recovery copy, a backup's export)
+/// are deleted only once they are provably no longer needed.
 void main() {
   // SQLite plaintext magic header: "SQLite format 3\0".
   final magic = Uint8List.fromList(<int>[
@@ -26,9 +31,11 @@ void main() {
   setUp(() async {
     tmp = await Directory.systemTemp.createTemp('ff_sqlcipher_test');
     dbPath = p.join(tmp.path, 'expense_tracker_v4.db');
+    CrashLog.directoryOverride = tmp;
   });
 
   tearDown(() async {
+    CrashLog.resetForTesting();
     if (await tmp.exists()) await tmp.delete(recursive: true);
   });
 
@@ -155,5 +162,152 @@ void main() {
     );
 
     expect(await File(dbPath).readAsBytes(), encryptedBytes());
+  });
+
+  group('isEncryptedDatabaseFile', () {
+    test('false when absent, empty, or plaintext', () async {
+      expect(await isEncryptedDatabaseFile(dbPath), isFalse);
+      expect(
+        await isEncryptedDatabaseFile(p.join(tmp.path, 'gone', 'x.db')),
+        isFalse,
+        reason: 'a missing parent directory is absent too, not an error',
+      );
+      await File(dbPath).writeAsBytes(const <int>[]);
+      expect(await isEncryptedDatabaseFile(dbPath), isFalse,
+          reason: 'a 0-byte file is an empty database, not ciphertext');
+      await writePlaintextDb();
+      expect(await isEncryptedDatabaseFile(dbPath), isFalse);
+    });
+
+    test('true for a file without the SQLite magic', () async {
+      await File(dbPath).writeAsBytes(encryptedBytes());
+      expect(await isEncryptedDatabaseFile(dbPath), isTrue);
+    });
+  });
+
+  test('openAppDatabase without a key refuses to open an encrypted file as '
+      'plaintext and leaves it intact', () async {
+    await File(dbPath).writeAsBytes(encryptedBytes());
+
+    await expectLater(
+      openAppDatabase(
+        dbPath: dbPath,
+        version: 1,
+        onConfigure: (db) async {},
+        onCreate: (db, version) async {},
+        onUpgrade: (db, oldVersion, newVersion) async {},
+        password: null,
+      ),
+      throwsA(isA<DatabaseKeyUnavailableException>()),
+    );
+    expect(await File(dbPath).readAsBytes(), encryptedBytes());
+  });
+
+  group('sweepPlaintextRecoveryCopy', () {
+    late File copy;
+    setUp(() {
+      copy = File('$dbPath.pre-sqlcipher-backup');
+    });
+
+    test('deletes the copy once the encrypted file opens with the key',
+        () async {
+      await File(dbPath).writeAsBytes(encryptedBytes());
+      await copy.writeAsBytes(magic);
+      String? verifiedPath;
+      String? verifiedPassword;
+
+      await sweepPlaintextRecoveryCopy(
+        dbPath: dbPath,
+        password: 'pw',
+        verifyFn: ({required dbPath, required password}) async {
+          verifiedPath = dbPath;
+          verifiedPassword = password;
+          return 5;
+        },
+      );
+
+      expect(verifiedPath, dbPath);
+      expect(verifiedPassword, 'pw');
+      expect(await copy.exists(), isFalse);
+      expect(await File(dbPath).readAsBytes(), encryptedBytes());
+    });
+
+    test('keeps the copy when the encrypted file fails verification',
+        () async {
+      await File(dbPath).writeAsBytes(encryptedBytes());
+      await copy.writeAsBytes(magic);
+
+      await sweepPlaintextRecoveryCopy(
+        dbPath: dbPath,
+        password: 'wrong',
+        verifyFn: ({required dbPath, required password}) async =>
+            throw StateError('file is not a database'),
+      );
+
+      expect(await copy.exists(), isTrue);
+    });
+
+    test('keeps the copy while the live file is still plaintext', () async {
+      await writePlaintextDb();
+      await copy.writeAsBytes(magic);
+      var verifyCalled = false;
+
+      await sweepPlaintextRecoveryCopy(
+        dbPath: dbPath,
+        password: 'pw',
+        verifyFn: ({required dbPath, required password}) async {
+          verifyCalled = true;
+          return 0;
+        },
+      );
+
+      expect(verifyCalled, isFalse);
+      expect(await copy.exists(), isTrue);
+    });
+
+    test('does nothing when there is no copy', () async {
+      await File(dbPath).writeAsBytes(encryptedBytes());
+      var verifyCalled = false;
+
+      await sweepPlaintextRecoveryCopy(
+        dbPath: dbPath,
+        password: 'pw',
+        verifyFn: ({required dbPath, required password}) async {
+          verifyCalled = true;
+          return 0;
+        },
+      );
+
+      expect(verifyCalled, isFalse);
+    });
+  });
+
+  group('deleteStalePlaintextExports', () {
+    test('deletes stale exports and their journals, spares fresh exports and '
+        'other files', () async {
+      final stale = File(p.join(tmp.path, '${plaintextExportPrefix}1.db'));
+      final staleJournal = File('${stale.path}-journal');
+      final fresh = File(p.join(tmp.path, '${plaintextExportPrefix}2.db'));
+      final other = File(dbPath);
+      final old = DateTime.now().subtract(const Duration(hours: 2));
+      for (final f in [stale, staleJournal, fresh, other]) {
+        await f.writeAsBytes(magic);
+      }
+      for (final f in [stale, staleJournal, other]) {
+        await f.setLastModified(old);
+      }
+
+      expect(await deleteStalePlaintextExports(tmp), 2);
+
+      expect(await stale.exists(), isFalse);
+      expect(await staleJournal.exists(), isFalse);
+      expect(await fresh.exists(), isTrue);
+      expect(await other.exists(), isTrue);
+    });
+
+    test('a missing directory is not an error', () async {
+      final missing = Directory(p.join(tmp.path, 'missing'));
+      expect(await deleteStalePlaintextExports(missing), 0);
+    });
   });
 }

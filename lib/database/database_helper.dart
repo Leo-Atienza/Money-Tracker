@@ -198,9 +198,11 @@ class DatabaseHelper {
     );
 
     // Phase 6.1: resolve the at-rest encryption passphrase. Null on the FFI
-    // test runner / desktop, or when no key can be durably persisted, in which
-    // case [openAppDatabase] opens a plaintext database exactly as before.
-    final password = await _resolveEncryptionPassword();
+    // test runner / desktop, or when a not-yet-encrypted database has no
+    // durable key this launch, in which case [openAppDatabase] opens it
+    // plaintext exactly as before. Throws for an encrypted database whose key
+    // cannot be read (see [_resolveEncryptionPassword]).
+    final password = await _resolveEncryptionPassword(dbPath);
 
     return await openAppDatabase(
       dbPath: dbPath,
@@ -222,13 +224,18 @@ class DatabaseHelper {
   ///
   /// Returns null on every path that must stay plaintext: the integration
   /// test runner (which sets [databaseNameOverride]), any non-mobile platform
-  /// (no SQLCipher plugin — the FFI factory drives those), or a Keystore
-  /// failure where no durable key could be obtained ([DbEncryption.getOrCreateKey]
-  /// swallows its own errors and returns null).
-  Future<String?> _resolveEncryptionPassword() async {
+  /// (no SQLCipher plugin — the FFI factory drives those), or a database at
+  /// [dbPath] that is not encrypted yet and has no durable key this launch.
+  ///
+  /// When [dbPath] is already encrypted and its key cannot be read (Keystore
+  /// error, or the key is gone), [DbEncryption.getOrCreateKey] throws
+  /// [DatabaseKeyUnavailableException] instead of minting a key that could
+  /// never open it. The open then fails without touching the file,
+  /// `AppState.loadData` records the error, and the next resume retries.
+  Future<String?> _resolveEncryptionPassword(String dbPath) async {
     if (databaseNameOverride != null) return null;
     if (!cipherPlatform) return null;
-    return DbEncryption.getOrCreateKey();
+    return DbEncryption.getOrCreateKey(dbPath: dbPath);
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -1558,9 +1565,15 @@ class DatabaseHelper {
             .map((row) => row['data'] as String)
             .toSet();
 
+        // deleteAccount writes the backup BEFORE it inserts the row that
+        // registers it, and this sweep runs in the background without the
+        // AppState write mutex, so a fresh unregistered file may simply not be
+        // registered yet. Only one untouched for an hour is an orphan.
+        final cutoff = DateTime.now().subtract(const Duration(hours: 1));
         await for (final entity in backupsDir.list()) {
           if (entity is File && !registeredPaths.contains(entity.path)) {
             try {
+              if ((await entity.lastModified()).isAfter(cutoff)) continue;
               await entity.delete();
               cleanedCount++;
               if (kDebugMode) debugPrint('Cleaned orphaned backup: ${entity.path}');
@@ -1600,6 +1613,15 @@ class DatabaseHelper {
       }
     } catch (e) {
       if (kDebugMode) debugPrint('Error sweeping pre-restore backups: $e');
+    }
+
+    // A backup deletes its plaintext export of the encrypted database when it
+    // finishes; reap any that a backup killed mid-way left in the temp dir.
+    try {
+      cleanedCount +=
+          await deleteStalePlaintextExports(await getTemporaryDirectory());
+    } catch (e) {
+      if (kDebugMode) debugPrint('Error sweeping plaintext exports: $e');
     }
 
     return cleanedCount;
