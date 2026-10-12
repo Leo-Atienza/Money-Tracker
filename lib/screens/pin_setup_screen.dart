@@ -4,6 +4,7 @@ import '../utils/haptic_helper.dart';
 import '../utils/secure_window.dart';
 import '../theme/app_colors.dart';
 import '../theme/luminous_tokens.dart';
+import '../widgets/luminous/fill_or_scroll.dart';
 import '../widgets/luminous/glass_top_app_bar.dart';
 
 /// Screen for setting up a new PIN or changing an existing PIN
@@ -43,6 +44,9 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
           top: false,
           child: Padding(
             padding: const EdgeInsets.all(LuminousTokens.containerPadding),
+            // Scrolls when the pad does not fit (a small phone, large text):
+            // its bottom row was cut off at 1.3x text on a 360dp phone.
+            child: FillOrScroll(
             child: Column(
             children: [
               const SizedBox(height: 32),
@@ -185,6 +189,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
 
               const SizedBox(height: 24),
             ],
+          ),
           ),
         ),
       ),

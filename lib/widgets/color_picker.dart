@@ -48,6 +48,8 @@ class ColorPicker extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
+      // Clear of the nav bar: a 3-button bar covered the last row.
+      padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),

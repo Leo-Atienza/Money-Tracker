@@ -25,7 +25,7 @@ class DialogHelpers {
           children: [
             Icon(Icons.warning, color: appColors.warningOrange),
             SizedBox(width: 12),
-            const Text('Delete Budget?'),
+            Flexible(child: const Text('Delete Budget?')),
           ],
         ),
         content: Column(
@@ -101,7 +101,7 @@ class DialogHelpers {
           children: [
             Icon(Icons.warning, color: appColors.warningOrange),
             SizedBox(width: 12),
-            const Text('Change Currency?'),
+            Flexible(child: const Text('Change Currency?')),
           ],
         ),
         content: Column(
@@ -184,7 +184,7 @@ class DialogHelpers {
             children: [
               Icon(Icons.calendar_today, color: appColors.infoBlue),
               SizedBox(width: 12),
-              const Text('Future Date'),
+              Flexible(child: const Text('Future Date')),
             ],
           ),
           content: Column(

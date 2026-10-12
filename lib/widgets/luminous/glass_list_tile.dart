@@ -85,7 +85,9 @@ class GlassListTile extends StatelessWidget {
                   label,
                   style: theme.textTheme.titleMedium ??
                       const TextStyle(fontWeight: FontWeight.w600),
-                  maxLines: 1,
+                  // Two lines: with large text one line cut labels to
+                  // "Carry Over Bala…" next to a switch.
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (sublabel != null) ...[

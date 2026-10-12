@@ -213,8 +213,13 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // A Wrap, not a Row: on a narrow phone with large text the
+              // legend moves under the title instead of overflowing it.
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 16,
+                runSpacing: 8,
                 children: [
                   Text(
                     '6-MONTH TRENDS',
@@ -223,6 +228,7 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart>
                     ),
                   ),
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       _buildLegendItem(theme, appColors.expenseRed, 'Expenses'),
                       const SizedBox(width: 16),

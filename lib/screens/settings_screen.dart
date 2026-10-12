@@ -497,6 +497,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
+        // Clear of the nav bar: a 3-button bar covered the last row.
+        padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -599,6 +601,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) => Container(
+        // Clear of the nav bar: a 3-button bar covered the last row.
+        padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
         height: MediaQuery.of(context).size.height * 0.6,
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
@@ -764,6 +768,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) => Container(
+        // Clear of the nav bar: a 3-button bar covered the last row.
+        padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
         height: MediaQuery.of(context).size.height * 0.5,
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
@@ -906,6 +912,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
+        // Clear of the nav bar: a 3-button bar covered the last row.
+        padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),

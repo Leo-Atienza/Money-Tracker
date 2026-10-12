@@ -1518,7 +1518,13 @@ class _HistoryScreenState extends State<HistoryScreen>
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     const SizedBox(height: 4),
-                                    Row(
+                                    // A Wrap: on a narrow phone with large
+                                    // text the date moves to a second line
+                                    // instead of overflowing the tile.
+                                    Wrap(
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      runSpacing: 2,
                                       children: [
                                         Text(
                                           expense.category,
@@ -1576,6 +1582,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                                                     expense.date);
                                             if (relativeTime.isNotEmpty) {
                                               return Row(
+                                                mainAxisSize: MainAxisSize.min,
                                                 children: [
                                                   Padding(
                                                     padding: const EdgeInsets
@@ -1905,7 +1912,10 @@ class _HistoryScreenState extends State<HistoryScreen>
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 4),
-                                Row(
+                                // A Wrap, as on the expense tile.
+                                Wrap(
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  runSpacing: 2,
                                   children: [
                                     Text(
                                       income.category,
@@ -1921,6 +1931,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                                                 income.date);
                                         if (relativeTime.isNotEmpty) {
                                           return Row(
+                                            mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Padding(
                                                 padding:

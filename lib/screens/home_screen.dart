@@ -413,7 +413,10 @@ class HomeScreen extends StatelessWidget {
       isScrollControlled: true,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Container(
-          height: 350,
+          // Grows by the nav-bar inset and pads it, so a 3-button bar never
+          // covers the last row of months.
+          height: 350 + MediaQuery.paddingOf(context).bottom,
+          padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -737,10 +740,20 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                                 color: appColors.incomeGreen,
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                'Income',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
+                              // Shrinks rather than overflowing the tile on a
+                              // narrow phone with large text.
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'Income',
+                                    style:
+                                        theme.textTheme.bodyMedium?.copyWith(
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
@@ -781,10 +794,20 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                                 color: appColors.expenseRed,
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                'Expenses',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
+                              // Shrinks rather than overflowing the tile on a
+                              // narrow phone with large text.
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'Expenses',
+                                    style:
+                                        theme.textTheme.bodyMedium?.copyWith(
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],

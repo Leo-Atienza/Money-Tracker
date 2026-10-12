@@ -5,6 +5,7 @@ import '../utils/pin_security_helper.dart';
 import '../utils/haptic_helper.dart';
 import '../theme/app_colors.dart';
 import '../theme/luminous_tokens.dart';
+import '../widgets/luminous/fill_or_scroll.dart';
 import '../widgets/luminous/glass_panel.dart';
 
 /// Screen for unlocking the app with PIN
@@ -124,6 +125,8 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(LuminousTokens.containerPadding),
+          // Scrolls when the pad does not fit (a small phone, large text).
+          child: FillOrScroll(
           child: Column(
             children: [
               const Spacer(),
@@ -266,6 +269,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
 
               const SizedBox(height: 8),
             ],
+          ),
           ),
         ),
       ),

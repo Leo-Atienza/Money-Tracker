@@ -101,10 +101,15 @@ class _Segment extends StatelessWidget {
             ) ??
         TextStyle(color: selected ? activeColor : inactiveColor);
 
+    // One node: the visible Text under this label read the name twice
+    // ("Expense Expense"). Excluding the child also drops the InkWell's tap
+    // action, so the node carries it.
     return Semantics(
       button: true,
       selected: selected,
       label: label,
+      onTap: onTap,
+      excludeSemantics: true,
       child: InkWell(
         borderRadius: BorderRadius.circular(LuminousTokens.radiusPill),
         onTap: onTap,

@@ -1167,7 +1167,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          TextFormField(
+          // The field's spoken name: TalkBack read only "0.00, edit box"
+          // (the AMOUNT caption above is a separate, unlinked Text).
+          Semantics(
+            label: 'Amount',
+            child: TextFormField(
             controller: _amountController,
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
@@ -1207,6 +1211,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               }
               return null;
             },
+          ),
           ),
         ],
       ),
