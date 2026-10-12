@@ -6,6 +6,7 @@ import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/app_state.dart';
+import '../../database/database_helper.dart';
 import '../../models/category_model.dart' as cat_model;
 import '../../models/expense_model.dart';
 import '../../models/income_model.dart';
@@ -38,6 +39,9 @@ class _HistoryScreenState extends State<HistoryScreen>
   List<Expense> _allTimeExpenses = [];
   List<Income> _allTimeIncome = [];
   bool _isLoadingAllTime = false;
+  // A silent re-read of the all-time rows after a write (see
+  // _onAppStateChanged): no skeleton, but no page load starts meanwhile.
+  bool _isRefreshingAllTime = false;
   bool _hasMoreData = true;
   bool _isLoadingMore = false;
   // FIX P3-15: Documented pagination constants
@@ -77,12 +81,43 @@ class _HistoryScreenState extends State<HistoryScreen>
   // CRITICAL FIX #3: Track active operations for proper cleanup
   bool _isDisposed = false;
 
+  // The tab whose filters are applied (see _onTabChanged).
+  int _lastTabIndex = 0;
+
+  // AppState and the expense/income lists it last published (see
+  // _onAppStateChanged).
+  late final AppState _appState;
+  List<Expense>? _seenExpenses;
+  List<Income>? _seenIncomes;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onTabChanged);
     _scrollController.addListener(_onScroll);
+    _appState = context.read<AppState>()..addListener(_onAppStateChanged);
+    _seenExpenses = _appState.allExpenses;
+    _seenIncomes = _appState.incomes;
+  }
+
+  /// Re-reads the all-time rows after any expense or income write.
+  ///
+  /// Those rows are a snapshot of the database. Paying or editing from an
+  /// all-time or search tile used to leave it showing the old row ("$1,000
+  /// left" after paying $300), and the next payment or edit opened from it
+  /// handed that stale row back to AppState. AppState publishes new
+  /// expense/income lists after every write, so a new list marks a change.
+  void _onAppStateChanged() {
+    final expenses = _appState.allExpenses;
+    final incomes = _appState.incomes;
+    if (identical(expenses, _seenExpenses) &&
+        identical(incomes, _seenIncomes)) {
+      return;
+    }
+    _seenExpenses = expenses;
+    _seenIncomes = incomes;
+    if (_searchAllTime) _loadAllTimeData(silent: true);
   }
 
   // CRITICAL FIX #2: Clean up old cancelled request IDs to prevent memory leak
@@ -142,26 +177,36 @@ class _HistoryScreenState extends State<HistoryScreen>
   }
 
   void _onTabChanged() {
-    if (_tabController.indexIsChanging) {
-      // CRITICAL FIX #2: Cancel debounce timer and in-flight requests when switching tabs
-      _debounce?.cancel();
+    // React to any index change. A TabBarView swipe settles the index
+    // without ever setting indexIsChanging (only a tap animates through it),
+    // so swipes used to keep the old filters — e.g. "Unpaid" hiding paid
+    // expenses on All with no chip left to clear it. A tap notifies twice;
+    // the second call sees no change.
+    if (_tabController.index == _lastTabIndex) return;
+    _lastTabIndex = _tabController.index;
 
-      // CRITICAL FIX #1: Cancel all in-flight requests on tab change
-      if (_lastRequestId > 0) {
-        _cancelledRequestIds.add(_lastRequestId);
-      }
+    // CRITICAL FIX #2: Cancel debounce timer and in-flight requests when switching tabs
+    _debounce?.cancel();
 
-      if (mounted && !_isDisposed) {
-        setState(() {
-          _filterCategory = 'All';
-          // FIX: Reset payment filter when switching tabs
-          _paymentStatusFilter = 'all';
-          // CRITICAL FIX: Clear search state when switching tabs
-          // Prevents "Food" search in Expenses from filtering Income tab
-          _searchTerm = '';
-          _searchController.clear();
-        });
-      }
+    // CRITICAL FIX #1: Cancel all in-flight requests on tab change
+    if (_lastRequestId > 0) {
+      _cancelledRequestIds.add(_lastRequestId);
+    }
+
+    if (mounted && !_isDisposed) {
+      setState(() {
+        _filterCategory = 'All';
+        // FIX: Reset payment filter when switching tabs
+        _paymentStatusFilter = 'all';
+        // CRITICAL FIX: Clear search state when switching tabs
+        // Prevents "Food" search in Expenses from filtering Income tab
+        // Ending the search also ends the all-time view it switched on.
+        if (_searchTerm.isNotEmpty) _searchAllTime = _previousAllTimeState;
+        _searchTerm = '';
+        _searchController.clear();
+      });
+      // All-time rows were fetched for the filters just reset.
+      if (_searchAllTime) _loadAllTimeData();
     }
   }
 
@@ -170,6 +215,7 @@ class _HistoryScreenState extends State<HistoryScreen>
     // CRITICAL FIX #3: Mark as disposed and cancel all operations
     _isDisposed = true;
     _debounce?.cancel(); // Cancel debounce timer
+    _appState.removeListener(_onAppStateChanged);
 
     // CRITICAL FIX #2: Cancel all in-flight requests by incrementing and clearing
     _lastRequestId++;
@@ -192,44 +238,50 @@ class _HistoryScreenState extends State<HistoryScreen>
     _debounce = Timer(const Duration(milliseconds: 300), () {
       if (_isDisposed) return;
       setState(() {
-        _searchTerm = value;
-        if (value.isNotEmpty && !_searchAllTime) {
+        // A search is starting: remember the toggle it overrides.
+        if (value.isNotEmpty && _searchTerm.isEmpty) {
           _previousAllTimeState = _searchAllTime;
-          _searchAllTime = true;
-          _loadAllTimeData();
-        } else if (value.isNotEmpty) {
-          _loadAllTimeData();
-        } else if (value.isEmpty) {
-          _searchAllTime = _previousAllTimeState;
         }
+        _searchTerm = value;
+        // A search runs across all time; ending it restores the toggle.
+        _searchAllTime = value.isNotEmpty || _previousAllTimeState;
       });
+      // Re-query whenever all time is showing — also when the search just
+      // ended with the toggle still on, which now lists everything rather
+      // than keeping the last search's rows.
+      if (_searchAllTime) _loadAllTimeData();
     });
   }
 
   void _clearSearchTerm() {
+    // A pending keystroke would otherwise re-apply the cleared term.
+    _debounce?.cancel();
     _searchController.clear();
     setState(() {
       _searchTerm = '';
       _searchAllTime = _previousAllTimeState;
     });
-    _loadAllTimeData();
+    if (_searchAllTime) _loadAllTimeData();
   }
 
   void _toggleAllTime(bool value) {
     setState(() => _searchAllTime = value);
-    if (value && _allTimeExpenses.isEmpty) {
-      _loadAllTimeData();
-    }
+    // Always re-query: rows left from an earlier visit may predate filter
+    // changes and writes made since.
+    if (value) _loadAllTimeData();
   }
 
   void _showEditExpenseDialog(BuildContext context, Expense expense) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => AddTransactionScreen(
-        initialType: TransactionType.expense,
-        expense: expense,
+    // A full page, like the income edit path and Home. The transparent modal
+    // sheet floated the form over the dimmed list (unreadable in the light
+    // theme) with its header under the status bar.
+    Navigator.push(
+      context,
+      PremiumPageRoute(
+        page: AddTransactionScreen(
+          initialType: TransactionType.expense,
+          expense: expense,
+        ),
       ),
     );
   }
@@ -297,13 +349,20 @@ class _HistoryScreenState extends State<HistoryScreen>
 
       setState(() {
         _dateRange = picked;
-        // Enable all-time search when using date range
-        if (!_searchAllTime) {
-          _searchAllTime = true;
-          _loadAllTimeData();
-        }
+        // Enable all-time search when using date range: a range can span
+        // months the month view doesn't hold, so the database answers it.
+        _searchAllTime = true;
       });
+      // Re-query even when all time was already on (a search was active):
+      // the range used to be stored there without ever being applied.
+      _loadAllTimeData();
     }
+  }
+
+  void _clearDateRange() {
+    setState(() => _dateRange = null);
+    // Drop the range from the all-time rows too, not just from the chip.
+    if (_searchAllTime) _loadAllTimeData();
   }
 
   String _formatDateRange(DateTimeRange range) {
@@ -331,9 +390,16 @@ class _HistoryScreenState extends State<HistoryScreen>
     );
   }
 
-  Future<void> _loadAllTimeData() async {
+  /// Loads the first page of the all-time view, superseding any request in
+  /// flight. With [silent] it re-reads every row already on screen in one
+  /// query and swaps them in place — no skeleton, no lost pages — which is
+  /// how rows are refreshed after a write.
+  Future<void> _loadAllTimeData({bool silent = false}) async {
     // CRITICAL FIX #3: Don't start new operations if disposed
-    if (_isDisposed || _isLoadingAllTime) return;
+    // No "already loading" bail-out: a new request supersedes the one in
+    // flight (whose result is then dropped). Bailing out ignored filter
+    // changes made while a load ran.
+    if (_isDisposed) return;
 
     // CRITICAL FIX #1: Cancel previous request before starting new one
     if (_lastRequestId > 0) {
@@ -344,27 +410,25 @@ class _HistoryScreenState extends State<HistoryScreen>
     _lastRequestId++;
     final requestId = _lastRequestId;
 
+    final loaded = _allTimeExpenses.length + _allTimeIncome.length;
+    final limit = silent && loaded > _pageSize ? loaded : _pageSize;
+
     setState(() {
-      _isLoadingAllTime = true;
-      _hasMoreData = true;
-      _allTimeExpenses = [];
-      _allTimeIncome = [];
+      // This request supersedes any page load in flight.
+      _isLoadingMore = false;
+      if (silent) {
+        _isRefreshingAllTime = true;
+      } else {
+        _isLoadingAllTime = true;
+        _hasMoreData = true;
+        _allTimeExpenses = [];
+        _allTimeIncome = [];
+      }
     });
 
     try {
-      final appState = context.read<AppState>();
-
       // CRITICAL FIX #3: Add timeout to prevent hanging operations
-      final result = await appState
-          .searchTransactionsUnified(
-        _searchTerm,
-        limit: _pageSize,
-        category: _filterCategory,
-        startDate: _dateRange?.start.toIso8601String(),
-        endDate: _dateRange?.end.toIso8601String(),
-        sortOrder: _sortOrder,
-      )
-          .timeout(
+      final result = await _queryAllTime(limit: limit).timeout(
         const Duration(seconds: 10),
         onTimeout: () {
           throw TimeoutException('Search operation timed out');
@@ -375,6 +439,7 @@ class _HistoryScreenState extends State<HistoryScreen>
       if (_cancelledRequestIds.contains(requestId)) {
         _cancelledRequestIds.remove(requestId);
         _cleanupCancelledRequests();
+        _endLoading(requestId);
         return;
       }
 
@@ -384,6 +449,7 @@ class _HistoryScreenState extends State<HistoryScreen>
           _allTimeExpenses = result['expenses'] as List<Expense>;
           _allTimeIncome = result['income'] as List<Income>;
           _isLoadingAllTime = false;
+          _isRefreshingAllTime = false;
           _hasMoreData = result['hasMore'] as bool;
         });
         // CRITICAL FIX #2: Clean up old cancelled requests
@@ -396,16 +462,62 @@ class _HistoryScreenState extends State<HistoryScreen>
 
       // CRITICAL FIX #1: Only update state if still valid
       if (!_isDisposed && mounted && requestId == _lastRequestId) {
-        setState(() => _isLoadingAllTime = false);
+        _endLoading(requestId);
         // ENHANCED ERROR HANDLING: Log error for debugging
         if (kDebugMode) debugPrint('Error loading all-time data: $e');
       }
     }
   }
 
+  /// Ends the loading state once [requestId] settles, if it is still the
+  /// latest request (a newer one owns the flags otherwise). A request
+  /// cancelled by a tab switch used to return with `_isLoadingAllTime` still
+  /// set: a skeleton for the rest of the session, and no load could start.
+  void _endLoading(int requestId) {
+    if (_isDisposed || !mounted || requestId != _lastRequestId) return;
+    setState(() {
+      _isLoadingAllTime = false;
+      _isRefreshingAllTime = false;
+      _isLoadingMore = false;
+    });
+  }
+
+  /// One page of the all-time view: the search term (none lists every
+  /// transaction), category and date range, applied in the database.
+  ///
+  /// Asks [DatabaseHelper] directly because `AppState.searchTransactionsUnified`
+  /// answers an empty term with no rows, which left All time and the date
+  /// range empty unless something was typed in the search box.
+  Future<Map<String, dynamic>> _queryAllTime({
+    required int limit,
+    int offset = 0,
+  }) {
+    final range = _dateRange;
+    return DatabaseHelper().searchTransactionsUnified(
+      _appState.currentAccountId,
+      _searchTerm,
+      limit: limit,
+      offset: offset,
+      category: _filterCategory,
+      // The date column holds 'YYYY-MM-DD'. A full ISO timestamp sorts after
+      // the bare date, so `date >= start` dropped the range's first day.
+      startDate: range == null ? null : DateHelper.toDateString(range.start),
+      endDate: range == null ? null : DateHelper.toDateString(range.end),
+      sortOrder: _sortOrder,
+    );
+  }
+
   Future<void> _loadMoreData() async {
     // CRITICAL FIX #3: Don't start new operations if disposed
-    if (_isDisposed || _isLoadingMore || !_hasMoreData) return;
+    // Nor while a first page or a refresh is loading: the offset would be
+    // taken from rows about to be replaced.
+    if (_isDisposed ||
+        _isLoadingMore ||
+        _isLoadingAllTime ||
+        _isRefreshingAllTime ||
+        !_hasMoreData) {
+      return;
+    }
 
     // CRITICAL FIX #1: Cancel previous pagination request before starting new one
     // Note: We use a separate request ID chain for pagination to avoid conflicts
@@ -420,22 +532,12 @@ class _HistoryScreenState extends State<HistoryScreen>
     setState(() => _isLoadingMore = true);
 
     try {
-      final appState = context.read<AppState>();
       // FIX: Calculate offset based on total loaded transactions
       final offset = _allTimeExpenses.length + _allTimeIncome.length;
 
       // CRITICAL FIX #3: Add timeout to prevent hanging operations
-      final result = await appState
-          .searchTransactionsUnified(
-        _searchTerm,
-        limit: _pageSize,
-        offset: offset,
-        category: _filterCategory,
-        startDate: _dateRange?.start.toIso8601String(),
-        endDate: _dateRange?.end.toIso8601String(),
-        sortOrder: _sortOrder,
-      )
-          .timeout(
+      final result =
+          await _queryAllTime(limit: _pageSize, offset: offset).timeout(
         const Duration(seconds: 10),
         onTimeout: () {
           throw TimeoutException('Load more operation timed out');
@@ -446,6 +548,7 @@ class _HistoryScreenState extends State<HistoryScreen>
       if (_cancelledRequestIds.contains(requestId)) {
         _cancelledRequestIds.remove(requestId);
         _cleanupCancelledRequests();
+        _endLoading(requestId);
         return;
       }
 
@@ -625,7 +728,7 @@ class _HistoryScreenState extends State<HistoryScreen>
               dateRange: _dateRange,
               formatDateRange: _formatDateRange,
               onDateRangeRequested: () => _showDateRangePicker(context),
-              onDateRangeCleared: () => setState(() => _dateRange = null),
+              onDateRangeCleared: _clearDateRange,
               sortOrder: _sortOrder,
               sortLabelFor: _getSortLabel,
               sortIconFor: _getSortIcon,
@@ -683,7 +786,7 @@ class _HistoryScreenState extends State<HistoryScreen>
           label: Text(category),
           onSelected: (selected) {
             setState(() => _filterCategory = selected ? category : 'All');
-            if (_searchAllTime && _searchTerm.isNotEmpty) {
+            if (_searchAllTime) {
               _loadAllTimeData();
             }
           },
@@ -1014,7 +1117,8 @@ class _HistoryScreenState extends State<HistoryScreen>
   Widget _buildAllList(
       BuildContext context, AppState appState, ThemeData theme) {
     // Show skeleton while loading all-time data for the first time
-    if (_isLoadingAllTime &&
+    if (_searchAllTime &&
+        _isLoadingAllTime &&
         _allTimeExpenses.isEmpty &&
         _allTimeIncome.isEmpty) {
       return const TransactionListSkeleton();
@@ -1037,9 +1141,9 @@ class _HistoryScreenState extends State<HistoryScreen>
 
     // FIX: Database-level filtering for all-time search mode
     final filteredItems = allItems.where((item) {
-      // For all-time mode with search, database already filtered everything
-      // No need for client-side filtering
-      if (_searchAllTime && _searchTerm.isNotEmpty) {
+      // All-time rows come from the database with the term, category and
+      // date range applied; only the payment filter is local.
+      if (_searchAllTime) {
         // FIX: Still apply payment status filter even for all-time search
         if (item is Expense && _paymentStatusFilter != 'all') {
           return _matchesPaymentStatus(item);
@@ -1078,7 +1182,7 @@ class _HistoryScreenState extends State<HistoryScreen>
   Widget _buildExpensesList(
       BuildContext context, AppState appState, ThemeData theme) {
     // Show skeleton while loading all-time data for the first time
-    if (_isLoadingAllTime && _allTimeExpenses.isEmpty) {
+    if (_searchAllTime && _isLoadingAllTime && _allTimeExpenses.isEmpty) {
       return const TransactionListSkeleton();
     }
 
@@ -1091,8 +1195,8 @@ class _HistoryScreenState extends State<HistoryScreen>
     }
 
     final filteredExpenses = expenses.where((expense) {
-      // FIX: Database already filtered for all-time search mode
-      if (_searchAllTime && _searchTerm.isNotEmpty) {
+      // FIX: Database already filtered for all-time mode
+      if (_searchAllTime) {
         // FIX: Still apply payment status filter even for all-time search
         return _paymentStatusFilter == 'all' || _matchesPaymentStatus(expense);
       }
@@ -1132,7 +1236,7 @@ class _HistoryScreenState extends State<HistoryScreen>
   Widget _buildIncomeList(
       BuildContext context, AppState appState, ThemeData theme) {
     // Show skeleton while loading all-time data for the first time
-    if (_isLoadingAllTime && _allTimeIncome.isEmpty) {
+    if (_searchAllTime && _isLoadingAllTime && _allTimeIncome.isEmpty) {
       return const TransactionListSkeleton();
     }
 
@@ -1145,8 +1249,8 @@ class _HistoryScreenState extends State<HistoryScreen>
     }
 
     final filteredIncomes = incomes.where((income) {
-      // FIX: Database already filtered for all-time search mode
-      if (_searchAllTime && _searchTerm.isNotEmpty) {
+      // FIX: Database already filtered for all-time mode
+      if (_searchAllTime) {
         return true; // Already filtered by database
       }
 
@@ -1327,6 +1431,10 @@ class _HistoryScreenState extends State<HistoryScreen>
           confirmDismiss: (direction) =>
               _confirmDelete(context, theme, 'expense', expense.description),
           onDismissed: (direction) async {
+            // Captured up front: the row leaving the list unmounts this
+            // tile's context (see _closeProgress).
+            final navigator = Navigator.of(context, rootNavigator: true);
+            final messenger = ScaffoldMessenger.of(context);
             // Show loading indicator during delete operation
             ProgressIndicatorHelper.show(context,
                 message: 'Deleting expense...');
@@ -1338,15 +1446,13 @@ class _HistoryScreenState extends State<HistoryScreen>
                 });
               }
               await appState.deleteExpense(expense.id!);
+              _closeProgress(navigator);
               if (!mounted) return;
-              if (!context.mounted) return;
-              ProgressIndicatorHelper.hide(context);
-              _showDeleteSnackbar(context, 'Expense');
+              _showDeleteSnackbar(messenger, 'Expense');
             } catch (e) {
+              _closeProgress(navigator);
               if (!mounted) return;
-              if (!context.mounted) return;
-              ProgressIndicatorHelper.hide(context);
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(
                   content: Text('Error deleting expense: $e'),
                   // L48: use the semantic expense color, not raw Colors.red.
@@ -1715,6 +1821,10 @@ class _HistoryScreenState extends State<HistoryScreen>
           confirmDismiss: (direction) =>
               _confirmDelete(context, theme, 'income', income.description),
           onDismissed: (direction) async {
+            // Captured up front: the row leaving the list unmounts this
+            // tile's context (see _closeProgress).
+            final navigator = Navigator.of(context, rootNavigator: true);
+            final messenger = ScaffoldMessenger.of(context);
             // Show loading indicator during delete operation
             ProgressIndicatorHelper.show(context,
                 message: 'Deleting income...');
@@ -1726,15 +1836,13 @@ class _HistoryScreenState extends State<HistoryScreen>
                 });
               }
               await appState.deleteIncome(income.id!);
+              _closeProgress(navigator);
               if (!mounted) return;
-              if (!context.mounted) return;
-              ProgressIndicatorHelper.hide(context);
-              _showDeleteSnackbar(context, 'Income');
+              _showDeleteSnackbar(messenger, 'Income');
             } catch (e) {
+              _closeProgress(navigator);
               if (!mounted) return;
-              if (!context.mounted) return;
-              ProgressIndicatorHelper.hide(context);
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(
                   content: Text('Error deleting income: $e'),
                   backgroundColor: appColors.expenseRed,
@@ -1937,6 +2045,10 @@ class _HistoryScreenState extends State<HistoryScreen>
     final confirmed = await _confirmDelete(context, theme, type, description);
     if (confirmed != true) return;
     if (!mounted || !context.mounted) return;
+    // Captured up front: the row leaving the list unmounts this tile's
+    // context (see _closeProgress).
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final messenger = ScaffoldMessenger.of(context);
     ProgressIndicatorHelper.show(context, message: 'Deleting $type...');
     try {
       if (_searchAllTime) {
@@ -1953,13 +2065,13 @@ class _HistoryScreenState extends State<HistoryScreen>
       } else {
         await appState.deleteIncome(id);
       }
-      if (!mounted || !context.mounted) return;
-      ProgressIndicatorHelper.hide(context);
-      _showDeleteSnackbar(context, type == 'expense' ? 'Expense' : 'Income');
+      _closeProgress(navigator);
+      if (!mounted) return;
+      _showDeleteSnackbar(messenger, type == 'expense' ? 'Expense' : 'Income');
     } catch (e) {
-      if (!mounted || !context.mounted) return;
-      ProgressIndicatorHelper.hide(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      _closeProgress(navigator);
+      if (!mounted) return;
+      messenger.showSnackBar(
         SnackBar(
           content: Text('Error deleting $type: $e'),
           backgroundColor: theme.extension<AppColors>()!.expenseRed,
@@ -1968,8 +2080,18 @@ class _HistoryScreenState extends State<HistoryScreen>
     }
   }
 
-  void _showDeleteSnackbar(BuildContext context, String type) {
-    ScaffoldMessenger.of(context).showSnackBar(
+  /// Closes the blocking "Deleting…" dialog through the root navigator it
+  /// was pushed on, captured before the delete. The tile that opened it
+  /// unmounts as soon as its row leaves the list (all-time rows go at once,
+  /// and the last row swaps in the empty state), so the old
+  /// `context.mounted` guard skipped the close and the spinner stayed up for
+  /// good.
+  void _closeProgress(NavigatorState navigator) {
+    if (navigator.mounted) navigator.pop();
+  }
+
+  void _showDeleteSnackbar(ScaffoldMessengerState messenger, String type) {
+    messenger.showSnackBar(
       SnackBar(
         content: Text('$type moved to trash'),
         behavior: SnackBarBehavior.floating,
@@ -1983,7 +2105,8 @@ class _HistoryScreenState extends State<HistoryScreen>
   Widget _buildEmptyState(ThemeData theme) {
     final bool hasFilters = _searchTerm.isNotEmpty ||
         _paymentStatusFilter != 'all' ||
-        _dateRange != null;
+        _dateRange != null ||
+        _filterCategory != 'All';
 
     return HistoryEmptyState(
       hasFilters: hasFilters,
