@@ -462,6 +462,38 @@ void main() {
       );
     });
 
+    test('a weekly bill is listed on its weekday, each week still ahead',
+        () async {
+      // 2026-10-12 is a Monday. The weekday (0 = Monday) used to be read as
+      // "day 0" of the month — Sep 30, already past — so the bill vanished.
+      Clock.instance = FakeClock.fixed(DateTime.utc(2026, 10, 12, 12));
+
+      final state = await bootstrap();
+      final expenseCat = state.expenseCategories.first.name;
+      await state.addRecurringExpense(
+        RecurringExpense(
+          description: 'cleaner',
+          amount: Decimal.parse('40'),
+          category: expenseCat,
+          accountId: state.currentAccountId,
+          dayOfMonth: 0, // Monday
+          frequency: RecurringExpenseFrequency.weekly,
+        ),
+      );
+
+      final dates = state
+          .getUpcomingBillsThisMonth()
+          .where((b) => b['description'] == 'cleaner')
+          .map((b) => b['dueDate'])
+          .toList();
+
+      expect(dates, [
+        DateTime.utc(2026, 10, 12),
+        DateTime.utc(2026, 10, 19),
+        DateTime.utc(2026, 10, 26),
+      ]);
+    });
+
     test('day-31 bill clamps to the last day of a short month', () async {
       // Pin to April (30 days), day 1, so a day-31 bill clamps to Apr 30.
       Clock.instance = FakeClock.fixed(DateTime.utc(2026, 4, 1, 12));
@@ -974,6 +1006,35 @@ void main() {
 
       expect(state.isLocked, isTrue,
           reason: 'repeated init with PIN enabled stays locked');
+    });
+
+    test('a PIN set up mid-session keeps the app unlocked', () async {
+      // Settings re-runs initializeLockState after PIN setup. Locking there
+      // left the app flagged locked with no unlock screen, and the
+      // inactivity timer (armed only while unlocked) never started.
+      final state = await bootstrap();
+      await state.initializeLockState(); // cold start, no PIN
+      expect(state.isLocked, isFalse);
+
+      await PinSecurityHelper.setPin('9027');
+      await state.initializeLockState();
+
+      expect(state.isLocked, isFalse,
+          reason: 'the user who just set the PIN is already in the app');
+      await Future<void>.delayed(Duration.zero);
+      expect(secureWindowCalls.last, isTrue);
+    });
+
+    test('turning the PIN off mid-session unlocks', () async {
+      final state = await bootstrap();
+      await PinSecurityHelper.setPin('9027');
+      await state.initializeLockState(); // cold start → locked
+      expect(state.isLocked, isTrue);
+
+      await PinSecurityHelper.disablePin();
+      await state.initializeLockState();
+
+      expect(state.isLocked, isFalse);
     });
   });
 

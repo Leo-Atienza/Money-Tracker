@@ -138,8 +138,9 @@ void main() {
       expect(april.first.amount, 55.00);
     });
 
-    test('default 100-row cap is applied when no limit is given', () async {
-      // Insert 105 distinct-month budgets; the default limit is 100.
+    test('returns every budget when no limit is given', () async {
+      // A silent 100-row default once dropped every budget older than ~10
+      // months for someone with 10 category budgets a month.
       for (var i = 0; i < 105; i++) {
         final year = 2000 + (i ~/ 12);
         final m = (i % 12) + 1;
@@ -150,8 +151,8 @@ void main() {
           month: DateTime.utc(year, m, 1),
         ));
       }
-      final capped = await DatabaseHelper().readAllBudgets(accountId);
-      expect(capped.length, 100);
+      final all = await DatabaseHelper().readAllBudgets(accountId);
+      expect(all.length, 105);
     });
 
     test('a custom limit is honoured', () async {

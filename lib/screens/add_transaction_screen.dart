@@ -661,10 +661,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     if (confirmed != true || !mounted) return;
     final appState = context.read<AppState>();
-    if (_isExpense && widget.expense?.id != null) {
-      await appState.deleteExpense(widget.expense!.id!);
-    } else if (!_isExpense && widget.income?.id != null) {
-      await appState.deleteIncome(widget.income!.id!);
+    final deletedId = _isExpense ? widget.expense?.id : widget.income?.id;
+    final isIncome = !_isExpense;
+    if (deletedId == null) return;
+    if (isIncome) {
+      await appState.deleteIncome(deletedId);
+    } else {
+      await appState.deleteExpense(deletedId);
     }
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -676,7 +679,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             '${_isExpense ? "Expense" : "Income"} moved to trash'),
         action: SnackBarAction(
           label: 'Undo',
-          onPressed: () => appState.undoDelete(),
+          onPressed: () => appState.undoDeleteTransaction(
+            originalId: deletedId,
+            isIncome: isIncome,
+          ),
         ),
         // Time out like before Flutter 3.38, except under TalkBack.
         persist: MediaQuery.accessibleNavigationOf(context),

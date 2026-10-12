@@ -247,6 +247,53 @@ class RecurringExpense {
     );
   }
 
+  /// The first date on or after [from] that this bill falls due, or null when
+  /// it never will again (inactive, past its end date, or out of
+  /// occurrences). Anchored like the generator (AppState.recurringDueDates):
+  /// monthly on [dayOfMonth], clamped to short months; weekly and biweekly on
+  /// the weekday [dayOfMonth] holds (0=Mon..6=Sun) — never read as a day of
+  /// the month, which put a Monday bill on "day 0", the previous month's end.
+  DateTime? nextDueDate(DateTime from) {
+    if (!isActive) return null;
+    if (maxOccurrences != null && occurrenceCount >= maxOccurrences!) {
+      return null;
+    }
+    final start = DateHelper.normalize(from);
+    DateTime onWeekday(DateTime date) {
+      final d = DateHelper.normalize(date);
+      final weekday = dayOfMonth.clamp(0, 6);
+      return DateHelper.addDays(d, (weekday - (d.weekday - 1) + 7) % 7);
+    }
+
+    final DateTime due;
+    switch (frequency) {
+      case RecurringExpenseFrequency.monthly:
+        DateTime dueIn(DateTime month) => DateTime.utc(
+              month.year,
+              month.month,
+              dayOfMonth.clamp(1, DateHelper.lastDayOfMonth(month).day),
+            );
+        final thisMonth = dueIn(start);
+        due = thisMonth.isBefore(start)
+            ? dueIn(DateHelper.addMonths(DateHelper.startOfMonth(start), 1))
+            : thisMonth;
+      case RecurringExpenseFrequency.weekly:
+        due = onWeekday(start);
+      case RecurringExpenseFrequency.biweekly:
+        var next = lastCreated != null
+            ? onWeekday(DateHelper.addDays(lastCreated!, 14))
+            : onWeekday(startDate ?? start);
+        while (next.isBefore(start)) {
+          next = DateHelper.addDays(next, 14);
+        }
+        due = next;
+    }
+    if (endDate != null && due.isAfter(DateHelper.normalize(endDate!))) {
+      return null;
+    }
+    return due;
+  }
+
   /// Check if this recurring expense should still be active
   bool get shouldBeActive {
     if (!isActive) return false;

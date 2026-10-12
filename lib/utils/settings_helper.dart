@@ -211,6 +211,23 @@ class SettingsHelper {
     await prefs.setBool(_keyCarryoverEnabled, value);
   }
 
+  // Budget rollover marker: last month's budgets are copied into a month at
+  // most once per account. The rollover runs on every load, and without the
+  // marker it re-copied them whenever the month had none — so deleting all of
+  // a month's budgets brought them straight back on the next resume.
+  static String _budgetRolloverKey(int accountId, DateTime month) =>
+      'budget_rollover_${accountId}_${month.year}-${month.month}';
+
+  static Future<bool> isBudgetRolloverDone(int accountId, DateTime month) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_budgetRolloverKey(accountId, month)) ?? false;
+  }
+
+  static Future<void> markBudgetRolloverDone(int accountId, DateTime month) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_budgetRolloverKey(accountId, month), true);
+  }
+
   // Clear all settings (useful for testing or reset)
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();

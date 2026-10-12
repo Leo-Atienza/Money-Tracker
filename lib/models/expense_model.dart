@@ -50,7 +50,11 @@ class Expense {
   double get paymentProgress {
     // Check if amount is zero or very close to zero to prevent division by zero
     if (_amount < Decimal.parse('0.01')) return 0.0;
-    final progress = (_amountPaid / _amount).toDecimal();
+    // A ratio like 10/30 has no finite decimal form; without a scale
+    // toDecimal() throws (in release too), which broke the History tile and
+    // the Add Payment dialog for most partial payments.
+    final progress =
+        (_amountPaid / _amount).toDecimal(scaleOnInfinitePrecision: 10);
     final one = Decimal.one;
     final clamped = progress < Decimal.zero
         ? Decimal.zero

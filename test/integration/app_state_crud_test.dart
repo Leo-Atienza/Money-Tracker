@@ -423,6 +423,22 @@ void main() {
   });
 
   group('addPayment (partial → fully paid)', () {
+    test('a second payment from a STALE copy keeps the first payment',
+        () async {
+      // History's all-time/search tiles hold copies that are not refreshed
+      // after a write. Paying again from one used to write the stale
+      // amountPaid back: $300 then $200 left the bill at $200 paid.
+      final state = await bootstrap();
+      final id = await state.addExpense(makeExpense(state, amount: 1000));
+      final stale = state.expenses.firstWhere((e) => e.id == id);
+
+      await state.addPayment(stale, 300);
+      await state.addPayment(stale, 200); // same stale copy, amountPaid 0
+
+      final after = state.expenses.firstWhere((e) => e.id == id);
+      expect(after.amountPaid, closeTo(500, 0.001));
+    });
+
     test('a payment equal to amount marks the expense paid', () async {
       final state = await bootstrap();
       final id = await state.addExpense(

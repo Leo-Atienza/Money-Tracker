@@ -1755,15 +1755,16 @@ class DatabaseHelper {
         await txn.insert('recurring_income', recMap);
       }
 
-      // Restore categories (non-default ones)
+      // Restore every category, defaults included. Skipping the defaults
+      // relied on AppState re-seeding them, which it only does when the list
+      // is EMPTY — so an account with even one custom category came back
+      // without Food, Bills or Salary (setBudget('Food') then threw).
       final categories = backupData['categories'] as List<dynamic>? ?? [];
       for (final cat in categories) {
         final catMap = Map<String, dynamic>.from(cat as Map);
-        if (catMap['isDefault'] != 1) {
-          catMap.remove('id');
-          catMap['account_id'] = newId;
-          await txn.insert('categories', catMap);
-        }
+        catMap.remove('id');
+        catMap['account_id'] = newId;
+        await txn.insert('categories', catMap);
       }
 
       // Restore quick templates
@@ -2207,31 +2208,35 @@ class DatabaseHelper {
   }
 
   // Restore last deleted expense for a specific account (for quick undo)
-  Future<void> restoreLastDeleted(int accountId) async {
+  /// Undo for an expense delete that just happened: restores the trash row
+  /// recorded for [originalId] (the expense's id before it was trashed).
+  /// Keyed on the id rather than "newest deleted" so an undo can never bring
+  /// back some other, older row.
+  Future<void> restoreDeletedExpenseByOriginalId(int originalId) async {
     final db = await database;
-    final result = await db.query(
+    final rows = await db.query(
       'deleted_expenses',
-      where: 'account_id = ?',
-      whereArgs: [accountId],
+      columns: ['id'],
+      where: 'original_id = ?',
+      whereArgs: [originalId],
       orderBy: 'deletedAt DESC',
       limit: 1,
     );
+    if (rows.isNotEmpty) await restoreDeletedExpense(rows.first['id'] as int);
+  }
 
-    if (result.isNotEmpty) {
-      final map = result.first;
-      await db.transaction((txn) async {
-        await txn.insert('expenses', {
-          'amount': map['amount'],
-          'category': map['category'],
-          'description': map['description'],
-          'date': map['date'],
-          'account_id': map['account_id'],
-          'amountPaid': map['amountPaid'],
-          'paymentMethod': map['paymentMethod'],
-        });
-        await txn.delete('deleted_expenses', where: 'id = ?', whereArgs: [map['id']]);
-      });
-    }
+  /// Income counterpart of [restoreDeletedExpenseByOriginalId].
+  Future<void> restoreDeletedIncomeByOriginalId(int originalId) async {
+    final db = await database;
+    final rows = await db.query(
+      'deleted_income',
+      columns: ['id'],
+      where: 'original_id = ?',
+      whereArgs: [originalId],
+      orderBy: 'deletedAt DESC',
+      limit: 1,
+    );
+    if (rows.isNotEmpty) await restoreDeletedIncome(rows.first['id'] as int);
   }
 
   // Clear old deleted items (30 days) - call on app startup.
@@ -2313,9 +2318,11 @@ class DatabaseHelper {
       where: whereClause,
       whereArgs: whereArgs,
       orderBy: 'month DESC',
-      // CRITICAL FIX: Add limit to prevent unbounded memory growth
-      // Default to 100 if no limit specified (covers ~8 years of monthly budgets)
-      limit: limit ?? 100,
+      // No default cap. A silent 100-row limit dropped every budget older
+      // than ~10 months for someone with 10 category budgets a month: those
+      // months showed no budgets, and setting one created a duplicate. Budget
+      // rows are tiny; callers that want a window pass [limit].
+      limit: limit,
     );
     return result.map((map) => Budget.fromMap(map)).toList();
   }
@@ -2538,6 +2545,20 @@ class DatabaseHelper {
         .toList();
   }
 
+  /// Active recurring expenses of every live account — the recurring
+  /// processor posts all accounts' bills, not just the current account's.
+  Future<List<RecurringExpense>> readActiveRecurringExpensesAllAccounts() async {
+    final db = await database;
+    final result = await db.query(
+      'recurring_expenses',
+      where: 'isActive = 1 AND account_id IN (SELECT id FROM accounts)',
+    );
+    return result
+        .map((map) => RecurringExpense.tryFromMap(map))
+        .whereType<RecurringExpense>()
+        .toList();
+  }
+
   Future<int> updateRecurringExpense(RecurringExpense expense) async {
     final db = await database;
     return await db.update(
@@ -2601,10 +2622,12 @@ class DatabaseHelper {
           [newName, accountId, oldName],
         );
 
-        // Update quick templates
+        // Update quick templates — expense templates only: an income template
+        // can share the name (both lists ship an "Other"), and renaming the
+        // expense category must not retarget it.
         await txn.rawUpdate(
-          'UPDATE quick_templates SET category = ? WHERE account_id = ? AND category = ?',
-          [newName, accountId, oldName],
+          'UPDATE quick_templates SET category = ? WHERE account_id = ? AND category = ? AND type = ?',
+          [newName, accountId, oldName, 'expense'],
         );
 
         // Update budgets
@@ -3189,6 +3212,20 @@ class DatabaseHelper {
       'recurring_income',
       where: 'account_id = ? AND isActive = 1',
       whereArgs: [accountId],
+    );
+    return result
+        .map((map) => RecurringIncome.tryFromMap(map))
+        .whereType<RecurringIncome>()
+        .toList();
+  }
+
+  /// Active recurring income of every live account — see
+  /// [readActiveRecurringExpensesAllAccounts].
+  Future<List<RecurringIncome>> readActiveRecurringIncomeAllAccounts() async {
+    final db = await database;
+    final result = await db.query(
+      'recurring_income',
+      where: 'isActive = 1 AND account_id IN (SELECT id FROM accounts)',
     );
     return result
         .map((map) => RecurringIncome.tryFromMap(map))

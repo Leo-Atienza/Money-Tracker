@@ -583,7 +583,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     }
     // Only after the route flag is down — _openPendingQuickAdd refuses to
     // open while an unlock route is showing.
-    if (unlockedNow) _openPendingQuickAdd();
+    if (unlockedNow) {
+      _openPendingQuickAdd();
+      _checkPendingNotification();
+    }
   }
 
   Future<void> _takeWidgetQuickAdd() async {
@@ -625,6 +628,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
   Future<void> _checkPendingNotification() async {
     if (_hasCheckedNotificationPayload) return;
+    final appState = context.read<AppState>();
+    await appState.lockStateReady;
+    if (!mounted) return;
+    // Hold notification routing until the app is unlocked. A bill reminder
+    // tapped while locked used to push the recurring-bills screen ABOVE the
+    // PIN screen — viewable and editable without the PIN. [_checkPinLock]
+    // calls back in here after a successful unlock.
+    if (_pinRouteActive || appState.isLocked) return;
     _hasCheckedNotificationPayload = true;
 
     // Phase 3.1: consume the full queue. Multiple notifications can land
@@ -667,6 +678,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     // Phase 3.4: account-switch navigation reset moved off the
     // `accountJustSwitched` boolean to the `onAccountSwitch` stream — see
     // `_onAccountSwitch` and the subscription wired in `initState`.
+
+    // Present the unlock gate whenever the app becomes locked — notably when
+    // the 3-minute inactivity timer fires while the app is open. Before, the
+    // gate only appeared on the next resume, so an app left open on a
+    // charger stayed readable indefinitely. `_checkPinLock` is re-entrancy
+    // guarded, so repeat builds cannot stack a second unlock screen.
+    final locked = context.select<AppState, bool>((s) => s.isLocked);
+    if (locked && !_pinRouteActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _checkPinLock());
+    }
 
     return PopScope(
       canPop: false,
