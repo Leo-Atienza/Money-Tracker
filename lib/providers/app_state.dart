@@ -2467,10 +2467,9 @@ class AppState extends ChangeNotifier {
 
   // ============== SEARCH & ANALYTICS ==============
 
+  /// An empty [query] adds no term filter: [category] and the date range
+  /// alone pick the rows, which is how History lists All time.
   Future<Map<String, dynamic>> searchTransactionsUnified(String query, {int limit = 50, int offset = 0, String? category, String? startDate, String? endDate, String sortOrder = 'newest'}) async {
-    if (query.isEmpty) {
-      return {'expenses': <Expense>[], 'income': <Income>[], 'hasMore': false};
-    }
     return await _db.searchTransactionsUnified(currentAccountId, query, limit: limit, offset: offset, category: category, startDate: startDate, endDate: endDate, sortOrder: sortOrder);
   }
 

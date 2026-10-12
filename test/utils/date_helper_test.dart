@@ -807,36 +807,11 @@ void main() {
   // getRelativeTime()
   // ---------------------------------------------------------------------------
   group('getRelativeTime()', () {
-    test('returns "Just now" for date less than a minute ago', () {
+    test('returns "Today" for today, whatever the time of day', () {
       final now = DateTime.now();
-      final result = DateHelper.getRelativeTime(now);
 
-      expect(result, 'Just now');
-    });
-
-    test('returns "Xm ago" for date minutes ago', () {
-      final minutesAgo = DateTime.now().subtract(const Duration(minutes: 5));
-      final result = DateHelper.getRelativeTime(minutesAgo);
-
-      expect(result, matches(RegExp(r'^\d+m ago$')));
-    });
-
-    test('returns "Xh ago" for date hours ago', () {
-      // Use a time that's guaranteed to be today (not crossing midnight)
-      final now = DateTime.now();
-      // Only test if we're far enough into the day; otherwise "3h ago" is yesterday
-      if (now.hour >= 4) {
-        final hoursAgo = now.subtract(const Duration(hours: 3));
-        final result = DateHelper.getRelativeTime(hoursAgo);
-        expect(result, matches(RegExp(r'^\d+h ago$')));
-      } else {
-        // Early morning: 1 hour ago is still today
-        final oneHourAgo = now.subtract(Duration(hours: now.hour));
-        if (now.hour > 0) {
-          final result = DateHelper.getRelativeTime(oneHourAgo);
-          expect(result, matches(RegExp(r'^\d+(h|m) ago$')));
-        }
-      }
+      expect(DateHelper.getRelativeTime(now), 'Today');
+      expect(DateHelper.getRelativeTime(DateHelper.today()), 'Today');
     });
 
     test('returns "Yesterday" for yesterday', () {
@@ -1115,26 +1090,36 @@ void main() {
   });
 
   group('getRelativeTime() with injected clock', () {
-    // Reference instant: 2026-06-15 12:00 local — late enough in the day that
-    // "3h ago" stays on the same calendar day.
+    // Reference instant: 2026-06-15 12:00 local.
     final reference = DateTime(2026, 6, 15, 12, 0);
 
     setUp(() {
       Clock.instance = FakeClock.fixed(reference);
     });
 
-    test('"Just now" for the current instant', () {
-      expect(DateHelper.getRelativeTime(reference), 'Just now');
+    test('"Today" for any instant on the clock day', () {
+      expect(DateHelper.getRelativeTime(reference), 'Today');
+      expect(
+        DateHelper.getRelativeTime(
+            reference.subtract(const Duration(minutes: 5))),
+        'Today',
+      );
+      expect(
+        DateHelper.getRelativeTime(reference.subtract(const Duration(hours: 3))),
+        'Today',
+      );
     });
 
-    test('"Xm ago" for minutes earlier today', () {
-      final fiveMinAgo = reference.subtract(const Duration(minutes: 5));
-      expect(DateHelper.getRelativeTime(fiveMinAgo), '5m ago');
-    });
+    test('"Today" for a stored date-only value (UTC midnight), not "Xh ago"',
+        () {
+      // Transactions store their date as UTC midnight with no time of day.
+      // Measuring hours from that midnight said "13h ago" for an expense
+      // added a minute earlier at 9 AM in Toronto.
+      Clock.instance = FakeClock.fixed(DateTime(2026, 10, 12, 9, 0));
 
-    test('"Xh ago" for hours earlier today', () {
-      final threeHoursAgo = reference.subtract(const Duration(hours: 3));
-      expect(DateHelper.getRelativeTime(threeHoursAgo), '3h ago');
+      expect(DateHelper.getRelativeTime(DateTime.utc(2026, 10, 12)), 'Today');
+      expect(
+          DateHelper.getRelativeTime(DateTime.utc(2026, 10, 11)), 'Yesterday');
     });
 
     test('"Yesterday" for the prior calendar day', () {

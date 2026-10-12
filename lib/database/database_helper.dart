@@ -3449,7 +3449,12 @@ class DatabaseHelper {
     return sanitized;
   }
 
-  /// Parse search query into tokens, respecting quoted strings
+  /// Parse search query into tokens, respecting double-quoted phrases.
+  /// Runs on the RAW query and only `"` is special, so an apostrophe
+  /// ("McDonald's") or a backslash stays literal text. Each token is escaped
+  /// for LIKE afterwards by [_escapeLikeToken]; tokenizing an already-escaped
+  /// query used to strip the escapes back off, turning `_` and `%` into
+  /// wildcards again.
   /// Examples:
   /// - "Coffee 50" -> ["Coffee", "50"]
   /// - '"Coffee Shop" 20' -> ["Coffee Shop", "20"]
@@ -3458,23 +3463,11 @@ class DatabaseHelper {
     final tokens = <String>[];
     final buffer = StringBuffer();
     bool inQuotes = false;
-    bool escaped = false;
 
     for (var i = 0; i < query.length; i++) {
       final char = query[i];
 
-      if (escaped) {
-        buffer.write(char);
-        escaped = false;
-        continue;
-      }
-
-      if (char == '\\') {
-        escaped = true;
-        continue;
-      }
-
-      if (char == '"' || char == "'") {
+      if (char == '"') {
         inQuotes = !inQuotes;
         continue;
       }
@@ -3498,6 +3491,14 @@ class DatabaseHelper {
     return tokens.where((t) => t.isNotEmpty).toList();
   }
 
+  /// Escapes a search token for `LIKE ? ESCAPE '\'` so every character in it
+  /// matches literally: the escape character itself first, then the `%` and
+  /// `_` wildcards.
+  String _escapeLikeToken(String token) => token
+      .replaceAll(r'\', r'\\')
+      .replaceAll('%', r'\%')
+      .replaceAll('_', r'\_');
+
   /// FIX: Unified search that merges expenses and income chronologically
   /// This prevents timeline fragmentation when paginating
   Future<Map<String, dynamic>> searchTransactionsUnified(
@@ -3512,17 +3513,20 @@ class DatabaseHelper {
   }) async {
     final db = await database;
 
-    // FIX: Sanitize search query
-    final sanitizedQuery = _sanitizeSearchQuery(query.trim());
+    // Tokenize the raw query, capped at 100 chars to bound the LIKE work.
+    // Each token is LIKE-escaped where its pattern is built below.
+    final trimmedQuery = query.trim();
+    final rawQuery = trimmedQuery.length > 100
+        ? trimmedQuery.substring(0, 100)
+        : trimmedQuery;
 
     // CRITICAL FIX: Multi-token search with quoted string support
     // Allows: "Food 50" -> ["Food", "50"] (two tokens)
     // Allows: '"Coffee Shop" 20' -> ["Coffee Shop", "20"] (quoted phrase kept together)
-    final tokens = _parseSearchTokens(sanitizedQuery);
-
-    if (tokens.isEmpty) {
-      return {'expenses': <Expense>[], 'income': <Income>[], 'hasMore': false};
-    }
+    // An empty query adds no term filter: the category and date filters
+    // alone pick the rows, which is how History lists "All time" and a date
+    // range without a search term.
+    final tokens = _parseSearchTokens(rawQuery);
 
     // Build WHERE clause for each token - all must match
     String buildTokenConditions(String prefix) {
@@ -3551,7 +3555,8 @@ class DatabaseHelper {
         conditions.add('$prefix.date <= ?');
       }
 
-      return conditions.join(' AND ');
+      // No term, category or date filter: every row of the account matches.
+      return conditions.isEmpty ? '1' : conditions.join(' AND ');
     }
 
     final expenseConditions = buildTokenConditions('expenses');
@@ -3608,7 +3613,7 @@ class DatabaseHelper {
     // Args for expenses
     args.add(accountId);
     for (final token in tokens) {
-      final pattern = '%$token%';
+      final pattern = '%${_escapeLikeToken(token)}%';
       final isNumeric = double.tryParse(token) != null;
       if (isNumeric) {
         args.addAll([pattern, pattern, pattern]); // description, category, amount
@@ -3630,7 +3635,7 @@ class DatabaseHelper {
     // Args for income
     args.add(accountId);
     for (final token in tokens) {
-      final pattern = '%$token%';
+      final pattern = '%${_escapeLikeToken(token)}%';
       final isNumeric = double.tryParse(token) != null;
       if (isNumeric) {
         args.addAll([pattern, pattern, pattern]);

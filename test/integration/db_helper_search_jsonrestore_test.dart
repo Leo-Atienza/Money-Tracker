@@ -321,16 +321,49 @@ void main() {
       expect(income.first.description, 'office rent refund');
     });
 
-    test('empty token list returns empty result map (no rows)', () async {
+    test('an empty query adds no term filter: every row comes back',
+        () async {
+      // History's "All time" and date-range views list transactions with no
+      // search term; this used to return nothing at all.
       await seedExpense(db, accountId: accountId, date: '2026-04-01');
       await seedIncome(db, accountId: accountId, date: '2026-04-01');
 
       final result =
           await DatabaseHelper().searchTransactionsUnified(accountId, '   ');
 
-      expect(result['expenses'], isEmpty);
-      expect(result['income'], isEmpty);
+      expect(result['expenses'], hasLength(1));
+      expect(result['income'], hasLength(1));
       expect(result['hasMore'], isFalse);
+    });
+
+    test('an empty query still applies the category and date filters, '
+        'including both ends of the range', () async {
+      Future<void> food(String date, String description) => seedExpense(db,
+          accountId: accountId,
+          date: date,
+          description: description,
+          category: 'Food');
+      await food('2026-03-31', 'day before');
+      await food('2026-04-01', 'first day');
+      await food('2026-04-30', 'last day');
+      await food('2026-05-01', 'day after');
+      await seedExpense(db,
+          accountId: accountId,
+          date: '2026-04-15',
+          description: 'other category',
+          category: 'Transport');
+
+      final result = await DatabaseHelper().searchTransactionsUnified(
+        accountId,
+        '',
+        category: 'Food',
+        startDate: '2026-04-01',
+        endDate: '2026-04-30',
+      );
+
+      final expenses = result['expenses'] as List<Expense>;
+      expect(expenses.map((e) => e.description),
+          unorderedEquals(['first day', 'last day']));
     });
 
     test('no-match query returns empty expense + income lists', () async {
@@ -512,6 +545,92 @@ void main() {
       expect(expenses.length, 2);
       expect(expenses.first.description, 'coffee oldest');
       expect(expenses.last.description, 'coffee newest');
+    });
+
+    test("an apostrophe is literal text: McDonald's finds McDonald's",
+        () async {
+      await seedExpense(db,
+          accountId: accountId,
+          date: '2026-04-01',
+          description: "McDonald's",
+          category: 'Food');
+      await seedExpense(db,
+          accountId: accountId,
+          date: '2026-04-02',
+          description: 'McDonalds',
+          category: 'Food');
+
+      final result = await DatabaseHelper()
+          .searchTransactionsUnified(accountId, "McDonald's");
+
+      final expenses = result['expenses'] as List<Expense>;
+      expect(expenses.map((e) => e.description), ["McDonald's"]);
+    });
+
+    test('"_" and "%" match themselves, not any character', () async {
+      await seedExpense(db,
+          accountId: accountId,
+          date: '2026-04-01',
+          description: 'plain lunch',
+          category: 'Food');
+      await seedExpense(db,
+          accountId: accountId,
+          date: '2026-04-02',
+          description: 'snake_case',
+          category: 'Food');
+      await seedExpense(db,
+          accountId: accountId,
+          date: '2026-04-03',
+          description: '50% off',
+          category: 'Food');
+
+      final underscore =
+          await DatabaseHelper().searchTransactionsUnified(accountId, '_');
+      final percent =
+          await DatabaseHelper().searchTransactionsUnified(accountId, '%');
+
+      expect((underscore['expenses'] as List<Expense>).map((e) => e.description),
+          ['snake_case']);
+      expect((percent['expenses'] as List<Expense>).map((e) => e.description),
+          ['50% off']);
+    });
+
+    test('a backslash is literal text, not an escape', () async {
+      await seedExpense(db,
+          accountId: accountId,
+          date: '2026-04-01',
+          description: r'C:\temp',
+          category: 'Food');
+      await seedExpense(db,
+          accountId: accountId,
+          date: '2026-04-02',
+          description: 'temp',
+          category: 'Food');
+
+      final result =
+          await DatabaseHelper().searchTransactionsUnified(accountId, r'\t');
+
+      final expenses = result['expenses'] as List<Expense>;
+      expect(expenses.map((e) => e.description), [r'C:\temp']);
+    });
+
+    test('a double-quoted phrase stays one token', () async {
+      await seedExpense(db,
+          accountId: accountId,
+          date: '2026-04-01',
+          description: 'coffee shop',
+          category: 'Food');
+      await seedExpense(db,
+          accountId: accountId,
+          date: '2026-04-02',
+          description: 'shop for coffee',
+          category: 'Food');
+
+      final result = await DatabaseHelper()
+          .searchTransactionsUnified(accountId, '"coffee shop"');
+
+      final expenses = result['expenses'] as List<Expense>;
+      expect(expenses.map((e) => e.description), ['coffee shop']);
     });
 
     test("sortOrder 'highest' orders descending by amount", () async {

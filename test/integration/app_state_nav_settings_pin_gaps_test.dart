@@ -178,15 +178,23 @@ void main() {
   // ===========================================================================
 
   group('searchTransactionsUnified', () {
-    test('empty query short-circuits with empty result + hasMore:false',
-        () async {
+    // History's All time view has no search term: the empty query must list
+    // the account's rows (filtered by category/date only), not nothing.
+    test('empty query lists every transaction of the account', () async {
       final state = await bootstrap();
       await state.addExpense(makeExpense(state, description: 'coffee'));
+      await state.addIncome(makeIncome(state, description: 'paycheck'));
 
       final result = await state.searchTransactionsUnified('');
 
-      expect(result['expenses'], isEmpty);
-      expect(result['income'], isEmpty);
+      expect(
+        (result['expenses'] as List<Expense>).map((e) => e.description),
+        contains('coffee'),
+      );
+      expect(
+        (result['income'] as List<Income>).map((i) => i.description),
+        contains('paycheck'),
+      );
       expect(result['hasMore'], isFalse);
     });
 

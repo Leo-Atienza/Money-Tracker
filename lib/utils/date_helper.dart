@@ -147,24 +147,19 @@ class DateHelper {
   }
 
   /// Returns a relative time string for the given date.
-  /// Shows "Xh ago" for today, "Yesterday" for yesterday, "X days ago" for recent dates,
+  /// Shows "Today" for today, "Yesterday" for yesterday, "X days ago" for recent dates,
   /// and formatted date for older dates.
   /// FIX P2-14: Now returns formatted date for older dates instead of empty string.
+  ///
+  /// Day granularity only: transaction dates are stored as UTC midnight with
+  /// no time of day, so hours measured from that midnight ("13h ago" for an
+  /// expense added a minute ago at 9 AM in Toronto) were meaningless.
   static String getRelativeTime(DateTime date) {
-    final now = Clock.instance.now();
     final normalizedDate = normalize(date);
     final normalizedNow = today();
 
     // Check if it's today
     if (isSameDay(normalizedDate, normalizedNow)) {
-      final difference = now.difference(date);
-      if (difference.inMinutes < 1) {
-        return 'Just now';
-      } else if (difference.inMinutes < 60) {
-        return '${difference.inMinutes}m ago';
-      } else if (difference.inHours < 24) {
-        return '${difference.inHours}h ago';
-      }
       return 'Today';
     }
 
