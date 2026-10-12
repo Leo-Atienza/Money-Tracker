@@ -53,6 +53,10 @@ class QuickTemplatesScreen extends StatelessWidget {
                       96,
                     ),
                     child: ListView.separated(
+                      // Explicit: with no padding a ListView pads itself with
+                      // the status-bar inset, an empty band above the first
+                      // card.
+                      padding: EdgeInsets.zero,
                       itemCount: templates.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
@@ -158,8 +162,9 @@ class _TemplateCard extends StatelessWidget {
                 color: accent.withValues(alpha: isIncome ? 0.12 : 0.08),
                 borderRadius: BorderRadius.circular(LuminousTokens.radiusMd),
               ),
+              // Income up, expense down, as on Home.
               child: Icon(
-                isIncome ? Icons.arrow_downward : Icons.arrow_upward,
+                isIncome ? Icons.arrow_upward : Icons.arrow_downward,
                 color: accent,
               ),
             ),
@@ -324,6 +329,7 @@ class _AddTemplateDialogState extends State<_AddTemplateDialog> {
   String _type = 'expense';
   String _selectedCategory = 'Food';
   String _paymentMethod = 'Cash';
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -371,12 +377,12 @@ class _AddTemplateDialogState extends State<_AddTemplateDialog> {
                   ButtonSegment(
                     value: 'expense',
                     label: Text('Expense'),
-                    icon: Icon(Icons.arrow_upward),
+                    icon: Icon(Icons.arrow_downward),
                   ),
                   ButtonSegment(
                     value: 'income',
                     label: Text('Income'),
-                    icon: Icon(Icons.arrow_downward),
+                    icon: Icon(Icons.arrow_upward),
                   ),
                 ],
                 selected: {_type},
@@ -492,29 +498,38 @@ class _AddTemplateDialogState extends State<_AddTemplateDialog> {
           child: const Text('Cancel'),
         ),
         TextButton(
-          onPressed: () async {
-            if (_formKey.currentState!.validate()) {
-              final template = QuickTemplate(
-                id: widget.template?.id,
-                name: _nameController.text,
-                amount: DecimalHelper.parse(_amountController.text),
-                category: _selectedCategory,
-                paymentMethod: _paymentMethod,
-                type: _type,
-                accountId: appState.currentAccountId,
-              );
+          onPressed: _isSaving
+              ? null
+              : () async {
+                  // In-flight guard, checked when called: a double tap saved
+                  // the template twice and popped twice, closing the screen
+                  // underneath.
+                  if (_isSaving || !_formKey.currentState!.validate()) return;
+                  setState(() => _isSaving = true);
+                  try {
+                    final template = QuickTemplate(
+                      id: widget.template?.id,
+                      name: _nameController.text,
+                      amount: DecimalHelper.parse(_amountController.text),
+                      category: _selectedCategory,
+                      paymentMethod: _paymentMethod,
+                      type: _type,
+                      accountId: appState.currentAccountId,
+                    );
 
-              if (widget.template == null) {
-                await appState.addTemplate(template);
-              } else {
-                await appState.updateTemplate(template);
-              }
+                    if (widget.template == null) {
+                      await appState.addTemplate(template);
+                    } else {
+                      await appState.updateTemplate(template);
+                    }
 
-              if (context.mounted) {
-                Navigator.pop(context);
-              }
-            }
-          },
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                    }
+                  } finally {
+                    if (mounted) setState(() => _isSaving = false);
+                  }
+                },
           child: Text(widget.template == null ? 'Add' : 'Update'),
         ),
       ],

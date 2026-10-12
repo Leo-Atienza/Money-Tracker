@@ -18,6 +18,7 @@ import 'budget_screen.dart';
 import 'pin_setup_screen.dart';
 import 'export_data_screen.dart';
 import 'crash_log_screen.dart';
+import 'wallet_screen.dart' show AddAccountDialog;
 import '../utils/pin_security_helper.dart';
 import '../theme/app_colors.dart';
 import '../theme/luminous_app_theme.dart';
@@ -603,7 +604,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           color: theme.colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        child: Column(
+        // A transparent Material over the sheet's fill gives the tiles a
+        // surface to paint ink on (Flutter 3.47 asserts on a hidden ripple).
+        child: Material(
+          type: MaterialType.transparency,
+          child: Column(
           children: [
             Padding(
               padding: const EdgeInsets.all(20),
@@ -665,7 +670,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         : () async {
                             Navigator.pop(context);
                             await _showCurrencyChangeWarning(
-                              context,
                               code,
                               name,
                               symbol,
@@ -677,12 +681,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ],
         ),
+        ),
       ),
     );
   }
 
+  /// Runs after the currency sheet has closed, so it works from this State's
+  /// own context: the sheet's is unmounted by the time a dialog returns.
   Future<void> _showCurrencyChangeWarning(
-    BuildContext context,
     String newCode,
     String newName,
     String newSymbol,
@@ -702,30 +708,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (action == 'keep') {
       await appState.changeCurrency(newCode);
     } else if (action == 'clear') {
-      if (!mounted) return;
-      if (!context.mounted) return;
+      final account = appState.currentAccount;
+      final id = account?.id;
+      if (account == null || id == null || !mounted) return;
 
+      // The currency belongs to the account, so "clear all data and start
+      // fresh" is a reset of this account (what Reset Account runs) followed
+      // by the currency change. It used to change the currency only.
       final confirmed = await DialogHelpers.showConfirmation(
         context,
         title: 'Clear All Data?',
         message:
-            'This will permanently delete all transactions, budgets, and categories. This cannot be undone.',
+            'This permanently deletes every transaction, budget, recurring item, template, tag and custom category in "${account.name}", then switches it to $newCode. This cannot be undone.',
         confirmText: 'Delete Everything',
         isDangerous: true,
       );
+      if (!confirmed || !mounted) return;
 
-      if (confirmed) {
+      ProgressIndicatorHelper.show(context, message: 'Clearing data...');
+      try {
+        await appState.resetAccount(id);
         await appState.changeCurrency(newCode);
-
-        if (context.mounted) {
-          final appColors = Theme.of(context).extension<AppColors>()!;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Currency changed'),
-              backgroundColor: appColors.incomeGreen,
-            ),
-          );
-        }
+        if (!mounted) return;
+        ProgressIndicatorHelper.hide(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Data cleared and currency changed'),
+            backgroundColor:
+                Theme.of(context).extension<AppColors>()!.incomeGreen,
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ProgressIndicatorHelper.hide(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error clearing data: $e'),
+            backgroundColor:
+                Theme.of(context).extension<AppColors>()!.expenseRed,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -746,7 +769,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           color: theme.colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        child: Column(
+        // A transparent Material over the sheet's fill gives the tiles a
+        // surface to paint ink on (Flutter 3.47 asserts on a hidden ripple).
+        child: Material(
+          type: MaterialType.transparency,
+          child: Column(
           children: [
             Padding(
               padding: const EdgeInsets.all(20),
@@ -857,62 +884,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ],
         ),
+        ),
       ),
     );
   }
 
   void _showAddAccountDialog(BuildContext context) {
-    final theme = Theme.of(context);
-    final appState = context.read<AppState>();
-    final controller = TextEditingController();
-    var isDisposed = false;
-
-    void disposeController() {
-      if (!isDisposed) {
-        isDisposed = true;
-        controller.dispose();
-      }
-    }
-
+    // The dialog owns its controller. The old method-scoped one was disposed
+    // the moment the dialog popped, while the closing field still used it.
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Add Account'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Account Name',
-            hintText: 'e.g., Personal, Business',
-          ),
-          textCapitalization: TextCapitalization.words,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              disposeController();
-              Navigator.pop(dialogContext);
-            },
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final name = controller.text.trim();
-              if (name.isNotEmpty) {
-                appState.addAccount(name);
-                disposeController();
-                Navigator.pop(dialogContext);
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    ).then((_) {
-      disposeController();
-    });
+      builder: (_) => const AddAccountDialog(),
+    );
   }
 
   void _showAccountOptionsMenu(BuildContext context, Account account) {
@@ -927,7 +910,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           color: theme.colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        child: Column(
+        // A transparent Material over the sheet's fill gives the tiles a
+        // surface to paint ink on (Flutter 3.47 asserts on a hidden ripple).
+        child: Material(
+          type: MaterialType.transparency,
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
@@ -969,7 +956,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle: const Text('Delete all data but keep account'),
               onTap: () async {
                 Navigator.pop(context);
-                _showResetAccountDialog(context, account);
+                _showResetAccountDialog(account);
               },
             ),
             ListTile(
@@ -980,23 +967,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   color: appColors.expenseRed.withAlpha(30),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.delete_forever, color: appColors.expenseRed),
+                child: Icon(Icons.delete_outline, color: appColors.expenseRed),
               ),
               title: const Text('Delete Account'),
-              subtitle: const Text('Permanently delete account and all data'),
+              subtitle: const Text(
+                'Move the account and its data to Recently deleted',
+              ),
               onTap: () async {
                 Navigator.pop(context);
-                _showDeleteAccountDialog(context, account);
+                _showDeleteAccountDialog(account);
               },
             ),
             const SizedBox(height: 24),
           ],
         ),
+        ),
       ),
     );
   }
 
-  void _showResetAccountDialog(BuildContext context, Account account) async {
+  /// Opened from the account options sheet, which is closed (and its
+  /// context unmounted) by the time the confirmation returns, so this runs on
+  /// the State's own context. With the sheet's, confirming did nothing.
+  void _showResetAccountDialog(Account account) async {
     final theme = Theme.of(context);
     final appColors = theme.extension<AppColors>()!;
     final appState = context.read<AppState>();
@@ -1014,9 +1007,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               size: 28,
             ),
             const SizedBox(width: 12),
-            Text(
-              'Reset Account?',
-              style: TextStyle(color: theme.colorScheme.onSurface),
+            Flexible(
+              child: Text(
+                'Reset Account?',
+                style: TextStyle(color: theme.colorScheme.onSurface),
+              ),
             ),
           ],
         ),
@@ -1083,12 +1078,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (confirmed == true) {
       final id = account.id;
-      if (id == null || !context.mounted) return;
+      if (id == null || !mounted) return;
       ProgressIndicatorHelper.show(context, message: 'Resetting account...');
 
       try {
         await appState.resetAccount(id);
-        if (!context.mounted) return;
+        if (!mounted) return;
         ProgressIndicatorHelper.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1099,7 +1094,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
       } catch (e) {
-        if (!context.mounted) return;
+        if (!mounted) return;
         ProgressIndicatorHelper.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1113,7 +1108,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  void _showDeleteAccountDialog(BuildContext context, Account account) async {
+  /// Same context rule as [_showResetAccountDialog]. Deleting is a soft
+  /// delete: the account waits 30 days in Wallet's Recently deleted.
+  void _showDeleteAccountDialog(Account account) async {
     final theme = Theme.of(context);
     final appColors = theme.extension<AppColors>()!;
     final appState = context.read<AppState>();
@@ -1131,9 +1128,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               size: 28,
             ),
             const SizedBox(width: 12),
-            Text(
-              'Delete Account?',
-              style: TextStyle(color: theme.colorScheme.onSurface),
+            Flexible(
+              child: Text(
+                'Delete Account?',
+                style: TextStyle(color: theme.colorScheme.onSurface),
+              ),
             ),
           ],
         ),
@@ -1159,7 +1158,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'This will permanently delete:',
+                    'This moves to Recently deleted:',
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   SizedBox(height: 8),
@@ -1173,9 +1172,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'This action cannot be undone.',
-              style: TextStyle(
-                  color: appColors.expenseRed, fontWeight: FontWeight.w600),
+              'You can restore it from Wallet for 30 days.',
+              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -1187,7 +1185,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: appColors.expenseRed),
-            child: const Text('Delete Permanently'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -1195,22 +1193,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (confirmed == true) {
       final id = account.id;
-      if (id == null || !context.mounted) return;
+      if (id == null || !mounted) return;
       ProgressIndicatorHelper.show(context, message: 'Deleting account...');
 
       try {
         await appState.deleteAccount(id);
-        if (!context.mounted) return;
+        if (!mounted) return;
         ProgressIndicatorHelper.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Account "${account.name}" has been deleted'),
+            content: Text('Account "${account.name}" moved to Recently deleted'),
             backgroundColor: appColors.incomeGreen,
             behavior: SnackBarBehavior.floating,
           ),
         );
       } catch (e) {
-        if (!context.mounted) return;
+        if (!mounted) return;
         ProgressIndicatorHelper.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

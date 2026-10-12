@@ -106,6 +106,9 @@ class _CategoryList extends StatelessWidget {
           GlassPanel(
             padding: EdgeInsets.zero,
             child: ListView.builder(
+              // Explicit: with no padding a ListView pads itself with the
+              // status-bar inset, an empty band at the top of the panel.
+              padding: EdgeInsets.zero,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: expenseCategories.length,
@@ -167,6 +170,7 @@ class _CategoryList extends StatelessWidget {
           GlassPanel(
             padding: EdgeInsets.zero,
             child: ListView.builder(
+              padding: EdgeInsets.zero,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: incomeCategories.length,
@@ -740,6 +744,21 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
       return;
     }
 
+    // Names are unique per type, ignoring case. A rename onto another
+    // category's name cascaded into its transactions and left two "Food"s
+    // (AppState.addCategory checks this; updateCategory does not).
+    final lowerName = newName.toLowerCase();
+    final nameTaken = context.read<AppState>().categories.any(
+          (c) =>
+              c.type == _selectedType &&
+              c.id != widget.categoryId &&
+              c.name.toLowerCase() == lowerName,
+        );
+    if (nameTaken) {
+      _showError('A category with this name already exists');
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     try {
@@ -1303,7 +1322,18 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
       final appState = context.read<AppState>();
       final appColors = Theme.of(context).extension<AppColors>()!;
 
-      switch (_selectedAction) {
+      // With no transactions the dialog shows no delete-or-move choice and
+      // no destination picker, so there is nothing to choose: delete the
+      // category. Falling into 'move' stopped at "Please select a category"
+      // with no way to pick one.
+      final action =
+          widget.existingTransactionCount == 0 ? 'unused' : _selectedAction;
+
+      switch (action) {
+        case 'unused':
+          await appState.deleteCategory(widget.categoryId);
+          break;
+
         case 'delete':
           // FIX #3: Use atomic delete operation to prevent data inconsistency
           // Both transactions AND category are deleted in single database transaction
@@ -1367,9 +1397,9 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              _selectedAction == 'delete'
+              action == 'delete'
                   ? 'Category and ${widget.existingTransactionCount} transaction${widget.existingTransactionCount > 1 ? 's' : ''} deleted'
-                  : _selectedAction == 'move'
+                  : action == 'move'
                       ? 'Category deleted and transactions moved to $_selectedMoveToCategory'
                       : 'Category deleted',
             ),

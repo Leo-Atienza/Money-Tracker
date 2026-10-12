@@ -1,9 +1,12 @@
+import 'package:budget_tracker/database/database_helper.dart';
+import 'package:budget_tracker/models/expense_model.dart';
 import 'package:budget_tracker/providers/app_state.dart';
 import 'package:budget_tracker/screens/settings_screen.dart';
 import 'package:budget_tracker/theme/app_colors.dart';
 import 'package:budget_tracker/theme/luminous_app_theme.dart';
 import 'package:budget_tracker/widgets/luminous/glass_list_tile.dart';
 import 'package:budget_tracker/widgets/luminous/glass_top_app_bar.dart';
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -351,4 +354,226 @@ void main() {
       expect(find.text('Auto-create monthly expenses'), findsOneWidget);
     },
   );
+
+  // -------------------------------------------------------------------------
+  // Session 21 review fixes: the account and currency actions reached from
+  // bottom sheets. Each handler used to receive the sheet's own context,
+  // await a dialog, then gate on `context.mounted` -- always false by then,
+  // because the sheet had closed -- so confirming did nothing.
+  // -------------------------------------------------------------------------
+
+  /// Drives UI-started async work: the database runs on real I/O, so
+  /// alternate real time (for the I/O) with frames (for the continuations
+  /// and route animations) until [until] holds, then let the UI settle.
+  /// Bounded, so a regression fails on its assertions instead of hanging.
+  Future<void> drainAsync(
+    WidgetTester tester, {
+    required bool Function() until,
+  }) async {
+    Future<void> round() async {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+
+    for (var i = 0; i < 1000 && !until(); i++) {
+      await round();
+    }
+    for (var i = 0; i < 30; i++) {
+      await round();
+    }
+  }
+
+  Future<void> openSheetsAndPause(WidgetTester tester) async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+  }
+
+  Expense expenseIn(int accountId) => Expense(
+        amount: Decimal.parse('12.50'),
+        category: 'Food',
+        description: 'Lunch',
+        date: DateTime.now(),
+        accountId: accountId,
+      );
+
+  Future<int> expenseCount(int accountId) async {
+    final db = await DatabaseHelper().database;
+    final rows = await db.query(
+      'expenses',
+      where: 'account_id = ?',
+      whereArgs: [accountId],
+    );
+    return rows.length;
+  }
+
+  /// Main Account (current) plus "Side", which holds one expense.
+  Future<(AppState, int)> seedSideAccount(WidgetTester tester) async {
+    final state = AppState();
+    late int sideId;
+    await tester.runAsync(() async {
+      await state.loadData();
+      await state.addAccount('Side');
+      final main = state.currentAccount!;
+      final side = state.accounts.firstWhere((a) => a.name == 'Side');
+      sideId = side.id!;
+      await state.switchAccount(side);
+      await state.addExpense(expenseIn(sideId));
+      await state.switchAccount(main);
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    return (state, sideId);
+  }
+
+  Future<void> openSideOptions(WidgetTester tester) async {
+    await tester.tap(find.text('Current Account'));
+    await openSheetsAndPause(tester);
+    await tester.tap(find.descendant(
+      of: find.widgetWithText(ListTile, 'Side'),
+      matching: find.byIcon(Icons.more_vert),
+    ));
+    await openSheetsAndPause(tester);
+  }
+
+  Future<void> confirmDialog(WidgetTester tester) async {
+    // The destructive action is the dialog's last button.
+    await tester.tap(find
+        .descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
+        )
+        .last);
+    await tester.pump();
+  }
+
+  testWidgets('Reset Account from the account options really resets it',
+      (tester) async {
+    final (state, sideId) = await seedSideAccount(tester);
+    expect(await tester.runAsync(() => expenseCount(sideId)), 1);
+    await pumpHarness(tester, appState: state);
+    await pumpAndDrain(tester);
+
+    await openSideOptions(tester);
+    await tester.tap(find.text('Reset Account'));
+    await openSheetsAndPause(tester);
+    expect(find.text('Reset Account?'), findsOneWidget);
+
+    await confirmDialog(tester);
+    await drainAsync(
+      tester,
+      until: () =>
+          find.text('Account "Side" has been reset').evaluate().isNotEmpty,
+    );
+
+    expect(await tester.runAsync(() => expenseCount(sideId)), 0);
+    expect(find.text('Resetting account...'), findsNothing);
+    expect(find.text('Account "Side" has been reset'), findsOneWidget);
+  });
+
+  testWidgets(
+      'Delete Account from the account options really deletes it, and says '
+      'where it went', (tester) async {
+    final (state, _) = await seedSideAccount(tester);
+    await pumpHarness(tester, appState: state);
+    await pumpAndDrain(tester);
+
+    await openSideOptions(tester);
+    await tester.tap(find.text('Delete Account'));
+    await openSheetsAndPause(tester);
+    expect(find.text('Delete Account?'), findsOneWidget);
+    // Deleting is a 30-day soft delete, so the dialog must not promise
+    // anything permanent.
+    Finder inDialog(Finder f) =>
+        find.descendant(of: find.byType(AlertDialog), matching: f);
+    expect(inDialog(find.textContaining('30 days')), findsOneWidget);
+    expect(inDialog(find.textContaining('permanently')), findsNothing);
+    expect(inDialog(find.textContaining('cannot be undone')), findsNothing);
+
+    await confirmDialog(tester);
+    await drainAsync(
+      tester,
+      until: () => find
+          .text('Account "Side" moved to Recently deleted')
+          .evaluate()
+          .isNotEmpty,
+    );
+
+    expect(state.accounts.any((a) => a.name == 'Side'), isFalse);
+    expect(find.text('Deleting account...'), findsNothing);
+  });
+
+  testWidgets(
+      'changing currency with "Clear All Data" clears the account and '
+      'switches the currency', (tester) async {
+    final state = AppState();
+    await tester.runAsync(() async {
+      await state.loadData();
+      await state.addExpense(expenseIn(state.currentAccountId));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    expect(state.allExpenses, hasLength(1));
+    // Wide enough for the shared currency warning's title row in the test
+    // font, which draws every glyph a full em wide.
+    await pumpHarness(tester, appState: state, surface: const Size(800, 3200));
+    await pumpAndDrain(tester);
+
+    await tester.tap(find.text('Currency'));
+    await openSheetsAndPause(tester);
+    await tester.tap(find.text('Euro'));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await openSheetsAndPause(tester);
+    expect(find.text('Change Currency?'), findsOneWidget);
+
+    await tester.tap(find.text('Clear All Data'));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await openSheetsAndPause(tester);
+    expect(find.text('Clear All Data?'), findsOneWidget);
+
+    await tester.tap(find.text('Delete Everything'));
+    await drainAsync(
+      tester,
+      until: () => find
+          .text('Data cleared and currency changed')
+          .evaluate()
+          .isNotEmpty,
+    );
+
+    expect(state.currencyCode, 'EUR');
+    expect(state.allExpenses, isEmpty);
+    expect(find.text('Clearing data...'), findsNothing);
+  });
+
+  testWidgets(
+      'Add Account from the account picker owns its text controller and adds '
+      'the account', (tester) async {
+    final state = AppState();
+    await tester.runAsync(() async {
+      await state.loadData();
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    await pumpHarness(tester, appState: state);
+    await pumpAndDrain(tester);
+
+    await tester.tap(find.text('Current Account'));
+    await openSheetsAndPause(tester);
+    await tester.tap(find.byTooltip('Add Account'));
+    await openSheetsAndPause(tester);
+
+    await tester.enterText(find.byType(TextField), 'Travel');
+    await tester.tap(find.widgetWithText(TextButton, 'Add'));
+    // Run the dialog's exit transition: the old dialog disposed its
+    // controller before popping, and the closing field still used it.
+    await drainAsync(
+      tester,
+      until: () => state.accounts.any((a) => a.name == 'Travel'),
+    );
+
+    expect(state.accounts.any((a) => a.name == 'Travel'), isTrue);
+    expect(find.text('Add Account'), findsNothing);
+  });
 }

@@ -47,6 +47,9 @@ class RecurringExpensesView extends StatelessWidget {
     }
 
     return ListView.builder(
+      // Explicit: with no padding a ListView pads itself with the status-bar
+      // inset, an empty band above the first card.
+      padding: EdgeInsets.zero,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: recurring.length,
@@ -54,7 +57,11 @@ class RecurringExpensesView extends StatelessWidget {
         final rec = recurring[index];
         return StaggeredListItem(
           index: index,
-          child: AnimatedPressCard(
+          // The gap between cards sits outside the card. Inside it, the
+          // border wrapped the empty gap too and the cards touched.
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: AnimatedPressCard(
             onTap: () => _showEditRecurring(context, rec),
             onLongPress: () {
               final id = rec.id;
@@ -63,8 +70,6 @@ class RecurringExpensesView extends StatelessWidget {
             },
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: theme.colorScheme.outline),
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 16),
               child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 24,
@@ -101,7 +106,7 @@ class RecurringExpensesView extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      '${appState.currency}${rec.amount.toStringAsFixed(0)}',
+                      appState.formatWithCurrency(rec.amount),
                       style: theme.textTheme.titleMedium?.copyWith(
                         color: rec.isActive
                             ? theme.colorScheme.onSurface
@@ -228,6 +233,9 @@ class RecurringExpensesView extends StatelessWidget {
   void _confirmDelete(BuildContext context, int id) {
     final theme = Theme.of(context);
     final appColors = theme.extension<AppColors>()!;
+    // In-flight guard: a double tap on Delete deleted twice and popped twice,
+    // the second pop closing the screen underneath.
+    var deleting = false;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -282,6 +290,8 @@ class RecurringExpensesView extends StatelessWidget {
           ),
           TextButton(
             onPressed: () async {
+              if (deleting) return;
+              deleting = true;
               await context.read<AppState>().deleteRecurringExpense(id);
               if (context.mounted) Navigator.pop(context);
             },
@@ -403,7 +413,11 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
           ),
         ),
         padding: const EdgeInsets.all(20),
-        child: SingleChildScrollView(
+        // A transparent Material over the sheet's fill gives its list tiles
+        // a surface to paint ink on (Flutter 3.47 asserts on a hidden ripple).
+        child: Material(
+          type: MaterialType.transparency,
+          child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -431,10 +445,12 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _amountController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                ],
+                // Decimal keyboard + the app's shared amount formatter: the old
+                // digits-and-dot filter dropped a typed comma, so "15,49"
+                // saved 1549.
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [CurrencyHelper.decimalInputFormatter()],
                 decoration: InputDecoration(
                   labelText: 'Amount',
                   prefixText: '${appState.currency} ',
@@ -609,6 +625,7 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );
