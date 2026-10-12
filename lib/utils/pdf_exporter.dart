@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
@@ -12,6 +13,40 @@ import '../models/budget_model.dart';
 /// Helper class for exporting financial data to PDF format
 /// Provides professional-looking PDF reports for expenses, income, and budgets
 class PdfExporter {
+  /// Hanken Grotesk, the app's own UI font, embedded as a per-glyph fallback.
+  ///
+  /// The built-in PDF fonts only cover Latin-1, so €, ₽, ₱, zł and accented
+  /// Latin text (Polish, Czech, Vietnamese…) printed as crossed boxes. Hanken
+  /// covers those. It does NOT cover ₹, ₩, ฿, Cyrillic, Greek, Thai, CJK or
+  /// emoji — those still need a wider font. The pdf package embeds only the
+  /// glyphs a report uses, and the variable font renders as its Regular
+  /// instance, so Latin-1 text keeps the built-in fonts and their bold.
+  static const fallbackFontAsset =
+      'assets/fonts/HankenGrotesk/HankenGrotesk-Variable.ttf';
+
+  /// Reads [fallbackFontAsset] on the calling isolate (asset loading needs
+  /// the platform channel, which a `compute()` isolate doesn't have). Null if
+  /// it can't be read: a report in the built-in fonts beats no report.
+  @visibleForTesting
+  static Future<Uint8List?> loadFallbackFont() async {
+    try {
+      final data = await rootBundle.load(fallbackFontAsset);
+      return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    } catch (e) {
+      if (kDebugMode) debugPrint('PDF fallback font unavailable: $e');
+      return null;
+    }
+  }
+
+  /// Document theme: the built-in fonts as before, with the fallback font
+  /// drawing any glyph they can't.
+  static pw.ThemeData? _themeFor(Uint8List? fallbackFont) =>
+      fallbackFont == null
+          ? null
+          : pw.ThemeData.withFont(
+              fontFallback: [pw.Font.ttf(ByteData.sublistView(fallbackFont))],
+            );
+
   /// Export expenses to PDF with optional filtering by date range and category
   static Future<File> exportExpensesToPdf({
     required List<Expense> expenses,
@@ -35,6 +70,7 @@ class PdfExporter {
         endDate: endDate,
         category: category,
         now: now,
+        fallbackFont: await loadFallbackFont(),
       ),
     );
 
@@ -48,8 +84,8 @@ class PdfExporter {
   }
 
   /// Builds the expense-report PDF document. Pure computation (no platform
-  /// channels, base-14 fonts only) so it is safe to run inside a `compute()`
-  /// isolate.
+  /// channels; the fallback font arrives as bytes) so it is safe to run
+  /// inside a `compute()` isolate.
   @visibleForTesting
   static Future<Uint8List> buildExpensesPdf(PdfExpenseParams params) async {
     final expenses = params.expenses;
@@ -60,7 +96,7 @@ class PdfExporter {
     final category = params.category;
     final now = params.now;
 
-    final pdf = pw.Document();
+    final pdf = pw.Document(theme: _themeFor(params.fallbackFont));
     final dateFormat = DateFormat.yMMMd();
     final reportTitle = title ?? 'Expense Report';
 
@@ -429,6 +465,7 @@ class PdfExporter {
         startDate: startDate,
         endDate: endDate,
         now: now,
+        fallbackFont: await loadFallbackFont(),
       ),
     );
 
@@ -450,7 +487,7 @@ class PdfExporter {
     final endDate = params.endDate;
     final now = params.now;
 
-    final pdf = pw.Document();
+    final pdf = pw.Document(theme: _themeFor(params.fallbackFont));
     final dateFormat = DateFormat.yMMMd();
     final reportTitle = title ?? 'Income Report';
 
@@ -722,6 +759,9 @@ class PdfExporter {
   }
 
   /// Export monthly summary to PDF (expenses + income + budgets)
+  ///
+  /// [monthName] is the period line under [title]: a month for a one-month
+  /// summary, otherwise the range the totals cover.
   static Future<File> exportMonthlySummaryToPdf({
     required List<Expense> expenses,
     required List<Income> incomes,
@@ -732,6 +772,7 @@ class PdfExporter {
     required double totalIncome,
     required double totalExpenses,
     required double balance,
+    String title = 'Monthly Financial Summary',
   }) async {
     final now = DateTime.now();
     // M5: build off the UI isolate (see exportExpensesToPdf).
@@ -742,11 +783,13 @@ class PdfExporter {
         incomes: incomes,
         budgets: budgets,
         currencySymbol: currencySymbol,
+        title: title,
         monthName: monthName,
         totalIncome: totalIncome,
         totalExpenses: totalExpenses,
         balance: balance,
         now: now,
+        fallbackFont: await loadFallbackFont(),
       ),
     );
 
@@ -772,7 +815,7 @@ class PdfExporter {
     final balance = params.balance;
     final now = params.now;
 
-    final pdf = pw.Document();
+    final pdf = pw.Document(theme: _themeFor(params.fallbackFont));
     final dateFormat = DateFormat.yMMMd();
 
     // Calculate category spending
@@ -795,7 +838,7 @@ class PdfExporter {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    'Monthly Financial Summary',
+                    params.title,
                     style: pw.TextStyle(
                       fontSize: 24,
                       fontWeight: pw.FontWeight.bold,
@@ -1010,6 +1053,10 @@ class PdfExpenseParams {
   final String? category;
   final DateTime now;
 
+  /// TrueType bytes for glyphs the built-in fonts lack (see
+  /// [PdfExporter.fallbackFontAsset]); null keeps the built-in fonts only.
+  final Uint8List? fallbackFont;
+
   PdfExpenseParams({
     required this.expenses,
     required this.currencySymbol,
@@ -1018,6 +1065,7 @@ class PdfExpenseParams {
     required this.endDate,
     required this.category,
     required this.now,
+    this.fallbackFont,
   });
 }
 
@@ -1030,6 +1078,9 @@ class PdfIncomeParams {
   final DateTime? endDate;
   final DateTime now;
 
+  /// See [PdfExpenseParams.fallbackFont].
+  final Uint8List? fallbackFont;
+
   PdfIncomeParams({
     required this.incomes,
     required this.currencySymbol,
@@ -1037,6 +1088,7 @@ class PdfIncomeParams {
     required this.startDate,
     required this.endDate,
     required this.now,
+    this.fallbackFont,
   });
 }
 
@@ -1046,21 +1098,31 @@ class PdfMonthlySummaryParams {
   final List<Income> incomes;
   final List<Budget> budgets;
   final String currencySymbol;
+
+  /// Document title; the default fits a one-month summary.
+  final String title;
+
+  /// Period line under the title: a month name, or the export's range.
   final String monthName;
   final double totalIncome;
   final double totalExpenses;
   final double balance;
   final DateTime now;
 
+  /// See [PdfExpenseParams.fallbackFont].
+  final Uint8List? fallbackFont;
+
   PdfMonthlySummaryParams({
     required this.expenses,
     required this.incomes,
     required this.budgets,
     required this.currencySymbol,
+    this.title = 'Monthly Financial Summary',
     required this.monthName,
     required this.totalIncome,
     required this.totalExpenses,
     required this.balance,
     required this.now,
+    this.fallbackFont,
   });
 }

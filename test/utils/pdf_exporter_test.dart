@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -12,6 +15,8 @@ import 'package:budget_tracker/models/budget_model.dart';
 /// a unit test, so we lock the output structurally: the builders must return a
 /// well-formed PDF byte stream (magic header + EOF marker) for a small dataset.
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   // %PDF — the PDF magic header bytes every document must start with.
   const pdfMagic = [0x25, 0x50, 0x44, 0x46];
   // %%EOF — the trailer marker that closes a PDF.
@@ -101,6 +106,61 @@ void main() {
 
   final now = DateTime(2024, 1, 15, 9, 30);
 
+  /// The words drawn in the built-in (Latin-1) fonts, in drawing order. The
+  /// pdf package writes each word as `[(word)]TJ` inside a deflated content
+  /// stream; glyphs drawn with an embedded TrueType font are glyph ids and
+  /// don't show up here.
+  String drawnText(Uint8List bytes) {
+    final raw = latin1.decode(bytes);
+    final words = <String>[];
+    var from = 0;
+    while (true) {
+      final start = raw.indexOf('stream', from);
+      if (start < 0) break;
+      var dataStart = start + 'stream'.length;
+      if (raw.startsWith('\r\n', dataStart)) {
+        dataStart += 2;
+      } else if (raw.startsWith('\n', dataStart)) {
+        dataStart += 1;
+      }
+      final end = raw.indexOf('endstream', dataStart);
+      if (end < 0) break;
+      try {
+        final content = latin1.decode(zlib.decode(bytes.sublist(dataStart, end)));
+        words.addAll(RegExp(r'\[\((.*?)\)\]TJ')
+            .allMatches(content)
+            .map((m) => m.group(1)!));
+      } on FormatException {
+        // Not a deflated content stream (e.g. the cross-reference stream).
+      }
+      from = end + 'endstream'.length;
+    }
+    return words.join(' ');
+  }
+
+  /// Runs [build] and returns the "Unable to find a font to draw" warnings
+  /// the pdf package prints for glyphs no font can draw — each one is a
+  /// crossed placeholder box in the output.
+  Future<List<String>> missingGlyphWarnings(
+      Future<Uint8List> Function() build) async {
+    final warnings = <String>[];
+    await runZoned(
+      build,
+      zoneSpecification: ZoneSpecification(
+        print: (self, parent, zone, line) {
+          if (line.contains('Unable to find a font')) warnings.add(line);
+        },
+      ),
+    );
+    return warnings;
+  }
+
+  final fallbackFont = File(PdfExporter.fallbackFontAsset).readAsBytesSync();
+
+  // Currency symbols outside Latin-1 that the app offers and Hanken Grotesk
+  // covers (EUR, RUB, PHP, PLN), plus accented Latin text in a description.
+  const nonLatin1Description = 'Café € ₽ ₱ zł Łódź';
+
   group('PdfExporter.buildExpensesPdf', () {
     test('produces a well-formed PDF for a small dataset', () async {
       final bytes = await PdfExporter.buildExpensesPdf(
@@ -165,6 +225,132 @@ void main() {
         ),
       );
       expectWellFormedPdf(bytes);
+      final text = drawnText(bytes);
+      expect(text, contains('Monthly Financial Summary January 2024'));
+      expect(text, contains('Budget Performance'));
+    });
+
+    test('prints the title and period it is given, not a month', () async {
+      final bytes = await PdfExporter.buildMonthlySummaryPdf(
+        PdfMonthlySummaryParams(
+          expenses: expenses,
+          incomes: incomes,
+          budgets: const [],
+          currencySymbol: r'$',
+          title: 'Financial Summary',
+          monthName: 'All time',
+          totalIncome: 1025.50,
+          totalExpenses: 69.12,
+          balance: 956.38,
+          now: now,
+        ),
+      );
+      final text = drawnText(bytes);
+      expect(text, contains('Financial Summary All time'));
+      expect(text, isNot(contains('Monthly')));
+      expect(text, isNot(contains('Budget Performance')));
+    });
+  });
+
+  group('non-Latin-1 text', () {
+    test('the bundled fallback font asset loads', () async {
+      final font = await PdfExporter.loadFallbackFont();
+      expect(font, isNotNull);
+      expect(font, hasLength(fallbackFont.length));
+    });
+
+    test('without a fallback font, € has no glyph (the crossed-box bug)',
+        () async {
+      final warnings = await missingGlyphWarnings(
+        () => PdfExporter.buildExpensesPdf(
+          PdfExpenseParams(
+            expenses: [
+              Expense(
+                amount: Decimal.parse('12.34'),
+                category: 'Food',
+                description: nonLatin1Description,
+                date: DateTime(2024, 1, 1),
+                accountId: 1,
+              ),
+            ],
+            currencySymbol: '€',
+            title: 'Expense Report',
+            startDate: null,
+            endDate: null,
+            category: null,
+            now: now,
+          ),
+        ),
+      );
+      expect(warnings, isNotEmpty);
+      expect(warnings.join('\n'), contains('U+20ac'));
+    });
+
+    test('with the fallback font, every report draws €, ₽, ₱, zł and Polish '
+        'letters', () async {
+      final expense = Expense(
+        amount: Decimal.parse('12.34'),
+        category: 'Food',
+        description: nonLatin1Description,
+        date: DateTime(2024, 1, 1),
+        accountId: 1,
+      );
+      final income = Income(
+        amount: Decimal.parse('100.00'),
+        category: 'Gift',
+        description: nonLatin1Description,
+        date: DateTime(2024, 1, 2),
+        accountId: 1,
+      );
+
+      for (final symbol in const ['€', '₽', '₱', 'zł']) {
+        final warnings = <String>[
+          ...await missingGlyphWarnings(
+            () => PdfExporter.buildExpensesPdf(
+              PdfExpenseParams(
+                expenses: [expense],
+                currencySymbol: symbol,
+                title: 'Expense Report',
+                startDate: DateTime(2024, 1, 1),
+                endDate: DateTime(2024, 1, 31),
+                category: null,
+                now: now,
+                fallbackFont: fallbackFont,
+              ),
+            ),
+          ),
+          ...await missingGlyphWarnings(
+            () => PdfExporter.buildIncomePdf(
+              PdfIncomeParams(
+                incomes: [income],
+                currencySymbol: symbol,
+                title: 'Income Report',
+                startDate: null,
+                endDate: null,
+                now: now,
+                fallbackFont: fallbackFont,
+              ),
+            ),
+          ),
+          ...await missingGlyphWarnings(
+            () => PdfExporter.buildMonthlySummaryPdf(
+              PdfMonthlySummaryParams(
+                expenses: [expense],
+                incomes: [income],
+                budgets: budgets,
+                currencySymbol: symbol,
+                monthName: 'January 2024',
+                totalIncome: 100,
+                totalExpenses: 12.34,
+                balance: 87.66,
+                now: now,
+                fallbackFont: fallbackFont,
+              ),
+            ),
+          ),
+        ];
+        expect(warnings, isEmpty, reason: 'currency $symbol');
+      }
     });
   });
 }
