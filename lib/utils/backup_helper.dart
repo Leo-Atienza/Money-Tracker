@@ -170,19 +170,37 @@ class BackupHelper {
     if (!await isEncryptedDatabaseFile(dbPath)) {
       return (path: dbPath, isTemp: false);
     }
-    final password = await DbEncryption.getOrCreateKey();
+    // An unreadable key throws DatabaseKeyUnavailableException and fails the
+    // backup: never a new key, never a backup of ciphertext no device could
+    // restore.
+    final password = await DbEncryption.getOrCreateKey(dbPath: dbPath);
     if (password == null) {
-      // Encrypted file but no retrievable key — a catastrophic state in which
-      // the app itself can't open the DB. Embed as-is rather than fail outright.
+      // Only when the file stopped being encrypted after the check above (a
+      // restore swapped in a plaintext database), so it can go in as-is.
       return (path: dbPath, isTemp: false);
     }
     final tmpDir = await getTemporaryDirectory();
-    final dest = path.join(
-      tmpDir.path,
-      'ff-backup-plaintext-${DateTime.now().millisecondsSinceEpoch}.db',
+    final source = (
+      path: path.join(
+        tmpDir.path,
+        '$plaintextExportPrefix${DateTime.now().millisecondsSinceEpoch}.db',
+      ),
+      isTemp: true,
     );
-    await exportPlaintextCopy(dbPath: dbPath, password: password, dest: dest);
-    return (path: dest, isTemp: true);
+    try {
+      await exportPlaintextCopy(
+        dbPath: dbPath,
+        password: password,
+        dest: source.path,
+      );
+    } catch (_) {
+      // A failed export can leave a partial plaintext file behind. (One a
+      // killed backup never cleaned up is reaped at startup by
+      // deleteStalePlaintextExports.)
+      await _cleanupBackupSource(source);
+      rethrow;
+    }
+    return source;
   }
 
   /// Deletes a throwaway plaintext source created by [_backupSource].

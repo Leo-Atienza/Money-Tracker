@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import '../database/db_open.dart';
 import 'crash_log.dart';
 import 'secure_prefs.dart';
 
@@ -19,6 +20,11 @@ import 'secure_prefs.dart';
 /// a key that vanishes on the next launch would be permanent data loss, so the
 /// caller treats a `null` here as "stay on the plaintext path this launch and
 /// retry next time".
+///
+/// It never replaces a stored key either. A Keystore read *error* is not a miss
+/// ([SecurePrefs.readStringStrict]), and once the database file is encrypted a
+/// missing or unreadable key throws [DatabaseKeyUnavailableException]: a new
+/// key could never open that file.
 class DbEncryption {
   DbEncryption._();
 
@@ -31,13 +37,38 @@ class DbEncryption {
   static const int _keyLengthBytes = 32;
 
   /// Returns the persisted passphrase, generating and storing one on first
-  /// call. Returns `null` only when a key could neither be read nor durably
-  /// persisted, in which case the caller MUST fall back to a plaintext open.
-  static Future<String?> getOrCreateKey() async {
+  /// call. [dbPath] is the database it keys, which decides the no-key cases:
+  ///
+  /// - The file is already encrypted: throws [DatabaseKeyUnavailableException]
+  ///   whether the key is missing or unreadable. Never a new key.
+  /// - Otherwise (absent, or still plaintext): a genuine miss generates a key,
+  ///   but a read *error* returns `null` without writing, since the real key
+  ///   may still be there.
+  ///
+  /// `null` (also returned when a new key could not be durably persisted)
+  /// means the caller MUST fall back to a plaintext open this launch.
+  static Future<String?> getOrCreateKey({required String dbPath}) async {
+    String? existing;
     try {
-      final existing = await SecurePrefs.readString(keyStorageKey);
-      if (existing != null && existing.isNotEmpty) return existing;
+      existing = await SecurePrefs.readStringStrict(keyStorageKey);
+    } catch (e, st) {
+      await CrashLog.record(e, stack: st, context: 'db_encryption_key');
+      if (await isEncryptedDatabaseFile(dbPath)) {
+        throw const DatabaseKeyUnavailableException(
+          'the database is encrypted and its key could not be read',
+        );
+      }
+      return null;
+    }
+    if (existing != null && existing.isNotEmpty) return existing;
 
+    if (await isEncryptedDatabaseFile(dbPath)) {
+      throw const DatabaseKeyUnavailableException(
+        'the database is encrypted but its key is missing',
+      );
+    }
+
+    try {
       final key = _generateKey();
       await SecurePrefs.writeString(keyStorageKey, key);
 
@@ -45,7 +76,7 @@ class DbEncryption {
       // back to SharedPreferences when the Keystore write throws, so a
       // successful read-back here means the key is retrievable next launch
       // (somewhere). If it comes back wrong/empty, refuse to encrypt.
-      final readBack = await SecurePrefs.readString(keyStorageKey);
+      final readBack = await SecurePrefs.readStringStrict(keyStorageKey);
       if (readBack != key) {
         await CrashLog.record(
           'DB encryption key did not persist (read-back mismatch)',

@@ -45,7 +45,14 @@ class SecurePrefs {
     // key for the whole database, so losing it means the user's data is
     // permanently undecryptable. v11 is only safe once a v10 build has
     // shipped and been run.
-    aOptions: AndroidOptions(),
+    //
+    // `resetOnError` defaults to TRUE in v10, and natively that means a read
+    // that fails to decrypt deletes the entry and returns null, while any
+    // exception in any call runs `deleteAll()`. One transient Keystore failure
+    // would erase `db_encryption_key`, and with it every row of the encrypted
+    // database. Errors must surface instead (see [readStringStrict]). This is
+    // the only option changed; the cipher and migration defaults above stand.
+    aOptions: AndroidOptions(resetOnError: false),
   );
 
   /// Read a string from the secure store. On a miss, lazily migrates from
@@ -59,6 +66,24 @@ class SecurePrefs {
       secure = null;
     }
     if (secure != null) return secure;
+    return _migrateString(key);
+  }
+
+  /// Like [readString], but a secure-store read *error* is not reported as a
+  /// miss. For values whose absence triggers something irreversible:
+  /// `DbEncryption` mints a new database key when none is stored, so an error
+  /// that read as "no key" would replace the real one. On an error the legacy
+  /// store is still consulted (a write that fell back left the value there);
+  /// with nothing there either, the error is rethrown.
+  static Future<String?> readStringStrict(String key) async {
+    try {
+      final secure = await storage.read(key: key);
+      if (secure != null) return secure;
+    } catch (_) {
+      final legacy = (await SharedPreferences.getInstance()).get(key);
+      if (legacy != null) return legacy.toString();
+      rethrow;
+    }
     return _migrateString(key);
   }
 
