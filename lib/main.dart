@@ -21,6 +21,7 @@ import 'screens/pin_unlock_screen.dart';
 import 'services/onboarding_service.dart';
 import 'utils/notification_helper.dart';
 import 'utils/notification_payload_store.dart';
+import 'utils/pin_security_helper.dart' show PinStorageUnavailableException;
 import 'utils/home_widget_helper.dart';
 import 'theme/luminous_app_theme.dart';
 import 'utils/premium_animations.dart';
@@ -170,21 +171,22 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Future<void> _handlePaused() async {
     if (!mounted || !context.mounted) return;
     final appState = context.read<AppState>();
-    // Only arm the lock gate when a PIN is actually configured. `_isLocked`
-    // is the single source of truth the resume handler re-presents against,
-    // so locking without a PIN would trap the user on an unlock screen they
-    // can't pass. `initializeLockState` and the inactivity timer already gate
-    // on pinEnabled — keep `_handlePaused` consistent so `isLocked == true`
-    // always implies a PIN exists.
+    // Only arm the lock gate when a PIN is actually configured.
+    // `initializeLockState` and the inactivity timer gate on pinEnabled the
+    // same way.
     //
-    // Wrapped in try/catch so a secure-storage read failure can NEVER (a) skip
-    // the DB-close / subscription-dispose maintenance below, nor (b) trap a
-    // PIN-less user — on error we leave the app unlocked (fail-open for
-    // usability; the resume handler is a no-op when unlocked anyway).
+    // Fail closed (S22): when the secure store cannot be read, lock anyway —
+    // an unreadable store is not "no PIN". The unlock screen re-reads it and
+    // lets a PIN-less user straight through once it reads, or offers Try
+    // again. The try/catch also guarantees a failure can never skip the
+    // DB-close / subscription-dispose maintenance below.
     try {
       if (await appState.isPinEnabled()) {
         appState.lock();
       }
+    } on PinStorageUnavailableException catch (e, st) {
+      CrashLog.record(e, stack: st, context: 'lifecycle_paused_pin_check');
+      appState.lock();
     } catch (e, st) {
       if (kDebugMode) debugPrint('isPinEnabled() on paused failed: $e');
       CrashLog.record(e, stack: st, context: 'lifecycle_paused_pin_check');

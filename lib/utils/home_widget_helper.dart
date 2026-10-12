@@ -102,7 +102,9 @@ class HomeWidgetHelper {
       // Phase 6.4: redact every monetary field when PIN protection is
       // enabled. The launcher widget renders even on the lock screen,
       // so unredacted data here would defeat the PIN gate entirely.
-      final pinEnabled = await PinSecurityHelper.isPinEnabled();
+      // An unreadable secure store redacts too (fail closed).
+      final pinEnabled = await PinSecurityHelper.isPinEnabled()
+          .catchError((Object _) => true);
       WidgetData figures(
         DateTime month,
         ({double income, double expenses}) totals,

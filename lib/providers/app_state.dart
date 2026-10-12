@@ -2769,7 +2769,18 @@ class AppState extends ChangeNotifier {
   /// Initialize lock state based on PIN settings
   Future<void> initializeLockState() async {
     try {
-      final pinEnabled = await PinSecurityHelper.isPinEnabled();
+      final bool pinEnabled;
+      try {
+        pinEnabled = await PinSecurityHelper.isPinEnabled();
+      } on PinStorageUnavailableException catch (e, st) {
+        // Fail closed (Leo's call, S22): an unreadable store is not "no
+        // PIN". A cold start stays locked (`_isLocked` starts true) and the
+        // unlock screen offers Try again; mid-session nothing changes.
+        // Screenshots stay blocked meanwhile.
+        CrashLog.record(e, stack: st, context: 'lock_state_read');
+        unawaited(SecureWindow.setSecure(true));
+        return;
+      }
       if (!_lockStateReady.isCompleted) {
         _isLocked = pinEnabled; // Cold start: start locked if PIN is enabled
       } else if (pinEnabled) {
@@ -2824,7 +2835,12 @@ class AppState extends ChangeNotifier {
     _lockTimer = Timer(_lockTimeout, () async {
       // FIX: Check if AppState has been disposed before accessing async resources
       if (_isDisposed) return;
-      final pinEnabled = await PinSecurityHelper.isPinEnabled();
+      bool pinEnabled;
+      try {
+        pinEnabled = await PinSecurityHelper.isPinEnabled();
+      } on PinStorageUnavailableException {
+        pinEnabled = true; // fail closed; the unlock screen offers Try again
+      }
       // FIX: Check again after async gap in case dispose happened during await
       if (_isDisposed) return;
       if (pinEnabled) {

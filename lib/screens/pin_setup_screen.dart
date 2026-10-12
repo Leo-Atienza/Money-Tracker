@@ -293,6 +293,18 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
         if (_firstPin.length < _pinLength) {
           _firstPin += number;
 
+          // Refuse a PIN anyone would guess first (1111, 1234, 9876):
+          // checkPinStrength existed but nothing called it.
+          final weak = _firstPin.length == _pinLength
+              ? PinSecurityHelper.checkPinStrength(_firstPin)
+              : null;
+          if (weak != null) {
+            HapticHelper.error();
+            _errorMessage = '$weak.';
+            _firstPin = '';
+            return;
+          }
+
           // Move to confirm mode when first PIN is complete
           if (_firstPin.length == _pinLength) {
             Future.delayed(const Duration(milliseconds: 200), () {

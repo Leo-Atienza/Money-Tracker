@@ -69,9 +69,78 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
+  // The monotonic clock (ms since boot). Null = unavailable, as on the
+  // test runner by default, which leaves the wall-clock path.
+  int? bootMs;
+  final realElapsed = PinSecurityHelper.elapsedRealtimeMs;
+
   tearDown(() {
     messenger.setMockMethodCallHandler(secureChannel, null);
     Clock.instance = const Clock();
+    PinSecurityHelper.elapsedRealtimeMs = realElapsed;
+    bootMs = null;
+  });
+
+  group('on the monotonic clock (S22)', () {
+    final t0 = DateTime(2026, 6, 1, 12, 0, 0);
+
+    setUp(() {
+      bootMs = 1000000;
+      PinSecurityHelper.elapsedRealtimeMs = () async => bootMs;
+    });
+
+    Future<void> lockOut() async {
+      Clock.instance = FakeClock.fixed(t0);
+      await PinSecurityHelper.setPin('9027');
+      for (var i = 0; i < 5; i++) {
+        await PinSecurityHelper.verifyPin('1234');
+      }
+      expect(await PinSecurityHelper.isLockedOut(), isTrue);
+    }
+
+    test('setting the system clock forward does not end the lockout',
+        () async {
+      await lockOut();
+
+      // One real minute passes, but the clock is set a day ahead.
+      bootMs = bootMs! + 60 * 1000;
+      Clock.instance = FakeClock.fixed(t0.add(const Duration(days: 1)));
+
+      expect(await PinSecurityHelper.isLockedOut(), isTrue);
+      expect(await PinSecurityHelper.getRemainingLockoutSeconds(), 4 * 60);
+      expect(await PinSecurityHelper.verifyPin('9027'), isFalse,
+          reason: 'still locked out: even the right PIN is refused');
+
+      // Five real minutes after it started, it is over.
+      bootMs = bootMs! + 4 * 60 * 1000;
+      expect(await PinSecurityHelper.isLockedOut(), isFalse);
+      expect(await PinSecurityHelper.verifyPin('9027'), isTrue);
+    });
+
+    test('after a reboot the wall clock decides', () async {
+      await lockOut();
+
+      // Rebooted: the monotonic clock restarted below the lockout's start.
+      bootMs = 5000;
+      Clock.instance = FakeClock.fixed(t0.add(const Duration(minutes: 2)));
+      expect(await PinSecurityHelper.getRemainingLockoutSeconds(), 3 * 60);
+
+      Clock.instance = FakeClock.fixed(t0.add(const Duration(minutes: 6)));
+      expect(await PinSecurityHelper.isLockedOut(), isFalse);
+    });
+  });
+
+  test('a clock set back cannot stretch the lockout past its length',
+      () async {
+    final t0 = DateTime(2026, 6, 1, 12, 0, 0);
+    Clock.instance = FakeClock.fixed(t0);
+    await PinSecurityHelper.setPin('9027');
+    for (var i = 0; i < 5; i++) {
+      await PinSecurityHelper.verifyPin('1234');
+    }
+
+    Clock.instance = FakeClock.fixed(t0.subtract(const Duration(days: 1)));
+    expect(await PinSecurityHelper.getRemainingLockoutSeconds(), 5 * 60);
   });
 
   test('right PIN clears any failed-attempt count', () async {

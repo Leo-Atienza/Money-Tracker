@@ -29,6 +29,8 @@ import '_test_helpers.dart';
 /// the captured values would be zero and these tests would fail.
 void main() {
   const channel = MethodChannel('home_widget');
+  const secureStorage =
+      MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
   final capturedCalls = <MethodCall>[];
 
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -44,13 +46,11 @@ void main() {
     });
 
     // Phase 6.4 — `updateWidget` now consults `PinSecurityHelper.isPinEnabled`
-    // before publishing the payload. `PinSecurityHelper` reads through
-    // `SecurePrefs`, which falls back to `SharedPreferences` when the
-    // platform channel for `flutter_secure_storage` is unavailable (true
-    // in `flutter_test`). Without a SharedPreferences mock the fallback
-    // throws `MissingPluginException` and `updateWidget`'s try/catch
-    // swallows the whole pipeline — these tests would then see null for
-    // every captured payload field.
+    // before publishing the payload. Since S22 that read fails closed: a
+    // secure store that cannot be read (no mock = MissingPluginException)
+    // redacts every amount. Mock an empty, readable store — no PIN set.
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(secureStorage, (call) async => null);
     SharedPreferences.setMockInitialValues(<String, Object>{});
 
     await makeFreshDb();
@@ -58,7 +58,8 @@ void main() {
 
   tearDown(() async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, null);
+      ..setMockMethodCallHandler(channel, null)
+      ..setMockMethodCallHandler(secureStorage, null);
     await DatabaseHelper.resetForTesting();
   });
 

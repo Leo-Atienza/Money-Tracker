@@ -3,6 +3,7 @@ package com.moneytracker.app
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.WindowManager
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import io.flutter.embedding.android.FlutterActivity
@@ -102,6 +103,11 @@ class MainActivity : FlutterActivity() {
                         }
                         result.success(null)
                     }
+                }
+                // The PIN lockout runs on this monotonic clock (ms since
+                // boot): changing the system time does not move it.
+                "elapsedRealtime" -> {
+                    result.success(SystemClock.elapsedRealtime())
                 }
                 else -> {
                     result.notImplemented()

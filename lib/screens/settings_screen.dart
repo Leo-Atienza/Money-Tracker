@@ -719,7 +719,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         context,
         title: 'Clear All Data?',
         message:
-            'This permanently deletes every transaction, budget, recurring item, template, tag and custom category in "${account.name}", then switches it to $newCode. This cannot be undone.',
+            'Deletes everything in "${account.name}" and switches it to $newCode. This can\'t be undone.',
         confirmText: 'Delete Everything',
         isDangerous: true,
       );
@@ -1314,6 +1314,8 @@ class _PinSecuritySectionState extends State<_PinSecuritySection> {
   bool _isPinEnabled = false;
   int _pinLength = 4;
   bool _isLoading = true;
+  // The secure store could not be read: show that instead of guessing.
+  bool _storageError = false;
 
   @override
   void initState() {
@@ -1322,14 +1324,27 @@ class _PinSecuritySectionState extends State<_PinSecuritySection> {
   }
 
   Future<void> _loadPinSettings() async {
-    final enabled = await PinSecurityHelper.isPinEnabled();
-    final length = await PinSecurityHelper.getPinLength();
+    final bool enabled;
+    final int length;
+    try {
+      enabled = await PinSecurityHelper.isPinEnabled();
+      length = await PinSecurityHelper.getPinLength();
+    } on PinStorageUnavailableException {
+      if (mounted) {
+        setState(() {
+          _storageError = true;
+          _isLoading = false;
+        });
+      }
+      return;
+    }
 
     if (mounted) {
       setState(() {
         _isPinEnabled = enabled;
         _pinLength = length;
         _isLoading = false;
+        _storageError = false;
       });
     }
   }
@@ -1477,6 +1492,23 @@ class _PinSecuritySectionState extends State<_PinSecuritySection> {
       );
     }
 
+    if (_storageError) {
+      return GlassListSection(
+        title: 'Security',
+        children: [
+          GlassListTile(
+            icon: Icons.lock_outline,
+            label: 'App PIN Lock',
+            sublabel: "Couldn't read your PIN settings. Tap to try again.",
+            onTap: () {
+              setState(() => _isLoading = true);
+              _loadPinSettings();
+            },
+          ),
+        ],
+      );
+    }
+
     return GlassListSection(
       title: 'Security',
       children: [
@@ -1569,6 +1601,8 @@ class _PinVerifyDialogState extends State<_PinVerifyDialog> {
   // A second tap on the confirm button before verifyPin resolves would pop
   // twice — and the second pop takes the Settings screen with it.
   bool _verifying = false;
+  // The stored PIN could not be read (see _submit).
+  bool _storageError = false;
 
   @override
   void dispose() {
@@ -1578,9 +1612,24 @@ class _PinVerifyDialogState extends State<_PinVerifyDialog> {
 
   Future<void> _submit() async {
     if (_verifying) return;
-    setState(() => _verifying = true);
+    setState(() {
+      _verifying = true;
+      _storageError = false;
+    });
     final pin = _controller.text;
-    final isValid = await PinSecurityHelper.verifyPin(pin);
+    final bool isValid;
+    try {
+      isValid = await PinSecurityHelper.verifyPin(pin);
+    } on PinStorageUnavailableException {
+      // Not a wrong PIN: keep the dialog open so the user can retry.
+      if (mounted) {
+        setState(() {
+          _verifying = false;
+          _storageError = true;
+        });
+      }
+      return;
+    }
     if (!mounted) return;
     Navigator.pop(context, (verified: isValid, pin: pin));
   }
@@ -1606,6 +1655,8 @@ class _PinVerifyDialogState extends State<_PinVerifyDialog> {
             decoration: InputDecoration(
               labelText: widget.fieldLabel,
               counterText: '',
+              errorText:
+                  _storageError ? "Couldn't check your PIN. Try again." : null,
             ),
           ),
         ],

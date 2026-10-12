@@ -533,6 +533,12 @@ void main() {
     );
     await openSheetsAndPause(tester);
     expect(find.text('Clear All Data?'), findsOneWidget);
+    // The short copy Leo picked (S22): what goes, where, and that it's final.
+    expect(
+      find.textContaining('Deletes everything in "Main Account" and switches '
+          "it to EUR. This can't be undone."),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Delete Everything'));
     await drainAsync(
