@@ -106,8 +106,14 @@ class DatabaseHelper {
       return _database!;
     } catch (e) {
       if (kDebugMode) debugPrint('Database initialization failed: $e');
-      _initCompleter!.completeError(e);
+      final completer = _initCompleter!;
       _initCompleter = null; // Reset so retry is possible
+      // Concurrent waiters still get the error. With none, the completer's
+      // future must not surface it again as an unhandled async error: this
+      // caller rethrows it, and an open that fails (an unreadable key) is an
+      // expected path that ends in the load-error card.
+      completer.future.ignore();
+      completer.completeError(e);
       rethrow;
     }
   }
