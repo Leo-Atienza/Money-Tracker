@@ -37,8 +37,9 @@ class SettingsHelper {
     await prefs.setBool(_keyDarkMode, value);
   }
 
-  // Theme Mode: 'light', 'dark', 'purple' (fixed lavender appearance) or
-  // 'system'. Anything else is treated as 'system' by the theme resolver.
+  // Theme Mode: 'light', 'dark', 'purple' (lavender by day, violet at night,
+  // following the phone) or 'system'. Anything else is treated as 'system' by
+  // the theme resolver.
   static Future<String> getThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
 

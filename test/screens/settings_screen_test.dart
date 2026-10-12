@@ -198,7 +198,7 @@ void main() {
     }
     // Row subtitle + the sheet option.
     expect(find.text('Follow System'), findsNWidgets(2));
-    expect(find.text('Lavender, always light'), findsOneWidget);
+    expect(find.text('Lavender by day, violet at night'), findsOneWidget);
 
     await tester.runAsync(() async {
       await tester.tap(find.text('Purple'));

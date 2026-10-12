@@ -65,8 +65,9 @@ class BudgetWidgetProvider : HomeWidgetProvider() {
         data: SharedPreferences,
     ): RemoteViews {
         val figures = Figures.from(data, Calendar.getInstance())
-        val compact = render(context, R.layout.budget_widget_compact, figures)
-        val full = render(context, R.layout.budget_widget, figures)
+        val purple = data.getString("theme_mode", null) == "purple"
+        val compact = render(context, R.layout.budget_widget_compact, figures, purple)
+        val full = render(context, R.layout.budget_widget, figures, purple)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // The launcher shows the largest entry that fits the widget.
@@ -83,8 +84,14 @@ class BudgetWidgetProvider : HomeWidgetProvider() {
         return if (height in 1 until FULL_LAYOUT_MIN_HEIGHT_DP.toInt()) compact else full
     }
 
-    private fun render(context: Context, layoutId: Int, figures: Figures): RemoteViews {
+    private fun render(
+        context: Context,
+        layoutId: Int,
+        figures: Figures,
+        purple: Boolean,
+    ): RemoteViews {
         return RemoteViews(context.packageName, layoutId).apply {
+            paint(full = layoutId == R.layout.budget_widget, purple = purple)
             setTextViewText(
                 R.id.widget_month,
                 context.getString(R.string.widget_balance_label, figures.monthName),
@@ -116,6 +123,55 @@ class BudgetWidgetProvider : HomeWidgetProvider() {
                     quickAddUri("income"),
                 ),
             )
+        }
+    }
+
+    /**
+     * The neutral tile, or Purple's violet one when the app is in Purple.
+     * Every colour involved has a night variant and is resolved by the
+     * launcher when it inflates the views, so the tile follows day/night like
+     * the app does. Backgrounds swap on every Android version. Text only
+     * recolours from Android 12, the first with `setColor` (a colour resource
+     * resolved at inflation); a colour baked in here would go stale at the
+     * next day/night switch. Before 12 the text keeps the neutral ink, which
+     * clears 4.5:1 on both violet tiles.
+     *
+     * Both palettes are painted explicitly, never left to the XML: a launcher
+     * re-applies an update onto the views it already inflated when the layout
+     * is unchanged, so a property set for Purple stays until it is set back.
+     */
+    private fun RemoteViews.paint(full: Boolean, purple: Boolean) {
+        setInt(
+            android.R.id.background,
+            "setBackgroundResource",
+            if (purple) R.drawable.widget_background_purple else R.drawable.widget_background,
+        )
+        val button = when {
+            full && purple -> R.drawable.widget_button_background_purple
+            full -> R.drawable.widget_button_background
+            purple -> R.drawable.widget_round_button_background_purple
+            else -> R.drawable.widget_round_button_background
+        }
+        setInt(R.id.widget_add_expense, "setBackgroundResource", button)
+        setInt(R.id.widget_add_income, "setBackgroundResource", button)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val ink = if (purple) R.color.widget_purple_on_surface else R.color.widget_on_surface
+            val secondary = if (purple) {
+                R.color.widget_purple_on_surface_variant
+            } else {
+                R.color.widget_on_surface_variant
+            }
+            setColor(R.id.widget_month, "setTextColor", secondary)
+            setColor(R.id.widget_balance, "setTextColor", ink)
+            if (full) {
+                setColor(R.id.widget_income_label, "setTextColor", secondary)
+                setColor(R.id.widget_expenses_label, "setTextColor", secondary)
+                setColor(R.id.widget_income, "setTextColor", ink)
+                setColor(R.id.widget_expenses, "setTextColor", ink)
+                setColor(R.id.widget_add_expense_label, "setTextColor", ink)
+                setColor(R.id.widget_add_income_label, "setTextColor", ink)
+            }
         }
     }
 

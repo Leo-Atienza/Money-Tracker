@@ -13,4 +13,14 @@
     <color name="widget_ripple">#1F1B1B1B</color>
     <color name="widget_income">#FF388E3C</color>
     <color name="widget_expense">#FFD32F2F</color>
+    <!--
+      Purple (theme_mode 'purple'): the violet tile. BudgetWidgetProvider swaps
+      these in; the night set is in values-night. Contrast, computed: ink 13.08:1
+      and secondary ink 6.65:1 on the tile; income/expense arrows 3.19/3.85:1;
+      button icons 3.84/4.65:1 on the button.
+    -->
+    <color name="widget_purple_surface">#FFE6DEFF</color>
+    <color name="widget_purple_on_surface">#FF1D0A5A</color>
+    <color name="widget_purple_on_surface_variant">#FF514185</color>
+    <color name="widget_purple_button">#FFF8F6FE</color>
 </resources>

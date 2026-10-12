@@ -2577,7 +2577,15 @@ class AppState extends ChangeNotifier {
   // ============== SETTINGS & FILTERS ==============
 
   Future<void> toggleDarkMode() async { _isDarkMode = !_isDarkMode; await SettingsHelper.setDarkMode(_isDarkMode); _safeNotify(); }
-  Future<void> setThemeMode(String mode) async { _themeMode = mode; _isDarkMode = mode == 'dark'; await SettingsHelper.setThemeMode(mode); _safeNotify(); }
+  Future<void> setThemeMode(String mode) async {
+    _themeMode = mode;
+    _isDarkMode = mode == 'dark';
+    await SettingsHelper.setThemeMode(mode);
+    _safeNotify();
+    // The home-screen widget wears Purple too, so it re-draws on a switch.
+    // Never throws (see _updateHomeWidget).
+    await _updateHomeWidget();
+  }
   Future<void> changeCurrency(String code) async { await _writeMutex.synchronized(() async { _currencyCode = code; if (_currentAccount != null) await _db.updateAccount(_currentAccount!.copyWith(currencyCode: code)); _safeNotify(); }); }
   Future<void> toggleBillReminders(bool value) async {
     _billRemindersEnabled = value;

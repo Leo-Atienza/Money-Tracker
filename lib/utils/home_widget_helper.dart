@@ -138,6 +138,8 @@ class HomeWidgetHelper {
             .toWidgetFields(),
         ...figures(nextMonth, nextTotals, nextPaid, carriedIntoNext)
             .toWidgetFields(prefix: 'next_'),
+        // BudgetWidgetProvider draws Purple's violet tile for 'purple'.
+        'theme_mode': appState.themeMode,
       };
       for (final field in fields.entries) {
         await HomeWidget.saveWidgetData<String>(field.key, field.value);

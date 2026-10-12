@@ -236,9 +236,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final themeMode = context.select<AppState, String>((s) => s.themeMode);
-    // Purple is a fixed light-brightness appearance: it takes the `theme`
-    // slot, and themeModeFor() pins ThemeMode.light so darkTheme never
-    // applies while it is selected.
+    // Purple follows the phone like Follow System (themeModeFor maps it to
+    // ThemeMode.system), with its own pair in both slots: lavender by day,
+    // violet-night when the system is dark.
     final purple = themeMode == 'purple';
 
     return MaterialApp(
@@ -248,10 +248,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         brightness: Brightness.light,
         appColorsExtension: AppColors.fromBrightness(Brightness.light),
         colorScheme: purple ? luminousPurpleScheme() : null,
+        tonal: purple,
       ),
       darkTheme: buildLuminousTheme(
         brightness: Brightness.dark,
         appColorsExtension: AppColors.fromBrightness(Brightness.dark),
+        colorScheme: purple ? luminousPurpleDarkScheme() : null,
+        tonal: purple,
       ),
       themeMode: themeModeFor(themeMode),
       // The Luminous design assumes an OrganicBlobBackground behind every

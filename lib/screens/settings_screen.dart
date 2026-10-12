@@ -557,7 +557,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               context,
               icon: Icons.palette,
               title: 'Purple',
-              subtitle: 'Lavender, always light',
+              subtitle: 'Lavender by day, violet at night',
               isSelected: appState.themeMode == 'purple',
               previewColors: {
                 'surface': luminousPurpleScheme().surface,

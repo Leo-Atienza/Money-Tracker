@@ -60,6 +60,7 @@
             android:orientation="vertical">
 
             <TextView
+                android:id="@+id/widget_income_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:drawableStart="@drawable/ic_widget_arrow_up"
@@ -89,6 +90,7 @@
             android:orientation="vertical">
 
             <TextView
+                android:id="@+id/widget_expenses_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:drawableStart="@drawable/ic_widget_arrow_down"
@@ -142,6 +144,7 @@
                 android:src="@drawable/ic_widget_add_expense" />
 
             <TextView
+                android:id="@+id/widget_add_expense_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
@@ -169,6 +172,7 @@
                 android:src="@drawable/ic_widget_add_income" />
 
             <TextView
+                android:id="@+id/widget_add_income_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"

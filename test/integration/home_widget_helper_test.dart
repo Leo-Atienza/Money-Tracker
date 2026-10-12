@@ -86,6 +86,17 @@ void main() {
 
   String currentMonthSeedDate() => seedDate();
 
+  group('HomeWidgetHelper.updateWidget — appearance', () {
+    // BudgetWidgetProvider paints the violet tile when theme_mode is
+    // 'purple', and the neutral tile for anything else.
+    test('publishes the theme mode the app is in', () async {
+      for (final mode in ['purple', 'dark', 'system']) {
+        await HomeWidgetHelper.updateWidget(AppState(initialThemeMode: mode));
+        expect(savedStringFor('theme_mode'), mode);
+      }
+    });
+  });
+
   group('HomeWidgetHelper.updateWidget — Bug #4 regression', () {
     test('reads current-month totals from DB, not in-memory state', () async {
       // Seed current-month rows directly against the DB. Note that we

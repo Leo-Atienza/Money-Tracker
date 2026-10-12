@@ -6,6 +6,7 @@ import 'package:budget_tracker/screens/home_screen.dart';
 import 'package:budget_tracker/theme/app_colors.dart';
 import 'package:budget_tracker/theme/luminous_app_theme.dart';
 import 'package:budget_tracker/utils/date_helper.dart';
+import 'package:budget_tracker/widgets/luminous/glass_panel.dart';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -70,6 +71,7 @@ void main() {
     WidgetTester tester, {
     AppState? appState,
     Size surface = const Size(800, 1600),
+    ThemeData? theme,
   }) async {
     await tester.binding.setSurfaceSize(surface);
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -79,15 +81,51 @@ void main() {
       ChangeNotifierProvider<AppState>.value(
         value: state,
         child: MaterialApp(
-          theme: buildLuminousTheme(
-            brightness: Brightness.light,
-            appColorsExtension: AppColors.fromBrightness(Brightness.light),
-          ),
+          theme: theme ??
+              buildLuminousTheme(
+                brightness: Brightness.light,
+                appColorsExtension: AppColors.fromBrightness(Brightness.light),
+              ),
           home: const HomeScreen(),
         ),
       ),
     );
   }
+
+  GlassPanel balanceCard(WidgetTester tester) => tester.widget<GlassPanel>(
+        find
+            .ancestor(
+              of: find.text('Total Balance'),
+              matching: find.byType(GlassPanel),
+            )
+            .first,
+      );
+
+  testWidgets('Purple paints the balance card violet; neutral keeps a card',
+      (tester) async {
+    // Each case mounts a fresh app: re-theming a live MaterialApp animates
+    // between the two themes, and the first frame still shows the old one.
+    for (final cs in [luminousPurpleScheme(), luminousPurpleDarkScheme()]) {
+      await tester.pumpWidget(const SizedBox());
+      await pumpHarness(
+        tester,
+        theme: buildLuminousTheme(
+          brightness: cs.brightness,
+          appColorsExtension: AppColors.fromBrightness(cs.brightness),
+          colorScheme: cs,
+          tonal: true,
+        ),
+      );
+      await tester.pump();
+      expect(balanceCard(tester).color, cs.primaryContainer);
+    }
+
+    await tester.pumpWidget(const SizedBox());
+    await pumpHarness(tester);
+    await tester.pump();
+    expect(balanceCard(tester).color, isNull,
+        reason: 'Light keeps the plain card GlassPanel draws itself');
+  });
 
   testWidgets('header strip renders "FinanceFlow" brand label',
       (tester) async {

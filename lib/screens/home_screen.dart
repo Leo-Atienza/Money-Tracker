@@ -610,6 +610,9 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final appColors = theme.extension<AppColors>()!;
+    // Purple paints this card violet; the neutral themes keep a plain card.
+    final hero = theme.extension<LuminousHeroColors>() ??
+        LuminousHeroColors.plain(theme.colorScheme);
     final (
       totalIncome,
       totalSpent,
@@ -652,6 +655,8 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
     return ScaleTransition(
       scale: _scaleAnimation,
       child: GlassPanel(
+        color: hero.fill,
+        borderColor: hero.border,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -667,7 +672,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                   Text(
                     'Total Balance',
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                      color: hero.inkVariant,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -679,8 +684,11 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                       prefix: totalBalance < 0 ? '-$currency' : currency,
                       compact: totalBalance.abs() > 100000,
                       decimalPlaces: totalBalance.abs() > 100000 ? 1 : 2,
-                      style: theme.textTheme.displayLarge
-                          ?.copyWith(fontSize: 34, height: 41 / 34),
+                      style: theme.textTheme.displayLarge?.copyWith(
+                        fontSize: 34,
+                        height: 41 / 34,
+                        color: hero.ink,
+                      ),
                     ),
                   ),
                   // Where the number came from. Only shown when something
@@ -692,6 +700,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                         amount: carryover,
                         signedLabel: carryoverSigned,
                         previousMonth: previousMonth,
+                        ink: hero.inkVariant,
                       ),
                     ),
                   ],
@@ -817,10 +826,14 @@ class _CarryoverLine extends StatelessWidget {
   final String signedLabel;
   final String previousMonth;
 
+  /// The card's secondary ink (violet-tonal on Purple's card).
+  final Color ink;
+
   const _CarryoverLine({
     required this.amount,
     required this.signedLabel,
     required this.previousMonth,
+    required this.ink,
   });
 
   @override
@@ -828,16 +841,14 @@ class _CarryoverLine extends StatelessWidget {
     final theme = Theme.of(context);
     final appColors = theme.extension<AppColors>()!;
     final tint = amount < 0 ? appColors.expenseRed : appColors.incomeGreen;
-    final secondary = theme.textTheme.bodyMedium?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-    );
+    final secondary = theme.textTheme.bodyMedium?.copyWith(color: ink);
 
     return Row(
       children: [
         Icon(
           Icons.subdirectory_arrow_right_rounded,
           size: LuminousTokens.iconSm,
-          color: theme.colorScheme.onSurfaceVariant,
+          color: ink,
         ),
         const SizedBox(width: 6),
         Expanded(
