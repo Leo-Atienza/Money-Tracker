@@ -6,6 +6,7 @@ import 'dart:io';
 import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import '../utils/backup_helper.dart';
+import '../utils/progress_indicator_helper.dart';
 import '../providers/app_state.dart';
 import '../theme/app_colors.dart';
 import '../theme/luminous_tokens.dart';
@@ -251,8 +252,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 
     setState(() => _isExporting = true);
 
-    // FIX: Track if dialog is currently shown to prevent navigation bugs
-    bool dialogShown = false;
+    // Closes the progress dialog by its own route (never a blind pop).
+    VoidCallback? closeProgress;
     String? savedPath;
 
     try {
@@ -266,24 +267,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           // Show loading dialog while creating backup
           if (kDebugMode) debugPrint('Showing loading dialog...');
           if (mounted) {
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => const PopScope(
-                canPop: false,
-                child: AlertDialog(
-                  content: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(width: 20),
-                      Expanded(child: Text('Creating backup...')),
-                    ],
-                  ),
-                ),
-              ),
+            closeProgress = ProgressIndicatorHelper.show(
+              context,
+              message: 'Creating backup...',
             );
-            dialogShown = true;
           }
         },
         onProcessingEnd: () {
@@ -291,10 +278,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           if (kDebugMode) {
             debugPrint('Closing loading dialog for file picker...');
           }
-          if (mounted && dialogShown) {
-            Navigator.of(context, rootNavigator: true).pop();
-            dialogShown = false;
-          }
+          closeProgress?.call();
+          closeProgress = null;
         },
       );
       if (kDebugMode) {
@@ -337,9 +322,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       // FIX: Close dialog if shown
       if (kDebugMode) debugPrint('!!! ERROR in _exportBackup: $e');
       if (kDebugMode) debugPrint('Stack trace: $stackTrace');
-      if (mounted && dialogShown) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
+      closeProgress?.call();
       if (mounted) {
         final errorMessage = _getFriendlyErrorMessage(e);
         if (kDebugMode) debugPrint('Showing error to user: $errorMessage');
@@ -364,8 +347,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   }
 
   Future<void> _shareBackup() async {
-    // FIX: Track dialog state for Share operation
-    bool dialogShown = false;
+    // Closes the progress dialog by its own route (never a blind pop).
+    VoidCallback? closeProgress;
 
     // Phase 6.3 — shared backups always travel through third-party
     // apps (mail, drive, messaging), so encryption is mandatory here
@@ -391,39 +374,19 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       await BackupHelper().shareDatabase(
         passphrase: passphrase,
         onProcessingStart: () {
+          // (A 3-minute timeout used to hang off this dialog's future,
+          // which nothing awaited: it threw uncaught and timed nothing.)
           if (mounted) {
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => const PopScope(
-                canPop: false,
-                child: AlertDialog(
-                  content: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(width: 20),
-                      Expanded(child: Text('Creating backup for sharing...')),
-                    ],
-                  ),
-                ),
-              ),
-            ).timeout(
-              const Duration(minutes: 3),
-              onTimeout: () {
-                throw TimeoutException('Share operation timed out');
-              },
+            closeProgress = ProgressIndicatorHelper.show(
+              context,
+              message: 'Creating backup for sharing...',
             );
-            dialogShown = true;
           }
         },
       );
 
-      // FIX: Close dialog if shown
-      if (mounted && dialogShown) {
-        Navigator.of(context, rootNavigator: true).pop();
-        dialogShown = false;
-      }
+      closeProgress?.call();
+      closeProgress = null;
 
       // FIX: Refresh backup list after sharing (now populated in Recent Backups)
       await _loadBackups();
@@ -439,10 +402,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         );
       }
     } catch (e) {
-      // FIX: Close dialog if shown
-      if (mounted && dialogShown) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
+      closeProgress?.call();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

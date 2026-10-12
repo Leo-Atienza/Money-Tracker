@@ -169,7 +169,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text('No transactions this month'),
+      find.text('No expenses this month'),
       findsOneWidget,
       reason: 'Empty AppState should yield the empty-state placeholder.',
     );
@@ -227,6 +227,20 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
   }
 
+  testWidgets('a month with only income says there are no expenses',
+      (tester) async {
+    final state = await seedHomeState(
+      tester,
+      incomes: [(amount: 120, category: 'Salary', description: 'pay')],
+    );
+    await pumpHarness(tester, appState: state);
+    await pumpAndDrain(tester);
+
+    expect(find.text('No expenses this month'), findsOneWidget);
+    expect(find.text('No transactions this month'), findsNothing,
+        reason: 'the income is a transaction this month');
+  });
+
   testWidgets(
     'seeded expenses render in the Recent Transactions list',
     (tester) async {
@@ -250,7 +264,7 @@ void main() {
       expect(find.text('coffee'), findsOneWidget);
 
       // Empty state should be gone now that expenses exist.
-      expect(find.text('No transactions this month'), findsNothing);
+      expect(find.text('No expenses this month'), findsNothing);
     },
   );
 

@@ -290,13 +290,15 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
 
-                    // Expenses list (inside single glass sheet like stitch mock)
+                    // Expenses list (inside single glass sheet like stitch mock).
+                    // It lists expenses only, so its empty state says so: a
+                    // month with only income used to read "No transactions".
                     expenses.isEmpty
                         ? SliverFillRemaining(
                             hasScrollBody: false,
                             child: Semantics(
                               label:
-                                  'No transactions this month, tap to add your first expense',
+                                  'No expenses this month, tap to add one',
                               button: true,
                               child: GestureDetector(
                                 onTap: () {
@@ -328,7 +330,7 @@ class HomeScreen extends StatelessWidget {
                                         ),
                                         const SizedBox(height: 16),
                                         Text(
-                                          'No transactions this month',
+                                          'No expenses this month',
                                           style: theme.textTheme.bodyLarge
                                               ?.copyWith(
                                             color: theme

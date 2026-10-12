@@ -729,12 +729,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       if (!confirmed || !mounted) return;
 
-      ProgressIndicatorHelper.show(context, message: 'Clearing data...');
+      final closeProgress =
+          ProgressIndicatorHelper.show(context, message: 'Clearing data...');
       try {
         await appState.resetAccount(id);
         await appState.changeCurrency(newCode);
+        closeProgress();
         if (!mounted) return;
-        ProgressIndicatorHelper.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Data cleared and currency changed'),
@@ -743,8 +744,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
       } catch (e) {
+        closeProgress();
         if (!mounted) return;
-        ProgressIndicatorHelper.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error clearing data: $e'),
@@ -1087,12 +1088,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (confirmed == true) {
       final id = account.id;
       if (id == null || !mounted) return;
-      ProgressIndicatorHelper.show(context, message: 'Resetting account...');
+      final closeProgress =
+          ProgressIndicatorHelper.show(context, message: 'Resetting account...');
 
       try {
         await appState.resetAccount(id);
+        closeProgress();
         if (!mounted) return;
-        ProgressIndicatorHelper.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Account "${account.name}" has been reset'),
@@ -1102,8 +1104,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
       } catch (e) {
+        closeProgress();
         if (!mounted) return;
-        ProgressIndicatorHelper.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error resetting account: $e'),
@@ -1202,12 +1204,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (confirmed == true) {
       final id = account.id;
       if (id == null || !mounted) return;
-      ProgressIndicatorHelper.show(context, message: 'Deleting account...');
+      final closeProgress =
+          ProgressIndicatorHelper.show(context, message: 'Deleting account...');
 
       try {
         await appState.deleteAccount(id);
+        closeProgress();
         if (!mounted) return;
-        ProgressIndicatorHelper.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Account "${account.name}" moved to Recently deleted'),
@@ -1216,8 +1219,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
       } catch (e) {
+        closeProgress();
         if (!mounted) return;
-        ProgressIndicatorHelper.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error deleting account: $e'),

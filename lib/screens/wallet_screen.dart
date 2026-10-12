@@ -414,7 +414,10 @@ class _AccountList extends StatelessWidget {
     AppState appState,
     Account account,
   ) async {
-    final closeProgress = _showProgressDialog(context, 'Switching account...');
+    final closeProgress = ProgressIndicatorHelper.show(
+      context,
+      message: 'Switching account...',
+    );
     try {
       await appState.switchAccount(account);
     } finally {
@@ -529,8 +532,10 @@ class _AccountList extends StatelessWidget {
               // progress dialog through its own route.
               final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(context);
-              final closeProgress =
-                  _showProgressDialog(context, 'Deleting account...');
+              final closeProgress = ProgressIndicatorHelper.show(
+                context,
+                message: 'Deleting account...',
+              );
 
               try {
                 await appState.deleteAccount(id);
@@ -855,13 +860,14 @@ class _DeletedAccountsSectionState extends State<_DeletedAccountsSection> {
 
     // Show loading indicator during restore
     if (!mounted) return;
-    ProgressIndicatorHelper.show(context, message: 'Restoring account...');
+    final closeProgress =
+        ProgressIndicatorHelper.show(context, message: 'Restoring account...');
 
     try {
       await appState.restoreDeletedAccount(deletedId);
+      closeProgress();
       if (!mounted) return;
       final appColors = Theme.of(context).extension<AppColors>()!;
-      ProgressIndicatorHelper.hide(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Account restored successfully'),
@@ -871,9 +877,9 @@ class _DeletedAccountsSectionState extends State<_DeletedAccountsSection> {
       );
       await _loadDeletedAccounts();
     } catch (e) {
+      closeProgress();
       if (!mounted) return;
       final appColors = Theme.of(context).extension<AppColors>()!;
-      ProgressIndicatorHelper.hide(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to restore account: $e'),
@@ -883,41 +889,4 @@ class _DeletedAccountsSectionState extends State<_DeletedAccountsSection> {
       );
     }
   }
-}
-
-/// Shows a progress dialog that blocks the screen and returns a callback that
-/// closes exactly that dialog.
-///
-/// It closes by route rather than by popping whatever is on top: the context
-/// that opened it can be gone by the time the work ends, and one pop too many
-/// takes down the navigation shell that hosts the Wallet tab.
-VoidCallback _showProgressDialog(BuildContext context, String message) {
-  final navigator = Navigator.of(context, rootNavigator: true);
-  final route = DialogRoute<void>(
-    context: context,
-    themes: InheritedTheme.capture(from: context, to: navigator.context),
-    barrierDismissible: false,
-    builder: (_) => PopScope(
-      canPop: false,
-      child: AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(message),
-          ],
-        ),
-      ),
-    ),
-  );
-  navigator.push(route);
-  return () {
-    if (!route.isActive) return;
-    if (route.isCurrent) {
-      navigator.pop();
-    } else {
-      navigator.removeRoute(route);
-    }
-  };
 }

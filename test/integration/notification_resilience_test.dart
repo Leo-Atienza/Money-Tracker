@@ -1,5 +1,6 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -91,6 +92,63 @@ void main() {
       isTrue,
       reason: 'expense should be committed + visible despite notif failure',
     );
+  });
+
+  group('budget alerts measure this month', () {
+    late List<Map<Object?, Object?>> shown;
+
+    setUp(() {
+      // The real Android plugin over the mocked channel, so a shown alert
+      // can be observed (flutter_test registers no platform by itself).
+      AndroidFlutterLocalNotificationsPlugin.registerWith();
+      shown = [];
+      messenger.setMockMethodCallHandler(notifChannel, (call) async {
+        if (call.method == 'show') {
+          shown.add(call.arguments as Map<Object?, Object?>);
+        }
+        return call.method == 'initialize' ? true : null;
+      });
+    });
+
+    Expense food(String amount, DateTime date, int accountId) => Expense(
+          amount: Decimal.parse(amount),
+          category: 'Food',
+          description: 'groceries',
+          date: date,
+          accountId: accountId,
+          amountPaid: Decimal.zero,
+          paymentMethod: 'Cash',
+        );
+
+    // The spending used to come from whichever month was on screen.
+    test('an overspend today alerts while an older month is on screen',
+        () async {
+      final state = await bootstrap();
+      await state.setBudget('Food', 100.0);
+      await state.goToPreviousMonth();
+
+      await state.addExpense(
+          food('95.00', DateTime.now(), state.currentAccountId));
+
+      expect(shown, hasLength(1));
+      expect('${shown.single['body']}', contains('Food'));
+    });
+
+    test('an expense filed in another month does not re-fire the alert',
+        () async {
+      final state = await bootstrap();
+      await state.setBudget('Food', 100.0);
+      await state.addExpense(
+          food('90.00', DateTime.now(), state.currentAccountId));
+      expect(shown, hasLength(1), reason: 'this month is at 90%');
+      shown.clear();
+
+      final now = DateTime.now();
+      await state.addExpense(food(
+          '5.00', DateTime(now.year, now.month - 1, 15), state.currentAccountId));
+
+      expect(shown, isEmpty);
+    });
   });
 
   test('M17: a successful load reports no load error', () async {

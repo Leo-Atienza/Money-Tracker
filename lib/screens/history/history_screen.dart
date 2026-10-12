@@ -1419,11 +1419,11 @@ class _HistoryScreenState extends State<HistoryScreen>
               _confirmDelete(context, theme, 'expense', expense.description),
           onDismissed: (direction) async {
             // Captured up front: the row leaving the list unmounts this
-            // tile's context (see _closeProgress).
-            final navigator = Navigator.of(context, rootNavigator: true);
+            // tile's context. The progress dialog closes by its own route
+            // (ProgressIndicatorHelper.show), never by a pop that needs it.
             final messenger = ScaffoldMessenger.of(context);
             // Show loading indicator during delete operation
-            ProgressIndicatorHelper.show(context,
+            final closeProgress = ProgressIndicatorHelper.show(context,
                 message: 'Deleting expense...');
             try {
               // Remove from local all-time list to prevent reappearing
@@ -1433,11 +1433,11 @@ class _HistoryScreenState extends State<HistoryScreen>
                 });
               }
               await appState.deleteExpense(expense.id!);
-              _closeProgress(navigator);
+              closeProgress();
               if (!mounted) return;
               _showDeleteSnackbar(messenger, 'Expense');
             } catch (e) {
-              _closeProgress(navigator);
+              closeProgress();
               if (!mounted) return;
               messenger.showSnackBar(
                 SnackBar(
@@ -1816,11 +1816,11 @@ class _HistoryScreenState extends State<HistoryScreen>
               _confirmDelete(context, theme, 'income', income.description),
           onDismissed: (direction) async {
             // Captured up front: the row leaving the list unmounts this
-            // tile's context (see _closeProgress).
-            final navigator = Navigator.of(context, rootNavigator: true);
+            // tile's context. The progress dialog closes by its own route
+            // (ProgressIndicatorHelper.show), never by a pop that needs it.
             final messenger = ScaffoldMessenger.of(context);
             // Show loading indicator during delete operation
-            ProgressIndicatorHelper.show(context,
+            final closeProgress = ProgressIndicatorHelper.show(context,
                 message: 'Deleting income...');
             try {
               // Remove from local all-time list to prevent reappearing
@@ -1830,11 +1830,11 @@ class _HistoryScreenState extends State<HistoryScreen>
                 });
               }
               await appState.deleteIncome(income.id!);
-              _closeProgress(navigator);
+              closeProgress();
               if (!mounted) return;
               _showDeleteSnackbar(messenger, 'Income');
             } catch (e) {
-              _closeProgress(navigator);
+              closeProgress();
               if (!mounted) return;
               messenger.showSnackBar(
                 SnackBar(
@@ -2044,10 +2044,10 @@ class _HistoryScreenState extends State<HistoryScreen>
     if (confirmed != true) return;
     if (!mounted || !context.mounted) return;
     // Captured up front: the row leaving the list unmounts this tile's
-    // context (see _closeProgress).
-    final navigator = Navigator.of(context, rootNavigator: true);
+    // context. The progress dialog closes by its own route.
     final messenger = ScaffoldMessenger.of(context);
-    ProgressIndicatorHelper.show(context, message: 'Deleting $type...');
+    final closeProgress =
+        ProgressIndicatorHelper.show(context, message: 'Deleting $type...');
     try {
       if (_searchAllTime) {
         setState(() {
@@ -2063,11 +2063,11 @@ class _HistoryScreenState extends State<HistoryScreen>
       } else {
         await appState.deleteIncome(id);
       }
-      _closeProgress(navigator);
+      closeProgress();
       if (!mounted) return;
       _showDeleteSnackbar(messenger, type == 'expense' ? 'Expense' : 'Income');
     } catch (e) {
-      _closeProgress(navigator);
+      closeProgress();
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
@@ -2076,16 +2076,6 @@ class _HistoryScreenState extends State<HistoryScreen>
         ),
       );
     }
-  }
-
-  /// Closes the blocking "Deleting…" dialog through the root navigator it
-  /// was pushed on, captured before the delete. The tile that opened it
-  /// unmounts as soon as its row leaves the list (all-time rows go at once,
-  /// and the last row swaps in the empty state), so the old
-  /// `context.mounted` guard skipped the close and the spinner stayed up for
-  /// good.
-  void _closeProgress(NavigatorState navigator) {
-    if (navigator.mounted) navigator.pop();
   }
 
   void _showDeleteSnackbar(ScaffoldMessengerState messenger, String type) {

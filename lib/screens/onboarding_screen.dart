@@ -23,6 +23,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   final OnboardingService _onboardingService = OnboardingService();
+  // A second tap while the first load was still writing added every sample
+  // row twice.
+  bool _loadingSampleData = false;
 
   @override
   void dispose() {
@@ -38,6 +41,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _loadSampleData() async {
+    if (_loadingSampleData) return;
+    setState(() => _loadingSampleData = true);
     try {
       final appState = context.read<AppState>();
 
@@ -110,6 +115,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
         );
       }
+    } finally {
+      if (mounted) setState(() => _loadingSampleData = false);
     }
   }
 
@@ -229,7 +236,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
-                      onPressed: _loadSampleData,
+                      onPressed: _loadingSampleData ? null : _loadSampleData,
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(

@@ -874,7 +874,7 @@ class AppState extends ChangeNotifier {
       // quirk) can't reject the addExpense future — the expense is already
       // committed; failing here would show a false error and risk a dup entry.
       try {
-        await _checkBudgetAlerts(expense.category);
+        await _checkBudgetAlerts(expense);
       } catch (e) {
         if (kDebugMode) debugPrint('Budget alert dispatch failed: $e');
       }
@@ -1252,18 +1252,21 @@ class AppState extends ChangeNotifier {
     });
   }
 
-  Map<String, double> getBudgetSpentBreakdown(String category) {
-    final actualSpentDecimal = getExpensesForSelectedMonth().where((e) => e.category == category).map((e) => e.amountDecimal).fold(Decimal.zero, (sum, amount) => sum + amount);
+  /// Spending against [category]'s budget in [month] (the selected month by
+  /// default): what was spent plus the recurring bills still due.
+  Map<String, double> getBudgetSpentBreakdown(String category, {DateTime? month}) {
+    final target = month ?? _selectedMonth;
+    final actualSpentDecimal = _expenses.where((e) => e.category == category && _isSameMonth(e.date, target)).map((e) => e.amountDecimal).fold(Decimal.zero, (sum, amount) => sum + amount);
     Decimal projectedRecurringDecimal = Decimal.zero;
     for (final recurring in _recurringExpenses) {
       if (!recurring.shouldBeActive || recurring.category != category) {
         continue;
       }
-      final occurrencesInMonth = _countRecurringOccurrencesInMonth(recurring, _selectedMonth);
+      final occurrencesInMonth = _countRecurringOccurrencesInMonth(recurring, target);
       if (occurrencesInMonth == 0) {
         continue;
       }
-      final alreadyCreatedCount = _expenses.where((e) => e.description == recurring.description && e.category == recurring.category && e.amountDecimal == recurring.amountDecimal && _isSameMonth(e.date, _selectedMonth)).length;
+      final alreadyCreatedCount = _expenses.where((e) => e.description == recurring.description && e.category == recurring.category && e.amountDecimal == recurring.amountDecimal && _isSameMonth(e.date, target)).length;
       final remainingOccurrences = occurrencesInMonth - alreadyCreatedCount;
       if (remainingOccurrences > 0) {
         projectedRecurringDecimal += recurring.amountDecimal * Decimal.fromInt(remainingOccurrences);
@@ -1272,7 +1275,7 @@ class AppState extends ChangeNotifier {
     return {'actual': _decimalToDouble(actualSpentDecimal), 'projected': _decimalToDouble(projectedRecurringDecimal), 'total': _decimalToDouble(actualSpentDecimal + projectedRecurringDecimal)};
   }
 
-  double getBudgetSpent(String category) => getBudgetSpentBreakdown(category)['total'] ?? 0.0;
+  double getBudgetSpent(String category, {DateTime? month}) => getBudgetSpentBreakdown(category, month: month)['total'] ?? 0.0;
 
   /// M6: total spend (actual + projected recurring) per category in a SINGLE
   /// pass over expenses and recurring, instead of [getBudgetSpent] re-scanning
@@ -1380,18 +1383,25 @@ class AppState extends ChangeNotifier {
     return (getBudgetSpent(budget.category) / budget.amount).clamp(0.0, 1.0);
   }
 
-  Future<void> _checkBudgetAlerts(String category) async {
+  /// Alerts are about this month's budget. The spending used to be read from
+  /// whichever month was on screen, so a look back at a quiet month hid a
+  /// real overspend (or a busy one raised a false alarm), and an expense
+  /// filed in another month re-fired this month's alert without moving it.
+  Future<void> _checkBudgetAlerts(Expense expense) async {
     if (!_budgetAlertsEnabled) {
       return;
     }
-    final today = DateHelper.today();
-    final currentMonth = DateHelper.startOfMonth(today);
+    final currentMonth = DateHelper.startOfMonth(DateHelper.today());
+    if (!_isSameMonth(expense.date, currentMonth)) {
+      return;
+    }
+    final category = expense.category;
     final matchingBudgets = _budgets.where((b) => b.category == category && _isSameMonth(b.month, currentMonth)).toList();
     if (matchingBudgets.isEmpty) {
       return;
     }
     final budget = matchingBudgets.first;
-    final spent = getBudgetSpent(category);
+    final spent = getBudgetSpent(category, month: currentMonth);
     final progress = budget.amount > 0 ? spent / budget.amount : 0.0;
     // FIX C2: Use user's configurable threshold instead of hardcoded 0.8
     final threshold = await SettingsHelper.getBudgetWarningThreshold();
@@ -1860,7 +1870,7 @@ class AppState extends ChangeNotifier {
         await _db.updateCategory(category);
         await _loadCategories();
         if (oldName != null && oldName != category.name) {
-          await Future.wait([_loadExpensesInternal(), _loadIncomesInternal(), _loadBudgets(), _loadQuickTemplates(), _loadRecurringExpenses()]);
+          await Future.wait([_loadExpensesInternal(), _loadIncomesInternal(), _loadBudgets(), _loadQuickTemplates(), _loadRecurringExpenses(), _loadRecurringIncomes()]);
         }
         _safeNotify();
       } finally {
