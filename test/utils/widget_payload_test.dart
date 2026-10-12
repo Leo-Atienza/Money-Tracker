@@ -9,64 +9,72 @@ import 'package:flutter_test/flutter_test.dart';
 /// screen fails CI before it ships.
 void main() {
   const sampleData = WidgetData(
+    monthKey: '2026-11',
     monthName: 'November',
-    expenses: r'$1,234.56',
+    balance: r'-$3,765.44',
     income: r'$5,000.00',
-    balance: r'+$3,765.44',
-    isPositive: true,
-    currency: r'$',
+    expenses: r'$8,765.44',
   );
 
   group('WidgetPayload.redactIfLocked', () {
     test('returns input unchanged when PIN is disabled', () {
       final out = WidgetPayload.redactIfLocked(sampleData, pinEnabled: false);
+      expect(out.monthKey, '2026-11');
       expect(out.monthName, 'November');
-      expect(out.expenses, r'$1,234.56');
+      expect(out.balance, r'-$3,765.44');
       expect(out.income, r'$5,000.00');
-      expect(out.balance, r'+$3,765.44');
-      expect(out.isPositive, isTrue);
-      expect(out.currency, r'$');
+      expect(out.expenses, r'$8,765.44');
     });
 
     test('masks every monetary value with bullet token when PIN enabled', () {
       final out = WidgetPayload.redactIfLocked(sampleData, pinEnabled: true);
-      expect(out.expenses, WidgetPayload.redactedAmount);
-      expect(out.income, WidgetPayload.redactedAmount);
       expect(out.balance, WidgetPayload.redactedAmount);
+      expect(out.income, WidgetPayload.redactedAmount);
+      expect(out.expenses, WidgetPayload.redactedAmount);
     });
 
-    test('replaces month name with Locked label when PIN enabled', () {
+    test('hides the balance sign along with the amount', () {
+      // The sign alone says the account is overdrawn.
       final out = WidgetPayload.redactIfLocked(sampleData, pinEnabled: true);
-      expect(out.monthName, WidgetPayload.redactedLabel);
+      expect(out.balance, isNot(contains('-')));
     });
 
-    test('preserves currency symbol so widget layout stays stable', () {
+    test('keeps the month so the widget still labels and rolls over', () {
       final out = WidgetPayload.redactIfLocked(sampleData, pinEnabled: true);
-      // Currency code drives the symbol the widget renders alongside the
-      // bullet token; locking the layout means the user sees `$ •••`
-      // rather than the widget shifting width on toggle.
-      expect(out.currency, sampleData.currency);
-    });
-
-    test('preserves isPositive so widget accent color stays stable', () {
-      final negativeData = sampleData.copyWith(isPositive: false);
-      final outPositive = WidgetPayload.redactIfLocked(
-        sampleData,
-        pinEnabled: true,
-      );
-      final outNegative = WidgetPayload.redactIfLocked(
-        negativeData,
-        pinEnabled: true,
-      );
-      expect(outPositive.isPositive, isTrue);
-      expect(outNegative.isPositive, isFalse);
+      expect(out.monthKey, '2026-11');
+      expect(out.monthName, 'November');
     });
 
     test('returns a new instance, never mutates input', () {
       final out = WidgetPayload.redactIfLocked(sampleData, pinEnabled: true);
       expect(out, isNot(same(sampleData)));
       // Source data unchanged.
-      expect(sampleData.expenses, r'$1,234.56');
+      expect(sampleData.expenses, r'$8,765.44');
+    });
+  });
+
+  group('WidgetData.toWidgetFields', () {
+    test('uses the keys BudgetWidgetProvider reads', () {
+      expect(sampleData.toWidgetFields(), {
+        'month_key': '2026-11',
+        'month_name': 'November',
+        'balance': r'-$3,765.44',
+        'income': r'$5,000.00',
+        'expenses': r'$8,765.44',
+      });
+    });
+
+    test('prefixes every key for the following month', () {
+      expect(
+        sampleData.toWidgetFields(prefix: 'next_').keys,
+        [
+          'next_month_key',
+          'next_month_name',
+          'next_balance',
+          'next_income',
+          'next_expenses',
+        ],
+      );
     });
   });
 }

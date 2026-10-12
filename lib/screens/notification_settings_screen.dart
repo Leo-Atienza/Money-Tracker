@@ -96,6 +96,10 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                   );
                 },
               ),
+              // Since Flutter 3.38 a SnackBar with an action never times out
+              // on its own, and the messenger carries it onto every later
+              // screen. Time it out again, except under TalkBack.
+              persist: MediaQuery.accessibleNavigationOf(context),
             ),
           );
         }

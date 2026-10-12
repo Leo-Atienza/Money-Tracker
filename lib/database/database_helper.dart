@@ -2447,6 +2447,24 @@ class DatabaseHelper {
     return (income: totalIncome, expenses: totalExpenses);
   }
 
+  /// What has actually been paid toward the month's expenses. Home's "Total
+  /// Balance" subtracts this rather than the full expense total — an unpaid
+  /// bill does not reduce the cash on hand until it is paid — so the home
+  /// screen widget needs it to show the same number. Same `YYYY-MM-DD` month
+  /// bounds as [calculateMonthBalance].
+  Future<double> calculateMonthPaid(int accountId, int year, int month) async {
+    final db = await database;
+    final monthDate = DateTime.utc(year, month, 1);
+    final startDate = DateHelper.toDateString(DateHelper.startOfMonth(monthDate));
+    final endDate = DateHelper.toDateString(DateHelper.lastDayOfMonth(monthDate));
+    final result = await db.rawQuery(
+      'SELECT COALESCE(SUM(amountPaid), 0) AS total FROM expenses '
+      'WHERE account_id = ? AND date >= ? AND date <= ?',
+      [accountId, startDate, endDate],
+    );
+    return (result.first['total'] as num?)?.toDouble() ?? 0.0;
+  }
+
   /// Everything the account earned and spent strictly BEFORE the month that
   /// starts on [monthStart]. `income - expenses` of this result is the balance
   /// carried into that month — the whole "leftover money moves to the next

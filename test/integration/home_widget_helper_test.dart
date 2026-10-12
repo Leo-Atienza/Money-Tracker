@@ -74,25 +74,17 @@ void main() {
     return null;
   }
 
-  bool? savedBoolFor(String key) {
-    for (final call in capturedCalls.reversed) {
-      if (call.method != 'saveWidgetData') continue;
-      final args = call.arguments;
-      if (args is Map && args['id'] == key) {
-        return args['data'] as bool?;
-      }
-    }
-    return null;
-  }
-
-  /// Current month in `yyyy-MM-dd` format, day 15 — far from month
-  /// boundaries so the seed is unambiguously inside the window.
-  String currentMonthSeedDate() {
+  /// Day 15 of the month [offset] months from now, `yyyy-MM-dd` — far from
+  /// month boundaries so the seed is unambiguously inside the window.
+  String seedDate({int offset = 0}) {
     final now = DateTime.now();
-    final y = now.year.toString().padLeft(4, '0');
-    final m = now.month.toString().padLeft(2, '0');
+    final month = DateTime(now.year, now.month + offset);
+    final y = month.year.toString().padLeft(4, '0');
+    final m = month.month.toString().padLeft(2, '0');
     return '$y-$m-15';
   }
+
+  String currentMonthSeedDate() => seedDate();
 
   group('HomeWidgetHelper.updateWidget — Bug #4 regression', () {
     test('reads current-month totals from DB, not in-memory state', () async {
@@ -106,6 +98,7 @@ void main() {
         accountId: 1, // _onCreate seeds 'Main Account' with id=1
         date: currentMonthSeedDate(),
         amount: 42.50,
+        amountPaid: 42.50,
       );
       await seedIncome(
         db,
@@ -131,9 +124,10 @@ void main() {
       // so we're resilient to locale nuances.
       expect(expensesSaved!, contains('42.50'));
       expect(incomeSaved!, contains('1,000.00'));
-      // Balance is income - expenses = 957.50, rendered positive.
+      // Balance is income - paid = 957.50, printed like Home: no sign.
       expect(balanceSaved!, contains('957.50'));
-      expect(savedBoolFor('is_positive'), true);
+      expect(balanceSaved, isNot(startsWith('-')));
+      expect(balanceSaved, isNot(startsWith('+')));
     });
 
     test('reports a negative balance when expenses exceed income', () async {
@@ -143,6 +137,7 @@ void main() {
         accountId: 1,
         date: currentMonthSeedDate(),
         amount: 500.00,
+        amountPaid: 500.00,
       );
       await seedIncome(
         db,
@@ -158,7 +153,6 @@ void main() {
       final balanceSaved = savedStringFor('balance');
       expect(balanceSaved, contains('400.00'));
       expect(balanceSaved, startsWith('-'));
-      expect(savedBoolFor('is_positive'), false);
     });
 
     test('returns zero totals when no current-month data exists', () async {
@@ -169,8 +163,8 @@ void main() {
       final incomeSaved = savedStringFor('income');
       expect(expensesSaved, contains('0.00'));
       expect(incomeSaved, contains('0.00'));
-      // A zero balance is still reported as positive (balance >= 0).
-      expect(savedBoolFor('is_positive'), true);
+      // A zero balance prints without a sign.
+      expect(savedStringFor('balance'), isNot(startsWith('-')));
     });
 
     test('saves the current month name', () async {
@@ -193,6 +187,20 @@ void main() {
       ];
       final expectedMonth = monthNames[DateTime.now().month - 1];
       expect(savedStringFor('month_name'), expectedMonth);
+    });
+
+    test('an unpaid bill does not lower the balance, exactly like Home',
+        () async {
+      // Home's "Total Balance" is income + carried in - PAID; the bill still
+      // shows in Expenses. The widget must print the same two numbers.
+      final db = await DatabaseHelper().database;
+      await seedIncome(db, accountId: 1, date: seedDate(), amount: 1000.00);
+      await seedExpense(db, accountId: 1, date: seedDate(), amount: 200.00);
+
+      await HomeWidgetHelper.updateWidget(AppState());
+
+      expect(savedStringFor('balance'), r'$1,000.00');
+      expect(savedStringFor('expenses'), r'$200.00');
     });
 
     test('excludes rows from other accounts (account-scoped query)', () async {
@@ -221,6 +229,173 @@ void main() {
       final expensesSaved = savedStringFor('expenses');
       expect(expensesSaved, contains('5.00'));
       expect(expensesSaved, isNot(contains('9999')));
+    });
+  });
+
+  group('HomeWidgetHelper.updateWidget — month rollover payload', () {
+    test('keys this month and next month by yyyy-MM', () async {
+      await HomeWidgetHelper.updateWidget(AppState());
+
+      final now = DateTime.now();
+      expect(
+        savedStringFor('month_key'),
+        HomeWidgetHelper.monthKey(DateTime(now.year, now.month)),
+      );
+      expect(
+        savedStringFor('next_month_key'),
+        HomeWidgetHelper.monthKey(DateTime(now.year, now.month + 1)),
+      );
+    });
+
+    test('publishes next month separately, carrying this month in', () async {
+      // Carry-over is on by default, so next month opens with this month's
+      // net (1000 - 42.50 = 957.50) and then spends its own 100.
+      final db = await DatabaseHelper().database;
+      await seedIncome(db, accountId: 1, date: seedDate(), amount: 1000.00);
+      await seedExpense(
+        db,
+        accountId: 1,
+        date: seedDate(),
+        amount: 42.50,
+        amountPaid: 42.50,
+      );
+      await seedExpense(
+        db,
+        accountId: 1,
+        date: seedDate(offset: 1),
+        amount: 100.00,
+        amountPaid: 100.00,
+      );
+
+      await HomeWidgetHelper.updateWidget(AppState());
+
+      expect(savedStringFor('expenses'), contains('42.50'));
+      expect(savedStringFor('next_expenses'), contains('100.00'));
+      expect(savedStringFor('next_income'), contains('0.00'));
+      expect(savedStringFor('next_balance'), contains('857.50'));
+    });
+
+    test('without carry-over, next month stands on its own', () async {
+      final db = await DatabaseHelper().database;
+      await seedIncome(db, accountId: 1, date: seedDate(), amount: 1000.00);
+      await seedExpense(
+        db,
+        accountId: 1,
+        date: seedDate(offset: 1),
+        amount: 100.00,
+        amountPaid: 100.00,
+      );
+      final appState = AppState();
+      await appState.toggleCarryover(false);
+      capturedCalls.clear();
+
+      await HomeWidgetHelper.updateWidget(appState);
+
+      expect(savedStringFor('balance'), contains('1,000.00'));
+      expect(savedStringFor('next_balance'), startsWith('-'));
+      expect(savedStringFor('next_balance'), contains('100.00'));
+    });
+
+    test('redacts both months when a PIN is set', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'pin_enabled': true,
+      });
+      final db = await DatabaseHelper().database;
+      await seedIncome(db, accountId: 1, date: seedDate(), amount: 1000.00);
+
+      await HomeWidgetHelper.updateWidget(AppState());
+
+      for (final key in [
+        'balance',
+        'income',
+        'expenses',
+        'next_balance',
+        'next_income',
+        'next_expenses',
+      ]) {
+        expect(savedStringFor(key), '•••', reason: key);
+      }
+    });
+  });
+
+  group('HomeWidgetHelper.quickAddType', () {
+    test('reads the type from the quick-add buttons', () {
+      expect(
+        HomeWidgetHelper.quickAddType(
+          Uri.parse('financeflow://add?type=expense'),
+        ),
+        'expense',
+      );
+      expect(
+        HomeWidgetHelper.quickAddType(
+          Uri.parse('financeflow://add?type=income'),
+        ),
+        'income',
+      );
+    });
+
+    test('ignores every other launch', () {
+      expect(HomeWidgetHelper.quickAddType(null), isNull);
+      // The widget body launches with no data at all.
+      expect(HomeWidgetHelper.quickAddType(Uri.parse('')), isNull);
+      expect(
+        HomeWidgetHelper.quickAddType(Uri.parse('financeflow://add')),
+        isNull,
+      );
+      expect(
+        HomeWidgetHelper.quickAddType(
+          Uri.parse('financeflow://add?type=transfer'),
+        ),
+        isNull,
+      );
+      expect(
+        HomeWidgetHelper.quickAddType(
+          Uri.parse('https://add?type=expense'),
+        ),
+        isNull,
+      );
+    });
+  });
+
+  group('HomeWidgetHelper.takeQuickAdd', () {
+    const launchChannel = MethodChannel('budget_tracker/widget_launch');
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(launchChannel, null);
+    });
+
+    test('decodes the tap MainActivity is holding', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(launchChannel, (call) async {
+        expect(call.method, 'takeLaunch');
+        return 'financeflow://add?type=income';
+      });
+      expect(await HomeWidgetHelper.takeQuickAdd(), 'income');
+    });
+
+    test('is null when no tap is pending', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(launchChannel, (call) async => null);
+      expect(await HomeWidgetHelper.takeQuickAdd(), isNull);
+    });
+
+    test('is null, not an error, without a host activity', () async {
+      // No mock handler: the call fails with MissingPluginException.
+      expect(await HomeWidgetHelper.takeQuickAdd(), isNull);
+    });
+  });
+
+  group('HomeWidgetHelper formatting', () {
+    test('monthKey zero-pads to yyyy-MM', () {
+      expect(HomeWidgetHelper.monthKey(DateTime(2026, 3)), '2026-03');
+      expect(HomeWidgetHelper.monthKey(DateTime(2026, 12)), '2026-12');
+    });
+
+    test('formatBalance never prints a negative zero', () {
+      expect(HomeWidgetHelper.formatBalance(-0.001, r'$', 'USD'), r'$0.00');
+      expect(HomeWidgetHelper.formatBalance(-12.5, r'$', 'USD'), r'-$12.50');
+      expect(HomeWidgetHelper.formatBalance(12.5, r'$', 'USD'), r'$12.50');
     });
   });
 }

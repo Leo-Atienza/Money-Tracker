@@ -1,15 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Default 4x2 cells (Android 12+) / 250x110dp (older launchers round that up to
+  4x2). Portrait n x m cells give roughly (73n - 16) x (118m - 16) dp, so 4x2 is
+  about 276x220dp — room for the full layout. It resizes down to 3 cells wide
+  and 1 row tall, where BudgetWidgetProvider switches to the compact layout.
+
+  updatePeriodMillis (30 min, the platform minimum) re-runs onUpdate so the
+  widget turns to the new month on its own after midnight on the 1st.
+-->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:minWidth="180dp"
-    android:minHeight="110dp"
-    android:targetCellWidth="3"
-    android:targetCellHeight="2"
-    android:minResizeWidth="180dp"
-    android:minResizeHeight="80dp"
-    android:updatePeriodMillis="1800000"
+    android:description="@string/widget_description"
     android:initialLayout="@layout/budget_widget"
-    android:resizeMode="horizontal|vertical"
-    android:widgetCategory="home_screen"
-    android:previewImage="@drawable/widget_background"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="40dp"
     android:previewLayout="@layout/budget_widget"
-    android:description="@string/widget_description" />
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen" />

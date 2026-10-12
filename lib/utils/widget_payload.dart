@@ -2,49 +2,59 @@
 ///
 /// Pure-function layer between `HomeWidgetHelper` and the native widget
 /// surface. When PIN protection is enabled, the launcher's widget keeps
-/// rendering even on the lock screen — so we must NOT leak balances /
-/// transaction descriptions there. `redactIfLocked` swaps every monetary
-/// value for `'•••'` and every description for `'Locked'`.
+/// rendering even on the lock screen — so we must NOT leak balances there.
+/// `redactIfLocked` swaps every monetary value for `'•••'`.
 ///
 /// Kept separate from `HomeWidgetHelper` so it stays trivially testable
 /// without a live `HomeWidget` channel.
 library;
 
-/// Immutable shape of the data we push to the home widget.
+/// One month's figures as the home widget shows them.
 class WidgetData {
+  /// `yyyy-MM` of the month the figures belong to. The native widget compares
+  /// it with the device clock to tell whether these figures are current.
+  final String monthKey;
   final String monthName;
-  final String expenses;
-  final String income;
+
+  /// Formatted with a leading `-` when negative and no sign otherwise — the
+  /// same way the Home screen prints the balance.
   final String balance;
-  final bool isPositive;
-  final String currency;
+  final String income;
+  final String expenses;
 
   const WidgetData({
+    required this.monthKey,
     required this.monthName,
-    required this.expenses,
-    required this.income,
     required this.balance,
-    required this.isPositive,
-    required this.currency,
+    required this.income,
+    required this.expenses,
   });
 
   WidgetData copyWith({
+    String? monthKey,
     String? monthName,
-    String? expenses,
-    String? income,
     String? balance,
-    bool? isPositive,
-    String? currency,
+    String? income,
+    String? expenses,
   }) {
     return WidgetData(
+      monthKey: monthKey ?? this.monthKey,
       monthName: monthName ?? this.monthName,
-      expenses: expenses ?? this.expenses,
-      income: income ?? this.income,
       balance: balance ?? this.balance,
-      isPositive: isPositive ?? this.isPositive,
-      currency: currency ?? this.currency,
+      income: income ?? this.income,
+      expenses: expenses ?? this.expenses,
     );
   }
+
+  /// Key/value pairs for the widget's SharedPreferences. [prefix] namespaces
+  /// a second month (`next_`) next to the current one.
+  Map<String, String> toWidgetFields({String prefix = ''}) => {
+        '${prefix}month_key': monthKey,
+        '${prefix}month_name': monthName,
+        '${prefix}balance': balance,
+        '${prefix}income': income,
+        '${prefix}expenses': expenses,
+      };
 }
 
 class WidgetPayload {
@@ -53,24 +63,20 @@ class WidgetPayload {
   /// Token used in place of every monetary value when PIN is enabled.
   static const String redactedAmount = '•••';
 
-  /// Token used in place of human-readable strings when PIN is enabled.
-  static const String redactedLabel = 'Locked';
-
   /// Returns a redacted copy of [data] when [pinEnabled] is true; the
-  /// original otherwise. Currency code is preserved so the widget's
-  /// layout doesn't shift when the user toggles PIN.
+  /// original otherwise. Only the amounts are sensitive: the month name and
+  /// key stay so the widget still labels — and rolls over — correctly. The
+  /// balance's sign goes with it, since the sign alone says whether the
+  /// account is overdrawn.
   static WidgetData redactIfLocked(
     WidgetData data, {
     required bool pinEnabled,
   }) {
     if (!pinEnabled) return data;
     return data.copyWith(
-      monthName: redactedLabel,
-      expenses: redactedAmount,
-      income: redactedAmount,
       balance: redactedAmount,
-      // isPositive stays as-is so the widget's accent color is stable;
-      // the value itself is masked.
+      income: redactedAmount,
+      expenses: redactedAmount,
     );
   }
 }

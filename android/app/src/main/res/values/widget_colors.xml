@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Home-screen widget palette, light. Mirrors the app's hand-built neutral
+  scheme (lib/theme/luminous_app_theme.dart) and AppColors' status colours
+  (ColorContrastHelper.getStatusColors): monochrome chrome, green/red only for
+  income/expense. The dark set lives in values-night/widget_colors.xml.
+-->
+<resources>
+    <color name="widget_surface">#FFFAFAFA</color>
+    <color name="widget_on_surface">#FF1B1B1B</color>
+    <color name="widget_on_surface_variant">#FF5C5C5C</color>
+    <color name="widget_button">#FFE6E6E6</color>
+    <color name="widget_ripple">#1F1B1B1B</color>
+    <color name="widget_income">#FF388E3C</color>
+    <color name="widget_expense">#FFD32F2F</color>
+</resources>

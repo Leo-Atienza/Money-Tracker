@@ -1459,6 +1459,9 @@ class _BudgetList extends StatelessWidget {
                 await appState.undoBudgetDeletion();
               },
             ),
+            // Since Flutter 3.38 a SnackBar with an action never times out
+            // on its own. Time it out again, except under TalkBack.
+            persist: MediaQuery.accessibleNavigationOf(context),
             duration: const Duration(seconds: 4),
             behavior: SnackBarBehavior.floating,
           ),
