@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -9,6 +8,8 @@ import 'package:budget_tracker/utils/pdf_exporter.dart';
 import 'package:budget_tracker/models/expense_model.dart';
 import 'package:budget_tracker/models/income_model.dart';
 import 'package:budget_tracker/models/budget_model.dart';
+
+import '_pdf_text.dart';
 
 /// M5: the PDF build bodies were moved into static `compute()`-safe builders so
 /// they run off the UI isolate. PDF rendering can't be meaningfully asserted in
@@ -106,38 +107,6 @@ void main() {
 
   final now = DateTime(2024, 1, 15, 9, 30);
 
-  /// The words drawn in the built-in (Latin-1) fonts, in drawing order. The
-  /// pdf package writes each word as `[(word)]TJ` inside a deflated content
-  /// stream; glyphs drawn with an embedded TrueType font are glyph ids and
-  /// don't show up here.
-  String drawnText(Uint8List bytes) {
-    final raw = latin1.decode(bytes);
-    final words = <String>[];
-    var from = 0;
-    while (true) {
-      final start = raw.indexOf('stream', from);
-      if (start < 0) break;
-      var dataStart = start + 'stream'.length;
-      if (raw.startsWith('\r\n', dataStart)) {
-        dataStart += 2;
-      } else if (raw.startsWith('\n', dataStart)) {
-        dataStart += 1;
-      }
-      final end = raw.indexOf('endstream', dataStart);
-      if (end < 0) break;
-      try {
-        final content = latin1.decode(zlib.decode(bytes.sublist(dataStart, end)));
-        words.addAll(RegExp(r'\[\((.*?)\)\]TJ')
-            .allMatches(content)
-            .map((m) => m.group(1)!));
-      } on FormatException {
-        // Not a deflated content stream (e.g. the cross-reference stream).
-      }
-      from = end + 'endstream'.length;
-    }
-    return words.join(' ');
-  }
-
   /// Runs [build] and returns the "Unable to find a font to draw" warnings
   /// the pdf package prints for glyphs no font can draw — each one is a
   /// crossed placeholder box in the output.
@@ -225,7 +194,7 @@ void main() {
         ),
       );
       expectWellFormedPdf(bytes);
-      final text = drawnText(bytes);
+      final text = drawnPdfText(bytes);
       expect(text, contains('Monthly Financial Summary January 2024'));
       expect(text, contains('Budget Performance'));
     });
@@ -245,7 +214,7 @@ void main() {
           now: now,
         ),
       );
-      final text = drawnText(bytes);
+      final text = drawnPdfText(bytes);
       expect(text, contains('Financial Summary All time'));
       expect(text, isNot(contains('Monthly')));
       expect(text, isNot(contains('Budget Performance')));
