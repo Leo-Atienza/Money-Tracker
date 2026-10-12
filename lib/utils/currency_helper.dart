@@ -63,13 +63,20 @@ class CurrencyHelper {
   /// Format amount with currency symbol (localized)
   /// e.g., formatWithSymbol(1234.56, '\$', 'USD') -> "\$1,234.56"
   /// e.g., formatWithSymbol(1234.56, '€', 'EUR') -> "€1.234,56"
+  /// e.g., formatWithSymbol(-1234.56, '\$', 'USD') -> "-\$1,234.56"
+  /// (the sign leads: "\$-1,234.56" read as a typo, and TalkBack spoke it
+  /// as "dollar minus").
   static String formatWithSymbol(
     double amount,
     String symbol,
     String currencyCode, {
     int decimalDigits = 2,
   }) {
-    return '$symbol${formatAmount(amount, currencyCode, decimalDigits: decimalDigits)}';
+    final digits =
+        formatAmount(amount.abs(), currencyCode, decimalDigits: decimalDigits);
+    return amount < 0 && digits.contains(RegExp('[1-9]'))
+        ? '-$symbol$digits'
+        : '$symbol$digits';
   }
 
   /// Compact format for large numbers
@@ -298,6 +305,14 @@ class CurrencyHelper {
 
       // Allow empty input
       if (text.isEmpty) return newValue;
+
+      // A lone comma with at most two digits after it is still ambiguous
+      // while typing: "1,5" may be on its way to "1,500". Normalizing it to
+      // "1.5" at once turned the last zero into a rejected third decimal, so
+      // "1,500" ended as "1.50". Keep it as typed; the third digit resolves
+      // it to thousands ("1500") below. parseDecimal and DecimalHelper.parse
+      // both read the lone comma as a decimal point meanwhile.
+      if (RegExp(r'^\d*,\d{0,2}$').hasMatch(text)) return newValue;
 
       // Normalize all regional separators to dot for validation
       final normalized = normalizeDecimalInput(text);

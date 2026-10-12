@@ -473,7 +473,7 @@ class _MonthlySummaryCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Total Available: $currency${appState.formatAmount(totalIncome + carryover, decimalDigits: 0)}',
+                      'Total Available: ${appState.formatWithCurrency(totalIncome + carryover, decimalDigits: 0)}',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -601,7 +601,7 @@ class _MonthlySummaryCard extends StatelessWidget {
               Flexible(
                 flex: 2,
                 child: Text(
-                  '${projectedBalance >= 0 ? '+' : ''}$currency${appState.formatAmount(projectedBalance, decimalDigits: 0)}',
+                  '${projectedBalance >= 0 ? '+' : ''}${appState.formatWithCurrency(projectedBalance, decimalDigits: 0)}',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,

@@ -73,7 +73,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Payment of ${appState.currency}${paymentAmount.toStringAsFixed(2)} recorded from income',
+                  'Payment of ${appState.currency}${paymentAmount.toStringAsFixed(2)} recorded',
                 ),
                 backgroundColor: appColors.incomeGreen,
               ),
@@ -134,8 +134,11 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Every payment counts against the month's income; this
+                    // switch only blocks one larger than what is left. It
+                    // was labelled as if it chose where the money came from.
                     Text(
-                      'Pay from Income',
+                      'Stay within income',
                       style: theme.textTheme.labelLarge?.copyWith(
                         fontWeight: FontWeight.w500,
                         color: theme.colorScheme.onSurface,
@@ -179,7 +182,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'This payment will be deducted from your available income balance.',
+                      'Blocks a payment larger than the available income.',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -256,45 +259,58 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'PAID',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                letterSpacing: 1,
-                                color: theme.colorScheme.onSurfaceVariant,
+                        // Seven-figure amounts (IDR, VND, KRW) at large
+                        // text overflowed this row; the figures scale down.
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'PAID',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  letterSpacing: 1,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '$currency${widget.expense.amountPaid.toStringAsFixed(2)}',
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w500,
-                                color: theme.colorScheme.onSurface,
+                              const SizedBox(height: 4),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  '$currency${widget.expense.amountPaid.toStringAsFixed(2)}',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              'TOTAL',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                letterSpacing: 1,
-                                color: theme.colorScheme.onSurfaceVariant,
+                        const SizedBox(width: 16),
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'TOTAL',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  letterSpacing: 1,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '$currency${widget.expense.amount.toStringAsFixed(2)}',
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w500,
-                                color: theme.colorScheme.onSurface,
+                              const SizedBox(height: 4),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  '$currency${widget.expense.amount.toStringAsFixed(2)}',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -410,7 +426,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      // Pay from Income Option
+                      // Stay-within-income guard
                       _buildIncomePaymentOption(appState, theme),
                     ],
                   ),

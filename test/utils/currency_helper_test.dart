@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:budget_tracker/utils/currency_helper.dart';
 import 'package:flutter/services.dart';
+import 'package:budget_tracker/utils/decimal_helper.dart';
+import 'package:decimal/decimal.dart';
 
 void main() {
   // =========================================================================
@@ -110,10 +112,19 @@ void main() {
       expect(result, '\$0.00');
     });
 
-    test('handles negative amount', () {
-      final result = CurrencyHelper.formatWithSymbol(-50.0, '\$', 'USD');
-      expect(result, contains('\$'));
-      expect(result, contains('50.00'));
+    test('handles negative amount: the sign leads the symbol', () {
+      expect(CurrencyHelper.formatWithSymbol(-50.0, '\$', 'USD'), '-\$50.00');
+      expect(
+        CurrencyHelper.formatWithSymbol(-1234.4, '\$', 'USD', decimalDigits: 0),
+        '-\$1,234',
+      );
+    });
+
+    test('a negative that rounds to zero carries no sign', () {
+      expect(
+        CurrencyHelper.formatWithSymbol(-0.4, '\$', 'USD', decimalDigits: 0),
+        '\$0',
+      );
     });
 
     test('respects custom decimalDigits', () {
@@ -669,11 +680,34 @@ void main() {
       expect(result.text, '12');
     });
 
-    test('normalizes comma decimal to dot and accepts if valid', () {
-      // Typing "12,50" -> normalizes to "12.50" which is valid
+    test('keeps a comma decimal as typed; it still parses', () {
       final result = apply('', '12,50');
-      // After normalization, the formatter should return "12.50"
-      expect(result.text, '12.50');
+      expect(result.text, '12,50');
+      expect(CurrencyHelper.parseDecimal(result.text), 12.5);
+      expect(DecimalHelper.parse(result.text), Decimal.parse('12.5'));
+    });
+
+    // Typing "1,500" used to end as "1.50": the comma became a dot at once
+    // and the last zero was refused as a third decimal.
+    test('typing 1,500 key by key gives 1500', () {
+      var text = '';
+      for (final key in '1,500'.split('')) {
+        text = apply(text, '$text$key').text;
+      }
+      expect(text, '1500');
+      expect(CurrencyHelper.parseDecimal(text), 1500);
+    });
+
+    test('typing 1,500,000 key by key gives 1500000', () {
+      var text = '';
+      for (final key in '1,500,000'.split('')) {
+        text = apply(text, '$text$key').text;
+      }
+      expect(text, '1500000');
+    });
+
+    test('a third digit after a dot is still refused', () {
+      expect(apply('12.34', '12.345').text, '12.34');
     });
 
     test('handles pasted value with thousands separator', () {

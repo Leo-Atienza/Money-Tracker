@@ -1,6 +1,7 @@
 import 'package:budget_tracker/models/expense_model.dart';
 import 'package:budget_tracker/models/income_model.dart';
 import 'package:budget_tracker/providers/app_state.dart';
+import 'package:budget_tracker/screens/add_payment_dialog.dart';
 import 'package:budget_tracker/screens/analytics_screen.dart';
 import 'package:budget_tracker/screens/budget_screen.dart';
 import 'package:budget_tracker/screens/history/history_screen.dart';
@@ -166,6 +167,26 @@ void main() {
       isFalse,
       reason: 'the month navigator no longer squeezes it to "Bu…"',
     );
+  });
+
+  testWidgets('Add payment, a seven-figure bill (IDR-size amounts)', (tester) async {
+    final state = await seededState(tester);
+    final bill = Expense(
+      id: 1,
+      amount: Decimal.parse('1500000.00'),
+      category: 'Bills',
+      description: 'Quarterly insurance premium',
+      date: DateTime.now(),
+      accountId: state.currentAccountId,
+      amountPaid: Decimal.parse('250000.00'),
+      paymentMethod: 'Cash',
+    );
+    await pumpCompact(
+      tester,
+      Scaffold(body: AddPaymentDialog(expense: bill)),
+      state: state,
+    );
+    expect(find.text('PAID'), findsOneWidget);
   });
 
   testWidgets('PIN setup: the whole pad is reachable', (tester) async {
