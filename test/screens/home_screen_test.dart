@@ -108,6 +108,23 @@ void main() {
     );
   });
 
+  testWidgets('a failed load says so instead of showing an empty ledger',
+      (tester) async {
+    // An unreadable database key now fails closed. Without this card Home
+    // looked like a fresh, empty install — the kind of screen that gets an
+    // app reinstalled, which would lose the data for real.
+    final state = AppState();
+    await pumpHarness(tester, appState: state);
+    await tester.pump();
+    expect(find.text("Couldn't open your data"), findsNothing);
+
+    state.lastLoadErrorForTesting = StateError('key unavailable');
+    await tester.pump();
+
+    expect(find.text("Couldn't open your data"), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
+  });
+
   testWidgets('empty state messaging renders when no expenses',
       (tester) async {
     await pumpHarness(tester);

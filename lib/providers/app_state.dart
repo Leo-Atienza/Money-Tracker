@@ -79,6 +79,13 @@ class AppState extends ChangeNotifier {
   Object? get lastLoadError => _lastLoadError;
   bool get hasLoadError => _lastLoadError != null;
 
+  /// Test-only: put the app in the failed-load state Home reports.
+  @visibleForTesting
+  set lastLoadErrorForTesting(Object? error) {
+    _lastLoadError = error;
+    _safeNotify();
+  }
+
   int _lastAutoCreatedCount = 0;
   int get lastAutoCreatedCount => _lastAutoCreatedCount;
   void clearAutoCreatedCount() => _lastAutoCreatedCount = 0;
@@ -492,6 +499,8 @@ class AppState extends ChangeNotifier {
         epochAtStart == _backgroundProcessingEpoch &&
         accountIdAtStart == currentAccountId) {
       _safeNotify();
+      // loadData refreshed the widget before these bills were posted.
+      _updateHomeWidget();
       // Phase 3.2: emit the batch event so the UI shows a snackbar even when
       // a previous batch already fired one this session.
       if (!_isDisposed && !_recurringBatchController.isClosed) {
@@ -613,7 +622,15 @@ class AppState extends ChangeNotifier {
       _expenses.addAll(extra.where((e) => !ids.contains(e.id)));
       _loadedExpenseMonths.add(_monthKey(month));
     }
+    _transactionsVersion++;
   }
+
+  /// Bumped whenever the in-memory transactions are reloaded — after every
+  /// add / edit / delete / payment, recurring run, account switch and resume.
+  /// Views that aggregate the database themselves (Analytics' 6-month trend)
+  /// select it to know when to re-query.
+  int get transactionsVersion => _transactionsVersion;
+  int _transactionsVersion = 0;
 
   /// Months a reload must keep in memory besides this month and last: the
   /// month on screen and the one before it (Analytics compares against it).
@@ -659,6 +676,7 @@ class AppState extends ChangeNotifier {
       _incomes.addAll(extra.where((i) => !ids.contains(i.id)));
       _loadedIncomeMonths.add(_monthKey(month));
     }
+    _transactionsVersion++;
   }
 
   Future<void> _loadIncomes() async {
@@ -1871,7 +1889,11 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.bulkDeleteTransactionsByCategory(currentAccountId, category, type);
       await Future.wait([_loadExpensesInternal(), _loadIncomesInternal()]);
+      // Rows left every month, earlier ones included: the carried-in balance
+      // changed too (Home kept the old one until the next resume).
+      await _calculateAndStoreCarryover();
       _safeNotify();
+      _updateHomeWidget();
     });
   }
 
@@ -1887,7 +1909,10 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.bulkDeleteTransactionsAndCategory(currentAccountId, categoryId, category, type);
       await Future.wait([_loadCategories(), _loadExpensesInternal(), _loadIncomesInternal()]);
+      // See bulkDeleteTransactionsByCategory: the carry-over changed too.
+      await _calculateAndStoreCarryover();
       _safeNotify();
+      _updateHomeWidget();
     });
   }
 
@@ -1934,7 +1959,23 @@ class AppState extends ChangeNotifier {
   /// Use a quick template to create a new transaction.
   /// FIX: Validates that the template's category still exists before creating transaction.
   /// If category was deleted, falls back to 'Uncategorized' or first available category.
-  Future<void> useTemplate(QuickTemplate template) async {
+  /// Templates currently being added — see [useTemplate].
+  final Set<Object> _templatesInFlight = {};
+
+  /// Adds a transaction from [template] and returns its id — or null when the
+  /// same template is already being added: a quick-add chip saves on a single
+  /// tap, and a double tap used to save the transaction twice.
+  Future<int?> useTemplate(QuickTemplate template) async {
+    final key = template.id ?? template;
+    if (!_templatesInFlight.add(key)) return null;
+    try {
+      return await _addFromTemplate(template);
+    } finally {
+      _templatesInFlight.remove(key);
+    }
+  }
+
+  Future<int> _addFromTemplate(QuickTemplate template) async {
     final now = Clock.instance.now();
     final date = DateHelper.normalize(now);
 
@@ -1956,7 +1997,7 @@ class AppState extends ChangeNotifier {
       // payment via AddPaymentDialog. Templates only carry the *charge*
       // amount; payment state starts at zero, same as a manually entered
       // expense.
-      await addExpense(Expense(amount: template.amountDecimal, category: categoryToUse, description: template.name, date: date, accountId: currentAccountId, amountPaid: Decimal.zero, paymentMethod: template.paymentMethod));
+      return addExpense(Expense(amount: template.amountDecimal, category: categoryToUse, description: template.name, date: date, accountId: currentAccountId, amountPaid: Decimal.zero, paymentMethod: template.paymentMethod));
     } else {
       final categoryExists = incomeCategories.any((c) => c.name == template.category);
       if (!categoryExists) {
@@ -1966,7 +2007,7 @@ class AppState extends ChangeNotifier {
         );
         categoryToUse = uncategorized.name;
       }
-      await addIncome(Income(amount: template.amountDecimal, category: categoryToUse, description: template.name, date: date, accountId: currentAccountId));
+      return addIncome(Income(amount: template.amountDecimal, category: categoryToUse, description: template.name, date: date, accountId: currentAccountId));
     }
   }
 
@@ -2108,6 +2149,9 @@ class AppState extends ChangeNotifier {
       _lastAutoCreatedCount += totalCreated;
       await _loadExpensesInternal();
       await _loadRecurringExpenses();
+      // Back-filled instances can land in earlier months, which changes the
+      // balance carried into this one.
+      if (totalCreated > 0) await _calculateAndStoreCarryover();
     });
 
     // FIX Bug #6: End-of-month bill reminders (day 29-31) cannot use Android's
@@ -2186,6 +2230,8 @@ class AppState extends ChangeNotifier {
       _lastAutoCreatedCount += totalCreated;
       await _loadIncomesInternal();
       await _loadRecurringIncomes();
+      // See _processRecurringExpenses: back-fill changes the carry-over.
+      if (totalCreated > 0) await _calculateAndStoreCarryover();
     });
   }
 

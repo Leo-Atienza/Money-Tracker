@@ -99,6 +99,7 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart>
   List<Map<String, dynamic>> _trends = [];
   bool _isLoading = true;
   DateTime? _lastLoadedMonth;
+  (DateTime, int)? _loadedFor;
   late AnimationController _chartAnimationController;
   late Animation<double> _chartAnimation;
 
@@ -113,7 +114,7 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart>
       parent: _chartAnimationController,
       curve: Curves.easeOutCubic,
     );
-    _loadTrends();
+    // The first load is triggered from build (see _loadedFor).
   }
 
   @override
@@ -122,37 +123,23 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart>
     super.dispose();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    // Only reload if month has actually changed (not on every rebuild)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-
-      final appState = context.read<AppState>();
-      final currentMonth = appState.selectedMonth;
-
-      // Reload trends if the selected month has changed
-      if (_lastLoadedMonth == null ||
-          _lastLoadedMonth!.year != currentMonth.year ||
-          _lastLoadedMonth!.month != currentMonth.month) {
-        _loadTrends();
-      }
-    });
-  }
-
   Future<void> _loadTrends() async {
     // L27: guard the eager setState — _loadTrends is fired from a listener and
     // can race a dispose, and setState after dispose throws.
     if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-    });
-
     final appState = context.read<AppState>();
     final currentMonth = appState.selectedMonth;
+    // Animate in only for a new month. A refresh after an edit swaps the
+    // bars in place instead of flashing a spinner and replaying the intro.
+    final monthChanged = _lastLoadedMonth == null ||
+        _lastLoadedMonth!.year != currentMonth.year ||
+        _lastLoadedMonth!.month != currentMonth.month;
     _lastLoadedMonth = currentMonth;
+    if (monthChanged) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
     final trends = await appState.getSpendingTrends(months: 6);
     if (mounted) {
@@ -160,7 +147,7 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart>
         _trends = trends;
         _isLoading = false;
       });
-      _chartAnimationController.forward(from: 0);
+      if (monthChanged) _chartAnimationController.forward(from: 0);
     }
   }
 
@@ -170,6 +157,19 @@ class _SpendingTrendsChartState extends State<_SpendingTrendsChart>
     final appColors = theme.extension<AppColors>()!;
     // Optimize: Only watch currency for formatting in chart
     final currency = context.select<AppState, String>((s) => s.currency);
+    // Re-query when the month on screen or any transaction changes. This
+    // used to reload only from didChangeDependencies, which no add, edit,
+    // delete, month change or account switch ever triggers — the trend bars
+    // stayed as they were when the app started.
+    final dataKey = context.select<AppState, (DateTime, int)>(
+      (s) => (s.selectedMonth, s.transactionsVersion),
+    );
+    if (_loadedFor != dataKey) {
+      _loadedFor = dataKey;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadTrends();
+      });
+    }
 
     if (_isLoading) {
       // L50: match the GlassPanel surface/border/radius used by the empty +

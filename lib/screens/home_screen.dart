@@ -34,6 +34,7 @@ class HomeScreen extends StatelessWidget {
     );
     final monthName = monthNameAndExpenses.$1;
     final expenses = monthNameAndExpenses.$2;
+    final hasLoadError = context.select<AppState, bool>((s) => s.hasLoadError);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -135,6 +136,20 @@ class HomeScreen extends StatelessWidget {
                 },
                 child: CustomScrollView(
                   slivers: [
+                    // The data could not be opened (e.g. the database key
+                    // was unreadable for a moment). Without this the screen
+                    // just showed an empty ledger — the kind of thing that
+                    // gets an app reinstalled, which WOULD lose the data.
+                    if (hasLoadError)
+                      const SliverPadding(
+                        padding: EdgeInsets.fromLTRB(
+                          LuminousTokens.containerPadding,
+                          16,
+                          LuminousTokens.containerPadding,
+                          0,
+                        ),
+                        sliver: SliverToBoxAdapter(child: _LoadErrorCard()),
+                      ),
                     // Month navigation (glass redesign strip)
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(
@@ -1160,20 +1175,46 @@ class _QuickAddBar extends StatelessWidget {
                   padding: const EdgeInsets.only(right: 8),
                   child: Semantics(
                     label:
-                        '${template.name}, ${appState.formatWithCurrency(template.amount, decimalDigits: 0)}, ${isIncome ? 'income' : 'expense'}',
+                        '${template.name}, ${appState.formatWithCurrency(template.amount, decimalDigits: _amountDigits(template.amount))}, ${isIncome ? 'income' : 'expense'}',
                     button: true,
                     child: InkWell(
                       onTap: () async {
-                        await appState.useTemplate(template);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                        final messenger = ScaffoldMessenger.of(context);
+                        final persist =
+                            MediaQuery.accessibleNavigationOf(context);
+                        final int? id;
+                        try {
+                          id = await appState.useTemplate(template);
+                        } catch (e) {
+                          messenger.showSnackBar(
                             SnackBar(
-                              content: Text('${template.name} added!'),
+                              content: Text('Could not add ${template.name}'),
                               behavior: SnackBarBehavior.floating,
-                              duration: const Duration(seconds: 2),
                             ),
                           );
+                          return;
                         }
+                        // Null: a second tap while the first is still saving.
+                        if (id == null) return;
+                        final addedId = id;
+                        // One tap saves a real transaction, so make it easy
+                        // to take back.
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text('${template.name} added'),
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(seconds: 4),
+                            action: SnackBarAction(
+                              label: 'Undo',
+                              onPressed: () => isIncome
+                                  ? appState.deleteIncome(addedId)
+                                  : appState.deleteExpense(addedId),
+                            ),
+                            // Time out like before Flutter 3.38, except
+                            // under TalkBack.
+                            persist: persist,
+                          ),
+                        );
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1205,7 +1246,7 @@ class _QuickAddBar extends StatelessWidget {
                             const SizedBox(width: 8),
                             Text(
                               appState.formatWithCurrency(template.amount,
-                                  decimalDigits: 0),
+                                  decimalDigits: _amountDigits(template.amount)),
                               style: TextStyle(
                                 fontSize: 13,
                                 color: isIncome
@@ -1224,6 +1265,87 @@ class _QuickAddBar extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Whole amounts print without cents ("$1,200"); anything else keeps them —
+/// rounding a $15.99 template to "$16" misstated what one tap would save.
+int _amountDigits(double amount) =>
+    amount == amount.roundToDouble() ? 0 : 2;
+
+/// Shown on Home when [AppState.hasLoadError]: the data could not be opened.
+class _LoadErrorCard extends StatefulWidget {
+  const _LoadErrorCard();
+
+  @override
+  State<_LoadErrorCard> createState() => _LoadErrorCardState();
+}
+
+class _LoadErrorCardState extends State<_LoadErrorCard> {
+  bool _retrying = false;
+
+  Future<void> _retry() async {
+    setState(() => _retrying = true);
+    await context.read<AppState>().retryLoadData();
+    if (mounted) setState(() => _retrying = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Semantics(
+      liveRegion: true,
+      container: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: cs.errorContainer,
+          borderRadius: BorderRadius.circular(LuminousTokens.radiusMd),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.error_outline, color: cs.onErrorContainer),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      "Couldn't open your data",
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: cs.onErrorContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Nothing has been deleted — your transactions are still on '
+                'this phone. Try again, or restart the phone if this keeps '
+                'happening. Please do not uninstall the app.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: cs.onErrorContainer,
+                ),
+              ),
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton(
+                  onPressed: _retrying ? null : _retry,
+                  style: TextButton.styleFrom(
+                    foregroundColor: cs.onErrorContainer,
+                    minimumSize: const Size(48, 48),
+                  ),
+                  child: Text(_retrying ? 'Trying…' : 'Try again'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

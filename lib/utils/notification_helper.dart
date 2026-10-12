@@ -105,6 +105,20 @@ class NotificationHelper {
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
     _initialized = true;
+
+    // A tap that LAUNCHED the app (it was not running) reaches neither
+    // callback above — it only shows up in the launch details. Queue it the
+    // same way so the reminder still opens the bills screen (after the PIN).
+    try {
+      final launch = await _notifications.getNotificationAppLaunchDetails();
+      if (launch?.didNotificationLaunchApp ?? false) {
+        await NotificationPayloadStore.storePendingPayload(
+          launch!.notificationResponse?.payload,
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Notification launch details failed: $e');
+    }
   }
 
   Future<bool> areNotificationsEnabled() async {

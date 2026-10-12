@@ -47,6 +47,36 @@ void main() {
     await DatabaseHelper.resetForTesting();
   });
 
+  group('useTemplate double tap', () {
+    test('a second tap while the first is saving adds nothing', () async {
+      final appState = AppState();
+      await appState.loadData();
+      final template = QuickTemplate(
+        id: 7,
+        name: 'Coffee',
+        amount: Decimal.parse('5.00'),
+        category: 'Food',
+        paymentMethod: 'Cash',
+        type: 'expense',
+        accountId: appState.currentAccountId,
+      );
+
+      // Both taps land before either save finishes.
+      final results = await Future.wait([
+        appState.useTemplate(template),
+        appState.useTemplate(template),
+      ]);
+
+      expect(results.whereType<int>(), hasLength(1));
+      expect(results.where((id) => id == null), hasLength(1));
+      expect(
+        appState.expenses.where((e) => e.description == 'Coffee'),
+        hasLength(1),
+      );
+      appState.dispose();
+    });
+  });
+
   group('Phase 1.1 — useTemplate (expense) starts unpaid', () {
     test('templated expense has amountPaid == 0 and isPaid == false', () async {
       final appState = AppState();
