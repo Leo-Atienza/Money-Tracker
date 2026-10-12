@@ -72,7 +72,9 @@ class CsvExporter {
       CsvExpenseParams(expenses, separator, now),
     );
 
-    final directory = await getApplicationDocumentsDirectory();
+    // Temp dir, not app documents: the export screen deletes the file once
+    // it is shared, and anything left behind is the OS's to clear.
+    final directory = await getTemporaryDirectory();
     final fileName =
         'expenses_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv';
     final file = File('${directory.path}/$fileName');
@@ -158,29 +160,26 @@ class CsvExporter {
     return csvData.toString();
   }
 
-  /// Formats a number for CSV export using locale-aware formatting.
-  /// FIX: Use proper NumberFormat with locale instead of simple string replacement
-  /// This correctly handles thousand separators and decimal points
+  /// Formats a number for CSV export: the locale's decimal mark, exactly two
+  /// decimals, and NO thousands grouping. A grouping comma is the column
+  /// separator in disguise — "1,500.00" landed in a comma CSV as two cells —
+  /// and the numbers are left unquoted so spreadsheets read them as numbers.
   static String _formatNumber(
     double value,
     CsvSeparator separator, {
     String? locale,
   }) {
-    // Use locale-specific number formatting
+    // '0.00': at least one integer digit, exactly two decimals, no grouping.
     final NumberFormat formatter;
 
     if (separator == CsvSeparator.semicolon) {
       // European format: use comma as decimal separator
       // Example locales: de_DE, fr_FR, etc.
-      formatter = NumberFormat.decimalPattern(locale ?? 'de_DE');
+      formatter = NumberFormat('0.00', locale ?? 'de_DE');
     } else {
       // US/UK format: use dot as decimal separator
-      formatter = NumberFormat.decimalPattern(locale ?? 'en_US');
+      formatter = NumberFormat('0.00', locale ?? 'en_US');
     }
-
-    // Force exactly 2 decimal places
-    formatter.minimumFractionDigits = 2;
-    formatter.maximumFractionDigits = 2;
 
     return formatter.format(value);
   }
@@ -224,7 +223,7 @@ class CsvExporter {
       CsvIncomeParams(incomes, separator, now),
     );
 
-    final directory = await getApplicationDocumentsDirectory();
+    final directory = await getTemporaryDirectory();
     final fileName = 'income_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv';
     final file = File('${directory.path}/$fileName');
 
@@ -302,7 +301,7 @@ class CsvExporter {
       CsvAllTxParams(expenses, incomes, separator, now),
     );
 
-    final directory = await getApplicationDocumentsDirectory();
+    final directory = await getTemporaryDirectory();
     final fileName =
         'transactions_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv';
     final file = File('${directory.path}/$fileName');

@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:decimal/decimal.dart';
@@ -27,23 +30,23 @@ String escapeCsv(String value, CsvSeparator separator) {
   return result;
 }
 
-/// Recreates the private `_formatNumber` logic for testing purposes.
+/// Recreates the private `_formatNumber` logic for testing purposes:
+/// exactly two decimals and no thousands grouping.
 String formatNumber(double value, CsvSeparator separator) {
   final NumberFormat formatter;
 
   if (separator == CsvSeparator.semicolon) {
-    formatter = NumberFormat.decimalPattern('de_DE');
+    formatter = NumberFormat('0.00', 'de_DE');
   } else {
-    formatter = NumberFormat.decimalPattern('en_US');
+    formatter = NumberFormat('0.00', 'en_US');
   }
-
-  formatter.minimumFractionDigits = 2;
-  formatter.maximumFractionDigits = 2;
 
   return formatter.format(value);
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   // -----------------------------------------------------------------
   // 1. CsvSeparator enum
   // -----------------------------------------------------------------
@@ -355,9 +358,10 @@ void main() {
         expect(formatNumber(0.0, CsvSeparator.comma), equals('0.00'));
       });
 
-      test('large number gets thousand separator with comma', () {
+      test('large number has no thousands separator (it would split the column)',
+          () {
         final result = formatNumber(1234567.89, CsvSeparator.comma);
-        expect(result, equals('1,234,567.89'));
+        expect(result, equals('1234567.89'));
       });
 
       test('small decimal value', () {
@@ -365,8 +369,8 @@ void main() {
       });
 
       test('negative value', () {
-        final result = formatNumber(-500.75, CsvSeparator.comma);
-        expect(result, contains('500.75'));
+        final result = formatNumber(-1500.75, CsvSeparator.comma);
+        expect(result, equals('-1500.75'));
       });
     });
 
@@ -387,9 +391,9 @@ void main() {
         expect(formatNumber(0.0, CsvSeparator.semicolon), equals('0,00'));
       });
 
-      test('large number uses dot as thousand separator', () {
+      test('large number has no thousands separator', () {
         final result = formatNumber(1234567.89, CsvSeparator.semicolon);
-        expect(result, equals('1.234.567,89'));
+        expect(result, equals('1234567,89'));
       });
 
       test('small decimal value', () {
@@ -526,8 +530,8 @@ void main() {
         CsvSeparator.semicolon,
         now,
       ));
-      // de_DE: dot thousands, comma decimal → 1.234,50, fields semicolon-joined.
-      expect(csv, contains('2024-03-01;Flat;Rent;1.234,50;0,00;1.234,50;Unpaid'));
+      // de_DE decimal comma, no grouping → 1234,50, fields semicolon-joined.
+      expect(csv, contains('2024-03-01;Flat;Rent;1234,50;0,00;1234,50;Unpaid'));
     });
 
     test('buildIncomeCsv assembles header, rows, summary', () {
@@ -546,8 +550,8 @@ void main() {
       ));
       expect(csv, contains('FinanceFlow - Income Report'));
       expect(csv, contains('Date,Description,Category,Amount'));
-      expect(csv, contains('2024-03-01,March pay,Salary,3,000.00'));
-      expect(csv, contains('Total Income,3,000.00'));
+      expect(csv, contains('2024-03-01,March pay,Salary,3000.00'));
+      expect(csv, contains('Total Income,3000.00'));
     });
 
     test('buildAllTransactionsCsv merges and date-sorts both streams', () {
@@ -580,6 +584,45 @@ void main() {
         csv.indexOf('2024-03-12,Income,Birthday'),
         lessThan(csv.indexOf('2024-03-10,Expense,Coffee')),
       );
+    });
+
+    test('amounts of 1,000 or more stay in one column, negatives included',
+        () {
+      // A grouped "1,500.00" in a comma CSV is two cells: "1" and "500.00".
+      final csv = CsvExporter.buildAllTransactionsCsv(CsvAllTxParams(
+        [
+          expense(
+              amount: 1500.00,
+              paid: 0,
+              category: 'Housing',
+              description: 'Rent',
+              date: DateTime(2024, 3, 1)),
+        ],
+        [
+          Income(
+            amount: Decimal.parse('1000.00'),
+            category: 'Salary',
+            description: 'Pay',
+            date: DateTime(2024, 3, 2),
+            accountId: 1,
+          ),
+        ],
+        CsvSeparator.comma,
+        now,
+      ));
+
+      final lines = csv.split('\n');
+      final columns =
+          lines.firstWhere((l) => l.startsWith('Date,')).split(',').length;
+      final rows = lines.where((l) => l.startsWith('2024-')).toList();
+      expect(rows, hasLength(2));
+      for (final row in rows) {
+        expect(row.split(','), hasLength(columns), reason: row);
+      }
+      expect(rows, contains('2024-03-01,Expense,Rent,Housing,-1500.00,Unpaid'));
+      expect(rows, contains('2024-03-02,Income,Pay,Salary,1000.00,-'));
+      expect(csv, contains('Total Expenses,1500.00\n'));
+      expect(csv, contains('Net Balance,-500.00\n'));
     });
 
     // L23: summary totals fold in Decimal-space so the CSV summary matches the
@@ -648,6 +691,70 @@ void main() {
       expect(csv, contains('Total Income,4.40'));
       expect(csv, contains('Total Expenses,2.10'));
       expect(csv, contains('Net Balance,2.30'));
+    });
+  });
+
+  // -----------------------------------------------------------------
+  // 6. Export files land in the temporary directory, where the export
+  //    screen deletes them after sharing — not in app documents, where
+  //    every export used to pile up for good.
+  // -----------------------------------------------------------------
+  group('CSV export files', () {
+    const pathProviderChannel =
+        MethodChannel('plugins.flutter.io/path_provider');
+    late Directory root;
+    late Directory temp;
+    late Directory documents;
+
+    setUp(() {
+      root = Directory.systemTemp.createTempSync('csv_export_test');
+      temp = Directory('${root.path}/tmp')..createSync();
+      documents = Directory('${root.path}/documents')..createSync();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(pathProviderChannel, (call) async {
+        switch (call.method) {
+          case 'getTemporaryDirectory':
+            return temp.path;
+          case 'getApplicationDocumentsDirectory':
+            return documents.path;
+        }
+        return null;
+      });
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(pathProviderChannel, null);
+      root.deleteSync(recursive: true);
+    });
+
+    test('every export type is written to the temporary directory', () async {
+      final expense = Expense(
+        amount: Decimal.parse('12.00'),
+        category: 'Food',
+        description: 'Lunch',
+        date: DateTime.utc(2024, 3, 1),
+        accountId: 1,
+      );
+      final income = Income(
+        amount: Decimal.parse('50.00'),
+        category: 'Gift',
+        description: 'Card',
+        date: DateTime.utc(2024, 3, 2),
+        accountId: 1,
+      );
+
+      final files = [
+        await CsvExporter.exportExpenses([expense], r'$'),
+        await CsvExporter.exportIncome([income], r'$'),
+        await CsvExporter.exportAllTransactions([expense], [income], r'$'),
+      ];
+
+      for (final file in files) {
+        expect(file.path, startsWith(temp.path));
+        expect(file.existsSync(), isTrue);
+      }
+      expect(documents.listSync(), isEmpty);
     });
   });
 }
