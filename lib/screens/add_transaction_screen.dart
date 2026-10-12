@@ -1202,8 +1202,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               final parsed = CurrencyHelper.parseDecimal(value);
               if (parsed == null) return 'Please enter a valid number';
               if (parsed <= 0) return 'Amount must be greater than 0';
-              if (parsed > 999999999.99) {
-                return 'Amount cannot exceed 999,999,999.99';
+              if (parsed > Validators.maxAmount) {
+                return 'Amount is too large';
               }
               return null;
             },

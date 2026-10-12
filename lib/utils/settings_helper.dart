@@ -26,6 +26,69 @@ class SettingsHelper {
   static const String _keyTransactionColorIntensity =
       'transaction_color_intensity';
 
+  /// The user's settings as a backup carries them, under the keys the app
+  /// actually reads. (Backups before S22 wrote camelCase keys nothing read,
+  /// so they only ever held defaults; `restoreFromBackup` never sees them.)
+  static Future<Map<String, Object>> exportForBackup() async {
+    return {
+      _keyThemeMode: await getThemeMode(),
+      _keyBillReminders: await getBillReminders(),
+      _keyBudgetAlerts: await getBudgetAlerts(),
+      _keyMonthlySummary: await getMonthlySummary(),
+      _keyReminderHour: await getReminderHour(),
+      _keyReminderMinute: await getReminderMinute(),
+      _keyCsvSeparator: await getCsvSeparator(),
+      _keyBudgetWarningThreshold: await getBudgetWarningThreshold(),
+      _keyShowTransactionColors: await getShowTransactionColors(),
+      _keyTransactionColorIntensity: await getTransactionColorIntensity(),
+      _keyCarryoverEnabled: await getCarryoverEnabled(),
+    };
+  }
+
+  /// Applies the settings of a restored backup. Each value is checked on its
+  /// own: one of the wrong type or out of range is skipped and the current
+  /// setting kept, so a damaged settings block can never fail the restore of
+  /// a good database. Returns how many settings were applied.
+  static Future<int> restoreFromBackup(Map<String, dynamic> raw) async {
+    var applied = 0;
+    Future<void> apply<T>(String key, Future<void> Function(T) set,
+        {bool Function(T)? valid}) async {
+      final value = raw[key];
+      final T typed;
+      if (value is T) {
+        typed = value;
+      } else if (T == double && value is num) {
+        // JSON writes 1.0 as 1.
+        typed = value.toDouble() as T;
+      } else {
+        return;
+      }
+      if (valid != null && !valid(typed)) return;
+      await set(typed);
+      applied++;
+    }
+
+    await apply<String>(_keyThemeMode, setThemeMode,
+        valid: const {'light', 'dark', 'purple', 'system'}.contains);
+    await apply<bool>(_keyBillReminders, setBillReminders);
+    await apply<bool>(_keyBudgetAlerts, setBudgetAlerts);
+    await apply<bool>(_keyMonthlySummary, setMonthlySummary);
+    await apply<int>(_keyReminderHour, setReminderHour,
+        valid: (h) => h >= 0 && h <= 23);
+    await apply<int>(_keyReminderMinute, setReminderMinute,
+        valid: (m) => m >= 0 && m <= 59);
+    await apply<String>(_keyCsvSeparator, setCsvSeparator,
+        valid: const {'comma', 'semicolon'}.contains);
+    await apply<double>(_keyBudgetWarningThreshold, setBudgetWarningThreshold,
+        valid: (v) => v >= 0 && v <= 1);
+    await apply<bool>(_keyShowTransactionColors, setShowTransactionColors);
+    await apply<double>(
+        _keyTransactionColorIntensity, setTransactionColorIntensity,
+        valid: (v) => v >= 0 && v <= 1);
+    await apply<bool>(_keyCarryoverEnabled, setCarryoverEnabled);
+    return applied;
+  }
+
   // Dark Mode (deprecated - kept for migration)
   static Future<bool> getDarkMode() async {
     final prefs = await SharedPreferences.getInstance();

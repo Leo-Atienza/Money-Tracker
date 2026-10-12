@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show TimeOfDay;
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -21,6 +22,24 @@ class NotificationHelper {
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+
+  static const MethodChannel _deviceChannel =
+      MethodChannel('budget_tracker/device_info');
+
+  /// Points `tz.local` at the phone's zone. The timezone package starts on
+  /// UTC, and a repeating reminder keeps its time of day in that location:
+  /// on UTC it moved an hour against the wall clock at every DST change.
+  /// Stays on UTC (the old behaviour) when the zone is unavailable.
+  @visibleForTesting
+  static Future<void> setLocalTimeZone() async {
+    try {
+      final name = await _deviceChannel.invokeMethod<String>('timeZone');
+      if (name != null) tz.setLocalLocation(tz.getLocation(name));
+    } catch (e) {
+      // No channel (tests) or an id the database does not know.
+      if (kDebugMode) debugPrint('Local timezone unavailable: $e');
+    }
+  }
 
   // FIX P2-9: Use separate ID ranges to prevent notification ID collisions
   // Bill reminders: 10000-19999
@@ -82,6 +101,7 @@ class NotificationHelper {
     if (_initialized) return;
 
     tz.initializeTimeZones();
+    await setLocalTimeZone();
 
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',

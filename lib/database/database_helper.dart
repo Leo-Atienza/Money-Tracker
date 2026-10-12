@@ -144,16 +144,16 @@ class DatabaseHelper {
   // check skips the row (and increments the relevant skipped counter so the
   // UI can show "N rows skipped").
 
-  /// Amount must be finite, non-NaN, in [0, 1e10). Currency precision means
-  /// $10B is far beyond any sane personal budget — rejecting it catches the
-  /// "json overflow injection" case where a hand-edited backup tries to
-  /// poison aggregates with `1e308`.
+  /// Amount must be finite, non-NaN, in [0, DecimalHelper.maxSafeValue]: the
+  /// largest amount the app itself accepts. Rejecting more catches the "json
+  /// overflow injection" case where a hand-edited backup tries to poison
+  /// aggregates with `1e308`.
   static bool _isValidAmount(dynamic raw) {
     final v = (raw is num) ? raw.toDouble() : null;
     if (v == null) return false;
     if (v.isNaN || v.isInfinite) return false;
     if (v < 0) return false;
-    if (v >= 1e10) return false;
+    if (v > DecimalHelper.maxSafeValue) return false;
     return true;
   }
 
@@ -504,6 +504,8 @@ class DatabaseHelper {
     // Performance indexes for budgets (month/category queries)
     await db.execute('CREATE INDEX idx_budgets_account_month ON budgets(account_id, month)');
     await db.execute('CREATE INDEX idx_budgets_category ON budgets(account_id, category)');
+    // One budget per category per month (v20, see _migrateToV20).
+    await db.execute(_budgetsUniqueIndexSql);
 
     // Performance indexes for recurring transactions (active status queries)
     await db.execute('CREATE INDEX idx_recurring_expenses_active ON recurring_expenses(account_id, isActive)');
@@ -778,6 +780,73 @@ class DatabaseHelper {
     if (oldVersion < 19) {
       await _migrateToV19(db);
     }
+
+    if (oldVersion < 20) {
+      await _migrateToV20(db);
+    }
+  }
+
+  static const String _budgetsUniqueIndexSql =
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_budgets_account_category_month '
+      'ON budgets(account_id, category, month)';
+
+  /// S22 migration to schema v20: one budget per category per month.
+  ///
+  /// Moving a category's transactions into another (delete-and-move, or a
+  /// rename onto an existing name) retargeted its budgets blindly, so the
+  /// target could end up with two budgets for the same month. `setBudget`
+  /// then edited only the first and the Budgets screen listed both. The move
+  /// now merges (see [_moveBudgets]); this pass collapses what earlier builds
+  /// left, keeping the row `setBudget` was editing (the lowest id, the same
+  /// rule as the v18 tag dedupe), and the index stops it recurring.
+  /// Months are first normalised to `YYYY-MM-01` (what Budget.toMap writes)
+  /// so an older full-timestamp row cannot dodge the index.
+  static Future<void> _migrateToV20(Database db) async {
+    await db.transaction((txn) async {
+      await txn.execute('''
+        UPDATE budgets SET month = substr(month, 1, 7) || '-01'
+        WHERE month != substr(month, 1, 7) || '-01'
+      ''');
+      await txn.execute('''
+        DELETE FROM budgets
+        WHERE id NOT IN (
+          SELECT MIN(id) FROM budgets GROUP BY account_id, category, month
+        )
+      ''');
+      await txn.execute(_budgetsUniqueIndexSql);
+    });
+  }
+
+  /// Moves category [from]'s budgets onto [to] inside [txn]. In a month where
+  /// both have one, [from]'s amount joins [to]'s (the month's total budget is
+  /// unchanged) instead of leaving [to] with two budgets that month.
+  static Future<void> _moveBudgets(
+    Transaction txn,
+    int accountId,
+    String from,
+    String to,
+  ) async {
+    if (from == to) return;
+    await txn.rawUpdate('''
+      UPDATE budgets SET amount = ROUND(amount + (
+        SELECT SUM(src.amount) FROM budgets src
+        WHERE src.account_id = budgets.account_id
+          AND src.category = ? AND src.month = budgets.month
+      ), 2)
+      WHERE account_id = ? AND category = ? AND month IN (
+        SELECT month FROM budgets WHERE account_id = ? AND category = ?
+      )
+    ''', [from, accountId, to, accountId, from]);
+    await txn.rawDelete('''
+      DELETE FROM budgets
+      WHERE account_id = ? AND category = ? AND month IN (
+        SELECT month FROM budgets WHERE account_id = ? AND category = ?
+      )
+    ''', [accountId, from, accountId, to]);
+    await txn.rawUpdate(
+      'UPDATE budgets SET category = ? WHERE account_id = ? AND category = ?',
+      [to, accountId, from],
+    );
   }
 
   /// Phase 4 migration to schema v19. Bundles:
@@ -840,6 +909,20 @@ class DatabaseHelper {
     try {
       await db.transaction((txn) async {
         await txn.execute('PRAGMA defer_foreign_keys = ON');
+        // Rows whose account no longer exists (pre-cascade builds left them
+        // when an account was deleted) can never be shown or restored. Copied
+        // into the FK-checked rebuilds below they fail the deferred check at
+        // commit, and the upgrade then failed on every launch.
+        for (final table in const [
+          'deleted_expenses',
+          'deleted_income',
+          'income',
+          'quick_templates',
+        ]) {
+          await txn.execute(
+            'DELETE FROM $table WHERE account_id NOT IN (SELECT id FROM accounts)',
+          );
+        }
         // 4.2: trash tables. Both `deleted_expenses` and `deleted_income`
         // get FK + CASCADE on `account_id`. `deleted_accounts` intentionally
         // skipped — that table is the soft-delete pool for accounts and
@@ -1762,7 +1845,12 @@ class DatabaseHelper {
         final budgetMap = Map<String, dynamic>.from(budget as Map);
         budgetMap.remove('id');
         budgetMap['account_id'] = newId;
-        await txn.insert('budgets', budgetMap);
+        // A backup from before v20 can hold two budgets for one month.
+        await txn.insert(
+          'budgets',
+          budgetMap,
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
       }
 
       // Restore recurring expenses
@@ -2317,7 +2405,14 @@ class DatabaseHelper {
 
   Future<int> createBudget(Budget budget) async {
     final db = await database;
-    return await db.insert('budgets', budget.toMap());
+    // One budget per category per month: a second one replaces the first
+    // (the rollover copying a month that held duplicates, an undo landing
+    // on a budget set meanwhile).
+    return await db.insert(
+      'budgets',
+      budget.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   /// CRITICAL FIX: Read budgets with optional month filter and limit
@@ -2658,11 +2753,8 @@ class DatabaseHelper {
           [newName, accountId, oldName, 'expense'],
         );
 
-        // Update budgets
-        await txn.rawUpdate(
-          'UPDATE budgets SET category = ? WHERE account_id = ? AND category = ?',
-          [newName, accountId, oldName],
-        );
+        // Update budgets (merging into any [newName] already has)
+        await _moveBudgets(txn, accountId, oldName, newName);
 
         // Update deleted expenses
         await txn.rawUpdate(
@@ -2723,11 +2815,8 @@ class DatabaseHelper {
           [newCategory, accountId, oldCategory, 'expense'],
         );
 
-        // Update budgets
-        await txn.rawUpdate(
-          'UPDATE budgets SET category = ? WHERE account_id = ? AND category = ?',
-          [newCategory, accountId, oldCategory],
-        );
+        // Update budgets (merging into any [newCategory] already has)
+        await _moveBudgets(txn, accountId, oldCategory, newCategory);
 
         // Update deleted expenses
         await txn.rawUpdate(
@@ -2781,10 +2870,7 @@ class DatabaseHelper {
           'UPDATE quick_templates SET category = ? WHERE account_id = ? AND category = ? AND type = ?',
           [newCategory, accountId, oldCategory, 'expense'],
         );
-        await txn.rawUpdate(
-          'UPDATE budgets SET category = ? WHERE account_id = ? AND category = ?',
-          [newCategory, accountId, oldCategory],
-        );
+        await _moveBudgets(txn, accountId, oldCategory, newCategory);
         await txn.rawUpdate(
           'UPDATE deleted_expenses SET category = ? WHERE account_id = ? AND category = ?',
           [newCategory, accountId, oldCategory],

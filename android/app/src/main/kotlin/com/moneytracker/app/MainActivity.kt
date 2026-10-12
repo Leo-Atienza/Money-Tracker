@@ -75,6 +75,11 @@ class MainActivity : FlutterActivity() {
                 "getAndroidSdkVersion" -> {
                     result.success(Build.VERSION.SDK_INT)
                 }
+                // The phone's IANA zone (e.g. America/Toronto), so repeating
+                // reminders keep their wall-clock time across DST changes.
+                "timeZone" -> {
+                    result.success(java.util.TimeZone.getDefault().id)
+                }
                 else -> {
                     result.notImplemented()
                 }

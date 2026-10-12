@@ -271,6 +271,15 @@ void main() {
         'month': '2026-05-01',
       });
 
+      // A trash row whose account is gone (pre-cascade builds left these).
+      // The FK-checked rebuild failed its deferred check on it at commit, so
+      // the upgrade used to fail on every launch (S22).
+      await v18.insert('deleted_expenses', {
+        'original_id': 99, 'amount': 7.0, 'category': 'Food',
+        'date': '2026-04-01', 'account_id': accountId + 41,
+        'deletedAt': '2026-04-02T00:00:00.000',
+      });
+
       await v18.close();
 
       // ----- Step 3: reopen via DatabaseHelper — triggers v18 → v19. --------
@@ -296,6 +305,8 @@ void main() {
       expect(await count('tags'), 2);
       expect(await count('transaction_tags'), 3);
       expect(await count('monthly_balances'), 1);
+      expect(await count('deleted_expenses'), 0,
+          reason: 'the orphaned trash row is dropped, not copied');
 
       // ----- Step 4b: monthly_balances.month normalised to YYYY-MM. ---------
       final mbRow =

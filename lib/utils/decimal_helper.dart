@@ -3,6 +3,14 @@ import 'package:decimal/decimal.dart';
 /// Helper class for precise financial calculations using Decimal type
 /// Prevents floating-point precision issues (e.g., 0.1 + 0.2 != 0.3)
 class DecimalHelper {
+  /// The largest amount the app handles, for one entry and for any total.
+  ///
+  /// Its cents are exact in a double (x100 stays under 2^53), which is what
+  /// the REAL columns and the double getters carry. The old 999,999,999.99
+  /// was clamped onto totals too: in IDR, VND or KRW a year of carry-over
+  /// passes a billion, and the balance silently stopped there.
+  static const double maxSafeValue = 9999999999999.99;
+
   /// Convert double to Decimal (for internal calculations)
   /// FIX #33: Handle edge cases (infinity, nan, very large numbers)
   static Decimal fromDouble(double value) {
@@ -12,7 +20,6 @@ class DecimalHelper {
     }
 
     // FIX #36: Prevent overflow by capping at max safe value
-    const maxSafeValue = 999999999.99;
     final clamped = value.clamp(-maxSafeValue, maxSafeValue);
 
     return Decimal.parse(clamped.toStringAsFixed(2));
@@ -30,7 +37,6 @@ class DecimalHelper {
       }
 
       // FIX #36: Clamp to prevent overflow in display
-      const maxSafeValue = 999999999.99;
       return doubleValue.clamp(-maxSafeValue, maxSafeValue);
     } catch (e) {
       // Fallback for any conversion errors
@@ -58,7 +64,6 @@ class DecimalHelper {
       }
 
       // FIX #36: Clamp to safe range before rounding
-      const maxSafeValue = 999999999.99;
       final maxDecimal = Decimal.parse(maxSafeValue.toString());
       final minDecimal = Decimal.parse((-maxSafeValue).toString());
       final clamped = clamp(parsed, minDecimal, maxDecimal);
@@ -85,7 +90,6 @@ class DecimalHelper {
       final asDouble = value.toDouble();
       if (!asDouble.isFinite) return false;
 
-      const maxSafeValue = 999999999.99;
       return asDouble.abs() <= maxSafeValue;
     } catch (e) {
       return false;

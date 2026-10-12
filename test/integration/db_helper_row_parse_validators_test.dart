@@ -269,19 +269,19 @@ void main() {
       expect(stats.rowsSkipped, 1);
     });
 
-    test('amount exactly 1e10 is rejected (>= 1e10 guard)', () async {
+    test('an amount past the app maximum is rejected', () async {
       final stats = await DatabaseHelper().restoreFromJsonBackup(
-        backupWith(expenses: [expenseRow(amount: 1e10)]),
+        backupWith(expenses: [expenseRow(amount: 1e13)]),
       );
 
       expect(stats.expensesAdded, 0);
       expect(stats.rowsSkipped, 1);
     });
 
-    test('amount just under 1e10 (1e10 - 1) is accepted', () async {
-      // 1e10 - 1 == 9999999999.0, which is < 1e10.
+    test('a large-currency amount past 1e10 is accepted', () async {
+      // 25 billion VND is about a million US dollars: a real amount.
       final stats = await DatabaseHelper().restoreFromJsonBackup(
-        backupWith(expenses: [expenseRow(amount: 1e10 - 1)]),
+        backupWith(expenses: [expenseRow(amount: 25e9)]),
       );
 
       expect(stats.expensesAdded, 1);
@@ -339,7 +339,7 @@ void main() {
         backupWith(expenses: [
           expenseRow(id: 1, amount: 25.00),
           expenseRow(id: 2, amount: -5.0),
-          expenseRow(id: 3, amount: 1e10),
+          expenseRow(id: 3, amount: 1e13),
           expenseRow(id: 4, amount: 50.00),
         ]),
       );

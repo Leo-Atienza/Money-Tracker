@@ -46,13 +46,21 @@ void main() {
     });
 
     test('clamps very large positive number to max safe value', () {
-      final result = DecimalHelper.fromDouble(9999999999.99);
-      expect(result, Decimal.parse('999999999.99'));
+      final result = DecimalHelper.fromDouble(99999999999999.99);
+      expect(result, Decimal.parse('9999999999999.99'));
     });
 
     test('clamps very large negative number to min safe value', () {
-      final result = DecimalHelper.fromDouble(-9999999999.99);
-      expect(result, Decimal.parse('-999999999.99'));
+      final result = DecimalHelper.fromDouble(-99999999999999.99);
+      expect(result, Decimal.parse('-9999999999999.99'));
+    });
+
+    // S22: totals in large-number currencies (IDR, VND, KRW) pass a billion
+    // routinely; the old 999,999,999.99 ceiling clamped them.
+    test('keeps totals past a billion intact', () {
+      expect(DecimalHelper.add(900000000, 900000000), 1800000000.0);
+      expect(DecimalHelper.fromDouble(2500000000.50),
+          Decimal.parse('2500000000.50'));
     });
 
     test('value at positive boundary stays the same', () {
@@ -94,13 +102,13 @@ void main() {
     });
 
     test('clamps oversized Decimal to max safe value', () {
-      final huge = Decimal.parse('99999999999');
-      expect(DecimalHelper.toDouble(huge), 999999999.99);
+      final huge = Decimal.parse('99999999999999');
+      expect(DecimalHelper.toDouble(huge), 9999999999999.99);
     });
 
     test('clamps very negative Decimal to min safe value', () {
-      final hugeNeg = Decimal.parse('-99999999999');
-      expect(DecimalHelper.toDouble(hugeNeg), -999999999.99);
+      final hugeNeg = Decimal.parse('-99999999999999');
+      expect(DecimalHelper.toDouble(hugeNeg), -9999999999999.99);
     });
 
     test('value at positive boundary returns boundary', () {
@@ -159,15 +167,15 @@ void main() {
 
     test('clamps overflow to max safe value', () {
       expect(
-        DecimalHelper.parse('99999999999'),
-        Decimal.parse('999999999.99'),
+        DecimalHelper.parse('99999999999999'),
+        Decimal.parse('9999999999999.99'),
       );
     });
 
     test('clamps negative overflow to min safe value', () {
       expect(
-        DecimalHelper.parse('-99999999999'),
-        Decimal.parse('-999999999.99'),
+        DecimalHelper.parse('-99999999999999'),
+        Decimal.parse('-9999999999999.99'),
       );
     });
 
@@ -243,14 +251,14 @@ void main() {
 
     test('returns false for value exceeding positive boundary', () {
       expect(
-        DecimalHelper.isValidDecimal(Decimal.parse('1000000000')),
+        DecimalHelper.isValidDecimal(Decimal.parse('10000000000000')),
         isFalse,
       );
     });
 
     test('returns false for value exceeding negative boundary', () {
       expect(
-        DecimalHelper.isValidDecimal(Decimal.parse('-1000000000')),
+        DecimalHelper.isValidDecimal(Decimal.parse('-10000000000000')),
         isFalse,
       );
     });
@@ -841,7 +849,7 @@ void main() {
     test('fromDoubleSafe handles max double', () {
       // Should clamp to max safe value
       final result = DecimalHelper.fromDoubleSafe(double.maxFinite);
-      expect(result, Decimal.parse('999999999.99'));
+      expect(result, Decimal.parse('9999999999999.99'));
     });
 
     test('parse handles string with leading zeros', () {

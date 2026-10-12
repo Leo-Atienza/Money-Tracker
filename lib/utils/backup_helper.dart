@@ -9,13 +9,14 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/database.dart';
 import '../database/database_helper.dart';
 import '../database/db_open.dart';
 import '../providers/app_state.dart';
 import 'backup_crypto.dart';
+import 'crash_log.dart';
 import 'db_encryption.dart';
+import 'settings_helper.dart';
 
 /// Phase 6.3 — passphrase request callback for encrypted restores.
 ///
@@ -68,7 +69,9 @@ Future<String> _createBackupInIsolate(_BackupIsolateParams params) async {
     'schema_version': params.schemaVersion,
     'timestamp': DateTime.now().toIso8601String(),
     'database': dbBase64,
-    'settings': params.settings,
+    // The real settings keys (S22). The old 'settings' block held camelCase
+    // keys nothing read, so it carried defaults only and is not written.
+    'appSettings': params.settings,
   };
 
   // Encode to JSON
@@ -110,7 +113,9 @@ Future<_RestoreIsolateResult> _decodeBackupInIsolate(
     throw const FormatException('missing or invalid database field');
   }
   final dbBytes = base64Decode(dbBase64);
-  final settings = backupData['settings'] as Map<String, dynamic>?;
+  // Only S22+ backups carry real settings; a damaged block is ignored.
+  final rawSettings = backupData['appSettings'];
+  final settings = rawSettings is Map<String, dynamic> ? rawSettings : null;
   final schemaVersion = backupData['schema_version'];
   return _RestoreIsolateResult(
     dbBytes,
@@ -424,16 +429,7 @@ class BackupHelper {
 
       // Get settings on main thread, then offload heavy work to isolate
       if (kDebugMode) debugPrint('Loading settings...');
-      final prefs = await SharedPreferences.getInstance();
-      final settings = {
-        'darkMode': prefs.getBool('darkMode') ?? false,
-        'currencyCode': prefs.getString('currencyCode') ?? 'USD',
-        'billReminders': prefs.getBool('billReminders') ?? true,
-        'budgetAlerts': prefs.getBool('budgetAlerts') ?? true,
-        'monthlySummary': prefs.getBool('monthlySummary') ?? true,
-        'reminderHour': prefs.getInt('reminderHour') ?? 9,
-        'reminderMinute': prefs.getInt('reminderMinute') ?? 0,
-      };
+      final settings = await SettingsHelper.exportForBackup();
       if (kDebugMode) {
         debugPrint('Settings loaded: ${settings.keys.join(", ")}');
       }
@@ -580,16 +576,7 @@ class BackupHelper {
       onProcessingStart?.call();
 
       // FIX: Get settings to include in comprehensive backup
-      final prefs = await SharedPreferences.getInstance();
-      final settings = {
-        'darkMode': prefs.getBool('darkMode') ?? false,
-        'currencyCode': prefs.getString('currencyCode') ?? 'USD',
-        'billReminders': prefs.getBool('billReminders') ?? true,
-        'budgetAlerts': prefs.getBool('budgetAlerts') ?? true,
-        'monthlySummary': prefs.getBool('monthlySummary') ?? true,
-        'reminderHour': prefs.getInt('reminderHour') ?? 9,
-        'reminderMinute': prefs.getInt('reminderMinute') ?? 0,
-      };
+      final settings = await SettingsHelper.exportForBackup();
 
       // FIX: Create comprehensive backup in isolate.
       // Phase 6.1: plaintext source when encrypted, cleaned up afterwards.
@@ -1132,39 +1119,17 @@ class BackupHelper {
         }
         await tempFile.rename(dbPath);
 
-        // FIX: Restore settings if present
-        if (result.settings != null) {
-          final settings = result.settings!;
-          final prefs = await SharedPreferences.getInstance();
-
-          await prefs.setBool(
-            'darkMode',
-            settings['darkMode'] as bool? ?? false,
-          );
-          await prefs.setString(
-            'currencyCode',
-            settings['currencyCode'] as String? ?? 'USD',
-          );
-          await prefs.setBool(
-            'billReminders',
-            settings['billReminders'] as bool? ?? true,
-          );
-          await prefs.setBool(
-            'budgetAlerts',
-            settings['budgetAlerts'] as bool? ?? true,
-          );
-          await prefs.setBool(
-            'monthlySummary',
-            settings['monthlySummary'] as bool? ?? true,
-          );
-          await prefs.setInt(
-            'reminderHour',
-            settings['reminderHour'] as int? ?? 9,
-          );
-          await prefs.setInt(
-            'reminderMinute',
-            settings['reminderMinute'] as int? ?? 0,
-          );
+        // Settings ride along with the database but must never undo it: each
+        // bad value is skipped, and a failure here is logged, not rolled back
+        // over (a malformed value used to throw into the rollback below and
+        // discard a good restore).
+        final settings = result.settings;
+        if (settings != null) {
+          try {
+            await SettingsHelper.restoreFromBackup(settings);
+          } catch (e, st) {
+            await CrashLog.record(e, stack: st, context: 'restore_settings');
+          }
         }
 
         // L34: the pre-restore safety backup is reaped by
