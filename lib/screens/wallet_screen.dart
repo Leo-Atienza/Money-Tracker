@@ -70,7 +70,7 @@ class WalletScreen extends StatelessWidget {
   void _showAddAccount(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => const _AddAccountDialog(),
+      builder: (context) => const AddAccountDialog(),
     );
   }
 }
@@ -95,6 +95,9 @@ class _AccountList extends StatelessWidget {
     }
 
     return ListView.builder(
+      // Explicit: with no padding a ListView pads itself with the status-bar
+      // inset, an empty band above the first account.
+      padding: EdgeInsets.zero,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: accounts.length,
@@ -102,12 +105,11 @@ class _AccountList extends StatelessWidget {
         final account = accounts[index];
         final isCurrent = account.id == currentAccountId;
 
+        // The tile carries its own semantics: TalkBack reaches the row's tap
+        // (switch) and the options menu (switch, make default, delete) as
+        // separate actions, and reads "Default Account" / "Active" as state.
         return StaggeredListItem(
           index: index,
-          child: Semantics(
-          label:
-              '${account.name}${account.isDefault ? ', default account' : ''}${isCurrent ? ', currently active' : ', tap to view options'}',
-          button: !isCurrent,
           child: Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: GlassPanel(
@@ -121,7 +123,6 @@ class _AccountList extends StatelessWidget {
                       ),
                     ]
                   : null,
-              child: ExcludeSemantics(
               child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 24,
@@ -177,6 +178,7 @@ class _AccountList extends StatelessWidget {
                         ),
                       )
                     : PopupMenuButton(
+                        tooltip: 'Options for ${account.name}',
                         icon: Icon(
                           Icons.more_vert,
                           color: theme.colorScheme.onSurfaceVariant,
@@ -294,20 +296,7 @@ class _AccountList extends StatelessWidget {
                             );
 
                             if (confirmed != true || !context.mounted) return;
-
-                            // Show loading indicator during account switch
-                            showDialog(
-                              context: context,
-                              barrierDismissible: false,
-                              builder: (context) => const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            );
-                            await appState.switchAccount(account);
-                            if (context.mounted) {
-                              Navigator.pop(context); // Close loading dialog
-                              Navigator.pop(context); // Close account manager
-                            }
+                            await _switchAccount(context, appState, account);
                           } else if (value == 'setDefault') {
                             final id = account.id;
                             if (id == null) return;
@@ -404,28 +393,33 @@ class _AccountList extends StatelessWidget {
                         );
 
                         if (confirmed != true || !context.mounted) return;
-
-                        // Show loading indicator during account switch
-                        showDialog(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (context) =>
-                              const Center(child: CircularProgressIndicator()),
-                        );
-                        await appState.switchAccount(account);
-                        if (context.mounted) {
-                          Navigator.pop(context); // Close loading dialog
-                          Navigator.pop(context); // Close account manager
-                        }
+                        await _switchAccount(context, appState, account);
                       },
               ),
             ),
           ),
-          ),
-        ),
         );
       },
     );
+  }
+
+  /// Switches to [account] behind a progress dialog.
+  ///
+  /// Wallet is a tab of the navigation shell, not a pushed route, so the
+  /// progress dialog is the only route to close: a second pop removed the
+  /// shell itself and left a blank app. `switchAccount` sends the shell back
+  /// to Home on its own (`onAccountSwitch`).
+  Future<void> _switchAccount(
+    BuildContext context,
+    AppState appState,
+    Account account,
+  ) async {
+    final closeProgress = _showProgressDialog(context, 'Switching account...');
+    try {
+      await appState.switchAccount(account);
+    } finally {
+      closeProgress();
+    }
   }
 
   Widget _buildEmptyState(ThemeData theme) {
@@ -508,25 +502,17 @@ class _AccountList extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.delete_forever, color: appColors.expenseRed, size: 24),
+                  Icon(Icons.delete_outline, color: appColors.expenseRed, size: 24),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'All transactions, budgets, and data in this account will be permanently deleted.',
+                      'The account and all its transactions, budgets and data move to Recently deleted, where you can restore them for 30 days.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'This action cannot be undone.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.error,
-                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -538,41 +524,39 @@ class _AccountList extends StatelessWidget {
           ),
           TextButton(
             onPressed: () async {
-              // Close the confirmation dialog
+              // This dialog's context is unmounted long before the delete
+              // ends, so take what the outcome needs now and close the
+              // progress dialog through its own route.
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(context);
-
-              // Show loading indicator during delete
-              if (!context.mounted) return;
-              ProgressIndicatorHelper.show(
-                context,
-                message: 'Deleting account...',
-              );
+              final closeProgress =
+                  _showProgressDialog(context, 'Deleting account...');
 
               try {
                 await appState.deleteAccount(id);
-                if (!context.mounted) return;
-                ProgressIndicatorHelper.hide(context);
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger.showSnackBar(
                   SnackBar(
-                    content: Text('Account "${account.name}" moved to trash'),
+                    content: Text(
+                      'Account "${account.name}" moved to Recently deleted',
+                    ),
                     backgroundColor: appColors.incomeGreen,
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
               } catch (e) {
-                if (!context.mounted) return;
-                ProgressIndicatorHelper.hide(context);
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger.showSnackBar(
                   SnackBar(
                     content: const Text('Cannot delete default account'),
                     backgroundColor: appColors.expenseRed,
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
+              } finally {
+                closeProgress();
               }
             },
             style: TextButton.styleFrom(foregroundColor: appColors.expenseRed),
-            child: const Text('Delete Permanently'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -580,14 +564,19 @@ class _AccountList extends StatelessWidget {
   }
 }
 
-class _AddAccountDialog extends StatefulWidget {
-  const _AddAccountDialog();
+/// The Add Account dialog, shared by Wallet and Settings.
+///
+/// It owns its text controller, so the controller is disposed with the
+/// dialog, after the route's exit transition — never while the closing field
+/// still uses it.
+class AddAccountDialog extends StatefulWidget {
+  const AddAccountDialog({super.key});
 
   @override
-  State<_AddAccountDialog> createState() => _AddAccountDialogState();
+  State<AddAccountDialog> createState() => _AddAccountDialogState();
 }
 
-class _AddAccountDialogState extends State<_AddAccountDialog> {
+class _AddAccountDialogState extends State<AddAccountDialog> {
   late TextEditingController _nameController;
   bool _isSaving = false;
 
@@ -698,11 +687,31 @@ class _DeletedAccountsSectionState extends State<_DeletedAccountsSection> {
   List<Map<String, dynamic>> _deletedAccounts = [];
   bool _isLoading = true;
   bool _isExpanded = false;
+  late final AppState _appState;
+  late List<Account> _seenAccounts;
 
   @override
   void initState() {
     super.initState();
+    // Wallet is a persistent tab, so this State lives for the whole session:
+    // reload whenever the account list changes (a delete or restore, here or
+    // from Settings), or a just-deleted account never shows up.
+    _appState = context.read<AppState>();
+    _seenAccounts = _appState.accounts;
+    _appState.addListener(_onAppStateChanged);
     _loadDeletedAccounts();
+  }
+
+  void _onAppStateChanged() {
+    if (identical(_appState.accounts, _seenAccounts)) return;
+    _seenAccounts = _appState.accounts;
+    _loadDeletedAccounts();
+  }
+
+  @override
+  void dispose() {
+    _appState.removeListener(_onAppStateChanged);
+    super.dispose();
   }
 
   Future<void> _loadDeletedAccounts() async {
@@ -874,4 +883,41 @@ class _DeletedAccountsSectionState extends State<_DeletedAccountsSection> {
       );
     }
   }
+}
+
+/// Shows a progress dialog that blocks the screen and returns a callback that
+/// closes exactly that dialog.
+///
+/// It closes by route rather than by popping whatever is on top: the context
+/// that opened it can be gone by the time the work ends, and one pop too many
+/// takes down the navigation shell that hosts the Wallet tab.
+VoidCallback _showProgressDialog(BuildContext context, String message) {
+  final navigator = Navigator.of(context, rootNavigator: true);
+  final route = DialogRoute<void>(
+    context: context,
+    themes: InheritedTheme.capture(from: context, to: navigator.context),
+    barrierDismissible: false,
+    builder: (_) => PopScope(
+      canPop: false,
+      child: AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(message),
+          ],
+        ),
+      ),
+    ),
+  );
+  navigator.push(route);
+  return () {
+    if (!route.isActive) return;
+    if (route.isCurrent) {
+      navigator.pop();
+    } else {
+      navigator.removeRoute(route);
+    }
+  };
 }

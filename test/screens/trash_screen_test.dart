@@ -1,8 +1,11 @@
+import 'package:budget_tracker/models/expense_model.dart';
+import 'package:budget_tracker/models/income_model.dart';
 import 'package:budget_tracker/providers/app_state.dart';
 import 'package:budget_tracker/screens/trash_screen.dart';
 import 'package:budget_tracker/theme/app_colors.dart';
 import 'package:budget_tracker/theme/luminous_app_theme.dart';
 import 'package:budget_tracker/widgets/luminous/glass_top_app_bar.dart';
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -83,5 +86,77 @@ void main() {
       findsNothing,
       reason: 'No items ⇒ delete-forever IconButton should not render.',
     );
+  });
+
+  // -------------------------------------------------------------------------
+  // Session 21 review fix: 48dp touch targets on the per-item actions.
+  // -------------------------------------------------------------------------
+
+  testWidgets('restore and delete-forever are full 48dp touch targets',
+      (tester) async {
+    final state = AppState();
+    await tester.runAsync(() async {
+      await state.loadData();
+      final expenseId = await state.addExpense(Expense(
+        amount: Decimal.parse('9.99'),
+        category: 'Food',
+        description: 'Snack',
+        date: DateTime.now(),
+        accountId: state.currentAccountId,
+      ));
+      await state.deleteExpense(expenseId);
+      final incomeId = await state.addIncome(Income(
+        amount: Decimal.parse('50'),
+        category: 'Gift',
+        description: 'Birthday',
+        date: DateTime.now(),
+        accountId: state.currentAccountId,
+      ));
+      await state.deleteIncome(incomeId);
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+
+    await tester.binding.setSurfaceSize(const Size(420, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AppState>.value(
+        value: state,
+        child: MaterialApp(
+          theme: buildLuminousTheme(
+            brightness: Brightness.light,
+            appColorsExtension: AppColors.fromBrightness(Brightness.light),
+          ),
+          home: const TrashScreen(),
+        ),
+      ),
+    );
+    for (var i = 0; i < 1000 && find.text('Snack').evaluate().isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    await tester.pump(const Duration(milliseconds: 700));
+
+    void expectFullTargets() {
+      for (final icon in [Icons.restore, Icons.delete_forever]) {
+        final button = find.widgetWithIcon(IconButton, icon);
+        // The app-bar "Empty Trash" button shares the delete_forever icon.
+        for (final element in button.evaluate()) {
+          final size = tester.getSize(find.byWidget(element.widget));
+          expect(size.width, greaterThanOrEqualTo(48), reason: '$icon');
+          expect(size.height, greaterThanOrEqualTo(48), reason: '$icon');
+        }
+      }
+    }
+
+    expect(find.text('Snack'), findsOneWidget);
+    expectFullTargets();
+
+    await tester.tap(find.textContaining('Income ('));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(find.text('Birthday'), findsOneWidget);
+    expectFullTargets();
   });
 }

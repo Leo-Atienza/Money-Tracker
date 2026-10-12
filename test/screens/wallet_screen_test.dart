@@ -207,4 +207,187 @@ void main() {
       expect(find.text('Main Account'), findsOneWidget);
     },
   );
+
+  // -------------------------------------------------------------------------
+  // Session 21 review fixes.
+  // -------------------------------------------------------------------------
+
+  /// Drives UI-started async work: the database runs on real I/O, so
+  /// alternate real time (for the I/O) with frames (for the continuations
+  /// and route animations) until [until] holds, then let the UI settle.
+  /// Bounded, so a regression fails on its assertions instead of hanging.
+  Future<void> drainAsync(
+    WidgetTester tester, {
+    required bool Function() until,
+  }) async {
+    Future<void> round() async {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+
+    for (var i = 0; i < 1000 && !until(); i++) {
+      await round();
+    }
+    for (var i = 0; i < 30; i++) {
+      await round();
+    }
+  }
+
+  Future<AppState> seededState(List<String> extraAccounts) async {
+    final state = AppState();
+    await state.loadData();
+    for (final name in extraAccounts) {
+      await state.addAccount(name);
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    return state;
+  }
+
+  testWidgets('the account list starts flush under a status-bar inset',
+      (tester) async {
+    final state = (await tester.runAsync(() => seededState(const [])))!;
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AppState>.value(
+        value: state,
+        child: MaterialApp(
+          theme: buildLuminousTheme(
+            brightness: Brightness.light,
+            appColorsExtension: AppColors.fromBrightness(Brightness.light),
+          ),
+          home: Builder(
+            builder: (context) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                padding: const EdgeInsets.only(top: 48),
+              ),
+              child: const WalletScreen(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await pumpAndDrain(tester);
+
+    // Without an explicit padding the ListView padded itself with the
+    // status-bar inset: an empty 48dp band above the first account.
+    final listTop = tester.getTopLeft(find.byType(ListView)).dy;
+    final firstRowTop = tester
+        .getTopLeft(find.ancestor(
+          of: find.text('Main Account'),
+          matching: find.byType(GlassPanel),
+        ))
+        .dy;
+    expect(firstRowTop - listTop, lessThan(1));
+  });
+
+  testWidgets(
+      'switching account closes only its progress dialog, '
+      'never the navigation shell under the Wallet tab', (tester) async {
+    final state = (await tester.runAsync(() => seededState(['Savings'])))!;
+    await pumpHarness(tester, appState: state);
+    await pumpAndDrain(tester);
+
+    await tester.tap(find.text('Savings'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Switch Account?'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Switch'));
+    await drainAsync(
+      tester,
+      until: () => find.byType(CircularProgressIndicator).evaluate().isEmpty,
+    );
+
+    expect(state.currentAccount?.name, 'Savings');
+    // Wallet is a tab of the shell (here: the home route). The old code
+    // popped twice and took that route with it, leaving a blank app.
+    expect(find.byType(WalletScreen), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('Active'), findsOneWidget);
+  });
+
+  testWidgets(
+      'the delete confirmation tells the truth: the account goes to a '
+      '30-day Recently deleted, not away for good', (tester) async {
+    final state = (await tester.runAsync(() => seededState(['Vacation'])))!;
+    await pumpHarness(tester, appState: state);
+    await pumpAndDrain(tester);
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('Delete'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Delete Account?'), findsOneWidget);
+    expect(find.textContaining('30 days'), findsOneWidget);
+    expect(find.textContaining('permanently'), findsNothing);
+    expect(find.textContaining('cannot be undone'), findsNothing);
+    expect(find.text('Delete Permanently'), findsNothing);
+  });
+
+  testWidgets(
+      'deleting an account closes its progress dialog after the '
+      'confirmation is gone, and lists it under Recently deleted',
+      (tester) async {
+    final state = (await tester.runAsync(() => seededState(['Vacation'])))!;
+    await pumpHarness(tester, appState: state);
+    await pumpAndDrain(tester);
+    expect(find.text('RECENTLY DELETED'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('Delete'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // The destructive action is the dialog's last button.
+    await tester.tap(find
+        .descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextButton),
+        )
+        .last);
+    // Let the confirmation finish closing before the delete lands: its
+    // context is unmounted from here on, which is what stranded the old
+    // spinner behind a barrier nobody could dismiss.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await drainAsync(
+      tester,
+      until: () => find.text('RECENTLY DELETED').evaluate().isNotEmpty,
+    );
+
+    expect(state.accounts.any((a) => a.name == 'Vacation'), isFalse);
+    expect(find.text('Deleting account...'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    // Wallet is a persistent tab: the section must pick the deletion up
+    // without a restart.
+    expect(find.text('RECENTLY DELETED'), findsOneWidget);
+  });
+
+  testWidgets(
+      'account rows expose the switch tap and the options menu to '
+      'TalkBack', (tester) async {
+    final handle = tester.ensureSemantics();
+    final state = (await tester.runAsync(() => seededState(['Savings'])))!;
+    await pumpHarness(tester, appState: state);
+    await pumpAndDrain(tester);
+
+    expect(
+      tester.getSemantics(find.widgetWithText(ListTile, 'Savings')),
+      isSemantics(hasTapAction: true),
+    );
+    // The options menu is its own button, named for the account.
+    expect(
+      tester.getSemantics(find.byIcon(Icons.more_vert)),
+      isSemantics(tooltip: 'Options for Savings', hasTapAction: true),
+    );
+    handle.dispose();
+  });
 }
