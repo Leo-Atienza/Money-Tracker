@@ -694,10 +694,27 @@ class _HistoryScreenState extends State<HistoryScreen>
                   fontWeight: FontWeight.w500,
                 ),
                 padding: const EdgeInsets.all(4),
+                // Tab(text:) fades a label that doesn't fit: "Expenses" did
+                // at large text on a 360dp phone. These scale down instead.
                 tabs: const [
-                  Tab(text: 'All'),
-                  Tab(text: 'Expenses'),
-                  Tab(text: 'Income'),
+                  Tab(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('All'),
+                    ),
+                  ),
+                  Tab(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Expenses'),
+                    ),
+                  ),
+                  Tab(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Income'),
+                    ),
+                  ),
                 ],
               ),
             ),

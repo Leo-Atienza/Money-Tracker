@@ -1,18 +1,14 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
 import '../constants/database.dart';
-import '../database/database_helper.dart';
 import '../database/db_open.dart';
-import '../providers/app_state.dart';
 import 'backup_crypto.dart';
 import 'crash_log.dart';
 import 'db_encryption.dart';
@@ -125,12 +121,6 @@ Future<_RestoreIsolateResult> _decodeBackupInIsolate(
 }
 
 class BackupHelper {
-  /// FIX P2-13: Helper to properly escape CSV fields
-  /// Escapes double quotes by doubling them (RFC 4180 standard)
-  static String _escapeCsvField(String field) {
-    return field.replaceAll('"', '""');
-  }
-
   /// Phase 6.3 — wraps the plaintext comprehensive backup [json] in a
   /// `BackupCrypto` v4 envelope when [passphrase] is non-null and
   /// non-empty. Otherwise returns [json] unchanged so callers that
@@ -224,121 +214,6 @@ class BackupHelper {
         if (await f.exists()) await f.delete();
       } catch (_) {
         // Best-effort temp cleanup.
-      }
-    }
-  }
-
-  // Export full backup
-  Future<void> exportBackup(BuildContext context) async {
-    try {
-      final appState = context.read<AppState>();
-      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final fileName = 'expense_tracker_backup_$timestamp.json';
-
-      // Gather all data
-      // FIX: Fetch ALL expenses/incomes from database instead of using in-memory list
-      // This prevents memory issues and ensures complete backups
-      final allExpenses = await appState.getAllExpensesForBackup();
-      final allIncomes = await appState.getAllIncomesForBackup();
-
-      // Phase 4.9: include `transaction_tags` so the junction is preserved
-      // through a round-trip. Scoped to the current account to match the
-      // existing `tags` scope.
-      final transactionTags = await DatabaseHelper()
-          .readAllTransactionTags(appState.currentAccountId);
-
-      // FIX P2-12: Include ALL data in backup (previously missing budgets, recurring_income, monthly_balances, tags)
-      // FIX Bug #9: Include schema_version so newer backups can be refused by
-      // older app installs before any writes happen.
-      final backupData = {
-        'version': 3, // Phase 4.9: bumped to include transaction_tags
-        'schema_version': DatabaseConstants.databaseVersion,
-        'timestamp': DateTime.now().toIso8601String(),
-        'currency': appState.currencyCode,
-        'accounts': appState.accounts.map((e) => e.toMap()).toList(),
-        'expenses': allExpenses.map((e) => e.toMap()).toList(),
-        'incomes': allIncomes.map((e) => e.toMap()).toList(),
-        'categories': appState.categories.map((e) => e.toMap()).toList(),
-        'recurring_expenses':
-            appState.recurringExpenses.map((e) => e.toMap()).toList(),
-        'recurring_income': appState.recurringIncomes
-            .map((e) => e.toMap())
-            .toList(), // FIX P2-12: Added
-        'budgets':
-            appState.budgets.map((e) => e.toMap()).toList(), // FIX P2-12: Added
-        'quick_templates':
-            appState.quickTemplates.map((e) => e.toMap()).toList(),
-        'monthly_balances': appState.monthlyBalances.values
-            .map((e) => e.toMap())
-            .toList(), // FIX P2-12: Added
-        'tags': appState.tags, // FIX P2-12: Added (already Map format)
-        'transaction_tags': transactionTags, // Phase 4.9
-      };
-
-      // Create temporary file
-      final directory = await getTemporaryDirectory();
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsString(jsonEncode(backupData));
-
-      // Share file using SharePlus
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path)],
-          subject: 'FinanceFlow Backup',
-          text:
-              'Backup created on ${DateFormat.yMMMd().format(DateTime.now())}',
-        ),
-      );
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: ${e.toString()}')),
-        );
-      }
-    }
-  }
-
-  // Export CSV (simplified)
-  Future<void> exportCsv(BuildContext context) async {
-    try {
-      final appState = context.read<AppState>();
-      // FIX: Fetch ALL expenses from database instead of using in-memory list
-      final expenses = await appState.getAllExpensesForBackup();
-
-      final csvContent = StringBuffer();
-      csvContent.writeln(
-        'Date,Description,Category,Amount,Payment Method,Is Paid',
-      );
-
-      for (var expense in expenses) {
-        // FIX P2-13: Properly escape ALL text fields to handle commas and quotes
-        csvContent.writeln(
-          '${DateFormat('yyyy-MM-dd').format(expense.date)},'
-          '"${_escapeCsvField(expense.description)}",'
-          '"${_escapeCsvField(expense.category)}",' // FIX: Quote category field
-          '${expense.amount},'
-          '"${_escapeCsvField(expense.paymentMethod)}",' // FIX: Quote payment method
-          '${expense.isPaid ? "Yes" : "No"}',
-        );
-      }
-
-      final fileName =
-          'expenses_export_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv';
-      final directory = await getTemporaryDirectory();
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsString(csvContent.toString());
-
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path)],
-          subject: 'FinanceFlow CSV Export',
-        ),
-      );
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('CSV Export failed: ${e.toString()}')),
-        );
       }
     }
   }

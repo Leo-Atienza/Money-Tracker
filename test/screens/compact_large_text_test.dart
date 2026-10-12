@@ -129,6 +129,21 @@ void main() {
     await pumpCompact(tester, const HistoryScreen(),
         state: await seededState(tester));
     expect(find.text('Reminder test bill'), findsOneWidget);
+    // The tab labels show whole (Tab(text:) faded "Expenses" out).
+    for (final label in ['All', 'Expenses', 'Income']) {
+      final paragraph = tester.renderObject<RenderParagraph>(find.text(label));
+      expect(
+        paragraph.size.width,
+        greaterThanOrEqualTo(
+            paragraph.getMaxIntrinsicWidth(double.infinity) - 0.5),
+        reason: '"$label" is cut off',
+      );
+    }
+    // ...and never grow past the tab style ("All" fits, so it stays 1:1).
+    final all = tester.renderObject<RenderBox>(find.text('All'));
+    expect(all.localToGlobal(Offset(all.size.width, 0)).dx -
+            all.localToGlobal(Offset.zero).dx,
+        closeTo(all.size.width, 0.5));
   });
 
   testWidgets('Analytics', (tester) async {
