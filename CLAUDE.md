@@ -49,6 +49,14 @@ Takes ~60s (build + deploy). Live URL: https://leo-money-tracker.vercel.app/down
 
 Verify after: `curl -sL https://leo-money-tracker.vercel.app/downloads/money-tracker.apk | sha1sum` should match `sha1sum build/app/outputs/flutter-apk/app-release.apk`.
 
+Then publish the GitHub release, so Releases stays in step with the site (the tag must already exist on the release commit; the notes are that version's CHANGELOG section; replace the title summary):
+
+```bash
+V=$(grep 'version:' pubspec.yaml | head -1 | awk '{print $2}') && \
+awk -v h="## $V " 'index($0, h) == 1 {f = 1; next} /^## / {f = 0} f' CHANGELOG.md > "$TEMP/release-notes.md" && \
+gh release create "v${V%%+*}" "build/app/outputs/flutter-apk/app-release.apk#money-tracker-v${V%%+*}.apk" --verify-tag --latest --title "v${V%%+*} — <one-line summary>" --notes-file "$TEMP/release-notes.md"
+```
+
 ## Common Tasks
 
 - **Add Screen**: Create in `lib/screens/`, extend `StatelessWidget` or `StatefulWidget`, use `Scaffold`.
