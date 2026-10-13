@@ -80,6 +80,8 @@ storage `6429b40`, screens `6f1bb5a`, history/export `df419b3` + `742303a`
 | L | upgrade | v19 migration could fail on orphaned rows from pre-2026-03 builds | 75ee319 |
 | L | widget | No `previewImage` for pre-Android-12 launchers (they showed the app icon) | c86af48 |
 | — | old audit | June M4: crash log echoed SQL bound values (`args [...]`); L36: a version-0 `.db` (not written by the app) restored over the ledger | c86af48 |
+| L | data | Home "Recent Transactions" listed expenses only (income never showed). Leo: include income | c846580 |
+| L | contrast | 52 SnackBars put light text on incomeGreen/expenseRed fills (3.6–4.4:1, under 4.5:1). Leo: plain M3 SnackBars; a lint test keeps fills out | c846580 |
 
 Found and fixed along the way: a failed database open raised an unhandled
 async error (3a9ebca); History's "Expenses" tab faded out at 1.3× (cd71eb1);
@@ -94,8 +96,6 @@ icon buttons labelled and form dialogs scrollable.
 
 | Sev | Area | Finding |
 |-----|------|---------|
-| L | data | Home "Recent Transactions" lists expenses only, so income never shows there (seen on device). Needs Leo's call: include income, or rename the section |
-| L | contrast | 27 SnackBars set an incomeGreen/expenseRed fill directly: text is 3.6–3.7:1 on green and 4.4:1 on red in light, 3.8–3.9:1 on red in dark (computed per WCAG for the neutral and Purple pairs) — under 4.5:1. Needs a look decision: plain M3 snackbars (drop the fills) or darker fill tokens |
 | L | a11y | History's filter chips (All time, Date range, Sort) each expose two TalkBack nodes: a labelled wrapper and the chip itself (device walk) |
 | L | format | For EUR, Home's spoken total says "€0,00" while the screen shows "€0.00" (two formatters); Upcoming bills round to whole units ($15 for a $15.49 bill) while the reminder says $15.49 (device walk) |
 | — | old audit | June L60/L61: test-only helpers in AccessibilityHelper / ColorContrastHelper — optional cleanup, no defect |

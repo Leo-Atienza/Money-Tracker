@@ -34,14 +34,13 @@ from Sessions 21–22 is released. Everything is on branch `fix/session-21-widge
 | `a126510` | Wave 5 — "1,500" types as 1500, `-$1,234`, seven-figure payments fit |
 | `cd71eb1` | Wave 6 — dead export code, private boot receiver, three un-skipped tests |
 | `c86af48` | Wave 7 — category dialog errors inline, scrollable form dialogs, labelled icon buttons, widget preview image, June M4 / L36 |
+| `c846580` | Wave 8 — income in Recent Transactions, plain M3 SnackBars (52 fills removed), version 5.4.0+15 |
 
-## Still open — needs Leo
-1. **Home "Recent Transactions" shows expenses only** (income never appears there). Include
-   income, or rename the section?
-2. **Status snackbars** (27 set a green/red fill directly) put light text on green/red fills: 3.6–3.7:1 on green and
-   4.4:1 on red in light, 3.8–3.9:1 on red in dark. Plain M3 snackbars (drop the fills), or
-   darker fill tokens that keep the colour?
-3. Release 5.4.0+15.
+## Leo's answers at the end of the session
+1. **Recent Transactions includes income** (newest first; same day, expenses first) — `c846580`.
+2. **Plain M3 SnackBars:** all 52 green/red fills removed (light text on them was 3.6–4.4:1);
+   a lint test keeps them out — `c846580`.
+3. **Release 5.4.0+15 after those fixes:** CI green on PR #16 → squash merge → tag → ship.
 
 ## Device walk (Budget_Tracker_Emulator, debug build of `cd71eb1`)
 Purple was walked when it was built (both themes, both widget sizes, day and night, the
@@ -95,16 +94,18 @@ shows "€0.00" (two formatters); Upcoming bills round to whole units ($15 for a
 while the reminder says $15.49.
 
 ## Gates
-Preflight green at every wave; last: **2707 pass / 0 skip**, ratchet 2707 (wave 6 removed nine
+Preflight green at every wave; last: **2708 pass / 0 skip**, ratchet 2708 (wave 6 removed nine
 tests that exercised a copy of deleted code and restored three skipped ones). Debug build OK
 after each wave; the walk ran on the `cd71eb1` build and wave 7 was re-checked on `c86af48`.
 
 ## Emulator state
 Purple theme, system light mode, PIN **disabled**, font scale 1.0, density 420. Test data on
 Main Account: "Reminder test bill" is now Bills, day 13, $15.49; reminder time 7:52 PM; a $20
-Food expense today; the $120 Salary income. A second account "Scratch" (EUR, empty) exists.
+Food expense and a $5 Food expense today; the $120 Salary income. A second account "Scratch" (EUR, empty) exists.
 Two widgets on the home screen. Old package `com.example.budget_tracker` is also installed.
 
 ## Release
-Not released. Leo's OK is required for 5.4.0+15. Pipeline: Money-Tracker `CLAUDE.md` →
-"Shipping the APK" (manual `vercel --prod --yes`; verify the live SHA-1).
+Leo approved 5.4.0+15 once wave 8 was in. Steps: CI green on PR #16 → squash merge → tag
+`v5.4.0` → `flutter build apk --release --target-platform android-arm64,android-arm` →
+`scripts/verify-release-apk.sh` → landing repo commit/push → manual `vercel --prod --yes` →
+live SHA-1 equals the built APK's (Money-Tracker `CLAUDE.md` → "Shipping the APK").
