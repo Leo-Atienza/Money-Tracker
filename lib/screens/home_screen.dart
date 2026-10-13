@@ -6,6 +6,7 @@ import '../providers/app_state.dart';
 import '../models/expense_model.dart';
 import '../models/income_model.dart';
 import '../utils/accessibility_helper.dart';
+import '../utils/currency_helper.dart';
 import '../utils/haptic_helper.dart';
 import '../utils/date_helper.dart';
 import '../utils/premium_animations.dart'
@@ -638,8 +639,9 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
       hasCarryover,
       previousMonth,
       currency,
+      currencyCode,
     ) = context.select<AppState,
-        (double, double, double, double, bool, String, String)>(
+        (double, double, double, double, bool, String, String, String)>(
       (s) => (
         s.totalIncome,
         s.totalSpent,
@@ -651,9 +653,13 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
         s.hasCarryover,
         s.previousMonthName,
         s.currency,
+        s.currencyCode,
       ),
     );
     final appState = context.read<AppState>();
+    // The counters read like every other amount (and like their spoken
+    // labels): "€1.234,50" for EUR, where they used to show "€1,234.50".
+    final numberLocale = CurrencyHelper.currencyLocales[currencyCode];
     final carryoverSigned =
         '${carryover < 0 ? '-' : '+'}$currency${appState.formatAmount(carryover.abs())}';
 
@@ -701,6 +707,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                       prefix: totalBalance < 0 ? '-$currency' : currency,
                       compact: totalBalance.abs() > 100000,
                       decimalPlaces: totalBalance.abs() > 100000 ? 1 : 2,
+                      locale: numberLocale,
                       style: theme.textTheme.displayLarge?.copyWith(
                         fontSize: 34,
                         height: 41 / 34,
@@ -781,6 +788,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                               prefix: appState.currency,
                               compact: totalIncome > 100000,
                               decimalPlaces: totalIncome > 100000 ? 1 : 2,
+                              locale: numberLocale,
                               style: theme.textTheme.headlineMedium,
                             ),
                           ),
@@ -835,6 +843,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                               prefix: appState.currency,
                               compact: totalSpent > 100000,
                               decimalPlaces: totalSpent > 100000 ? 1 : 2,
+                              locale: numberLocale,
                               style: theme.textTheme.headlineMedium,
                             ),
                           ),
@@ -1167,8 +1176,10 @@ class _UpcomingBillsBanner extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                // M16: grouped, zero-decimal ($1,234 due).
-                '${appState.formatWithCurrency(totalDue, decimalDigits: 0)} due',
+                // M16: grouped; cents only when there are any ($1,234 due,
+                // $15.49 due). Whole units rounded a $15.49 bill to "$15"
+                // while its reminder said $15.49.
+                '${appState.formatWithCurrency(totalDue, decimalDigits: _amountDigits(totalDue))} due',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: appColors.warningOrange,
@@ -1199,7 +1210,7 @@ class _UpcomingBillsBanner extends StatelessWidget {
 
             return Semantics(
               label:
-                  '${bill['description']}, ${appState.formatWithCurrency(bill['amount'] as double, decimalDigits: 0)}, $dueText',
+                  '${bill['description']}, ${appState.formatWithCurrency(bill['amount'] as double, decimalDigits: _amountDigits(bill['amount'] as double))}, $dueText',
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
@@ -1229,9 +1240,10 @@ class _UpcomingBillsBanner extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      // M16: grouped, zero-decimal.
+                      // M16: grouped, cents only when there are any.
                       appState.formatWithCurrency(bill['amount'] as double,
-                          decimalDigits: 0),
+                          decimalDigits:
+                              _amountDigits(bill['amount'] as double)),
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,

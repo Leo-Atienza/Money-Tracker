@@ -1,6 +1,7 @@
 import 'package:budget_tracker/database/database_helper.dart';
 import 'package:budget_tracker/models/expense_model.dart';
 import 'package:budget_tracker/models/income_model.dart';
+import 'package:budget_tracker/models/recurring_expense_model.dart';
 import 'package:budget_tracker/providers/app_state.dart';
 import 'package:budget_tracker/screens/home_screen.dart';
 import 'package:budget_tracker/theme/app_colors.dart';
@@ -248,6 +249,43 @@ void main() {
       tester.getTopLeft(find.text('lunch')).dy,
       lessThan(tester.getTopLeft(find.text('pay')).dy),
     );
+  });
+
+  // For EUR the counters showed "€1,234.50" while their spoken labels (and
+  // every other amount) said "€1.234,50".
+  testWidgets("the balance counters use the currency's number format",
+      (tester) async {
+    final state = await seedHomeState(
+      tester,
+      incomes: [(amount: 1234.5, category: 'Salary', description: 'pay')],
+    );
+    await tester.runAsync(() => state.changeCurrency('EUR'));
+    await pumpHarness(tester, appState: state);
+    await pumpAndDrain(tester);
+
+    expect(find.text('€1.234,50'), findsNWidgets(2),
+        reason: 'the total balance and the income tile');
+    expect(find.text('€0,00'), findsOneWidget, reason: 'the expenses tile');
+  });
+
+  // A $15.49 bill read "$15" in Upcoming bills while its reminder said $15.49.
+  testWidgets('upcoming bills keep their cents', (tester) async {
+    final state = await seedHomeState(tester);
+    final today = DateTime.now();
+    await tester.runAsync(() => state.addRecurringExpense(RecurringExpense(
+          description: 'Phone',
+          amount: Decimal.parse('15.49'),
+          category: 'Bills',
+          accountId: state.currentAccountId,
+          // Always still ahead this month (due dates are inclusive).
+          dayOfMonth: DateHelper.lastDayOfMonth(today).day,
+          frequency: RecurringExpenseFrequency.monthly,
+        )));
+    await pumpHarness(tester, appState: state);
+    await pumpAndDrain(tester);
+
+    expect(find.text('\$15.49'), findsOneWidget);
+    expect(find.text('\$15.49 due'), findsOneWidget);
   });
 
   testWidgets(

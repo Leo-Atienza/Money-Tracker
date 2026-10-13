@@ -132,108 +132,106 @@ class HistoryFilterBar extends StatelessWidget {
     );
   }
 
+  // Each chip is one TalkBack node: the chip's own (label, selected state,
+  // tap). A Semantics wrapper around it added a second, labelled node with
+  // no tap action, so every chip was announced twice.
   Widget _allTimeChip(ThemeData theme) {
-    return Semantics(
-      label: searchAllTime
-          ? 'All time search enabled'
-          : 'All time search disabled',
-      hint: 'Search across all months',
-      button: true,
-      child: FilterChip(
-        selected: searchAllTime,
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.history, size: 16),
+    return FilterChip(
+      tooltip: 'Search across all months',
+      selected: searchAllTime,
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.history, size: 16),
+          const SizedBox(width: 4),
+          const Text('All time'),
+          if (isLoadingAllTime) ...[
             const SizedBox(width: 4),
-            const Text('All time'),
-            if (isLoadingAllTime) ...[
-              const SizedBox(width: 4),
-              const SizedBox(
-                width: 12,
-                height: 12,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ],
+            const SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
           ],
-        ),
-        onSelected: onAllTimeChanged,
-        labelStyle: theme.textTheme.bodySmall,
-        backgroundColor: theme.colorScheme.surface,
-        selectedColor: theme.colorScheme.primary.withAlpha(30),
-        checkmarkColor: theme.colorScheme.primary,
-        side: BorderSide(
-          color: searchAllTime
-              ? theme.colorScheme.primary
-              : theme.colorScheme.outline.withAlpha(80),
-        ),
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ],
       ),
+      onSelected: onAllTimeChanged,
+      labelStyle: theme.textTheme.bodySmall,
+      backgroundColor: theme.colorScheme.surface,
+      selectedColor: theme.colorScheme.primary.withAlpha(30),
+      checkmarkColor: theme.colorScheme.primary,
+      side: BorderSide(
+        color: searchAllTime
+            ? theme.colorScheme.primary
+            : theme.colorScheme.outline.withAlpha(80),
+      ),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 
   Widget _dateRangeChip(ThemeData theme) {
     final hasRange = dateRange != null;
-    return Semantics(
-      label: hasRange
-          ? 'Date range: ${formatDateRange(dateRange!)}'
-          : 'Select date range',
-      button: true,
-      child: FilterChip(
-        selected: hasRange,
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.date_range, size: 16),
-            const SizedBox(width: 4),
-            Text(hasRange ? formatDateRange(dateRange!) : 'Date range'),
-          ],
-        ),
-        onSelected: (_) => onDateRangeRequested(),
-        onDeleted: hasRange ? onDateRangeCleared : null,
-        deleteIcon: hasRange ? const Icon(Icons.close, size: 16) : null,
-        labelStyle: theme.textTheme.bodySmall,
-        backgroundColor: theme.colorScheme.surface,
-        selectedColor: theme.colorScheme.primary.withAlpha(30),
-        checkmarkColor: theme.colorScheme.primary,
-        side: BorderSide(
-          color: hasRange
-              ? theme.colorScheme.primary
-              : theme.colorScheme.outline.withAlpha(80),
-        ),
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    return FilterChip(
+      selected: hasRange,
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.date_range, size: 16),
+          const SizedBox(width: 4),
+          Semantics(
+            label: hasRange
+                ? 'Date range: ${formatDateRange(dateRange!)}'
+                : 'Select date range',
+            excludeSemantics: true,
+            child: Text(hasRange ? formatDateRange(dateRange!) : 'Date range'),
+          ),
+        ],
       ),
+      onSelected: (_) => onDateRangeRequested(),
+      onDeleted: hasRange ? onDateRangeCleared : null,
+      deleteIcon: hasRange ? const Icon(Icons.close, size: 16) : null,
+      deleteButtonTooltipMessage: 'Clear date range',
+      labelStyle: theme.textTheme.bodySmall,
+      backgroundColor: theme.colorScheme.surface,
+      selectedColor: theme.colorScheme.primary.withAlpha(30),
+      checkmarkColor: theme.colorScheme.primary,
+      side: BorderSide(
+        color: hasRange
+            ? theme.colorScheme.primary
+            : theme.colorScheme.outline.withAlpha(80),
+      ),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 
   Widget _sortChip(ThemeData theme) {
     final notDefault = sortOrder != 'newest';
-    return Semantics(
-      label: 'Sort by: ${sortLabelFor(sortOrder)}',
-      hint: 'Change sort order',
-      button: true,
-      child: FilterChip(
-        selected: notDefault,
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(sortIconFor(sortOrder), size: 16),
-            const SizedBox(width: 4),
-            Text(sortLabelFor(sortOrder)),
-          ],
-        ),
-        onSelected: (_) => onShowSortOptions(),
-        labelStyle: theme.textTheme.bodySmall,
-        backgroundColor: theme.colorScheme.surface,
-        selectedColor: theme.colorScheme.primary.withAlpha(30),
-        checkmarkColor: theme.colorScheme.primary,
-        side: BorderSide(
-          color: notDefault
-              ? theme.colorScheme.primary
-              : theme.colorScheme.outline.withAlpha(80),
-        ),
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    return FilterChip(
+      tooltip: 'Change sort order',
+      selected: notDefault,
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(sortIconFor(sortOrder), size: 16),
+          const SizedBox(width: 4),
+          Semantics(
+            label: 'Sort by: ${sortLabelFor(sortOrder)}',
+            excludeSemantics: true,
+            child: Text(sortLabelFor(sortOrder)),
+          ),
+        ],
       ),
+      onSelected: (_) => onShowSortOptions(),
+      labelStyle: theme.textTheme.bodySmall,
+      backgroundColor: theme.colorScheme.surface,
+      selectedColor: theme.colorScheme.primary.withAlpha(30),
+      checkmarkColor: theme.colorScheme.primary,
+      side: BorderSide(
+        color: notDefault
+            ? theme.colorScheme.primary
+            : theme.colorScheme.outline.withAlpha(80),
+      ),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 }
