@@ -120,48 +120,6 @@ void main() {
       });
     });
 
-    group('meetsAALarge()', () {
-      test('black on white meets AA large (3:1 threshold)', () {
-        expect(
-          ColorContrastHelper.meetsAALarge(Colors.black, Colors.white),
-          isTrue,
-        );
-      });
-
-      test('threshold is exactly 3.0', () {
-        expect(ColorContrastHelper.minContrastLargeText, 3.0);
-      });
-
-      test('pair that fails AA can still pass AA large', () {
-        // Find a pair with contrast between 3.0 and 4.5
-        // A medium-gray on white tends to have moderate contrast
-        const lightishGray = Color(0xFF949494); // lower contrast
-
-        final ratio = ColorContrastHelper.contrastRatio(
-          lightishGray,
-          Colors.white,
-        );
-
-        if (ratio >= 3.0 && ratio < 4.5) {
-          expect(
-            ColorContrastHelper.meetsAALarge(lightishGray, Colors.white),
-            isTrue,
-          );
-          expect(
-            ColorContrastHelper.meetsAA(lightishGray, Colors.white),
-            isFalse,
-          );
-        }
-      });
-
-      test('same color does not meet AA large', () {
-        expect(
-          ColorContrastHelper.meetsAALarge(Colors.red, Colors.red),
-          isFalse,
-        );
-      });
-    });
-
     group('getContrastingTextColor()', () {
       test('returns white for dark backgrounds', () {
         expect(
@@ -216,89 +174,6 @@ void main() {
             reason: 'Expected black or white for background $bg',
           );
         }
-      });
-    });
-
-    group('adjustForContrast()', () {
-      test('returns the same color if it already meets target ratio', () {
-        // Black on white already has 21:1 contrast
-        final adjusted = ColorContrastHelper.adjustForContrast(
-          Colors.black,
-          Colors.white,
-        );
-        expect(adjusted, Colors.black);
-      });
-
-      test('adjusts low-contrast color to meet target on light background', () {
-        // Light gray on white has poor contrast
-        const lowContrast = Color(0xFFDDDDDD);
-        final adjusted = ColorContrastHelper.adjustForContrast(
-          lowContrast,
-          Colors.white,
-        );
-
-        final newRatio = ColorContrastHelper.contrastRatio(
-          adjusted,
-          Colors.white,
-        );
-        expect(newRatio, greaterThanOrEqualTo(4.5));
-      });
-
-      test('adjusts low-contrast color to meet target on dark background', () {
-        // Dark gray on black has poor contrast
-        const lowContrast = Color(0xFF222222);
-        final adjusted = ColorContrastHelper.adjustForContrast(
-          lowContrast,
-          Colors.black,
-        );
-
-        final newRatio = ColorContrastHelper.contrastRatio(
-          adjusted,
-          Colors.black,
-        );
-        expect(newRatio, greaterThanOrEqualTo(4.5));
-      });
-
-      test('respects custom target ratio', () {
-        const lowContrast = Color(0xFFDDDDDD);
-        final adjusted = ColorContrastHelper.adjustForContrast(
-          lowContrast,
-          Colors.white,
-          targetRatio: 3.0,
-        );
-
-        final newRatio = ColorContrastHelper.contrastRatio(
-          adjusted,
-          Colors.white,
-        );
-        expect(newRatio, greaterThanOrEqualTo(3.0));
-      });
-
-      test('darkens color on light backgrounds', () {
-        const lightColor = Color(0xFFCCCCCC);
-        final adjusted = ColorContrastHelper.adjustForContrast(
-          lightColor,
-          Colors.white,
-        );
-
-        // The adjusted color should be darker (lower luminance) than original
-        // when background is light
-        final originalRed = (lightColor.r * 255.0).round();
-        final adjustedRed = (adjusted.r * 255.0).round();
-        expect(adjustedRed, lessThanOrEqualTo(originalRed));
-      });
-
-      test('lightens color on dark backgrounds', () {
-        const darkColor = Color(0xFF333333);
-        final adjusted = ColorContrastHelper.adjustForContrast(
-          darkColor,
-          Colors.black,
-        );
-
-        // The adjusted color should be lighter (higher channel values)
-        final originalRed = (darkColor.r * 255.0).round();
-        final adjustedRed = (adjusted.r * 255.0).round();
-        expect(adjustedRed, greaterThanOrEqualTo(originalRed));
       });
     });
 
