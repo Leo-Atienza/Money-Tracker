@@ -38,7 +38,8 @@ Full pipeline (run from the Money-Tracker directory):
 flutter build apk --release --target-platform android-arm64,android-arm && \
 ./scripts/verify-release-apk.sh && \
 cp build/app/outputs/flutter-apk/app-release.apk /c/Users/leooa/Documents/personal-projects/expense-tracker-landing/public/downloads/money-tracker.apk && \
-git -C /c/Users/leooa/Documents/personal-projects/expense-tracker-landing add public/downloads/money-tracker.apk && \
+sed -i -E "s/^export const release = .*/export const release = { version: \"$(grep 'version:' pubspec.yaml | head -1 | awk '{print $2}' | cut -d+ -f1)\", sizeBytes: $(stat -c %s build/app/outputs/flutter-apk/app-release.apk) };/" /c/Users/leooa/Documents/personal-projects/expense-tracker-landing/src/release.ts && \
+git -C /c/Users/leooa/Documents/personal-projects/expense-tracker-landing add public/downloads/money-tracker.apk src/release.ts && \
 git -C /c/Users/leooa/Documents/personal-projects/expense-tracker-landing commit -m "chore: update APK to $(grep 'version:' pubspec.yaml | head -1 | awk '{print $2}')" && \
 git -C /c/Users/leooa/Documents/personal-projects/expense-tracker-landing push && \
 (cd /c/Users/leooa/Documents/personal-projects/expense-tracker-landing && vercel --prod --yes)
