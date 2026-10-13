@@ -97,6 +97,7 @@ icon buttons labelled and form dialogs scrollable.
 
 ## Open
 
-| Sev | Area | Finding |
-|-----|------|---------|
-| — | old audit | June L60/L61: test-only helpers in AccessibilityHelper / ColorContrastHelper — optional cleanup, no defect |
+Nothing. June L60/L61 (the test-only helpers in AccessibilityHelper /
+ColorContrastHelper) closed in `3600f9e`: nine a11y statics and two contrast
+statics deleted with the 41 tests that only exercised them; the preflight
+ratchet moved 2713 -> 2672 so the gate keeps tracking real coverage.
