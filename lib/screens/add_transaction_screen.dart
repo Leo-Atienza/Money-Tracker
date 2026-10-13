@@ -269,7 +269,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (!mounted) return;
 
     final appState = context.read<AppState>();
-    final appColors = Theme.of(context).extension<AppColors>()!;
     final amount = CurrencyHelper.parseDecimal(_amountController.text);
     if (amount == null) return; // Validator should have caught this.
 
@@ -298,7 +297,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               content: Text(
                 'Please select a valid ${_isExpense ? "expense" : "income"} category.',
               ),
-              backgroundColor: appColors.expenseRed,
             ),
           );
         }
@@ -390,13 +388,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           : SnackBar(
               content: Row(
                 children: [
-                  // Same ink as the text on this green: white measures
-                  // 2.36:1 against incomeGreen in dark mode.
+                  // The SnackBar's own ink (SnackBars are plain inverse
+                  // surface now; the green fill was under 4.5:1).
                   Icon(
                     Icons.check_circle,
-                    color: ColorContrastHelper.getContrastingTextColor(
-                      appColors.incomeGreen,
-                    ),
+                    color: Theme.of(context).colorScheme.onInverseSurface,
                   ),
                   const SizedBox(width: 12),
                   Text(
@@ -404,7 +400,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   ),
                 ],
               ),
-              backgroundColor: appColors.incomeGreen,
               duration: const Duration(seconds: 2),
               behavior: SnackBarBehavior.floating,
             );
@@ -420,7 +415,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error saving: $e'),
-            backgroundColor: appColors.expenseRed,
           ),
         );
       }
@@ -720,7 +714,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   Future<void> _markFullyPaid() async {
     if (!_isExpense || widget.expense == null) return;
-    final appColors = Theme.of(context).extension<AppColors>()!;
     setState(() => _isSaving = true);
     try {
       final amount = CurrencyHelper.parseDecimal(_amountController.text) ??
@@ -737,7 +730,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: const Text('Marked as fully paid'),
-          backgroundColor: appColors.incomeGreen,
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
         ),
@@ -747,7 +739,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
-          backgroundColor: appColors.expenseRed,
           behavior: SnackBarBehavior.floating,
         ),
       );

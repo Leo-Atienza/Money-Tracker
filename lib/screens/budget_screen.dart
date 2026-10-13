@@ -1060,12 +1060,10 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        final appColors = Theme.of(context).extension<AppColors>()!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to save budget: $e'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: appColors.expenseRed,
           ),
         );
       }
@@ -1674,12 +1672,10 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
   }
 
   void _showError(String message) {
-    final appColors = Theme.of(context).extension<AppColors>()!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: appColors.expenseRed,
       ),
     );
   }

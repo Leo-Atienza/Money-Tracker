@@ -1460,7 +1460,6 @@ class _HistoryScreenState extends State<HistoryScreen>
                 SnackBar(
                   content: Text('Error deleting expense: $e'),
                   // L48: use the semantic expense color, not raw Colors.red.
-                  backgroundColor: appColors.expenseRed,
                 ),
               );
             }
@@ -1856,7 +1855,6 @@ class _HistoryScreenState extends State<HistoryScreen>
               messenger.showSnackBar(
                 SnackBar(
                   content: Text('Error deleting income: $e'),
-                  backgroundColor: appColors.expenseRed,
                 ),
               );
             }
@@ -2089,7 +2087,6 @@ class _HistoryScreenState extends State<HistoryScreen>
       messenger.showSnackBar(
         SnackBar(
           content: Text('Error deleting $type: $e'),
-          backgroundColor: theme.extension<AppColors>()!.expenseRed,
         ),
       );
     }

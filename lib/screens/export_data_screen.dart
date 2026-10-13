@@ -418,7 +418,6 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
     try {
       final appState = context.read<AppState>();
-      final appColors = Theme.of(context).extension<AppColors>()!;
 
       final DateTimeRange? dateFilter = _getDateRange();
 
@@ -484,18 +483,15 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
           SnackBar(
             content: Text(exportMessage),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: appColors.incomeGreen,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        final appColors = Theme.of(context).extension<AppColors>()!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Export failed: $e'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: appColors.expenseRed,
           ),
         );
       }
@@ -524,7 +520,6 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
     try {
       final appState = context.read<AppState>();
-      final appColors = Theme.of(context).extension<AppColors>()!;
 
       final DateTimeRange? dateFilter = _getDateRange();
 
@@ -634,18 +629,15 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
           SnackBar(
             content: Text(exportMessage),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: appColors.incomeGreen,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        final appColors = Theme.of(context).extension<AppColors>()!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('PDF export failed: $e'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: appColors.expenseRed,
           ),
         );
       }

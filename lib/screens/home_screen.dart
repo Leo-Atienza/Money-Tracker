@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/luminous_app_theme.dart';
 import '../providers/app_state.dart';
 import '../models/expense_model.dart';
+import '../models/income_model.dart';
 import '../utils/accessibility_helper.dart';
 import '../utils/haptic_helper.dart';
 import '../utils/date_helper.dart';
@@ -27,13 +28,19 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Optimize: Use Selector to watch only selectedMonthName and expenses list
-    final monthNameAndExpenses =
-        context.select<AppState, (String, List<Expense>)>(
-      (s) => (s.selectedMonthName, s.expenses),
+    // Optimize: Use Selector to watch only the month name and the two lists
+    final (monthName, expenses, incomes, selectedMonth) = context.select<
+        AppState, (String, List<Expense>, List<Income>, DateTime)>(
+      (s) => (s.selectedMonthName, s.expenses, s.incomes, s.selectedMonth),
     );
-    final monthName = monthNameAndExpenses.$1;
-    final expenses = monthNameAndExpenses.$2;
+    // Recent Transactions: the month's expenses and income together, newest
+    // first. It used to list expenses only, so income never showed on Home.
+    final transactions = <Object>[
+      ...expenses,
+      ...incomes.where((i) =>
+          i.date.year == selectedMonth.year &&
+          i.date.month == selectedMonth.month),
+    ]..sort(_newestFirst);
     final hasLoadError = context.select<AppState, bool>((s) => s.hasLoadError);
 
     return Scaffold(
@@ -290,15 +297,13 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
 
-                    // Expenses list (inside single glass sheet like stitch mock).
-                    // It lists expenses only, so its empty state says so: a
-                    // month with only income used to read "No transactions".
-                    expenses.isEmpty
+                    // Transactions list (inside single glass sheet like stitch mock)
+                    transactions.isEmpty
                         ? SliverFillRemaining(
                             hasScrollBody: false,
                             child: Semantics(
                               label:
-                                  'No expenses this month, tap to add one',
+                                  'No transactions this month, tap to add one',
                               button: true,
                               child: GestureDetector(
                                 onTap: () {
@@ -330,7 +335,7 @@ class HomeScreen extends StatelessWidget {
                                         ),
                                         const SizedBox(height: 16),
                                         Text(
-                                          'No expenses this month',
+                                          'No transactions this month',
                                           style: theme.textTheme.bodyLarge
                                               ?.copyWith(
                                             color: theme
@@ -369,7 +374,7 @@ class HomeScreen extends StatelessWidget {
                                   child: Column(
                                     children: [
                                       for (var i = 0;
-                                          i < expenses.length;
+                                          i < transactions.length;
                                           i++) ...[
                                         if (i > 0)
                                           Divider(
@@ -384,8 +389,14 @@ class HomeScreen extends StatelessWidget {
                                                 .colorScheme.outlineVariant
                                                 .withValues(alpha: 0.5),
                                           ),
-                                        _GlassHomeExpenseTile(
-                                            expense: expenses[i]),
+                                        switch (transactions[i]) {
+                                          final Expense e =>
+                                            _GlassHomeExpenseTile(expense: e),
+                                          final Income income =>
+                                            _GlassHomeIncomeTile(
+                                                income: income),
+                                          _ => const SizedBox.shrink(),
+                                        },
                                       ],
                                     ],
                                   ),
@@ -897,6 +908,109 @@ class _CarryoverLine extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Newest first; on the same day expenses stay ahead of income, then the
+/// newest row wins (a total order, so the list never shuffles on rebuild).
+int _newestFirst(Object a, Object b) {
+  DateTime dateOf(Object t) => t is Expense ? t.date : (t as Income).date;
+  int idOf(Object t) => (t is Expense ? t.id : (t as Income).id) ?? 0;
+  final byDate = dateOf(b).compareTo(dateOf(a));
+  if (byDate != 0) return byDate;
+  final byKind = (a is Expense ? 0 : 1) - (b is Expense ? 0 : 1);
+  if (byKind != 0) return byKind;
+  return idOf(b).compareTo(idOf(a));
+}
+
+class _GlassHomeIncomeTile extends StatelessWidget {
+  final Income income;
+
+  const _GlassHomeIncomeTile({required this.income});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
+    final appState = context.read<AppState>();
+
+    final category = appState.categories
+        .where((c) => c.name == income.category && c.type == 'income')
+        .firstOrNull;
+
+    return Semantics(
+      label:
+          '${income.description}, ${income.category}, ${appState.formatWithCurrency(income.amount)}, income',
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              PremiumPageRoute(
+                page: AddTransactionScreen(
+                  initialType: TransactionType.income,
+                  income: income,
+                ),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Row(
+              children: [
+                CategoryTile(
+                  categoryName: income.category,
+                  categoryType: 'income',
+                  color: category?.color,
+                  icon: category?.icon,
+                  size: 48,
+                  borderRadius: 24,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        income.description.isEmpty
+                            ? '${income.category} income'
+                            : income.description,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        [
+                          income.category,
+                          DateHelper.getRelativeTime(income.date),
+                        ].where((e) => e.isNotEmpty).join(' • '),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '+${appState.formatWithCurrency(income.amount)}',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: appColors.incomeGreen,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

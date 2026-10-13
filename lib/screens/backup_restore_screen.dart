@@ -186,8 +186,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(_getFriendlyErrorMessage(e)),
-              backgroundColor:
-                  Theme.of(context).extension<AppColors>()!.expenseRed,
               duration: const Duration(seconds: 4),
             ),
           );
@@ -300,8 +298,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Backup saved successfully!'),
-            backgroundColor:
-                Theme.of(context).extension<AppColors>()!.incomeGreen,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -329,8 +325,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
-            backgroundColor:
-                Theme.of(context).extension<AppColors>()!.expenseRed,
             duration: const Duration(seconds: 5),
           ),
         );
@@ -395,8 +389,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Backup created and ready to share!'),
-            backgroundColor:
-                Theme.of(context).extension<AppColors>()!.incomeGreen,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -407,8 +399,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_getFriendlyErrorMessage(e)),
-            backgroundColor:
-                Theme.of(context).extension<AppColors>()!.expenseRed,
             duration: const Duration(seconds: 4),
           ),
         );
@@ -515,8 +505,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_getFriendlyErrorMessage(e)),
-          backgroundColor:
-              Theme.of(context).extension<AppColors>()!.expenseRed,
           duration: const Duration(seconds: 4),
         ),
       );
@@ -541,8 +529,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           content: const Text(
             'Could not open that file. Save it to your device and try again.',
           ),
-          backgroundColor:
-              Theme.of(context).extension<AppColors>()!.expenseRed,
           duration: const Duration(seconds: 4),
         ),
       );
@@ -677,8 +663,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(message),
-                backgroundColor:
-                    Theme.of(context).extension<AppColors>()!.incomeGreen,
                 duration: const Duration(seconds: 4),
               ),
             );
@@ -707,8 +691,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                 content: const Text(
                   'Invalid backup file. Please select a valid database backup.',
                 ),
-                backgroundColor:
-                    Theme.of(context).extension<AppColors>()!.expenseRed,
                 duration: const Duration(seconds: 4),
               ),
             );
@@ -727,8 +709,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   'This backup was created with a newer version of FinanceFlow. '
                   'Please update the app before restoring this backup.',
                 ),
-                backgroundColor:
-                    Theme.of(context).extension<AppColors>()!.expenseRed,
                 duration: const Duration(seconds: 5),
               ),
             );
@@ -744,8 +724,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                 content: const Text(
                   'Backup file not found. It may have been moved or deleted.',
                 ),
-                backgroundColor:
-                    Theme.of(context).extension<AppColors>()!.expenseRed,
                 duration: const Duration(seconds: 4),
               ),
             );
@@ -761,8 +739,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                 content: const Text(
                   'Error restoring backup. Your data is safe. Please try again.',
                 ),
-                backgroundColor:
-                    Theme.of(context).extension<AppColors>()!.expenseRed,
                 duration: const Duration(seconds: 4),
               ),
             );
@@ -780,8 +756,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(_getFriendlyErrorMessage(e)),
-              backgroundColor:
-                  Theme.of(context).extension<AppColors>()!.expenseRed,
               duration: const Duration(seconds: 4),
             ),
           );
@@ -885,8 +859,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               content: Text(
                 'Deleted $deleted backup${deleted > 1 ? 's' : ''} successfully',
               ),
-              backgroundColor:
-                  Theme.of(context).extension<AppColors>()!.incomeGreen,
               duration: const Duration(seconds: 2),
             ),
           );
@@ -897,8 +869,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_getFriendlyErrorMessage(e)),
-            backgroundColor:
-                Theme.of(context).extension<AppColors>()!.expenseRed,
             duration: const Duration(seconds: 4),
           ),
         );
@@ -1176,9 +1146,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                                     SnackBar(
                                       content:
                                           Text(_getFriendlyErrorMessage(e)),
-                                      backgroundColor: Theme.of(context)
-                                          .extension<AppColors>()!
-                                          .expenseRed,
                                       duration: const Duration(seconds: 4),
                                     ),
                                   );

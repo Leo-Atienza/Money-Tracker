@@ -733,12 +733,10 @@ class _AddRecurringDialogState extends State<_AddRecurringDialog> {
   // FIX: Removed unused _showMissedMonthDialog method (legacy code no longer needed)
 
   void _showError(String message) {
-    final appColors = Theme.of(context).extension<AppColors>()!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: appColors.expenseRed,
       ),
     );
   }

@@ -544,7 +544,6 @@ class _AccountList extends StatelessWidget {
                     content: Text(
                       'Account "${account.name}" moved to Recently deleted',
                     ),
-                    backgroundColor: appColors.incomeGreen,
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
@@ -552,7 +551,6 @@ class _AccountList extends StatelessWidget {
                 messenger.showSnackBar(
                   SnackBar(
                     content: const Text('Cannot delete default account'),
-                    backgroundColor: appColors.expenseRed,
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
@@ -670,12 +668,10 @@ class _AddAccountDialogState extends State<AddAccountDialog> {
   }
 
   void _showError(String message) {
-    final appColors = Theme.of(context).extension<AppColors>()!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: appColors.expenseRed,
       ),
     );
   }
@@ -868,24 +864,20 @@ class _DeletedAccountsSectionState extends State<_DeletedAccountsSection> {
       await appState.restoreDeletedAccount(deletedId);
       closeProgress();
       if (!mounted) return;
-      final appColors = Theme.of(context).extension<AppColors>()!;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Account restored successfully'),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: appColors.incomeGreen,
         ),
       );
       await _loadDeletedAccounts();
     } catch (e) {
       closeProgress();
       if (!mounted) return;
-      final appColors = Theme.of(context).extension<AppColors>()!;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to restore account: $e'),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: appColors.expenseRed,
         ),
       );
     }

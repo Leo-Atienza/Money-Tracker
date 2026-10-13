@@ -1326,7 +1326,6 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
 
     try {
       final appState = context.read<AppState>();
-      final appColors = Theme.of(context).extension<AppColors>()!;
 
       // With no transactions the dialog shows no delete-or-move choice and
       // no destination picker, so there is nothing to choose: delete the
@@ -1379,7 +1378,6 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: const Text('Please select a category'),
-                    backgroundColor: appColors.expenseRed,
                   ),
                 );
               }
@@ -1418,7 +1416,6 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error deleting category: $e'),
-            backgroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
           ),
         );
       }

@@ -740,8 +740,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Data cleared and currency changed'),
-            backgroundColor:
-                Theme.of(context).extension<AppColors>()!.incomeGreen,
           ),
         );
       } catch (e) {
@@ -750,8 +748,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error clearing data: $e'),
-            backgroundColor:
-                Theme.of(context).extension<AppColors>()!.expenseRed,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1104,8 +1100,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Account "${account.name}" has been reset'),
-            backgroundColor:
-                Theme.of(context).extension<AppColors>()!.incomeGreen,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1115,8 +1109,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error resetting account: $e'),
-            backgroundColor:
-                Theme.of(context).extension<AppColors>()!.expenseRed,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1220,7 +1212,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Account "${account.name}" moved to Recently deleted'),
-            backgroundColor: appColors.incomeGreen,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1230,7 +1221,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error deleting account: $e'),
-            backgroundColor: appColors.expenseRed,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1431,7 +1421,6 @@ class _PinSecuritySectionState extends State<_PinSecuritySection> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Incorrect PIN'),
-          backgroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -1473,7 +1462,6 @@ class _PinSecuritySectionState extends State<_PinSecuritySection> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Incorrect PIN'),
-          backgroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
           behavior: SnackBarBehavior.floating,
         ),
       );

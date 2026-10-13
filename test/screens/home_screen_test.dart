@@ -169,7 +169,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text('No expenses this month'),
+      find.text('No transactions this month'),
       findsOneWidget,
       reason: 'Empty AppState should yield the empty-state placeholder.',
     );
@@ -227,18 +227,27 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
   }
 
-  testWidgets('a month with only income says there are no expenses',
+  // S22 (Leo's call): Recent Transactions lists the month's income too. It
+  // listed expenses only, so a month with only income read "No transactions".
+  testWidgets('income shows in Recent Transactions, newest first',
       (tester) async {
     final state = await seedHomeState(
       tester,
+      expenses: [(amount: 25, category: 'Food', description: 'lunch')],
       incomes: [(amount: 120, category: 'Salary', description: 'pay')],
     );
     await pumpHarness(tester, appState: state);
     await pumpAndDrain(tester);
 
-    expect(find.text('No expenses this month'), findsOneWidget);
-    expect(find.text('No transactions this month'), findsNothing,
-        reason: 'the income is a transaction this month');
+    expect(find.text('pay'), findsOneWidget);
+    expect(find.text('+\$120.00'), findsOneWidget);
+    expect(find.text('lunch'), findsOneWidget);
+    expect(find.text('No transactions this month'), findsNothing);
+    // Same day: the expense stays first, the income follows it.
+    expect(
+      tester.getTopLeft(find.text('lunch')).dy,
+      lessThan(tester.getTopLeft(find.text('pay')).dy),
+    );
   });
 
   testWidgets(
@@ -264,7 +273,7 @@ void main() {
       expect(find.text('coffee'), findsOneWidget);
 
       // Empty state should be gone now that expenses exist.
-      expect(find.text('No expenses this month'), findsNothing);
+      expect(find.text('No transactions this month'), findsNothing);
     },
   );
 

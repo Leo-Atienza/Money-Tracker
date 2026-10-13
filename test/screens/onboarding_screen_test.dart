@@ -62,7 +62,11 @@ void main() {
 
     await tester.tap(find.text('Load Sample Data'));
     await tester.tap(find.text('Load Sample Data'));
-    for (var i = 0; i < 40 && find.text('HOME').evaluate().isEmpty; i++) {
+    // A real-time deadline: under the full parallel suite the sample load
+    // took over 6s, past a fixed 40-round bound.
+    final deadline = DateTime.now().add(const Duration(seconds: 15));
+    while (find.text('HOME').evaluate().isEmpty &&
+        DateTime.now().isBefore(deadline)) {
       await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 50)));
       await tester.pump(const Duration(milliseconds: 100));

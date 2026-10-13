@@ -48,13 +48,11 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
         );
         if (paymentAmount > availableIncome) {
           if (mounted) {
-            final appColors = Theme.of(context).extension<AppColors>()!;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
                   'Insufficient income balance. Available: ${appState.currency}${availableIncome.toStringAsFixed(2)}',
                 ),
-                backgroundColor: appColors.expenseRed,
               ),
             );
           }
@@ -69,24 +67,20 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
         if (mounted) {
           Navigator.pop(context);
           if (_useIncomeBalance) {
-            final appColors = Theme.of(context).extension<AppColors>()!;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
                   'Payment of ${appState.currency}${paymentAmount.toStringAsFixed(2)} recorded',
                 ),
-                backgroundColor: appColors.incomeGreen,
               ),
             );
           }
         }
       } catch (e) {
         if (mounted) {
-          final appColors = Theme.of(context).extension<AppColors>()!;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error recording payment: $e'),
-              backgroundColor: appColors.expenseRed,
             ),
           );
         }

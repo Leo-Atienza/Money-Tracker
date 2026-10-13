@@ -866,12 +866,10 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
   }
 
   void _showError(String message) {
-    final appColors = Theme.of(context).extension<AppColors>()!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: appColors.expenseRed,
       ),
     );
   }

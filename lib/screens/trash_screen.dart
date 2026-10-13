@@ -486,7 +486,6 @@ class _TrashScreenState extends State<TrashScreen> {
   Future<void> _showEmptyTrashDialog(BuildContext context) async {
     final appState = context.read<AppState>();
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    final errorColor = Theme.of(context).extension<AppColors>()!.expenseRed;
 
     final totalItems = _deletedExpenses.length + _deletedIncome.length;
 
@@ -525,7 +524,6 @@ class _TrashScreenState extends State<TrashScreen> {
           SnackBar(
             content: Text('Error emptying trash: $e'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: errorColor,
           ),
         );
       }
