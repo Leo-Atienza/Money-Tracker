@@ -611,22 +611,20 @@ class BackupHelper {
           return RestoreResult.invalidFile;
         }
 
-        // L32/L36: refuse a raw .db created by a NEWER app version. SQLite
-        // won't downgrade a schema, so opening a too-new file would leave the
-        // user with no readable database. The comprehensive-restore path
-        // already guards schema_version; this is the equivalent guard for the
-        // plain .db path, read straight from the file's user_version header.
+        // L32/L36: the plain .db path's schema guard, read straight from the
+        // file's user_version header (the comprehensive restore checks
+        // schema_version the same way).
         final incomingVersion = await _readSqliteUserVersion(tempFile);
-        if (incomingVersion != null &&
-            incomingVersion > DatabaseConstants.databaseVersion) {
+        final refusal = checkRawDbVersion(incomingVersion);
+        if (refusal != null) {
           if (kDebugMode) {
             debugPrint(
-              'Refusing .db restore: user_version $incomingVersion > '
-              'app databaseVersion ${DatabaseConstants.databaseVersion}',
+              'Refusing .db restore: user_version $incomingVersion '
+              '(app databaseVersion ${DatabaseConstants.databaseVersion})',
             );
           }
           await tempFile.delete();
-          return RestoreResult.incompatibleVersion;
+          return refusal;
         }
 
         // Close database before replacing
@@ -790,6 +788,21 @@ class BackupHelper {
   }
 
   Future<int?> _readSqliteUserVersion(File file) => readSqliteUserVersion(file);
+
+  /// Whether a raw .db with this `user_version` may replace the live
+  /// database: null when it may, else the refusal. Every database this app
+  /// creates is stamped with its schema version, so 0 (or no header) is a
+  /// SQLite file it never wrote — restoring one swapped the ledger for a
+  /// foreign or empty file. A version above ours is a newer app's schema,
+  /// which SQLite can't downgrade.
+  @visibleForTesting
+  static RestoreResult? checkRawDbVersion(int? userVersion) {
+    if (userVersion == null || userVersion < 1) return RestoreResult.invalidFile;
+    if (userVersion > DatabaseConstants.databaseVersion) {
+      return RestoreResult.incompatibleVersion;
+    }
+    return null;
+  }
 
   /// Validate that bytes represent a valid SQLite database
   bool _isValidSqliteFile(Uint8List bytes) {

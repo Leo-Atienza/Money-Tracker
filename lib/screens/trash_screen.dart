@@ -559,6 +559,7 @@ class _EmptyTrashConfirmDialogState extends State<_EmptyTrashConfirmDialog> {
     final appColors = theme.extension<AppColors>()!;
 
     return AlertDialog(
+      scrollable: true,
       title: const Text('Empty Trash?'),
       content: Column(
         mainAxisSize: MainAxisSize.min,

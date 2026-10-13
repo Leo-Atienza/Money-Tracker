@@ -629,6 +629,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
+                    tooltip: 'Close',
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -805,6 +806,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
+                    tooltip: 'Close',
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -841,6 +843,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           )
                         : IconButton(
                             icon: const Icon(Icons.more_vert),
+                            // TalkBack read this as an unlabeled button;
+                            // Wallet's twin says the same.
+                            tooltip: 'Options for ${account.name}',
                             onPressed: () {
                               Navigator.pop(context);
                               _showAccountOptionsMenu(context, account);
@@ -946,6 +951,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
+                    tooltip: 'Close',
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -1649,6 +1655,7 @@ class _PinVerifyDialogState extends State<_PinVerifyDialog> {
   Widget build(BuildContext context) {
     final message = widget.message;
     return AlertDialog(
+      scrollable: true,
       title: Text(widget.title),
       content: Column(
         mainAxisSize: MainAxisSize.min,

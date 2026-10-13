@@ -1599,6 +1599,7 @@ class _RestorePassphraseDialogState extends State<_RestorePassphraseDialog> {
     final dialogTheme = Theme.of(context);
     final dialogAppColors = dialogTheme.extension<AppColors>()!;
     return AlertDialog(
+      scrollable: true,
       title: const Text('Restore encrypted backup'),
       content: Column(
         mainAxisSize: MainAxisSize.min,

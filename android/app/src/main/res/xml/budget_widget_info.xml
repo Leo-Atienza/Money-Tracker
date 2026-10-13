@@ -7,6 +7,9 @@
 
   updatePeriodMillis (30 min, the platform minimum) re-runs onUpdate so the
   widget turns to the new month on its own after midnight on the 1st.
+
+  Android 12+ pickers render previewLayout; older launchers show previewImage
+  (a capture of that preview with the pre-12 16dp corners), not the app icon.
 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_description"
@@ -15,6 +18,7 @@
     android:minHeight="110dp"
     android:minResizeWidth="180dp"
     android:minResizeHeight="40dp"
+    android:previewImage="@drawable/widget_preview"
     android:previewLayout="@layout/budget_widget"
     android:resizeMode="horizontal|vertical"
     android:targetCellWidth="4"

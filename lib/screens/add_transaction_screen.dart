@@ -762,6 +762,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        scrollable: true,
         title: const Text('Create Category'),
         content: Form(
           key: formKey,
@@ -837,6 +838,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        scrollable: true,
         title: const Text('Create Tag'),
         content: Form(
           key: formKey,

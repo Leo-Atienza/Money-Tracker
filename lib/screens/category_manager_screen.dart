@@ -444,6 +444,9 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
   String? _selectedColor;
   String? _selectedIcon;
   bool _isSaving = false;
+  // Shown under the name field. A SnackBar sat behind this dialog's scrim,
+  // so a refused save looked like a dead Save button.
+  String? _error;
 
   @override
   void initState() {
@@ -480,6 +483,9 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
     final isEditing = widget.categoryId != null;
 
     return AlertDialog(
+      // With the keyboard up the content outgrew the space left (22px on a
+      // 411x914dp phone once an error showed); it scrolls instead.
+      scrollable: true,
       backgroundColor: theme.colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
@@ -496,9 +502,14 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
             controller: _nameController,
             autofocus: true,
             textCapitalization: TextCapitalization.words,
+            onChanged: (_) {
+              if (_error != null) setState(() => _error = null);
+            },
             decoration: InputDecoration(
               labelText: 'Category Name',
               hintText: 'e.g., Coffee, Pets, Gaming',
+              errorText: _error,
+              errorMaxLines: 3,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -799,14 +810,7 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
   }
 
   void _showError(String message) {
-    final appColors = Theme.of(context).extension<AppColors>()!;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: appColors.expenseRed,
-      ),
-    );
+    setState(() => _error = message);
   }
 }
 

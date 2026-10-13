@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../integration/_test_helpers.dart';
+import '_large_text.dart';
 
 /// Phase 5.9g — Category Manager widget smoke tests.
 ///
@@ -209,6 +210,50 @@ void main() {
     expect(find.text('Please select a category'), findsNothing);
   });
 
+  // S22 device walk: on a 411x914dp phone with the keyboard up, the edit
+  // dialog's content ran 22px past its bottom once the error showed.
+  testWidgets('the edit dialog fits above the keyboard', (tester) async {
+    await loadAppFont();
+    final state = await seeded(tester, extra: ['Coffee']);
+    // The emulator's frame: 1080x2400 at 420dpi, a 74px status bar and a
+    // 63px gesture bar.
+    tester.view
+      ..physicalSize = const Size(1080, 2400)
+      ..devicePixelRatio = 2.625
+      ..padding = const FakeViewPadding(top: 74, bottom: 63)
+      ..viewPadding = const FakeViewPadding(top: 74, bottom: 63);
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AppState>.value(
+        value: state,
+        child: MaterialApp(
+          theme: buildLuminousTheme(
+            brightness: Brightness.light,
+            appColorsExtension: AppColors.fromBrightness(Brightness.light),
+          ),
+          home: const CategoryManagerScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+
+    await tester.tap(find.byTooltip('Edit Coffee category'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    // The keyboard Gboard showed on the device: 882px at 420dpi.
+    tester.view
+      ..viewInsets = const FakeViewPadding(bottom: 882)
+      ..padding = const FakeViewPadding(top: 74);
+    await tester.enterText(find.byType(TextField), 'food');
+    await tester.tap(find.widgetWithText(TextButton, 'Save'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('A category with this name already exists'),
+        findsOneWidget);
+    // An overflow is reported through FlutterError and fails the test.
+  });
+
   testWidgets('renaming onto another category name is refused, any case',
       (tester) async {
     final state = await seeded(tester, extra: ['Coffee']);
@@ -228,9 +273,15 @@ void main() {
     );
 
     // The rename would have cascaded into every Coffee transaction and left
-    // two "Food" categories.
-    expect(find.text('A category with this name already exists'),
-        findsOneWidget);
+    // two "Food" categories. The reason shows in the dialog: as a SnackBar it
+    // sat behind the scrim, dimmed, and Save looked dead.
+    expect(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('A category with this name already exists'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Edit Category'), findsOneWidget);
     final names = state.categories
         .where((c) => c.type == 'expense')
@@ -238,5 +289,10 @@ void main() {
         .toList();
     expect(names.where((n) => n == 'food'), hasLength(1));
     expect(names, contains('coffee'));
+
+    // Editing the name clears the complaint.
+    await tester.enterText(find.byType(TextField), 'Coffee beans');
+    await tester.pump();
+    expect(find.text('A category with this name already exists'), findsNothing);
   });
 }

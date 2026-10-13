@@ -299,8 +299,17 @@ class CrashLog {
     );
     out = out.replaceAll(_creditCardRe, '[cc]');
     out = out.replaceAll(_currencyRe, '[amount]');
+    out = out.replaceAll(_sqlArgsRe, ' args [redacted]');
     return out;
   }
+
+  /// sqflite errors end with the statement's bound values
+  /// (`sql 'INSERT ...' args [12.5, Dinner with Jane, ...]`): amounts with
+  /// no currency sign and free-text descriptions that no rule above catches.
+  /// The SQL stays (it is a template); the values go. Bounded to one line,
+  /// up to the last `]` before sqflite's `{details` suffix or the line end.
+  static final RegExp _sqlArgsRe =
+      RegExp(r' args \[.*\](?= \{details|$)', multiLine: true);
 
   static final RegExp _emailRe = RegExp(
     r'\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b',

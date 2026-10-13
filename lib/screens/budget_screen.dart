@@ -169,6 +169,7 @@ class BudgetScreen extends StatelessWidget {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.chevron_left),
+                      tooltip: 'Previous year',
                       onPressed: () {
                         setModalState(() => displayYear--);
                       },
@@ -183,6 +184,7 @@ class BudgetScreen extends StatelessWidget {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.chevron_right),
+                          tooltip: 'Next year',
                           onPressed: () {
                             setModalState(() => displayYear++);
                           },
@@ -196,6 +198,7 @@ class BudgetScreen extends StatelessWidget {
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
+                          tooltip: 'Close',
                           onPressed: () => Navigator.pop(context),
                         ),
                       ],

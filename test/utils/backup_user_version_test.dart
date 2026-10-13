@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:budget_tracker/constants/database.dart';
 import 'package:budget_tracker/utils/backup_helper.dart';
 
 /// L32/L36: the raw-.db restore path must read the incoming database's
@@ -48,6 +49,29 @@ void main() {
   test('reads a large multi-byte user_version', () async {
     final file = await makeDbWithUserVersion(1000000);
     expect(await BackupHelper.readSqliteUserVersion(file), 1000000);
+  });
+
+  // June audit L36: a version-0 file was installed as the live database.
+  group('checkRawDbVersion', () {
+    test('refuses a SQLite file this app never wrote (version 0 / none)', () {
+      expect(BackupHelper.checkRawDbVersion(0), RestoreResult.invalidFile);
+      expect(BackupHelper.checkRawDbVersion(null), RestoreResult.invalidFile);
+    });
+
+    test('refuses a newer schema', () {
+      expect(
+        BackupHelper.checkRawDbVersion(DatabaseConstants.databaseVersion + 1),
+        RestoreResult.incompatibleVersion,
+      );
+    });
+
+    test('accepts every schema this build can open or migrate', () {
+      expect(BackupHelper.checkRawDbVersion(1), isNull);
+      expect(
+        BackupHelper.checkRawDbVersion(DatabaseConstants.databaseVersion),
+        isNull,
+      );
+    });
   });
 
   test('returns null for a file too short to hold a SQLite header', () async {

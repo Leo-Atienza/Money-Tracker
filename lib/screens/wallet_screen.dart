@@ -602,6 +602,7 @@ class _AddAccountDialogState extends State<AddAccountDialog> {
     final theme = Theme.of(context);
 
     return AlertDialog(
+      scrollable: true,
       backgroundColor: theme.colorScheme.surface,
       title: Text(
         'Add Account',
