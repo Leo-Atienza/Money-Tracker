@@ -12,12 +12,13 @@ everything, no questions. Nothing here is a release; **v5.4.0+15 stays live**.
 
 | What | Where it stands |
 |------|-----------------|
-| Live APK | Unchanged: v5.4.0+15, SHA-1 `e7714931dffb242a646346d44def84fd0d5323c0`, 59,703,395 B. Re-checked at the start of the session against the local build (`sha1sum build/app/outputs/flutter-apk/app-release.apk`). |
-| `main` | `211998a` (#19 toolchain) ← `38c4189` (#18 L60/L61) ← `566e9a9` (#17 Low leftovers) ← `61ecc0c` (5.4.0, tag `v5.4.0`). |
+| Live APK | **v5.4.1+16** since 2026-10-13 00:05: SHA-1 `c094835a11de158be940e1195d7e015b126c1717`, 59,736,459 B, versionName 5.4.1 / versionCode 16, arm64-v8a + armeabi-v7a, debug-signed on purpose. Landing `82ac407`, deployed with a manual `vercel --prod --yes`; the live SHA-1 matched the build. Until then 5.4.0's `e7714931…` (59,703,395 B) was live, re-checked at the start of the session. |
+| `main` | `6c2913e` (#21 release 5.4.1+16, tag `v5.4.1`) ← `5414474` (#20 docs) ← `211998a` (#19 toolchain) ← `38c4189` (#18 L60/L61) ← `566e9a9` (#17 Low leftovers) ← `61ecc0c` (5.4.0, tag `v5.4.0`). |
 | PR #17 | Reviewed and squash-merged → `566e9a9`. |
 | PR #18 | June L60/L61 cleanup, squash-merged → `38c4189`. |
 | PR #19 | Gradle 9.3.1 / AGP 9.1.0 / Kotlin 2.4.0, squash-merged → `211998a`. |
-| PR #20 | This handoff plus the changelog backfill (5.4.0+15 had no `CHANGELOG.md` entry; an `Unreleased` section now lists #17–#19). |
+| PR #20 | This handoff plus the changelog backfill (5.4.0+15 had no `CHANGELOG.md` entry), squash-merged → `5414474`. |
+| PR #21 | Release 5.4.1+16, squash-merged → `6c2913e`; see the addendum. |
 | Tests | **2672 pass / 0 skip**; preflight ratchet 2672 (down from 2713 with the deleted test-only helpers, see §2). |
 | Audit | The October Open table is empty. |
 | Toolchain | Flutter 3.47.2 / Dart 3.13.2; Gradle 9.3.1, AGP 9.1.0, Kotlin 2.4.0 (`android/settings.gradle.kts`, `android/gradle/wrapper/gradle-wrapper.properties`); `android.builtInKotlin=false`, `android.newDsl=false` on purpose (`android/gradle.properties` says why). |
@@ -116,7 +117,7 @@ counters, bill cents), #18/#17 (dead code) and #19 (toolchain).
 - `grep -n 'version' android/settings.gradle.kts android/gradle/wrapper/gradle-wrapper.properties`
   → AGP `9.1.0`, Kotlin `2.4.0`, `gradle-9.3.1-all.zip`.
 - `curl -sL https://leo-money-tracker.vercel.app/downloads/money-tracker.apk | sha1sum` →
-  `e7714931…` (5.4.0 is still what is live).
+  `c094835a11de158be940e1195d7e015b126c1717` (5.4.1+16, 59,736,459 B); `git rev-parse 'v5.4.1^{commit}'` → `6c2913e…`.
 - `docs/AUDIT_FINDINGS_2026-10.md` § Open says "Nothing".
 
 ## Not verified
@@ -132,7 +133,6 @@ counters, bill cents), #18/#17 (dead code) and #19 (toolchain).
   `app_settings` (8+ is behind the machine-wide Swift Package Manager switch,
   `docs/DEPENDENCY_STATUS.md`) and on a Flutter release carrying the #192167 fix. AGP 10 removes the
   `newDsl` opt-out, so this is the next toolchain step.
-- Whether to cut **5.4.1** with #17's three user-visible fixes. Nothing else since 5.4.0 is user-facing.
 - A stale remote branch `origin/claude/festive-germain` predates this session and was left alone.
 
 ## Emulator state (Budget_Tracker_Emulator)
@@ -197,7 +197,9 @@ but `main` remains.
 `main` had three merged PRs the live APK did not, so the Unreleased section became a release:
 PR #21 (`release/5.4.1`): pubspec 5.4.0+15 → **5.4.1+16**, CHANGELOG "Unreleased" →
 "5.4.1+16 — 2026-10-13", this addendum. Squash-merged, tag `v5.4.1` on the squash commit, then
-the CLAUDE.md pipeline: arm-only release APK, `scripts/verify-release-apk.sh`, copy into the
-landing repo, commit, push, manual `vercel --prod --yes`, live SHA-1 compared with the build. The
-exact hashes and sizes are in the final docs commit that follows the release (the handoff cannot
-know its own merge hash). Leo's copy: `C:\Users\leooa\Downloads\money-tracker-5.4.1+16.apk`.
+the CLAUDE.md pipeline. Squash `6c2913e`, tag `v5.4.1` → `6c2913e`. Release APK 59,736,459 B,
+SHA-1 `c094835a11de158be940e1195d7e015b126c1717`, `scripts/verify-release-apk.sh` passed (arm64-v8a +
+armeabi-v7a, debug-signed on purpose, `apkanalyzer manifest version-name/version-code` 5.4.1 / 16 on both the build and the live file). Landing
+`82ac407`, manual `vercel --prod --yes`, live SHA-1 equal to the build 20 s later. Local preflight on
+the release branch 2672 pass / 0 skip; CI green on both jobs. Leo's copy:
+`C:\Users\leooa\Downloads\money-tracker-5.4.1+16.apk` (same SHA-1).
