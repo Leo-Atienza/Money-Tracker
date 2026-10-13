@@ -47,11 +47,6 @@ class ColorContrastHelper {
     return contrastRatio(foreground, background) >= minContrastNormalText;
   }
 
-  /// Checks if two colors meet WCAG AA contrast for large text (3:1).
-  static bool meetsAALarge(Color foreground, Color background) {
-    return contrastRatio(foreground, background) >= minContrastLargeText;
-  }
-
   /// Returns a contrasting text color (black or white) that meets WCAG AA.
   static Color getContrastingTextColor(Color background) {
     final whiteContrast = contrastRatio(Colors.white, background);
@@ -66,72 +61,6 @@ class ColorContrastHelper {
       // Neither meets AA, return the one with better contrast
       return whiteContrast > blackContrast ? Colors.white : Colors.black;
     }
-  }
-
-  /// Adjusts a color to meet WCAG AA contrast ratio with the given background.
-  /// Returns a darker or lighter version of the color that meets the requirement.
-  static Color adjustForContrast(
-    Color color,
-    Color background, {
-    double targetRatio = minContrastNormalText,
-  }) {
-    double currentRatio = contrastRatio(color, background);
-
-    if (currentRatio >= targetRatio) {
-      return color; // Already meets requirement
-    }
-
-    // Determine if we should darken or lighten
-    final bgLuminance = _relativeLuminance(background);
-    final shouldDarken = bgLuminance > 0.5;
-
-    // Binary search for the right shade
-    Color adjusted = color;
-    if (shouldDarken) {
-      // Make darker
-      double factor = 0.0;
-      double step = 0.5;
-      for (int i = 0; i < 10; i++) {
-        final alpha = (color.a * 255.0).round().clamp(0, 255);
-        final red =
-            ((color.r * 255.0).round().clamp(0, 255) * (1 - factor)).round();
-        final green =
-            ((color.g * 255.0).round().clamp(0, 255) * (1 - factor)).round();
-        final blue =
-            ((color.b * 255.0).round().clamp(0, 255) * (1 - factor)).round();
-        adjusted = Color.fromARGB(alpha, red, green, blue);
-        currentRatio = contrastRatio(adjusted, background);
-        if (currentRatio >= targetRatio) {
-          break;
-        }
-        factor += step;
-        step /= 2;
-      }
-    } else {
-      // Make lighter
-      double factor = 0.0;
-      double step = 0.5;
-      for (int i = 0; i < 10; i++) {
-        final alpha = (color.a * 255.0).round().clamp(0, 255);
-        final red = (color.r * 255.0).round().clamp(0, 255);
-        final green = (color.g * 255.0).round().clamp(0, 255);
-        final blue = (color.b * 255.0).round().clamp(0, 255);
-        adjusted = Color.fromARGB(
-          alpha,
-          (red + (255 - red) * factor).round(),
-          (green + (255 - green) * factor).round(),
-          (blue + (255 - blue) * factor).round(),
-        );
-        currentRatio = contrastRatio(adjusted, background);
-        if (currentRatio >= targetRatio) {
-          break;
-        }
-        factor += step;
-        step /= 2;
-      }
-    }
-
-    return adjusted;
   }
 
   /// Returns WCAG-compliant status colors for light/dark themes.

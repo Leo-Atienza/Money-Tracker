@@ -62,7 +62,10 @@ section "flutter test"
 # permission_helper, snackbar_helper) along with the 65 tests that only
 # ever exercised them. The gate must track REAL coverage: leaving it at
 # 2539 would have meant padding the suite with tests for dead code.
-TEST_COUNT_MIN=2713
+# 2026-10-12: 2713 -> 2672. June audit L60/L61: deleted the nine
+# AccessibilityHelper statics and two ColorContrastHelper statics that no
+# screen ever called, with the 41 tests that only exercised them.
+TEST_COUNT_MIN=2672
 TEST_OUT=$(mktemp)
 trap 'rm -f "$TEST_OUT"' EXIT
 if ! flutter test --concurrency=4 --reporter=expanded 2>&1 | tee "$TEST_OUT"; then
