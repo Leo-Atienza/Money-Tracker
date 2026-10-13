@@ -12,6 +12,10 @@ class AnimatedCounter extends StatefulWidget {
   final int decimalPlaces;
   final bool compact;
 
+  /// Number locale for grouping and the decimal mark (e.g. 'de_DE' gives
+  /// "1.234,50"). Null uses the app's default locale.
+  final String? locale;
+
   const AnimatedCounter({
     super.key,
     required this.value,
@@ -21,6 +25,7 @@ class AnimatedCounter extends StatefulWidget {
     this.duration = const Duration(milliseconds: 500),
     this.decimalPlaces = 2,
     this.compact = false,
+    this.locale,
   });
 
   @override
@@ -37,7 +42,13 @@ class _AnimatedCounterState extends State<AnimatedCounter>
   // changes) so the per-frame _formatValue doesn't reconstruct it 30x/animation.
   NumberFormat? _groupedFormat;
   NumberFormat get _format => _groupedFormat ??=
-      NumberFormat.decimalPatternDigits(decimalDigits: widget.decimalPlaces);
+      NumberFormat.decimalPatternDigits(
+        locale: widget.locale,
+        decimalDigits: widget.decimalPlaces,
+      );
+  NumberFormat? _compactFormat;
+  NumberFormat get _compact => _compactFormat ??=
+      NumberFormat.decimalPatternDigits(locale: widget.locale, decimalDigits: 1);
 
   @override
   void initState() {
@@ -53,8 +64,11 @@ class _AnimatedCounterState extends State<AnimatedCounter>
   @override
   void didUpdateWidget(AnimatedCounter oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.decimalPlaces != widget.decimalPlaces) {
-      _groupedFormat = null; // decimalDigits changed — rebuild the formatter
+    if (oldWidget.decimalPlaces != widget.decimalPlaces ||
+        oldWidget.locale != widget.locale) {
+      // Digits or locale changed — rebuild the formatters.
+      _groupedFormat = null;
+      _compactFormat = null;
     }
     if (oldWidget.value != widget.value) {
       _oldValue = oldWidget.value;
@@ -77,9 +91,9 @@ class _AnimatedCounterState extends State<AnimatedCounter>
     final v = value.abs();
     if (widget.compact) {
       if (v >= 1000000) {
-        return '${(v / 1000000).toStringAsFixed(1)}M';
+        return '${_compact.format(v / 1000000)}M';
       } else if (v >= 1000) {
-        return '${(v / 1000).toStringAsFixed(1)}K';
+        return '${_compact.format(v / 1000)}K';
       }
     }
     // M16: thousands grouping so the hero counters match their a11y label

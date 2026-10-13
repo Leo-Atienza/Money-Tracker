@@ -82,6 +82,9 @@ storage `6429b40`, screens `6f1bb5a`, history/export `df419b3` + `742303a`
 | — | old audit | June M4: crash log echoed SQL bound values (`args [...]`); L36: a version-0 `.db` (not written by the app) restored over the ledger | c86af48 |
 | L | data | Home "Recent Transactions" listed expenses only (income never showed). Leo: include income | c846580 |
 | L | contrast | 52 SnackBars put light text on incomeGreen/expenseRed fills (3.6–4.4:1, under 4.5:1). Leo: plain M3 SnackBars; a lint test keeps fills out | c846580 |
+| L | a11y | History's filter chips (All time, Date range, Sort) each exposed two TalkBack nodes: a labelled wrapper with no action and the chip. One node per chip now; the date chip's clear button says "Clear date range" | 8d8898f |
+| L | format | For EUR, Home's counters showed "€0.00" while their spoken labels said "€0,00" (default vs currency locale); Upcoming bills rounded a $15.49 bill to "$15" | 8d8898f |
+| L | dead code | `lib/screens/advanced_filter_dialog.dart` was never opened; removed (the AppState filter setters stay — tested API) | 8d8898f |
 
 Found and fixed along the way: a failed database open raised an unhandled
 async error (3a9ebca); History's "Expenses" tab faded out at 1.3× (cd71eb1);
@@ -96,6 +99,4 @@ icon buttons labelled and form dialogs scrollable.
 
 | Sev | Area | Finding |
 |-----|------|---------|
-| L | a11y | History's filter chips (All time, Date range, Sort) each expose two TalkBack nodes: a labelled wrapper and the chip itself (device walk) |
-| L | format | For EUR, Home's spoken total says "€0,00" while the screen shows "€0.00" (two formatters); Upcoming bills round to whole units ($15 for a $15.49 bill) while the reminder says $15.49 (device walk) |
 | — | old audit | June L60/L61: test-only helpers in AccessibilityHelper / ColorContrastHelper — optional cleanup, no defect |
