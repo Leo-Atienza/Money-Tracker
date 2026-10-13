@@ -5,6 +5,81 @@
 > (L100 Quality Upgrade) and was never shipped. The actual public release of
 > this bug-fix + crash-log pass is `4.4.0+6`.
 
+## Unreleased
+
+### Changed
+- Android build toolchain: Gradle 9.3.1, Android Gradle Plugin 9.1.0,
+  Kotlin 2.4.0 — the set Flutter 3.47's own project template uses. No
+  change to the app itself; `android.builtInKotlin` and `android.newDsl`
+  stay off until every plugin in use has migrated.
+
+### Fixed
+- History's All time, Date range and Sort chips are one TalkBack node
+  each (they were announced twice), and the date chip's clear button says
+  "Clear date range" instead of "Delete".
+- Home's balance, income and expense counters use the currency's number
+  format: a EUR account reads "€1.234,50" on screen as well as aloud.
+- Upcoming bills keep their cents; a $15.49 bill no longer shows "$15 due".
+
+### Removed
+- Dead code: an advanced-filter dialog nothing opened, and the
+  AccessibilityHelper / ColorContrastHelper methods no screen called.
+
+## 5.4.0+15 — 2026-10-12
+
+The home-screen widget rebuilt, Purple that follows the phone, and the
+October audit worked through (sessions 21–22; every finding and its commit
+is in `docs/AUDIT_FINDINGS_2026-10.md`).
+
+### Added
+- **Home-screen widget**, rebuilt — it had never loaded ("Can't load
+  widget": the layout used a plain divider view that RemoteViews refuse).
+  Full and compact layouts, day and night, Add expense / Add income quick
+  actions, amounts hidden while the PIN is on, next-month rollover, figures
+  that match Home. Launchers older than Android 12 get a preview image
+  instead of the app icon.
+- Income appears in Home's Recent Transactions, newest first.
+
+### Changed
+- **Purple follows the phone:** lavender by day, violet at night, with a
+  violet balance card. One Purple choice replaces the light-only one;
+  every text colour is still contrast-checked in the suite.
+- SnackBars are plain Material 3. The 52 green/red fills (3.6–4.4:1) are
+  gone, and a lint test keeps them out.
+- Reminders use the phone's time zone (no drift across DST changes), and
+  budget alerts measure the month on screen.
+- 360dp phones at 1.3× text fit; sheets clear the navigation bar; form
+  dialogs scroll above the keyboard and show their errors inline instead
+  of in a SnackBar behind the dialog.
+- Progress dialogs close by their own route; they could pop the PIN
+  screen or a prompt instead.
+- "1,500" types as 1500, negative amounts read "-$1,234", and one 13-digit
+  amount ceiling applies everywhere (IDR/VND/KRW totals were clamped).
+
+### Fixed
+- Recurring bills skipped or ran late: the schedule stored the run day
+  rather than the due day, weekly bills drifted to whichever day the app
+  opened, the end date and occurrence limit were ignored, and only the
+  current account was processed.
+- Restoring a deleted account deadlocked. Undo, payments and account
+  switching had related faults (audit items 1–22).
+- Schema v20: one budget per category per month; duplicates are merged on
+  rename.
+- Settings are included in a backup and restored with it; a bad setting
+  no longer rolls back the whole restore.
+- CSV rows no longer split on amounts of 1,000 or more.
+- TalkBack: segmented controls read once, and every icon button has a
+  spoken label (lint-guarded).
+
+### Security
+- The PIN fails closed when secure storage cannot be read. One atomic PIN
+  record, lockout on a monotonic clock, weak PINs refused, and unlock
+  waits for the PIN's real length.
+- The SQLCipher key is never replaced or orphaned, and plaintext copies of
+  the database are reaped.
+- Crash logs drop SQL bound values, and a foreign (version-0) `.db` cannot
+  be restored over the ledger.
+
 ## 5.3.1+14 — 2026-09-04
 
 Toolchain release: Flutter 3.38.5 → 3.47.2 (Dart 3.13.2) and the five packages
