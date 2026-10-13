@@ -5,7 +5,12 @@
 > (L100 Quality Upgrade) and was never shipped. The actual public release of
 > this bug-fix + crash-log pass is `4.4.0+6`.
 
-## Unreleased
+## 5.4.1+16 — 2026-10-13
+
+Maintenance release: the three PRs merged after 5.4.0 (accessibility and
+currency fixes, dead code, the Android toolchain), with every item on the
+"not verified on a device" list now walked on the emulator
+(`docs/SESSION_23_HANDOFF.md`).
 
 ### Changed
 - Android build toolchain: Gradle 9.3.1, Android Gradle Plugin 9.1.0,

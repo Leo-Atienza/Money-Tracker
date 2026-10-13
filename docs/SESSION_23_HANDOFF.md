@@ -154,3 +154,50 @@ test opened Add Transaction and was not saved.
   applies `kotlin-android` when built-in Kotlin is off.
 - `gh pr merge --delete-branch` plus `git fetch --prune` is what clears the merged branches locally;
   the stale `origin/fix/session-21-widget-and-hardening` ref from S22 went with the prune.
+
+## Addendum, same night: nothing left pending, then 5.4.1+16
+
+Leo's second brief: everything done with nothing pending, and only then the APK. Three things
+happened after the sections above.
+
+### A. Device verification of every "not verified" item
+
+Budget_Tracker_Emulator (API 36), debug build of `main` at `211998a` (same app code as the
+release); evidence read back with `adb` (`dumpsys notification`, `dumpsys alarm`, `uiautomator
+dump`, `run-as`, screenshots).
+
+| Item | Result |
+|------|--------|
+| Test notification | Notifications → Send Test Notification → "📊 Monthly Summary" posted on channel `monthly_reports`. |
+| Scheduled bill reminder | Default reminder time set to 11:25 PM → the exact `RTC_WAKEUP` alarm re-booked for 23:25:00 (`dumpsys alarm`) → "💡 Bill Reminder — Reminder test bill ($15.49) due tomorrow" posted at 23:25 on `bill_reminders`. |
+| CSV share | Export Data → Export to CSV → system share sheet "Sharing 1 file", `transactions_20261012_232235.csv`. |
+| PDF share | Export to PDF → share sheet with `monthly_summary_….pdf`. |
+| Backup to a file | Save Backup → passphrase → SAF "Save as" → `expense_tracker_20261012_232427.etbackup` (306 KB) in the device's Downloads. |
+| Load-error card | DB copied aside with `run-as`, first 4 KB overwritten with random bytes, relaunch → `SQLiteLog: file is not a database` → Home shows "Couldn't open your data — Nothing has been deleted … Try again" with the file untouched; bytes restored (md5 `2943e60b…` matches), "Try again" reloaded $2,970.00 without a restart. |
+| Fresh install, onboarding double tap | `pm clear`, launch → onboarding; two taps on Get Started 50 ms apart → one Home (one summary card, no Flutter exception), BACK goes to the launcher (no second Home underneath). |
+| Restore from a backup file | Choose Backup File → SAF picker → the `.etbackup` → Restore → passphrase → Decrypt → data back ($2,970.00 with the September carry-over, Upcoming bills), settings back (Theme Purple, carry-over on, currency), both launcher widgets re-rendered. |
+| Budget alert with an older month on screen | Food budget $30; Home on September; Add with the date picker set to Oct 12, $1 Food → "🚨 Budget Exceeded! Food budget exceeded! Spent: $31.00 of $30.00": October measured, not September. (`pm clear` had revoked `POST_NOTIFICATIONS`, so the first attempt posted nothing until `pm grant`; that is the OS permission, not the app.) |
+| Widget preview on a pre-Android-12 launcher | New AVD `Api30_Widget` (`system-images;android-30;google_apis;x86_64`, downloaded this session), debug build installed, long-press → Widgets → "FinanceFlow / Monthly balance 4 × 2" shows the rendered preview card, not the app icon. AVD kept, emulator shut down. |
+| PIN fail-closed paths | The one item no device can show: a secure-storage read failure cannot be induced without breaking the Keystore. Covered by `test/utils/pin_security_storage_test.dart`, `test/screens/pin_screens_test.dart` and `test/integration/app_state_nav_settings_pin_gaps_test.dart`. |
+
+Test data this left on the emulator (kept): a $5 Food expense dated 2026-09-01 (the Add form
+defaults to the 1st of a non-current month, so an earlier attempt with September selected landed
+there), $5 and $1 Food expenses on Oct 12, a $30 Food budget for October, default reminder time
+11:25 PM, `POST_NOTIFICATIONS` re-granted by adb. The carry-over into October now reads
+$2,845.00 (it was $2,850.00): the Sep 1 $5 row is the whole difference, by design (carry-over
+counts full expense amounts, see `docs/` carry-over notes and `calculateNetBalanceBefore`).
+
+### B. Housekeeping
+
+`origin/claude/festive-germain` (2026-03-16, fully merged into `main`) deleted. No other branch
+but `main` remains.
+
+### C. Release 5.4.1+16
+
+`main` had three merged PRs the live APK did not, so the Unreleased section became a release:
+PR #21 (`release/5.4.1`): pubspec 5.4.0+15 → **5.4.1+16**, CHANGELOG "Unreleased" →
+"5.4.1+16 — 2026-10-13", this addendum. Squash-merged, tag `v5.4.1` on the squash commit, then
+the CLAUDE.md pipeline: arm-only release APK, `scripts/verify-release-apk.sh`, copy into the
+landing repo, commit, push, manual `vercel --prod --yes`, live SHA-1 compared with the build. The
+exact hashes and sizes are in the final docs commit that follows the release (the handoff cannot
+know its own merge hash). Leo's copy: `C:\Users\leooa\Downloads\money-tracker-5.4.1+16.apk`.
