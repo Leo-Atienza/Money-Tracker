@@ -5,8 +5,31 @@ packages below are deliberately pinned below their latest release. Each entry
 says what blocks it, so nobody has to re-derive it — and so nobody "helpfully"
 bumps `flutter_secure_storage` to v11 and destroys user databases.
 
-Toolchain at the time of writing: **Flutter 3.47.2 / Dart 3.13.2**, AGP 8.13.2,
-Gradle 8.14.3, Kotlin 2.2.20.
+Toolchain: **Flutter 3.47.2 / Dart 3.13.2**, AGP 9.1.0, Gradle 9.3.1, Kotlin
+2.4.0 (since 2026-10-12; the 2026-09-04 pass below ran on AGP 8.13.2 /
+Gradle 8.14.3 / Kotlin 2.2.20).
+
+## Upgraded on 2026-10-12 (the AGP 9 toolchain, not a release)
+
+Gradle 8.14.3 -> **9.3.1**, AGP 8.13.2 -> **9.1.0**, Kotlin 2.2.20 -> **2.4.0**:
+exactly the set Flutter 3.47.2's `flutter create` template pins
+(`flutter_tools/lib/src/android/gradle_utils.dart`), inside KGP 2.4.0's
+documented window (Gradle <= 9.5.0, AGP <= 9.1.0) and above every "will soon
+be dropped" threshold in Flutter's `DependencyVersionChecker` (Gradle 9.1.0,
+AGP 9.0.1, Kotlin 2.3.20). `android/app/build.gradle.kts` no longer applies
+`kotlin-android` itself (Flutter's Gradle plugin applies it while
+`android.builtInKotlin=false`) and sets the JVM target through
+`kotlin { compilerOptions { jvmTarget } }` instead of `android.kotlinOptions`,
+as the template does. `android.builtInKotlin=false` and `android.newDsl=false`
+stay; `android/gradle.properties` says why.
+
+Gate: debug and arm-only release builds, `scripts/verify-release-apk.sh`
+(release APK 59,736,459 B, 33 KB over the 5.4.0 build, arm64-v8a +
+armeabi-v7a only), and a walk of Home, Settings, both home-screen widgets
+and the widget's quick-add on Budget_Tracker_Emulator. Expect one build-time
+warning: Flutter lists `app_settings, home_widget` as plugins that apply KGP.
+Its check is textual; `home_widget` 0.9.4 only applies it while built-in
+Kotlin is off, `app_settings` 7.0.0 applies it unconditionally.
 
 ## Upgraded on 2026-09-04 (the Flutter SDK bump, v5.3.1+14)
 
@@ -105,11 +128,10 @@ than a functional one.
   10.x; nothing about the SDK bump changes that reasoning.
 - **`app_settings` 8** — needs the machine-wide Swift Package Manager switch.
   Still pinned at 7.x.
-- **AGP 9 / Gradle 9 / Kotlin 2.4** — the current `flutter create` template.
-  Flutter 3.47 already warns at build time that support for Gradle 8.14.3,
-  AGP 8.13.2 and Kotlin 2.2.20 "will soon be dropped" and asks for Gradle
-  >= 9.1.0, AGP >= 9.0.1, Kotlin >= 2.3.20. The Flutter migrator also wrote
-  `android.newDsl=false` and `android.builtInKotlin=false` into
-  `android/gradle.properties` to keep the 8.x behaviour. Take the 9.x set
-  deliberately on its own branch, with the suite and a device walk as the
-  gate, before the next Flutter minor.
+- **Built-in Kotlin (`android.builtInKotlin=true`)** — the step after the
+  AGP 9 move above. Blocked on `app_settings` (7.0.0 applies `kotlin-android`
+  unconditionally; 8+ sits behind the SPM switch above) and on Flutter's
+  Kotlin minimum-version check against AGP's bundled KGP 2.2.10
+  (flutter/flutter#192167, fixed on master in September 2026, not in
+  3.47.2). AGP 10 removes the `newDsl` opt-out, so take both flags together
+  on their own branch once those clear.
