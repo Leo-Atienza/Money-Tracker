@@ -21,6 +21,7 @@ import 'screens/pin_unlock_screen.dart';
 import 'services/onboarding_service.dart';
 import 'utils/notification_helper.dart';
 import 'utils/notification_payload_store.dart';
+import 'utils/pin_security_helper.dart' show PinStorageUnavailableException;
 import 'utils/home_widget_helper.dart';
 import 'theme/luminous_app_theme.dart';
 import 'utils/premium_animations.dart';
@@ -170,21 +171,22 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Future<void> _handlePaused() async {
     if (!mounted || !context.mounted) return;
     final appState = context.read<AppState>();
-    // Only arm the lock gate when a PIN is actually configured. `_isLocked`
-    // is the single source of truth the resume handler re-presents against,
-    // so locking without a PIN would trap the user on an unlock screen they
-    // can't pass. `initializeLockState` and the inactivity timer already gate
-    // on pinEnabled — keep `_handlePaused` consistent so `isLocked == true`
-    // always implies a PIN exists.
+    // Only arm the lock gate when a PIN is actually configured.
+    // `initializeLockState` and the inactivity timer gate on pinEnabled the
+    // same way.
     //
-    // Wrapped in try/catch so a secure-storage read failure can NEVER (a) skip
-    // the DB-close / subscription-dispose maintenance below, nor (b) trap a
-    // PIN-less user — on error we leave the app unlocked (fail-open for
-    // usability; the resume handler is a no-op when unlocked anyway).
+    // Fail closed (S22): when the secure store cannot be read, lock anyway —
+    // an unreadable store is not "no PIN". The unlock screen re-reads it and
+    // lets a PIN-less user straight through once it reads, or offers Try
+    // again. The try/catch also guarantees a failure can never skip the
+    // DB-close / subscription-dispose maintenance below.
     try {
       if (await appState.isPinEnabled()) {
         appState.lock();
       }
+    } on PinStorageUnavailableException catch (e, st) {
+      CrashLog.record(e, stack: st, context: 'lifecycle_paused_pin_check');
+      appState.lock();
     } catch (e, st) {
       if (kDebugMode) debugPrint('isPinEnabled() on paused failed: $e');
       CrashLog.record(e, stack: st, context: 'lifecycle_paused_pin_check');
@@ -201,13 +203,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
     // Phase 3.6: state could be torn down between awaits. Bail out before
     // touching context/state on every subsequent step.
-    if (!mounted) return;
-    // Phase 3.5: dispose the widget click subscription on `paused` instead of
-    // `detached`. Android often skips `detached` entirely (e.g. when the
-    // system kills the process to reclaim memory), and the leaked stream
-    // subscription would otherwise survive across a hot restart and fire the
-    // click callback twice on the next foreground.
-    await HomeWidgetHelper.dispose();
     if (!mounted) return;
     // Only NOW close the DB.
     await _performBackgroundMaintenance();
@@ -235,11 +230,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         // Close database connection on app termination
         context.read<AppState>().closeDatabase();
       }
-      // Phase 3.5: HomeWidgetHelper.dispose() was moved to `_handlePaused`
-      // because Android does not reliably deliver `detached`. The call
-      // remains idempotent so a `detached`-after-`paused` flow re-disposing
-      // is harmless — keep it here as a belt-and-braces guard.
-      HomeWidgetHelper.dispose();
     } catch (e) {
       if (kDebugMode) debugPrint('Error closing database: $e');
     }
@@ -248,9 +238,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final themeMode = context.select<AppState, String>((s) => s.themeMode);
-    // Purple is a fixed light-brightness appearance: it takes the `theme`
-    // slot, and themeModeFor() pins ThemeMode.light so darkTheme never
-    // applies while it is selected.
+    // Purple follows the phone like Follow System (themeModeFor maps it to
+    // ThemeMode.system), with its own pair in both slots: lavender by day,
+    // violet-night when the system is dark.
     final purple = themeMode == 'purple';
 
     return MaterialApp(
@@ -260,10 +250,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         brightness: Brightness.light,
         appColorsExtension: AppColors.fromBrightness(Brightness.light),
         colorScheme: purple ? luminousPurpleScheme() : null,
+        tonal: purple,
       ),
       darkTheme: buildLuminousTheme(
         brightness: Brightness.dark,
         appColorsExtension: AppColors.fromBrightness(Brightness.dark),
+        colorScheme: purple ? luminousPurpleDarkScheme() : null,
+        tonal: purple,
       ),
       themeMode: themeModeFor(themeMode),
       // The Luminous design assumes an OrganicBlobBackground behind every
@@ -373,6 +366,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   /// `accountJustSwitched` boolean + post-frame clear flag pattern.
   StreamSubscription<void>? _accountSwitchSubscription;
 
+  /// A widget quick add waiting to open: 'expense' or 'income'. It is held
+  /// until the PIN gate is passed so the form can never open above (and
+  /// bypass) the unlock screen.
+  String? _pendingQuickAdd;
+
   // Animation controllers for tab transitions
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -457,6 +455,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
       // navigation back to Home.
       _accountSwitchSubscription =
           appState.onAccountSwitch.listen(_onAccountSwitch);
+      // Home-screen widget quick adds: a tap that launched the app, and any
+      // that arrive while it runs.
+      HomeWidgetHelper.listenForQuickAdds(_takeWidgetQuickAdd);
+      _takeWidgetQuickAdd();
     });
   }
 
@@ -464,6 +466,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   void dispose() {
     _recurringBatchSubscription?.cancel();
     _accountSwitchSubscription?.cancel();
+    HomeWidgetHelper.listenForQuickAdds(null);
     FocusManager.instance.removeListener(_onFocusEvent);
     _fadeController.dispose();
     WidgetsBinding.instance.removeObserver(this);
@@ -503,6 +506,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
             if (mounted) setState(() => _currentIndex = 1);
           },
         ),
+        // Since Flutter 3.38 a SnackBar with an action never times out on its
+        // own — this one sat over the Add screen's Save button until tapped.
+        // Time it out again, except for TalkBack users who need the time.
+        persist: MediaQuery.accessibleNavigationOf(context),
       ),
     );
   }
@@ -525,6 +532,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
         // data stays visible without re-entering the PIN. `_checkPinLock`
         // no-ops when the app isn't locked and is re-entrancy guarded.
         _checkPinLock();
+        // A widget tap that brought the app back (belt and braces for the
+        // nudge, which can fire before the engine is listening again).
+        _takeWidgetQuickAdd();
       });
     }
   }
@@ -553,6 +563,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     if (!appState.isLocked) return;
 
     _pinRouteActive = true;
+    var unlockedNow = false;
     try {
       final unlocked = await Navigator.push<bool>(
         context,
@@ -564,13 +575,53 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
       if (unlocked == true && mounted) {
         appState.unlock();
+        unlockedNow = true;
       } else if (mounted) {
+        // An abandoned unlock also abandons a widget quick add, rather than
+        // opening the form after some later unlock.
+        _pendingQuickAdd = null;
         // User didn't unlock, exit the app
         SystemNavigator.pop();
       }
     } finally {
       _pinRouteActive = false;
     }
+    // Only after the route flag is down — _openPendingQuickAdd refuses to
+    // open while an unlock route is showing.
+    if (unlockedNow) {
+      _openPendingQuickAdd();
+      _checkPendingNotification();
+    }
+  }
+
+  Future<void> _takeWidgetQuickAdd() async {
+    final type = await HomeWidgetHelper.takeQuickAdd();
+    if (type == null || !mounted) return;
+    _pendingQuickAdd = type;
+    _openPendingQuickAdd();
+  }
+
+  /// Opens the Add form a widget button asked for, once the app is unlocked.
+  /// While locked it leaves the request pending; [_checkPinLock] calls back
+  /// in here after a successful unlock.
+  Future<void> _openPendingQuickAdd() async {
+    if (_pendingQuickAdd == null || !mounted) return;
+    final appState = context.read<AppState>();
+    await appState.lockStateReady;
+    if (!mounted || _pinRouteActive || appState.isLocked) return;
+    final type = _pendingQuickAdd;
+    _pendingQuickAdd = null;
+    if (type == null) return;
+    Navigator.push(
+      context,
+      PremiumPageRoute(
+        page: AddTransactionScreen(
+          initialType: type == 'income'
+              ? TransactionType.income
+              : TransactionType.expense,
+        ),
+      ),
+    );
   }
 
   /// Reset inactivity timer on any interaction
@@ -582,6 +633,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
   Future<void> _checkPendingNotification() async {
     if (_hasCheckedNotificationPayload) return;
+    final appState = context.read<AppState>();
+    await appState.lockStateReady;
+    if (!mounted) return;
+    // Hold notification routing until the app is unlocked. A bill reminder
+    // tapped while locked used to push the recurring-bills screen ABOVE the
+    // PIN screen — viewable and editable without the PIN. [_checkPinLock]
+    // calls back in here after a successful unlock.
+    if (_pinRouteActive || appState.isLocked) return;
     _hasCheckedNotificationPayload = true;
 
     // Phase 3.1: consume the full queue. Multiple notifications can land
@@ -624,6 +683,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     // Phase 3.4: account-switch navigation reset moved off the
     // `accountJustSwitched` boolean to the `onAccountSwitch` stream — see
     // `_onAccountSwitch` and the subscription wired in `initState`.
+
+    // Present the unlock gate whenever the app becomes locked — notably when
+    // the 3-minute inactivity timer fires while the app is open. Before, the
+    // gate only appeared on the next resume, so an app left open on a
+    // charger stayed readable indefinitely. `_checkPinLock` is re-entrancy
+    // guarded, so repeat builds cannot stack a second unlock screen.
+    final locked = context.select<AppState, bool>((s) => s.isLocked);
+    if (locked && !_pinRouteActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _checkPinLock());
+    }
 
     return PopScope(
       canPop: false,

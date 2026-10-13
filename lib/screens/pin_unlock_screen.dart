@@ -5,6 +5,7 @@ import '../utils/pin_security_helper.dart';
 import '../utils/haptic_helper.dart';
 import '../theme/app_colors.dart';
 import '../theme/luminous_tokens.dart';
+import '../widgets/luminous/fill_or_scroll.dart';
 import '../widgets/luminous/glass_panel.dart';
 
 /// Screen for unlocking the app with PIN
@@ -25,6 +26,14 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
   int _remainingAttempts = 5;
   int _lockoutSeconds = 0;
   Timer? _lockoutTimer;
+  // The keypad waits for the real PIN length: before it loaded, a 6-digit
+  // PIN was submitted at the 4th digit (the default) and counted as wrong.
+  bool _ready = false;
+  // The secure store could not be read; the screen offers Try again.
+  bool _storageError = false;
+
+  static const String _storageErrorMessage =
+      "Couldn't check your PIN. Try again.";
 
   @override
   void initState() {
@@ -61,7 +70,24 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
 
   /// FIX: Load both PIN length and current rate limiting state from PinSecurityHelper
   Future<void> _loadInitialState() async {
-    final length = await PinSecurityHelper.getPinLength();
+    final int length;
+    try {
+      // The app locks when the secure store cannot be read (fail closed),
+      // so this screen can open without a PIN behind it. Once the store
+      // reads again and says there is none, there is nothing to unlock.
+      if (!await PinSecurityHelper.isPinEnabled()) {
+        if (mounted) Navigator.pop(context, true);
+        return;
+      }
+      length = await PinSecurityHelper.getPinLength();
+    } on PinStorageUnavailableException {
+      if (!mounted) return;
+      setState(() {
+        _storageError = true;
+        _errorMessage = _storageErrorMessage;
+      });
+      return;
+    }
     final remaining = await PinSecurityHelper.getRemainingAttempts();
     final lockoutSecs = await PinSecurityHelper.getRemainingLockoutSeconds();
 
@@ -70,12 +96,24 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
       _pinLength = length;
       _remainingAttempts = remaining;
       _lockoutSeconds = lockoutSecs;
+      _storageError = false;
+      _errorMessage = null;
+      _ready = true;
       if (_lockoutSeconds > 0) {
         _errorMessage =
             'Too many attempts. Try again in $_lockoutSeconds seconds.';
         _startLockoutCountdown();
       }
     });
+  }
+
+  void _retryAfterStorageError() {
+    setState(() {
+      _storageError = false;
+      _errorMessage = null;
+      _enteredPin = '';
+    });
+    _loadInitialState();
   }
 
   @override
@@ -87,6 +125,8 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(LuminousTokens.containerPadding),
+          // Scrolls when the pad does not fit (a small phone, large text).
+          child: FillOrScroll(
           child: Column(
             children: [
               const Spacer(),
@@ -197,6 +237,14 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                 ),
               ],
 
+              if (_storageError) ...[
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: _retryAfterStorageError,
+                  child: const Text('Try again'),
+                ),
+              ],
+
               const Spacer(),
 
               // Number pad
@@ -221,6 +269,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
 
               const SizedBox(height: 8),
             ],
+          ),
           ),
         ),
       ),
@@ -259,7 +308,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: InkWell(
-        onTap: _isLoading ? null : () => _onNumberPressed(number),
+        onTap: _acceptsInput ? () => _onNumberPressed(number) : null,
         borderRadius: BorderRadius.circular(40),
         child: Container(
           width: 70,
@@ -291,7 +340,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
         button: true,
         label: 'Delete',
         child: InkWell(
-          onTap: _isLoading ? null : _onBackspacePressed,
+          onTap: _acceptsInput ? _onBackspacePressed : null,
           borderRadius: BorderRadius.circular(40),
           child: Container(
             width: 70,
@@ -312,6 +361,8 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
       ),
     );
   }
+
+  bool get _acceptsInput => _ready && !_isLoading && !_storageError;
 
   void _onNumberPressed(String number) {
     HapticHelper.lightImpact();
@@ -393,6 +444,15 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
           }
         });
       }
+    } on PinStorageUnavailableException {
+      // Not a wrong PIN, and not counted as one.
+      await HapticHelper.error();
+      if (!mounted) return;
+      setState(() {
+        _enteredPin = '';
+        _storageError = true;
+        _errorMessage = _storageErrorMessage;
+      });
     } catch (e) {
       await HapticHelper.error();
       if (!mounted) return;

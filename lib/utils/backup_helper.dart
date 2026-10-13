@@ -1,21 +1,18 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/database.dart';
-import '../database/database_helper.dart';
 import '../database/db_open.dart';
-import '../providers/app_state.dart';
 import 'backup_crypto.dart';
+import 'crash_log.dart';
 import 'db_encryption.dart';
+import 'settings_helper.dart';
 
 /// Phase 6.3 — passphrase request callback for encrypted restores.
 ///
@@ -68,7 +65,9 @@ Future<String> _createBackupInIsolate(_BackupIsolateParams params) async {
     'schema_version': params.schemaVersion,
     'timestamp': DateTime.now().toIso8601String(),
     'database': dbBase64,
-    'settings': params.settings,
+    // The real settings keys (S22). The old 'settings' block held camelCase
+    // keys nothing read, so it carried defaults only and is not written.
+    'appSettings': params.settings,
   };
 
   // Encode to JSON
@@ -110,7 +109,9 @@ Future<_RestoreIsolateResult> _decodeBackupInIsolate(
     throw const FormatException('missing or invalid database field');
   }
   final dbBytes = base64Decode(dbBase64);
-  final settings = backupData['settings'] as Map<String, dynamic>?;
+  // Only S22+ backups carry real settings; a damaged block is ignored.
+  final rawSettings = backupData['appSettings'];
+  final settings = rawSettings is Map<String, dynamic> ? rawSettings : null;
   final schemaVersion = backupData['schema_version'];
   return _RestoreIsolateResult(
     dbBytes,
@@ -120,12 +121,6 @@ Future<_RestoreIsolateResult> _decodeBackupInIsolate(
 }
 
 class BackupHelper {
-  /// FIX P2-13: Helper to properly escape CSV fields
-  /// Escapes double quotes by doubling them (RFC 4180 standard)
-  static String _escapeCsvField(String field) {
-    return field.replaceAll('"', '""');
-  }
-
   /// Phase 6.3 — wraps the plaintext comprehensive backup [json] in a
   /// `BackupCrypto` v4 envelope when [passphrase] is non-null and
   /// non-empty. Otherwise returns [json] unchanged so callers that
@@ -170,19 +165,37 @@ class BackupHelper {
     if (!await isEncryptedDatabaseFile(dbPath)) {
       return (path: dbPath, isTemp: false);
     }
-    final password = await DbEncryption.getOrCreateKey();
+    // An unreadable key throws DatabaseKeyUnavailableException and fails the
+    // backup: never a new key, never a backup of ciphertext no device could
+    // restore.
+    final password = await DbEncryption.getOrCreateKey(dbPath: dbPath);
     if (password == null) {
-      // Encrypted file but no retrievable key — a catastrophic state in which
-      // the app itself can't open the DB. Embed as-is rather than fail outright.
+      // Only when the file stopped being encrypted after the check above (a
+      // restore swapped in a plaintext database), so it can go in as-is.
       return (path: dbPath, isTemp: false);
     }
     final tmpDir = await getTemporaryDirectory();
-    final dest = path.join(
-      tmpDir.path,
-      'ff-backup-plaintext-${DateTime.now().millisecondsSinceEpoch}.db',
+    final source = (
+      path: path.join(
+        tmpDir.path,
+        '$plaintextExportPrefix${DateTime.now().millisecondsSinceEpoch}.db',
+      ),
+      isTemp: true,
     );
-    await exportPlaintextCopy(dbPath: dbPath, password: password, dest: dest);
-    return (path: dest, isTemp: true);
+    try {
+      await exportPlaintextCopy(
+        dbPath: dbPath,
+        password: password,
+        dest: source.path,
+      );
+    } catch (_) {
+      // A failed export can leave a partial plaintext file behind. (One a
+      // killed backup never cleaned up is reaped at startup by
+      // deleteStalePlaintextExports.)
+      await _cleanupBackupSource(source);
+      rethrow;
+    }
+    return source;
   }
 
   /// Deletes a throwaway plaintext source created by [_backupSource].
@@ -201,121 +214,6 @@ class BackupHelper {
         if (await f.exists()) await f.delete();
       } catch (_) {
         // Best-effort temp cleanup.
-      }
-    }
-  }
-
-  // Export full backup
-  Future<void> exportBackup(BuildContext context) async {
-    try {
-      final appState = context.read<AppState>();
-      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final fileName = 'expense_tracker_backup_$timestamp.json';
-
-      // Gather all data
-      // FIX: Fetch ALL expenses/incomes from database instead of using in-memory list
-      // This prevents memory issues and ensures complete backups
-      final allExpenses = await appState.getAllExpensesForBackup();
-      final allIncomes = await appState.getAllIncomesForBackup();
-
-      // Phase 4.9: include `transaction_tags` so the junction is preserved
-      // through a round-trip. Scoped to the current account to match the
-      // existing `tags` scope.
-      final transactionTags = await DatabaseHelper()
-          .readAllTransactionTags(appState.currentAccountId);
-
-      // FIX P2-12: Include ALL data in backup (previously missing budgets, recurring_income, monthly_balances, tags)
-      // FIX Bug #9: Include schema_version so newer backups can be refused by
-      // older app installs before any writes happen.
-      final backupData = {
-        'version': 3, // Phase 4.9: bumped to include transaction_tags
-        'schema_version': DatabaseConstants.databaseVersion,
-        'timestamp': DateTime.now().toIso8601String(),
-        'currency': appState.currencyCode,
-        'accounts': appState.accounts.map((e) => e.toMap()).toList(),
-        'expenses': allExpenses.map((e) => e.toMap()).toList(),
-        'incomes': allIncomes.map((e) => e.toMap()).toList(),
-        'categories': appState.categories.map((e) => e.toMap()).toList(),
-        'recurring_expenses':
-            appState.recurringExpenses.map((e) => e.toMap()).toList(),
-        'recurring_income': appState.recurringIncomes
-            .map((e) => e.toMap())
-            .toList(), // FIX P2-12: Added
-        'budgets':
-            appState.budgets.map((e) => e.toMap()).toList(), // FIX P2-12: Added
-        'quick_templates':
-            appState.quickTemplates.map((e) => e.toMap()).toList(),
-        'monthly_balances': appState.monthlyBalances.values
-            .map((e) => e.toMap())
-            .toList(), // FIX P2-12: Added
-        'tags': appState.tags, // FIX P2-12: Added (already Map format)
-        'transaction_tags': transactionTags, // Phase 4.9
-      };
-
-      // Create temporary file
-      final directory = await getTemporaryDirectory();
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsString(jsonEncode(backupData));
-
-      // Share file using SharePlus
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path)],
-          subject: 'FinanceFlow Backup',
-          text:
-              'Backup created on ${DateFormat.yMMMd().format(DateTime.now())}',
-        ),
-      );
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: ${e.toString()}')),
-        );
-      }
-    }
-  }
-
-  // Export CSV (simplified)
-  Future<void> exportCsv(BuildContext context) async {
-    try {
-      final appState = context.read<AppState>();
-      // FIX: Fetch ALL expenses from database instead of using in-memory list
-      final expenses = await appState.getAllExpensesForBackup();
-
-      final csvContent = StringBuffer();
-      csvContent.writeln(
-        'Date,Description,Category,Amount,Payment Method,Is Paid',
-      );
-
-      for (var expense in expenses) {
-        // FIX P2-13: Properly escape ALL text fields to handle commas and quotes
-        csvContent.writeln(
-          '${DateFormat('yyyy-MM-dd').format(expense.date)},'
-          '"${_escapeCsvField(expense.description)}",'
-          '"${_escapeCsvField(expense.category)}",' // FIX: Quote category field
-          '${expense.amount},'
-          '"${_escapeCsvField(expense.paymentMethod)}",' // FIX: Quote payment method
-          '${expense.isPaid ? "Yes" : "No"}',
-        );
-      }
-
-      final fileName =
-          'expenses_export_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv';
-      final directory = await getTemporaryDirectory();
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsString(csvContent.toString());
-
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path)],
-          subject: 'FinanceFlow CSV Export',
-        ),
-      );
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('CSV Export failed: ${e.toString()}')),
-        );
       }
     }
   }
@@ -406,16 +304,7 @@ class BackupHelper {
 
       // Get settings on main thread, then offload heavy work to isolate
       if (kDebugMode) debugPrint('Loading settings...');
-      final prefs = await SharedPreferences.getInstance();
-      final settings = {
-        'darkMode': prefs.getBool('darkMode') ?? false,
-        'currencyCode': prefs.getString('currencyCode') ?? 'USD',
-        'billReminders': prefs.getBool('billReminders') ?? true,
-        'budgetAlerts': prefs.getBool('budgetAlerts') ?? true,
-        'monthlySummary': prefs.getBool('monthlySummary') ?? true,
-        'reminderHour': prefs.getInt('reminderHour') ?? 9,
-        'reminderMinute': prefs.getInt('reminderMinute') ?? 0,
-      };
+      final settings = await SettingsHelper.exportForBackup();
       if (kDebugMode) {
         debugPrint('Settings loaded: ${settings.keys.join(", ")}');
       }
@@ -562,16 +451,7 @@ class BackupHelper {
       onProcessingStart?.call();
 
       // FIX: Get settings to include in comprehensive backup
-      final prefs = await SharedPreferences.getInstance();
-      final settings = {
-        'darkMode': prefs.getBool('darkMode') ?? false,
-        'currencyCode': prefs.getString('currencyCode') ?? 'USD',
-        'billReminders': prefs.getBool('billReminders') ?? true,
-        'budgetAlerts': prefs.getBool('budgetAlerts') ?? true,
-        'monthlySummary': prefs.getBool('monthlySummary') ?? true,
-        'reminderHour': prefs.getInt('reminderHour') ?? 9,
-        'reminderMinute': prefs.getInt('reminderMinute') ?? 0,
-      };
+      final settings = await SettingsHelper.exportForBackup();
 
       // FIX: Create comprehensive backup in isolate.
       // Phase 6.1: plaintext source when encrypted, cleaned up afterwards.
@@ -731,22 +611,20 @@ class BackupHelper {
           return RestoreResult.invalidFile;
         }
 
-        // L32/L36: refuse a raw .db created by a NEWER app version. SQLite
-        // won't downgrade a schema, so opening a too-new file would leave the
-        // user with no readable database. The comprehensive-restore path
-        // already guards schema_version; this is the equivalent guard for the
-        // plain .db path, read straight from the file's user_version header.
+        // L32/L36: the plain .db path's schema guard, read straight from the
+        // file's user_version header (the comprehensive restore checks
+        // schema_version the same way).
         final incomingVersion = await _readSqliteUserVersion(tempFile);
-        if (incomingVersion != null &&
-            incomingVersion > DatabaseConstants.databaseVersion) {
+        final refusal = checkRawDbVersion(incomingVersion);
+        if (refusal != null) {
           if (kDebugMode) {
             debugPrint(
-              'Refusing .db restore: user_version $incomingVersion > '
-              'app databaseVersion ${DatabaseConstants.databaseVersion}',
+              'Refusing .db restore: user_version $incomingVersion '
+              '(app databaseVersion ${DatabaseConstants.databaseVersion})',
             );
           }
           await tempFile.delete();
-          return RestoreResult.incompatibleVersion;
+          return refusal;
         }
 
         // Close database before replacing
@@ -910,6 +788,21 @@ class BackupHelper {
   }
 
   Future<int?> _readSqliteUserVersion(File file) => readSqliteUserVersion(file);
+
+  /// Whether a raw .db with this `user_version` may replace the live
+  /// database: null when it may, else the refusal. Every database this app
+  /// creates is stamped with its schema version, so 0 (or no header) is a
+  /// SQLite file it never wrote — restoring one swapped the ledger for a
+  /// foreign or empty file. A version above ours is a newer app's schema,
+  /// which SQLite can't downgrade.
+  @visibleForTesting
+  static RestoreResult? checkRawDbVersion(int? userVersion) {
+    if (userVersion == null || userVersion < 1) return RestoreResult.invalidFile;
+    if (userVersion > DatabaseConstants.databaseVersion) {
+      return RestoreResult.incompatibleVersion;
+    }
+    return null;
+  }
 
   /// Validate that bytes represent a valid SQLite database
   bool _isValidSqliteFile(Uint8List bytes) {
@@ -1114,39 +1007,17 @@ class BackupHelper {
         }
         await tempFile.rename(dbPath);
 
-        // FIX: Restore settings if present
-        if (result.settings != null) {
-          final settings = result.settings!;
-          final prefs = await SharedPreferences.getInstance();
-
-          await prefs.setBool(
-            'darkMode',
-            settings['darkMode'] as bool? ?? false,
-          );
-          await prefs.setString(
-            'currencyCode',
-            settings['currencyCode'] as String? ?? 'USD',
-          );
-          await prefs.setBool(
-            'billReminders',
-            settings['billReminders'] as bool? ?? true,
-          );
-          await prefs.setBool(
-            'budgetAlerts',
-            settings['budgetAlerts'] as bool? ?? true,
-          );
-          await prefs.setBool(
-            'monthlySummary',
-            settings['monthlySummary'] as bool? ?? true,
-          );
-          await prefs.setInt(
-            'reminderHour',
-            settings['reminderHour'] as int? ?? 9,
-          );
-          await prefs.setInt(
-            'reminderMinute',
-            settings['reminderMinute'] as int? ?? 0,
-          );
+        // Settings ride along with the database but must never undo it: each
+        // bad value is skipped, and a failure here is logged, not rolled back
+        // over (a malformed value used to throw into the rollback below and
+        // discard a good restore).
+        final settings = result.settings;
+        if (settings != null) {
+          try {
+            await SettingsHelper.restoreFromBackup(settings);
+          } catch (e, st) {
+            await CrashLog.record(e, stack: st, context: 'restore_settings');
+          }
         }
 
         // L34: the pre-restore safety backup is reaped by

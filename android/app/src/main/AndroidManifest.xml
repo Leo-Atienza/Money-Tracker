@@ -64,6 +64,16 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!--
+            The home-screen widget opens this activity with URIs such as
+            financeflow://add?type=expense, read through home_widget. Flutter's
+            embedding would ALSO push every such URI onto the Navigator as a
+            route name (deep linking defaults to on), and this app has no URL
+            routes, so that push throws. The app uses no deep links; opt out.
+            -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -76,7 +86,7 @@
             android:value="2" />
         <receiver android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
         <receiver android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
@@ -88,7 +98,8 @@
         <!-- Home Screen Widget -->
         <receiver
             android:name=".BudgetWidgetProvider"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

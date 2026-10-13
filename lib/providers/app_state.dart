@@ -25,6 +25,7 @@ import '../utils/secure_window.dart';
 import '../utils/home_widget_helper.dart';
 import '../utils/crash_log.dart';
 import 'dart:async';
+import 'dart:math' as math;
 
 class AppState extends ChangeNotifier {
   /// [initialThemeMode] is the persisted `theme_mode` read in `main()` before
@@ -77,6 +78,13 @@ class AppState extends ChangeNotifier {
   Object? _lastLoadError;
   Object? get lastLoadError => _lastLoadError;
   bool get hasLoadError => _lastLoadError != null;
+
+  /// Test-only: put the app in the failed-load state Home reports.
+  @visibleForTesting
+  set lastLoadErrorForTesting(Object? error) {
+    _lastLoadError = error;
+    _safeNotify();
+  }
 
   int _lastAutoCreatedCount = 0;
   int get lastAutoCreatedCount => _lastAutoCreatedCount;
@@ -491,6 +499,8 @@ class AppState extends ChangeNotifier {
         epochAtStart == _backgroundProcessingEpoch &&
         accountIdAtStart == currentAccountId) {
       _safeNotify();
+      // loadData refreshed the widget before these bills were posted.
+      _updateHomeWidget();
       // Phase 3.2: emit the batch event so the UI shows a snackbar even when
       // a previous batch already fired one this session.
       if (!_isDisposed && !_recurringBatchController.isClosed) {
@@ -560,9 +570,18 @@ class AppState extends ChangeNotifier {
       _accounts = await _db.readAllAccounts();
     }
     if (_accounts.isNotEmpty) {
+      // Stay on the account the user is on (refreshed from the DB). This runs
+      // from loadData on every resume; re-picking the default here silently
+      // moved someone working in "Savings" back to the default account — and
+      // their next expense was saved there. Only a first load, or a current
+      // account that no longer exists, falls back to the default.
+      final currentId = _currentAccount?.id;
       _currentAccount = _accounts.firstWhere(
-            (a) => a.isDefault,
-        orElse: () => _accounts[0],
+        (a) => a.id == currentId,
+        orElse: () => _accounts.firstWhere(
+          (a) => a.isDefault,
+          orElse: () => _accounts[0],
+        ),
       );
     }
     _currencyCode = _currentAccount?.currencyCode ?? 'USD';
@@ -597,6 +616,38 @@ class AppState extends ChangeNotifier {
     _loadedExpenseMonths.clear();
     _loadedExpenseMonths.add(_monthKey(currentMonthStart));
     _loadedExpenseMonths.add(_monthKey(prevMonthStart));
+    for (final month in _viewedMonthsOutsideReloadWindow()) {
+      final ids = _expenses.map((e) => e.id).toSet();
+      final extra = await _db.getExpensesInRange(currentAccountId, DateHelper.startOfMonth(month), DateHelper.endOfMonth(month));
+      _expenses.addAll(extra.where((e) => !ids.contains(e.id)));
+      _loadedExpenseMonths.add(_monthKey(month));
+    }
+    _transactionsVersion++;
+  }
+
+  /// Bumped whenever the in-memory transactions are reloaded — after every
+  /// add / edit / delete / payment, recurring run, account switch and resume.
+  /// Views that aggregate the database themselves (Analytics' 6-month trend)
+  /// select it to know when to re-query.
+  int get transactionsVersion => _transactionsVersion;
+  int _transactionsVersion = 0;
+
+  /// Months a reload must keep in memory besides this month and last: the
+  /// month on screen and the one before it (Analytics compares against it).
+  /// Reloads run after every write and on every resume, and used to reset
+  /// memory to this month and last only — so someone viewing July saw it go
+  /// empty ($0, "No transactions") after any edit or app switch, and a
+  /// back-dated add appeared to vanish. Loaded inline: the callers already
+  /// hold _writeMutex, so ensureMonthLoaded would deadlock.
+  List<DateTime> _viewedMonthsOutsideReloadWindow() {
+    final now = DateHelper.today();
+    final reloadWindow = {
+      _monthKey(now),
+      _monthKey(DateHelper.subtractMonths(now, 1)),
+    };
+    return [DateHelper.subtractMonths(_selectedMonth, 1), _selectedMonth]
+        .where((month) => !reloadWindow.contains(_monthKey(month)))
+        .toList();
   }
 
   Future<void> _loadExpenses() async {
@@ -617,6 +668,15 @@ class AppState extends ChangeNotifier {
     _loadedIncomeMonths.clear();
     _loadedIncomeMonths.add(_monthKey(currentMonthStart));
     _loadedIncomeMonths.add(_monthKey(prevMonthStart));
+    // The month on screen survives the reload too — see
+    // _viewedMonthsOutsideReloadWindow.
+    for (final month in _viewedMonthsOutsideReloadWindow()) {
+      final ids = _incomes.map((i) => i.id).toSet();
+      final extra = await _db.getIncomeInRange(currentAccountId, DateHelper.startOfMonth(month), DateHelper.endOfMonth(month));
+      _incomes.addAll(extra.where((i) => !ids.contains(i.id)));
+      _loadedIncomeMonths.add(_monthKey(month));
+    }
+    _transactionsVersion++;
   }
 
   Future<void> _loadIncomes() async {
@@ -814,7 +874,7 @@ class AppState extends ChangeNotifier {
       // quirk) can't reject the addExpense future — the expense is already
       // committed; failing here would show a false error and risk a dup entry.
       try {
-        await _checkBudgetAlerts(expense.category);
+        await _checkBudgetAlerts(expense);
       } catch (e) {
         if (kDebugMode) debugPrint('Budget alert dispatch failed: $e');
       }
@@ -875,19 +935,38 @@ class AppState extends ChangeNotifier {
     });
   }
 
-  Future<void> undoDelete() async {
+  /// Undo a delete the user just made: puts back exactly that transaction,
+  /// from the right trash table. The old `undoDelete()` always restored the
+  /// newest deleted EXPENSE — so undoing an income left the income in the
+  /// trash and resurrected some other, possibly days-old, expense.
+  Future<void> undoDeleteTransaction({
+    required int originalId,
+    required bool isIncome,
+  }) async {
     await _writeMutex.synchronized(() async {
-      await _db.restoreLastDeleted(currentAccountId);
-      await _loadExpensesInternal();
-      _invalidateExpenseCache();
+      if (isIncome) {
+        await _db.restoreDeletedIncomeByOriginalId(originalId);
+        await _loadIncomesInternal();
+      } else {
+        await _db.restoreDeletedExpenseByOriginalId(originalId);
+        await _loadExpensesInternal();
+        _invalidateExpenseCache();
+      }
       await _calculateAndStoreCarryover();
       _safeNotify();
       _updateHomeWidget();
     });
   }
 
-  Future<void> addPayment(Expense expense, double amount) async {
+  Future<void> addPayment(Expense staleExpense, double amount) async {
     await _writeMutex.synchronized(() async {
+      // Apply the payment to the row as it is NOW. Callers can hold a stale
+      // copy (History's all-time and search results are not refreshed after
+      // writes): adding to its old amountPaid and writing the whole row back
+      // erased earlier payments and reverted other edits.
+      final id = staleExpense.id;
+      final expense =
+          (id == null ? null : await _db.getExpenseById(id)) ?? staleExpense;
       final paymentDecimal = DecimalHelper.fromDouble(amount);
       final newAmountPaidDecimal = expense.amountPaidDecimal + paymentDecimal;
       final Decimal finalAmountPaid;
@@ -1088,6 +1167,11 @@ class AppState extends ChangeNotifier {
   Future<void> _autoRolloverBudgets() async {
     final now = DateHelper.today();
     final currentMonthStart = DateHelper.startOfMonth(now);
+    final accountId = currentAccountId;
+    // Once per account per month — see SettingsHelper.isBudgetRolloverDone.
+    if (await SettingsHelper.isBudgetRolloverDone(accountId, currentMonthStart)) {
+      return;
+    }
     final currentMonthBudgetsExist = _budgets.any((b) => _isSameMonth(b.month, currentMonthStart));
 
     if (!currentMonthBudgetsExist) {
@@ -1101,6 +1185,7 @@ class AppState extends ChangeNotifier {
         await _loadBudgets();
       }
     }
+    await SettingsHelper.markBudgetRolloverDone(accountId, currentMonthStart);
   }
 
   /// Set a budget for a category in the selected month.
@@ -1167,18 +1252,21 @@ class AppState extends ChangeNotifier {
     });
   }
 
-  Map<String, double> getBudgetSpentBreakdown(String category) {
-    final actualSpentDecimal = getExpensesForSelectedMonth().where((e) => e.category == category).map((e) => e.amountDecimal).fold(Decimal.zero, (sum, amount) => sum + amount);
+  /// Spending against [category]'s budget in [month] (the selected month by
+  /// default): what was spent plus the recurring bills still due.
+  Map<String, double> getBudgetSpentBreakdown(String category, {DateTime? month}) {
+    final target = month ?? _selectedMonth;
+    final actualSpentDecimal = _expenses.where((e) => e.category == category && _isSameMonth(e.date, target)).map((e) => e.amountDecimal).fold(Decimal.zero, (sum, amount) => sum + amount);
     Decimal projectedRecurringDecimal = Decimal.zero;
     for (final recurring in _recurringExpenses) {
       if (!recurring.shouldBeActive || recurring.category != category) {
         continue;
       }
-      final occurrencesInMonth = _countRecurringOccurrencesInMonth(recurring, _selectedMonth);
+      final occurrencesInMonth = _countRecurringOccurrencesInMonth(recurring, target);
       if (occurrencesInMonth == 0) {
         continue;
       }
-      final alreadyCreatedCount = _expenses.where((e) => e.description == recurring.description && e.category == recurring.category && e.amountDecimal == recurring.amountDecimal && _isSameMonth(e.date, _selectedMonth)).length;
+      final alreadyCreatedCount = _expenses.where((e) => e.description == recurring.description && e.category == recurring.category && e.amountDecimal == recurring.amountDecimal && _isSameMonth(e.date, target)).length;
       final remainingOccurrences = occurrencesInMonth - alreadyCreatedCount;
       if (remainingOccurrences > 0) {
         projectedRecurringDecimal += recurring.amountDecimal * Decimal.fromInt(remainingOccurrences);
@@ -1187,7 +1275,7 @@ class AppState extends ChangeNotifier {
     return {'actual': _decimalToDouble(actualSpentDecimal), 'projected': _decimalToDouble(projectedRecurringDecimal), 'total': _decimalToDouble(actualSpentDecimal + projectedRecurringDecimal)};
   }
 
-  double getBudgetSpent(String category) => getBudgetSpentBreakdown(category)['total'] ?? 0.0;
+  double getBudgetSpent(String category, {DateTime? month}) => getBudgetSpentBreakdown(category, month: month)['total'] ?? 0.0;
 
   /// M6: total spend (actual + projected recurring) per category in a SINGLE
   /// pass over expenses and recurring, instead of [getBudgetSpent] re-scanning
@@ -1295,18 +1383,25 @@ class AppState extends ChangeNotifier {
     return (getBudgetSpent(budget.category) / budget.amount).clamp(0.0, 1.0);
   }
 
-  Future<void> _checkBudgetAlerts(String category) async {
+  /// Alerts are about this month's budget. The spending used to be read from
+  /// whichever month was on screen, so a look back at a quiet month hid a
+  /// real overspend (or a busy one raised a false alarm), and an expense
+  /// filed in another month re-fired this month's alert without moving it.
+  Future<void> _checkBudgetAlerts(Expense expense) async {
     if (!_budgetAlertsEnabled) {
       return;
     }
-    final today = DateHelper.today();
-    final currentMonth = DateHelper.startOfMonth(today);
+    final currentMonth = DateHelper.startOfMonth(DateHelper.today());
+    if (!_isSameMonth(expense.date, currentMonth)) {
+      return;
+    }
+    final category = expense.category;
     final matchingBudgets = _budgets.where((b) => b.category == category && _isSameMonth(b.month, currentMonth)).toList();
     if (matchingBudgets.isEmpty) {
       return;
     }
     final budget = matchingBudgets.first;
-    final spent = getBudgetSpent(category);
+    final spent = getBudgetSpent(category, month: currentMonth);
     final progress = budget.amount > 0 ? spent / budget.amount : 0.0;
     // FIX C2: Use user's configurable threshold instead of hardcoded 0.8
     final threshold = await SettingsHelper.getBudgetWarningThreshold();
@@ -1377,7 +1472,19 @@ class AppState extends ChangeNotifier {
     DateTime? pendingDate,
   }) async {
     final monthStart = DateHelper.startOfMonth(month);
-    final existingBalance = _monthlyBalances[_monthKey(monthStart)];
+    // Only the newest monthly-balance rows are cached. On a miss, use the
+    // stored row: building one from nothing carried `overallBudget: null`
+    // into the upsert, which rewrites the whole row — so browsing to an
+    // older month (or far enough ahead to evict this month from the cache)
+    // silently erased that month's overall budget.
+    // Cached once read, so the overall-budget getters (which read only the
+    // cache) also see an older month's budget.
+    final key = _monthKey(monthStart);
+    var existingBalance = _monthlyBalances[key];
+    if (existingBalance == null) {
+      existingBalance = await _db.getMonthlyBalance(currentAccountId, monthStart);
+      if (existingBalance != null) _monthlyBalances[key] = existingBalance;
+    }
 
     final sums = await _db.calculateNetBalanceBefore(
       currentAccountId,
@@ -1627,17 +1734,26 @@ class AppState extends ChangeNotifier {
   Future<List<Map<String, dynamic>>> getDeletedAccounts() async => await _db.getDeletedAccounts();
 
   Future<void> restoreDeletedAccount(int deletedId) async {
+    Account? restoredAccount;
     await _writeMutex.synchronized(() async {
       final newAccountId = await _db.restoreDeletedAccount(deletedId);
       await _loadAccounts();
-      final restoredAccount = _accounts.cast<Account?>().firstWhere(
+      restoredAccount = _accounts.cast<Account?>().firstWhere(
         (a) => a?.id == newAccountId,
         orElse: () => null,
       );
-      if (restoredAccount != null) {
-        await switchAccount(restoredAccount);
-      }
     });
+
+    // Switch OUTSIDE the write mutex (see deleteAccount): switchAccount's
+    // loaders take _writeMutex themselves and it is not reentrant. Switching
+    // inside the block deadlocked — "Restoring account…" spun forever and
+    // every later write queued behind the held lock.
+    final account = restoredAccount;
+    if (account != null) {
+      await switchAccount(account);
+    } else {
+      _safeNotify();
+    }
   }
 
   Future<void> permanentlyDeleteAccount(int deletedId) async {
@@ -1754,7 +1870,7 @@ class AppState extends ChangeNotifier {
         await _db.updateCategory(category);
         await _loadCategories();
         if (oldName != null && oldName != category.name) {
-          await Future.wait([_loadExpensesInternal(), _loadIncomesInternal(), _loadBudgets(), _loadQuickTemplates(), _loadRecurringExpenses()]);
+          await Future.wait([_loadExpensesInternal(), _loadIncomesInternal(), _loadBudgets(), _loadQuickTemplates(), _loadRecurringExpenses(), _loadRecurringIncomes()]);
         }
         _safeNotify();
       } finally {
@@ -1783,7 +1899,11 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.bulkDeleteTransactionsByCategory(currentAccountId, category, type);
       await Future.wait([_loadExpensesInternal(), _loadIncomesInternal()]);
+      // Rows left every month, earlier ones included: the carried-in balance
+      // changed too (Home kept the old one until the next resume).
+      await _calculateAndStoreCarryover();
       _safeNotify();
+      _updateHomeWidget();
     });
   }
 
@@ -1799,7 +1919,10 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       await _db.bulkDeleteTransactionsAndCategory(currentAccountId, categoryId, category, type);
       await Future.wait([_loadCategories(), _loadExpensesInternal(), _loadIncomesInternal()]);
+      // See bulkDeleteTransactionsByCategory: the carry-over changed too.
+      await _calculateAndStoreCarryover();
       _safeNotify();
+      _updateHomeWidget();
     });
   }
 
@@ -1846,7 +1969,23 @@ class AppState extends ChangeNotifier {
   /// Use a quick template to create a new transaction.
   /// FIX: Validates that the template's category still exists before creating transaction.
   /// If category was deleted, falls back to 'Uncategorized' or first available category.
-  Future<void> useTemplate(QuickTemplate template) async {
+  /// Templates currently being added — see [useTemplate].
+  final Set<Object> _templatesInFlight = {};
+
+  /// Adds a transaction from [template] and returns its id — or null when the
+  /// same template is already being added: a quick-add chip saves on a single
+  /// tap, and a double tap used to save the transaction twice.
+  Future<int?> useTemplate(QuickTemplate template) async {
+    final key = template.id ?? template;
+    if (!_templatesInFlight.add(key)) return null;
+    try {
+      return await _addFromTemplate(template);
+    } finally {
+      _templatesInFlight.remove(key);
+    }
+  }
+
+  Future<int> _addFromTemplate(QuickTemplate template) async {
     final now = Clock.instance.now();
     final date = DateHelper.normalize(now);
 
@@ -1868,7 +2007,7 @@ class AppState extends ChangeNotifier {
       // payment via AddPaymentDialog. Templates only carry the *charge*
       // amount; payment state starts at zero, same as a manually entered
       // expense.
-      await addExpense(Expense(amount: template.amountDecimal, category: categoryToUse, description: template.name, date: date, accountId: currentAccountId, amountPaid: Decimal.zero, paymentMethod: template.paymentMethod));
+      return addExpense(Expense(amount: template.amountDecimal, category: categoryToUse, description: template.name, date: date, accountId: currentAccountId, amountPaid: Decimal.zero, paymentMethod: template.paymentMethod));
     } else {
       final categoryExists = incomeCategories.any((c) => c.name == template.category);
       if (!categoryExists) {
@@ -1878,7 +2017,7 @@ class AppState extends ChangeNotifier {
         );
         categoryToUse = uncategorized.name;
       }
-      await addIncome(Income(amount: template.amountDecimal, category: categoryToUse, description: template.name, date: date, accountId: currentAccountId));
+      return addIncome(Income(amount: template.amountDecimal, category: categoryToUse, description: template.name, date: date, accountId: currentAccountId));
     }
   }
 
@@ -1963,37 +2102,52 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       final today = DateHelper.today();
       int totalCreated = 0;
-      // FIX: Query only active recurring expenses from database to avoid iterating inactive ones
-      final activeRecurring = await _db.readActiveRecurringExpenses(currentAccountId);
+      // Every account's bills, not just the one on screen: switching account
+      // never runs this, so another account's bills would otherwise never
+      // post. Each instance carries its own recurring.accountId.
+      final activeRecurring = await _db.readActiveRecurringExpensesAllAccounts();
       for (final recurring in activeRecurring) {
         // FIX: Wrap individual recurring item processing in try-catch
         // so one failure doesn't prevent processing of other items
         try {
-          if (!recurring.shouldBeActive) {
+          // Not `shouldBeActive`: once the end date has passed or the last
+          // occurrence is used up the item reads inactive, but instances that
+          // fell due before then are still owed. The generator itself stops
+          // at the end date and at the remaining occurrence count.
+          if (!recurring.isActive) {
             continue; // Double-check in case of race condition
           }
           final lastCreated = recurring.lastCreated;
           if (lastCreated != null && DateHelper.isSameDay(lastCreated, today)) {
             continue;
           }
-          final expensesToCreate = processRecurringInstances<Expense>(
+          final dueDates = recurringDueDates(
             lastCreated: lastCreated,
             startDate: recurring.startDate,
             dayOfMonthOrWeek: recurring.dayOfMonth,
             frequencyIndex: recurring.frequency.index,
             now: today,
-            createTransaction: (date) => Expense(
-              amount: recurring.amountDecimal,
-              category: recurring.category,
-              description: recurring.description,
-              date: date,
-              accountId: recurring.accountId,
-              amountPaid: Decimal.zero,
-              paymentMethod: recurring.paymentMethod,
-            ),
+            endDate: recurring.endDate,
+            maxCount: recurring.maxOccurrences == null
+                ? null
+                : recurring.maxOccurrences! - recurring.occurrenceCount,
           );
-          if (expensesToCreate.isNotEmpty) {
-            final updatedRecurring = recurring.copyWith(lastCreated: today, occurrenceCount: recurring.occurrenceCount + expensesToCreate.length);
+          if (dueDates.isNotEmpty) {
+            final expensesToCreate = [
+              for (final date in dueDates)
+                Expense(
+                  amount: recurring.amountDecimal,
+                  category: recurring.category,
+                  description: recurring.description,
+                  date: date,
+                  accountId: recurring.accountId,
+                  amountPaid: Decimal.zero,
+                  paymentMethod: recurring.paymentMethod,
+                ),
+            ];
+            // lastCreated records the last INSTANCE's date — see
+            // recurringDueDates for why the run day broke the schedule.
+            final updatedRecurring = recurring.copyWith(lastCreated: dueDates.last, occurrenceCount: recurring.occurrenceCount + expensesToCreate.length);
             await _db.createRecurringExpensesBatch(expenses: expensesToCreate, recurringToUpdate: updatedRecurring);
             totalCreated += expensesToCreate.length;
           }
@@ -2005,6 +2159,9 @@ class AppState extends ChangeNotifier {
       _lastAutoCreatedCount += totalCreated;
       await _loadExpensesInternal();
       await _loadRecurringExpenses();
+      // Back-filled instances can land in earlier months, which changes the
+      // balance carried into this one.
+      if (totalCreated > 0) await _calculateAndStoreCarryover();
     });
 
     // FIX Bug #6: End-of-month bill reminders (day 29-31) cannot use Android's
@@ -2017,7 +2174,7 @@ class AppState extends ChangeNotifier {
       try {
         final activeRecurring =
             await _db.readActiveRecurringExpenses(currentAccountId);
-        await _notificationHelper.rescheduleEndOfMonthBillReminders(
+        await _notificationHelper.rescheduleOneShotBillReminders(
           activeRecurring,
           currencySymbol: currency,
           reminderTime: _reminderTime,
@@ -2036,34 +2193,42 @@ class AppState extends ChangeNotifier {
     await _writeMutex.synchronized(() async {
       final today = DateHelper.today();
       int totalCreated = 0;
-      // FIX: Query only active recurring income from database to avoid iterating inactive ones
-      final activeRecurring = await _db.readActiveRecurringIncome(currentAccountId);
+      // Every account's recurring income — see _processRecurringExpenses.
+      final activeRecurring = await _db.readActiveRecurringIncomeAllAccounts();
       for (final recurring in activeRecurring) {
         // FIX: Wrap individual recurring item processing in try-catch
         // so one failure doesn't prevent processing of other items
         try {
-          if (!recurring.shouldBeActive) {
+          // isActive, not shouldBeActive — see _processRecurringExpenses.
+          if (!recurring.isActive) {
             continue; // Double-check in case of race condition
           }
           if (recurring.lastCreated != null && DateHelper.isSameDay(recurring.lastCreated!, today)) {
             continue;
           }
-          final incomesToCreate = processRecurringInstances<Income>(
+          final dueDates = recurringDueDates(
             lastCreated: recurring.lastCreated,
             startDate: recurring.startDate,
             dayOfMonthOrWeek: recurring.dayOfMonth,
             frequencyIndex: recurring.frequency.index,
             now: today,
-            createTransaction: (date) => Income(
-              amount: recurring.amountDecimal,
-              category: recurring.category,
-              description: recurring.description,
-              date: date,
-              accountId: recurring.accountId,
-            ),
+            endDate: recurring.endDate,
+            maxCount: recurring.maxOccurrences == null
+                ? null
+                : recurring.maxOccurrences! - recurring.occurrenceCount,
           );
-          if (incomesToCreate.isNotEmpty) {
-            final updatedRecurring = recurring.copyWith(lastCreated: today, occurrenceCount: recurring.occurrenceCount + incomesToCreate.length);
+          if (dueDates.isNotEmpty) {
+            final incomesToCreate = [
+              for (final date in dueDates)
+                Income(
+                  amount: recurring.amountDecimal,
+                  category: recurring.category,
+                  description: recurring.description,
+                  date: date,
+                  accountId: recurring.accountId,
+                ),
+            ];
+            final updatedRecurring = recurring.copyWith(lastCreated: dueDates.last, occurrenceCount: recurring.occurrenceCount + incomesToCreate.length);
             await _db.createRecurringIncomeBatch(incomes: incomesToCreate, recurringToUpdate: updatedRecurring);
             totalCreated += incomesToCreate.length;
           }
@@ -2075,6 +2240,8 @@ class AppState extends ChangeNotifier {
       _lastAutoCreatedCount += totalCreated;
       await _loadIncomesInternal();
       await _loadRecurringIncomes();
+      // See _processRecurringExpenses: back-fill changes the carry-over.
+      if (totalCreated > 0) await _calculateAndStoreCarryover();
     });
   }
 
@@ -2097,32 +2264,65 @@ class AppState extends ChangeNotifier {
     required int frequencyIndex,
     required DateTime now,
     required T Function(DateTime date) createTransaction,
+    DateTime? endDate,
+    int? maxCount,
   }) {
+    return recurringDueDates(
+      lastCreated: lastCreated,
+      startDate: startDate,
+      dayOfMonthOrWeek: dayOfMonthOrWeek,
+      frequencyIndex: frequencyIndex,
+      now: now,
+      endDate: endDate,
+      maxCount: maxCount,
+    ).map(createTransaction).toList();
+  }
+
+  /// Every date a recurring item fell due after its last generated instance,
+  /// up to and including [now], oldest first.
+  ///
+  /// [lastCreated] is the date of the last instance generated — not the day
+  /// processing ran. Storing the run day was the bug: the next monthly
+  /// instance was looked for on the run day of the following month and
+  /// compared against the 1st, so a bill due on the 1st and processed on the
+  /// 10th was never created that month and the month after it was skipped
+  /// outright. Weekly items drifted to whatever weekday the app was opened.
+  ///
+  /// Instances due after [endDate] are not generated, and at most [maxCount]
+  /// are (pass the occurrences remaining under `maxOccurrences`).
+  @visibleForTesting
+  static List<DateTime> recurringDueDates({
+    required DateTime? lastCreated,
+    required DateTime? startDate,
+    required int dayOfMonthOrWeek,
+    required int frequencyIndex,
+    required DateTime now,
+    DateTime? endDate,
+    int? maxCount,
+  }) {
+    final List<DateTime> dates;
     switch (frequencyIndex) {
       case 0: // monthly
-        return _processMonthlyRecurring<T>(
+        dates = _monthlyDueDates(
           lastCreated: lastCreated,
           dayOfMonth: dayOfMonthOrWeek,
           now: now,
-          createTransaction: createTransaction,
         );
       case 1: // biweekly (every 14 days)
-        return _processIntervalRecurring<T>(
+        dates = _intervalDueDates(
           lastCreated: lastCreated,
           startDate: startDate,
           dayOfWeek: dayOfMonthOrWeek,
           stepDays: 14,
           now: now,
-          createTransaction: createTransaction,
         );
       case 2: // weekly (every 7 days)
-        return _processIntervalRecurring<T>(
+        dates = _intervalDueDates(
           lastCreated: lastCreated,
           startDate: startDate,
           dayOfWeek: dayOfMonthOrWeek,
           stepDays: 7,
           now: now,
-          createTransaction: createTransaction,
         );
       default:
         // Defensive: unknown frequency index (shouldn't happen — models clamp on load).
@@ -2131,69 +2331,103 @@ class AppState extends ChangeNotifier {
         }
         return const [];
     }
+    final lastAllowed = endDate == null ? null : DateHelper.normalize(endDate);
+    final inRange = lastAllowed == null
+        ? dates
+        : dates.takeWhile((d) => !d.isAfter(lastAllowed));
+    return (maxCount == null ? inRange : inRange.take(math.max(0, maxCount)))
+        .toList();
   }
 
-  static List<T> _processMonthlyRecurring<T>({required DateTime? lastCreated, required int dayOfMonth, required DateTime now, required T Function(DateTime date) createTransaction}) {
-    final List<T> transactionsToCreate = [];
-    // FIX H2: When lastCreated is null (new recurring), always start from current month.
-    // The inner condition (now.day >= dayOfMonth) already gates whether to create for current month.
-    // Previously, this skipped to next month when today >= dayOfMonth, missing the first instance.
-    DateTime currentMonth = lastCreated == null ? DateHelper.startOfMonth(now) : DateHelper.addMonths(lastCreated, 1);
-    final currentMonthStart = DateHelper.startOfMonth(now);
-    while (!DateHelper.normalize(currentMonth).isAfter(currentMonthStart)) {
-      if (DateHelper.normalize(currentMonth).isBefore(currentMonthStart) || now.day >= dayOfMonth) {
-        final lastDay = DateHelper.lastDayOfMonth(currentMonth).day;
-        transactionsToCreate.add(createTransaction(DateHelper.normalize(DateTime(currentMonth.year, currentMonth.month, dayOfMonth > lastDay ? lastDay : dayOfMonth))));
-      }
-      currentMonth = DateHelper.addMonths(currentMonth, 1);
+  static List<DateTime> _monthlyDueDates({
+    required DateTime? lastCreated,
+    required int dayOfMonth,
+    required DateTime now,
+  }) {
+    final today = DateHelper.normalize(now);
+    final thisMonth = DateHelper.startOfMonth(today);
+    // Day 29-31 lands on the last day of shorter months.
+    DateTime dueIn(DateTime month) => DateTime.utc(
+          month.year,
+          month.month,
+          dayOfMonth.clamp(1, DateHelper.lastDayOfMonth(month).day),
+        );
+
+    DateTime month;
+    if (lastCreated == null) {
+      // FIX H2: a new item starts with the current month; its instance is
+      // created once the due day has arrived.
+      month = thisMonth;
+    } else {
+      final last = DateHelper.normalize(lastCreated);
+      final lastMonth = DateHelper.startOfMonth(last);
+      // The instance after `last` belongs to the next month — unless `last`
+      // falls before that month's own due date. That only happens for rows
+      // written by builds before 5.4, which stored the day processing ran:
+      // a bill due on the 20th that was last processed on the 12th is still
+      // owed for that month. A run on or after the due date may already have
+      // created it, so that month is never re-created (no duplicates).
+      month = dueIn(lastMonth).isAfter(last)
+          ? lastMonth
+          : DateHelper.addMonths(lastMonth, 1);
     }
-    return transactionsToCreate;
+
+    final dates = <DateTime>[];
+    while (!month.isAfter(thisMonth)) {
+      final due = dueIn(month);
+      if (!due.isAfter(today)) dates.add(due);
+      month = DateHelper.addMonths(month, 1);
+    }
+    return dates;
   }
 
-  /// Generates all due transactions for a weekly (stepDays=7) or biweekly (stepDays=14)
-  /// recurring item.
+  /// Due dates for a weekly (stepDays=7) or biweekly (stepDays=14) item.
   ///
-  /// Resume logic:
-  /// - If [lastCreated] is set: next instance is lastCreated + stepDays.
-  /// - Else if [startDate] is set: first instance is startDate itself.
-  /// - Else: back-fill to the most recent matching weekday on or before [now].
-  ///
-  /// [dayOfWeek] is 0-6 (Mon=0..Sun=6) — matches the model convention, which differs
-  /// from Dart's DateTime.weekday (1=Mon..7=Sun).
-  static List<T> _processIntervalRecurring<T>({
+  /// [dayOfWeek] is 0-6 (Mon=0..Sun=6) — the model convention, which differs
+  /// from Dart's DateTime.weekday (1=Mon..7=Sun). Every instance lands on
+  /// that weekday:
+  /// - After [lastCreated]: one step later, moved forward to the weekday.
+  ///   Rows from builds before 5.4 stored the run day, which can be any
+  ///   weekday; moving forward re-anchors them without ever placing two
+  ///   instances less than a full step apart.
+  /// - Else the first such weekday on or after [startDate].
+  /// - Else the most recent such weekday on or before [now] (back-fill).
+  static List<DateTime> _intervalDueDates({
     required DateTime? lastCreated,
     required DateTime? startDate,
     required int dayOfWeek,
     required int stepDays,
     required DateTime now,
-    required T Function(DateTime date) createTransaction,
   }) {
-    final List<T> transactionsToCreate = [];
-    final normalizedNow = DateHelper.normalize(now);
+    final today = DateHelper.normalize(now);
+    // A malformed weekday (outside 0-6) leaves the step uncorrected rather
+    // than guessing a day.
+    final weekday = dayOfWeek >= 0 && dayOfWeek <= 6 ? dayOfWeek : null;
+    DateTime onWeekday(DateTime date) => weekday == null
+        ? date
+        : DateHelper.addDays(date, (weekday - (date.weekday - 1) + 7) % 7);
 
-    DateTime nextDate;
+    DateTime next;
     if (lastCreated != null) {
-      nextDate = DateHelper.addDays(lastCreated, stepDays);
+      next = onWeekday(DateHelper.addDays(lastCreated, stepDays));
     } else if (startDate != null) {
-      nextDate = DateHelper.normalize(startDate);
+      next = onWeekday(DateHelper.normalize(startDate));
     } else {
       // No anchor — back-fill to the most recent matching weekday.
-      final currentWeekday = normalizedNow.weekday - 1; // 0..6
+      final currentWeekday = today.weekday - 1; // 0..6
       final targetWeekday = dayOfWeek.clamp(0, 6);
       final daysBack = (currentWeekday - targetWeekday + 7) % 7;
-      nextDate = DateHelper.addDays(normalizedNow, -daysBack);
+      next = DateHelper.addDays(today, -daysBack);
     }
 
     // Safety cap: don't generate more than 520 instances in one run (10 years weekly).
     // Protects against a malformed lastCreated far in the past.
-    int safetyCounter = 0;
-    while (!nextDate.isAfter(normalizedNow) && safetyCounter < 520) {
-      transactionsToCreate.add(createTransaction(nextDate));
-      nextDate = DateHelper.addDays(nextDate, stepDays);
-      safetyCounter++;
+    final dates = <DateTime>[];
+    while (!next.isAfter(today) && dates.length < 520) {
+      dates.add(next);
+      next = DateHelper.addDays(next, stepDays);
     }
-
-    return transactionsToCreate;
+    return dates;
   }
 
   // ============== TAG METHODS ==============
@@ -2243,10 +2477,9 @@ class AppState extends ChangeNotifier {
 
   // ============== SEARCH & ANALYTICS ==============
 
+  /// An empty [query] adds no term filter: [category] and the date range
+  /// alone pick the rows, which is how History lists All time.
   Future<Map<String, dynamic>> searchTransactionsUnified(String query, {int limit = 50, int offset = 0, String? category, String? startDate, String? endDate, String sortOrder = 'newest'}) async {
-    if (query.isEmpty) {
-      return {'expenses': <Expense>[], 'income': <Income>[], 'hasMore': false};
-    }
     return await _db.searchTransactionsUnified(currentAccountId, query, limit: limit, offset: offset, category: category, startDate: startDate, endDate: endDate, sortOrder: sortOrder);
   }
 
@@ -2354,7 +2587,15 @@ class AppState extends ChangeNotifier {
   // ============== SETTINGS & FILTERS ==============
 
   Future<void> toggleDarkMode() async { _isDarkMode = !_isDarkMode; await SettingsHelper.setDarkMode(_isDarkMode); _safeNotify(); }
-  Future<void> setThemeMode(String mode) async { _themeMode = mode; _isDarkMode = mode == 'dark'; await SettingsHelper.setThemeMode(mode); _safeNotify(); }
+  Future<void> setThemeMode(String mode) async {
+    _themeMode = mode;
+    _isDarkMode = mode == 'dark';
+    await SettingsHelper.setThemeMode(mode);
+    _safeNotify();
+    // The home-screen widget wears Purple too, so it re-draws on a switch.
+    // Never throws (see _updateHomeWidget).
+    await _updateHomeWidget();
+  }
   Future<void> changeCurrency(String code) async { await _writeMutex.synchronized(() async { _currencyCode = code; if (_currentAccount != null) await _db.updateAccount(_currentAccount!.copyWith(currencyCode: code)); _safeNotify(); }); }
   Future<void> toggleBillReminders(bool value) async {
     _billRemindersEnabled = value;
@@ -2452,23 +2693,30 @@ class AppState extends ChangeNotifier {
   List<Map<String, dynamic>> getUpcomingBillsThisMonth() {
     final List<Map<String, dynamic>> upcoming = [];
     final today = DateHelper.today();
+    final monthStart = DateHelper.startOfMonth(_selectedMonth);
+    final monthEnd = DateHelper.lastDayOfMonth(_selectedMonth);
+    final from = today.isAfter(monthStart) ? today : monthStart;
 
     for (final r in _recurringExpenses) {
-      if (!r.isActive) {
-        continue;
-      }
-      final lastDay = DateHelper.lastDayOfMonth(_selectedMonth).day;
-      final due = DateHelper.normalize(DateTime(_selectedMonth.year, _selectedMonth.month, r.dayOfMonth > lastDay ? lastDay : r.dayOfMonth));
-      if (!due.isBefore(today)) {
-        // Calculate days until due
-        final daysUntilDue = DateHelper.daysBetween(today, due);
+      // Every occurrence still ahead in the selected month — a weekly bill
+      // falls due several times. nextDueDate honours frequency, the end date
+      // and max occurrences; this used to read a weekly bill's weekday (0-6)
+      // as a day of the month and ignore the end date entirely.
+      var remaining =
+          r.maxOccurrences == null ? null : r.maxOccurrences! - r.occurrenceCount;
+      var due = r.nextDueDate(from);
+      while (due != null &&
+          !due.isAfter(monthEnd) &&
+          (remaining == null || remaining > 0)) {
         upcoming.add({
           'description': r.description,
           'amount': r.amount,
           'dueDate': due,
           'category': r.category,
-          'daysUntilDue': daysUntilDue,
+          'daysUntilDue': DateHelper.daysBetween(today, due),
         });
+        if (remaining != null) remaining--;
+        due = r.nextDueDate(DateHelper.addDays(due, 1));
       }
     }
     upcoming.sort((a, b) => (a['dueDate'] as DateTime).compareTo(b['dueDate'] as DateTime));
@@ -2531,8 +2779,31 @@ class AppState extends ChangeNotifier {
   /// Initialize lock state based on PIN settings
   Future<void> initializeLockState() async {
     try {
-      final pinEnabled = await PinSecurityHelper.isPinEnabled();
-      _isLocked = pinEnabled; // Start locked if PIN is enabled
+      final bool pinEnabled;
+      try {
+        pinEnabled = await PinSecurityHelper.isPinEnabled();
+      } on PinStorageUnavailableException catch (e, st) {
+        // Fail closed (Leo's call, S22): an unreadable store is not "no
+        // PIN". A cold start stays locked (`_isLocked` starts true) and the
+        // unlock screen offers Try again; mid-session nothing changes.
+        // Screenshots stay blocked meanwhile.
+        CrashLog.record(e, stack: st, context: 'lock_state_read');
+        unawaited(SecureWindow.setSecure(true));
+        return;
+      }
+      if (!_lockStateReady.isCompleted) {
+        _isLocked = pinEnabled; // Cold start: start locked if PIN is enabled
+      } else if (pinEnabled) {
+        // Mid-session — Settings re-runs this after a PIN is set up. The user
+        // is already in the app: stay unlocked and arm the inactivity timer.
+        // Locking here left the app flagged locked with no unlock screen,
+        // and the timer (which only runs while unlocked) never started.
+        if (!_isLocked) _startLockTimer();
+      } else {
+        // PIN turned off: nothing to unlock any more.
+        _isLocked = false;
+        _cancelLockTimer();
+      }
       // Phase 6.5: set FLAG_SECURE so screenshots / Recents thumbnails are
       // blocked from the very first frame when a PIN is configured. Cheap
       // and idempotent — re-runs on every cold start.
@@ -2574,7 +2845,12 @@ class AppState extends ChangeNotifier {
     _lockTimer = Timer(_lockTimeout, () async {
       // FIX: Check if AppState has been disposed before accessing async resources
       if (_isDisposed) return;
-      final pinEnabled = await PinSecurityHelper.isPinEnabled();
+      bool pinEnabled;
+      try {
+        pinEnabled = await PinSecurityHelper.isPinEnabled();
+      } on PinStorageUnavailableException {
+        pinEnabled = true; // fail closed; the unlock screen offers Try again
+      }
       // FIX: Check again after async gap in case dispose happened during await
       if (_isDisposed) return;
       if (pinEnabled) {

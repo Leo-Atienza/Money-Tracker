@@ -89,18 +89,18 @@ void main() {
 
     test('clamps dayOfMonth=31 to the last day of a short month during back-fill', () {
       // dayOfMonth=31, lastCreated Jan 15, today April 1 2026.
-      // Back-fill walks Feb and March: Feb has 28 days so the
-      // generated instance must clamp to Feb 28. March has 31 days
-      // so it generates Mar 31. April is skipped because
-      // today.day (1) < dayOfMonth (31).
+      // Jan 15 cannot be an instance of a day-31 bill — it is the run day an
+      // older build stored — so January's instance (Jan 31) is still owed;
+      // the old generator silently skipped it. Back-fill then walks Feb and
+      // March: Feb has 28 days so the instance clamps to Feb 28, March
+      // generates Mar 31. April's (Apr 30) is not due yet on April 1.
       final dates = runFor(
         frequencyIndex: 0,
         dayOfMonthOrWeek: 31,
         now: ymd(2026, 4, 1),
         lastCreated: ymd(2026, 1, 15),
       );
-      expect(dates.length, 2);
-      expect(dates, [ymd(2026, 2, 28), ymd(2026, 3, 31)]);
+      expect(dates, [ymd(2026, 1, 31), ymd(2026, 2, 28), ymd(2026, 3, 31)]);
     });
 
     test('hits Feb 29 in a leap year', () {
@@ -128,14 +128,16 @@ void main() {
       expect(dates, [ymd(2026, 3, 31), ymd(2026, 4, 14)]);
     });
 
-    test('first instance anchors on startDate when lastCreated is null', () {
+    test('first instance is the chosen weekday on or after startDate', () {
+      // startDate is a Tuesday; the bill is on Mondays (0). The first
+      // instance is the following Monday, not the Tuesday it was set up on.
       final dates = runFor(
         frequencyIndex: 1,
         dayOfMonthOrWeek: 0,
         now: ymd(2026, 4, 14),
         startDate: ymd(2026, 4, 7),
       );
-      expect(dates, [ymd(2026, 4, 7)]); // 14 days not elapsed yet
+      expect(dates, [ymd(2026, 4, 13)]); // next one is 14 days later
     });
 
     test('returns empty when lastCreated was less than 14 days ago', () {
@@ -183,15 +185,38 @@ void main() {
       ]);
     });
 
-    test('first instance anchors on startDate when lastCreated is null', () {
+    test('first instance is the chosen weekday on or after startDate', () {
+      // startDate 2026-04-07 is a Tuesday; the bill is on Mondays (0).
       final dates = runFor(
         frequencyIndex: 2,
         dayOfMonthOrWeek: 0,
         now: ymd(2026, 4, 14),
         startDate: ymd(2026, 4, 7),
       );
-      // 2026-04-07 (Tue) + 7 days = 2026-04-14 — both land on or before today.
-      expect(dates, [ymd(2026, 4, 7), ymd(2026, 4, 14)]);
+      expect(dates, [ymd(2026, 4, 13)]);
+    });
+
+    test('a Friday bill set up on a Monday posts on Fridays', () {
+      final dates = runFor(
+        frequencyIndex: 2,
+        dayOfMonthOrWeek: 4, // Friday
+        now: ymd(2026, 4, 25), // Saturday
+        startDate: ymd(2026, 4, 13), // Monday
+      );
+      expect(dates, [ymd(2026, 4, 17), ymd(2026, 4, 24)]);
+    });
+
+    test('a run-day lastCreated from an older build re-anchors forward', () {
+      // Builds before 5.4 stored the day processing ran (a Tuesday here) for
+      // a Friday bill. The next instance moves forward to a Friday and is
+      // never less than a full week after the stored date.
+      final dates = runFor(
+        frequencyIndex: 2,
+        dayOfMonthOrWeek: 4, // Friday
+        now: ymd(2026, 5, 1), // Friday
+        lastCreated: ymd(2026, 4, 14), // Tuesday
+      );
+      expect(dates, [ymd(2026, 4, 24), ymd(2026, 5, 1)]);
     });
 
     test('with no lastCreated and no startDate, back-fills to matching weekday', () {
@@ -232,6 +257,97 @@ void main() {
         lastCreated: ymd(2011, 1, 1),
       );
       expect(dates.length, lessThanOrEqualTo(520));
+    });
+  });
+
+  group('recurringDueDates — month-boundary regressions (2026-10 review)', () {
+    List<DateTime> monthly({
+      required int day,
+      required DateTime now,
+      DateTime? lastCreated,
+      DateTime? endDate,
+      int? maxCount,
+    }) {
+      return AppState.recurringDueDates(
+        lastCreated: lastCreated,
+        startDate: null,
+        dayOfMonthOrWeek: day,
+        frequencyIndex: 0,
+        now: now,
+        endDate: endDate,
+        maxCount: maxCount,
+      );
+    }
+
+    test('a bill due on the 1st posts in the month it is due', () {
+      // lastCreated is the last INSTANCE (Sep 1). Opening the app on Oct 12
+      // creates October's. The old code looked for "Oct 12", found it after
+      // Oct 1, and created nothing until November.
+      expect(
+        monthly(day: 1, lastCreated: ymd(2026, 9, 1), now: ymd(2026, 10, 12)),
+        [ymd(2026, 10, 1)],
+      );
+    });
+
+    test('the following month is not skipped', () {
+      expect(
+        monthly(day: 1, lastCreated: ymd(2026, 10, 1), now: ymd(2026, 11, 2)),
+        [ymd(2026, 11, 1)],
+      );
+    });
+
+    test('day 31 posts on the 30th of a 30-day month, that month', () {
+      expect(monthly(day: 31, now: ymd(2026, 9, 30)), [ymd(2026, 9, 30)]);
+    });
+
+    test('a run-day lastCreated before the due day still owes that month', () {
+      // Older builds stored the run day (Oct 12) for a bill due the 20th.
+      expect(
+        monthly(day: 20, lastCreated: ymd(2026, 10, 12), now: ymd(2026, 10, 25)),
+        [ymd(2026, 10, 20)],
+      );
+    });
+
+    test('a run-day lastCreated on or after the due day never duplicates', () {
+      // The Oct 5 instance may already exist; only November's is created.
+      expect(
+        monthly(day: 5, lastCreated: ymd(2026, 10, 12), now: ymd(2026, 11, 6)),
+        [ymd(2026, 11, 5)],
+      );
+    });
+
+    test('catch-up stops at the end date', () {
+      // Ended Feb 15: February's instance was owed, March's and April's not.
+      expect(
+        monthly(
+          day: 1,
+          lastCreated: ymd(2026, 1, 1),
+          now: ymd(2026, 4, 14),
+          endDate: ymd(2026, 2, 15),
+        ),
+        [ymd(2026, 2, 1)],
+      );
+    });
+
+    test('catch-up stops at the remaining occurrence count', () {
+      expect(
+        monthly(
+          day: 1,
+          lastCreated: ymd(2026, 1, 1),
+          now: ymd(2026, 4, 14),
+          maxCount: 2,
+        ),
+        [ymd(2026, 2, 1), ymd(2026, 3, 1)],
+      );
+      expect(
+        monthly(
+          day: 1,
+          lastCreated: ymd(2026, 1, 1),
+          now: ymd(2026, 4, 14),
+          maxCount: 0,
+        ),
+        isEmpty,
+      );
     });
   });
 

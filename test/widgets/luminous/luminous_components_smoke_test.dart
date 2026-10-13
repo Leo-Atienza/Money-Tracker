@@ -57,6 +57,42 @@ void main() {
       await tester.pumpAndSettle();
       expect(selected, 'b');
     });
+
+    // S22 (a11y): TalkBack read each segment twice ("Expense Expense"):
+    // the label on the button node plus the visible Text under it.
+    testWidgets('each segment is one node, read once, that still taps',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      String selected = 'a';
+      await tester.pumpWidget(
+        _wrap(
+          StatefulBuilder(
+            builder: (_, setState) => GlassSegmentedControl<String>(
+              values: const ['a', 'b'],
+              labels: const ['First', 'Second'],
+              selected: selected,
+              onChanged: (v) => setState(() => selected = v),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.bySemanticsLabel('Second'), findsOneWidget);
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Second')),
+        isSemantics(label: 'Second', isButton: true, hasTapAction: true),
+      );
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Second')).label,
+        'Second',
+        reason: 'read once, not "Second Second"',
+      );
+
+      tester.semantics.tap(find.semantics.byLabel('Second'));
+      await tester.pumpAndSettle();
+      expect(selected, 'b');
+      handle.dispose();
+    });
   });
 
   group('GlassPillChip', () {

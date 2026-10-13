@@ -3,18 +3,18 @@ import 'package:flutter/services.dart';
 
 import '../../theme/luminous_tokens.dart';
 
-/// One cell in the [CategoryBentoGrid].
+/// One choice in the [CategoryBentoGrid].
 class CategoryBentoItem {
   /// Stable id (typically the category id) — passed back via `onSelected`.
   final Object id;
 
-  /// Display label rendered beneath the icon.
+  /// Display label rendered beside the icon.
   final String label;
 
-  /// Icon rendered in the cell.
+  /// Icon rendered in the chip's tinted square.
   final IconData icon;
 
-  /// Tint color for the icon container.
+  /// Tint color for the icon square and the selected state.
   final Color color;
 
   const CategoryBentoItem({
@@ -25,60 +25,57 @@ class CategoryBentoItem {
   });
 }
 
-/// 4-column bento grid used as the category picker on the Add Transaction
-/// screen. Each cell is a tappable glass tile with an icon + label.
+/// Category picker used on the Add Transaction screen: a wrapping set of
+/// tappable chips, each a tinted category icon plus the full category name.
+///
+/// The name is historical (like the `Glass*` widgets). This used to be a
+/// fixed 4-column bento grid, which truncated real names on phones —
+/// "Entertai…", "Freel…", "Invest…" — and a fixed column count cannot fix
+/// that: even three columns clip "Entertainment" on a 360dp screen. Chips
+/// size to their label, so every default name shows in full and only a
+/// custom name longer than the whole row wraps to a second line.
+///
+/// It is a plain [Wrap], not a `GridView`: a scrollable without an explicit
+/// `padding` inherits the MediaQuery status-bar inset, which is what put an
+/// empty band between the CATEGORY header and the first row.
 class CategoryBentoGrid extends StatelessWidget {
   final List<CategoryBentoItem> items;
   final Object? selectedId;
   final ValueChanged<Object> onSelected;
-
-  /// Number of columns. Defaults to 4 per the Luminous spec.
-  final int columns;
 
   const CategoryBentoGrid({
     super.key,
     required this.items,
     required this.selectedId,
     required this.onSelected,
-    this.columns = 4,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: columns,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        // Taller than wide so the icon + label fit without a vertical
-        // overflow, including at the clamped 1.3x accessibility text scale
-        // (0.95 clipped the label by ~8px).
-        childAspectRatio: 0.8,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, i) {
-        final item = items[i];
-        return _BentoCell(
-          item: item,
-          selected: item.id == selectedId,
-          onTap: () {
-            HapticFeedback.selectionClick();
-            onSelected(item.id);
-          },
-        );
-      },
+    return Wrap(
+      spacing: LuminousTokens.basePx,
+      runSpacing: LuminousTokens.basePx,
+      children: [
+        for (final item in items)
+          _CategoryChip(
+            item: item,
+            selected: item.id == selectedId,
+            onTap: () {
+              HapticFeedback.selectionClick();
+              onSelected(item.id);
+            },
+          ),
+      ],
     );
   }
 }
 
-class _BentoCell extends StatelessWidget {
+class _CategoryChip extends StatelessWidget {
   final CategoryBentoItem item;
   final bool selected;
   final VoidCallback onTap;
 
-  const _BentoCell({
+  const _CategoryChip({
     required this.item,
     required this.selected,
     required this.onTap,
@@ -88,56 +85,71 @@ class _BentoCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    // De-glass: solid cells; the selected cell gets a light tint of its
-    // category colour plus a stronger coloured border.
-    final tileFill = selected
+    // Selection is carried three ways so it never rests on colour alone: a
+    // light tint of the category colour, a stronger border, and a heavier,
+    // full-contrast label.
+    final fill = selected
         ? item.color.withValues(alpha: 0.14)
         : cs.surfaceContainerHighest;
     final border = selected
         ? item.color.withValues(alpha: 0.55)
         : cs.outlineVariant.withValues(alpha: 0.6);
 
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: item.label,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(LuminousTokens.radiusMd),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          decoration: BoxDecoration(
-            color: tileFill,
+    return MergeSemantics(
+      child: Semantics(
+        button: true,
+        selected: selected,
+        inMutuallyExclusiveGroup: true,
+        // The fill lives on the Material (not a decoration above the
+        // InkWell) so the press ripple paints on top of it and is visible.
+        child: Material(
+          color: fill,
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(LuminousTokens.radiusMd),
-            border: Border.all(color: border, width: selected ? 1.4 : 1),
+            side: BorderSide(color: border, width: selected ? 1.4 : 1),
           ),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: item.color.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(12),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: LuminousTokens.touchTargetMin,
+              ),
+              child: Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(8, 8, 16, 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: item.color.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        item.icon,
+                        size: LuminousTokens.iconSm,
+                        color: item.color,
+                      ),
+                    ),
+                    const SizedBox(width: LuminousTokens.basePx),
+                    Flexible(
+                      child: Text(
+                        item.label,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight:
+                              selected ? FontWeight.w700 : FontWeight.w500,
+                          color: selected ? cs.onSurface : cs.onSurfaceVariant,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-                child: Icon(item.icon, size: 22, color: item.color),
               ),
-              const SizedBox(height: 8),
-              Text(
-                item.label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                      letterSpacing: 0.2,
-                      fontWeight: FontWeight.w600,
-                    ) ??
-                    const TextStyle(fontWeight: FontWeight.w600),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-            ],
+            ),
           ),
         ),
       ),

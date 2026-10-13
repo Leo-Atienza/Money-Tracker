@@ -84,18 +84,17 @@ class HistoryFilterBar extends StatelessWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                     size: 22,
                   ),
+                  // The tooltip names the button itself (a Semantics wrapper
+                  // left a second, unlabeled button node under the label).
                   suffixIcon: searchTerm.isNotEmpty
-                      ? Semantics(
-                          label: 'Clear search',
-                          button: true,
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.close_rounded,
-                              color: theme.colorScheme.onSurfaceVariant,
-                              size: 20,
-                            ),
-                            onPressed: onSearchCleared,
+                      ? IconButton(
+                          icon: Icon(
+                            Icons.close_rounded,
+                            color: theme.colorScheme.onSurfaceVariant,
+                            size: 20,
                           ),
+                          tooltip: 'Clear search',
+                          onPressed: onSearchCleared,
                         )
                       : null,
                   border: InputBorder.none,

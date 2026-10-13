@@ -71,9 +71,14 @@ class SecureWindow {
   /// `AppState.initializeLockState`, the PIN setup screen, and the settings
   /// screen's "disable PIN" toggle.
   static Future<void> syncFromPinState() async {
-    final pinEnabled = pinStateOverride != null
-        ? await pinStateOverride!()
-        : await PinSecurityHelper.isPinEnabled();
+    bool pinEnabled;
+    try {
+      pinEnabled = pinStateOverride != null
+          ? await pinStateOverride!()
+          : await PinSecurityHelper.isPinEnabled();
+    } on PinStorageUnavailableException {
+      pinEnabled = true; // fail closed: keep screenshots blocked
+    }
     await setSecure(pinEnabled);
   }
 }

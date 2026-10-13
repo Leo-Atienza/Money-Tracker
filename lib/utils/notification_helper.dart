@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show TimeOfDay;
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -7,6 +8,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import '../models/recurring_expense_model.dart';
 import '../models/budget_model.dart';
 import 'clock.dart';
+import 'date_helper.dart';
 import 'notification_payload_store.dart';
 
 /// Default time-of-day for bill reminders when the user hasn't set one.
@@ -20,6 +22,24 @@ class NotificationHelper {
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+
+  static const MethodChannel _deviceChannel =
+      MethodChannel('budget_tracker/device_info');
+
+  /// Points `tz.local` at the phone's zone. The timezone package starts on
+  /// UTC, and a repeating reminder keeps its time of day in that location:
+  /// on UTC it moved an hour against the wall clock at every DST change.
+  /// Stays on UTC (the old behaviour) when the zone is unavailable.
+  @visibleForTesting
+  static Future<void> setLocalTimeZone() async {
+    try {
+      final name = await _deviceChannel.invokeMethod<String>('timeZone');
+      if (name != null) tz.setLocalLocation(tz.getLocation(name));
+    } catch (e) {
+      // No channel (tests) or an id the database does not know.
+      if (kDebugMode) debugPrint('Local timezone unavailable: $e');
+    }
+  }
 
   // FIX P2-9: Use separate ID ranges to prevent notification ID collisions
   // Bill reminders: 10000-19999
@@ -81,6 +101,7 @@ class NotificationHelper {
     if (_initialized) return;
 
     tz.initializeTimeZones();
+    await setLocalTimeZone();
 
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
@@ -104,6 +125,20 @@ class NotificationHelper {
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
     _initialized = true;
+
+    // A tap that LAUNCHED the app (it was not running) reaches neither
+    // callback above — it only shows up in the launch details. Queue it the
+    // same way so the reminder still opens the bills screen (after the PIN).
+    try {
+      final launch = await _notifications.getNotificationAppLaunchDetails();
+      if (launch?.didNotificationLaunchApp ?? false) {
+        await NotificationPayloadStore.storePendingPayload(
+          launch!.notificationResponse?.payload,
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Notification launch details failed: $e');
+    }
   }
 
   Future<bool> areNotificationsEnabled() async {
@@ -168,7 +203,14 @@ class NotificationHelper {
     String currencySymbol = '\$',
     TimeOfDay reminderTime = _defaultReminderTime,
   }) async {
-    if (!expense.isActive || expense.id == null) return;
+    final expenseId = expense.id;
+    if (expenseId == null) return;
+    // Paused, past its end date, or out of occurrences: make sure nothing
+    // keeps firing (repeating reminders used to outlive the bill).
+    if (!expense.shouldBeActive) {
+      await cancelBillReminder(expenseId);
+      return;
+    }
 
     await initialize();
 
@@ -177,40 +219,36 @@ class NotificationHelper {
 
     final now = Clock.instance.now();
 
-    // FIX: For bills on 29th-31st, don't use repeating notifications
-    // because DateTimeComponents.dayOfMonthAndTime will silently fail in short months
-    // Instead, schedule only for the next occurrence
-    final isEndOfMonthBill = expense.dayOfMonth >= 29;
-
-    // Calculate due date for current month
-    // Handle days that don't exist in current month (e.g. 31st in Feb)
-    int day = expense.dayOfMonth;
-    int maxDaysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    if (day > maxDaysInMonth) day = maxDaysInMonth;
-
-    var dueDate = DateTime(now.year, now.month, day);
-    var reminderDate = dueDate.subtract(const Duration(days: 1));
-
-    // If reminder time has passed for this month, move to next month
-    if (reminderDate.isBefore(now)) {
-      // Calculate for next month
-      int nextMonth = now.month + 1;
-      int year = now.year;
-      if (nextMonth > 12) {
-        nextMonth = 1;
-        year++;
-      }
-
-      int maxDaysInNextMonth = DateTime(year, nextMonth + 1, 0).day;
-      int nextMonthDay = expense.dayOfMonth;
-      if (nextMonthDay > maxDaysInNextMonth) nextMonthDay = maxDaysInNextMonth;
-
-      dueDate = DateTime(year, nextMonth, nextMonthDay);
-      reminderDate = dueDate.subtract(const Duration(days: 1));
+    // The reminder goes off the day before the due date, at the user's
+    // reminder time. Take the first occurrence whose reminder is still ahead,
+    // comparing the full reminder TIME: comparing midnight skipped today's
+    // reminder whenever the app was opened before it fired. nextDueDate is
+    // frequency-aware — a weekly bill's weekday (0-6) used to be read as a
+    // day of the month.
+    DateTime reminderFor(DateTime due) => DateTime(
+          due.year,
+          due.month,
+          due.day - 1,
+          reminderTime.hour,
+          reminderTime.minute,
+        );
+    var dueDate = expense.nextDueDate(now);
+    if (dueDate != null && !reminderFor(dueDate).isAfter(now)) {
+      dueDate = expense.nextDueDate(DateHelper.addDays(dueDate, 1));
     }
+    if (dueDate == null) {
+      await cancelBillReminder(expenseId);
+      return;
+    }
+    final scheduledFor = reminderFor(dueDate);
 
-    // FIX: For end-of-month bills, use one-time notification (no repeat)
-    // For regular bills, use monthly repeat
+    // FIX: Bills due on the 29th-31st can't use a repeating notification:
+    // DateTimeComponents.dayOfMonthAndTime silently fails in short months.
+    // Neither can a bill due on the 1st (its reminder lands on the 28th-31st
+    // of the month before) or a biweekly one (no 14-day repeat exists). Those
+    // are booked one occurrence at a time and re-booked after each
+    // recurring-processor run (rescheduleOneShotBillReminders).
+    final isOneShot = isOneShotReminder(expense);
     // FIX P3-17: Use localized channel names
     final billReminderDetails = NotificationDetails(
       android: AndroidNotificationDetails(
@@ -230,20 +268,14 @@ class NotificationHelper {
       iOS: const DarwinNotificationDetails(),
     );
 
-    if (isEndOfMonthBill) {
+    if (isOneShot) {
       // One-time notification for next occurrence only
-      final expenseId = expense.id;
-      if (expenseId == null) return; // Cannot schedule without ID
 
       // FIX Bug #6: Idempotency — skip if this exact reminder is already
-      // scheduled. `rescheduleEndOfMonthBillReminders` calls this on every
+      // scheduled. `rescheduleOneShotBillReminders` calls this on every
       // recurring-processor run; without the skip we would cancel+rebook the
       // same notification on every app start.
-      // M20: honor the user's configured reminder time instead of hardcoding 09:00.
-      final scheduledFor = reminderDate.copyWith(
-        hour: reminderTime.hour,
-        minute: reminderTime.minute,
-      );
+      // M20: the user's configured reminder time (in scheduledFor).
       final reminderEpoch = scheduledFor.millisecondsSinceEpoch;
       final prefs = await SharedPreferences.getInstance();
       final storedEpoch = prefs.getInt(_eomBillKey(expenseId));
@@ -277,9 +309,9 @@ class NotificationHelper {
       // value is unchanged.
       await prefs.setInt(_eomBillKey(expenseId), reminderEpoch);
     } else {
-      // Regular monthly repeating notification (safe for days 1-28)
-      final expenseId = expense.id;
-      if (expenseId == null) return; // Cannot schedule without ID
+      // Repeating notification: weekly bills repeat on the weekday, monthly
+      // bills due on the 2nd-28th on the day of the month (their reminder
+      // day, 1st-27th, exists in every month).
       // FIX P2-9: Use separate ID range to prevent collision with budget alerts
       await _notifications.zonedSchedule(
         id: _billReminderIdBase + expenseId,
@@ -287,21 +319,34 @@ class NotificationHelper {
         body:
             '${expense.description} ($currencySymbol${expense.amount.toStringAsFixed(2)}) due tomorrow',
         // M20: honor the user's configured reminder time instead of 09:00.
-        scheduledDate: tz.TZDateTime.from(
-          reminderDate.copyWith(
-            hour: reminderTime.hour,
-            minute: reminderTime.minute,
-          ),
-          tz.local,
-        ),
+        scheduledDate: tz.TZDateTime.from(scheduledFor, tz.local),
         notificationDetails: billReminderDetails,
         androidScheduleMode: canUseExact
             ? AndroidScheduleMode.exactAllowWhileIdle
             : AndroidScheduleMode.inexactAllowWhileIdle,
         // M19: route taps to the recurring-items screen.
         payload: 'recurring_expenses',
-        matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime,
+        matchDateTimeComponents:
+            expense.frequency == RecurringExpenseFrequency.weekly
+                ? DateTimeComponents.dayOfWeekAndTime
+                : DateTimeComponents.dayOfMonthAndTime,
       );
+    }
+  }
+
+  /// Reminders that cannot repeat natively and are booked one occurrence at
+  /// a time: biweekly bills (no 14-day repeat exists) and monthly bills due
+  /// on the 1st (the reminder lands on the 28th-31st of the month before) or
+  /// on the 29th-31st (missing from short months).
+  @visibleForTesting
+  static bool isOneShotReminder(RecurringExpense expense) {
+    switch (expense.frequency) {
+      case RecurringExpenseFrequency.biweekly:
+        return true;
+      case RecurringExpenseFrequency.weekly:
+        return false;
+      case RecurringExpenseFrequency.monthly:
+        return expense.dayOfMonth == 1 || expense.dayOfMonth >= 29;
     }
   }
 
@@ -320,19 +365,20 @@ class NotificationHelper {
     }
   }
 
-  /// FIX Bug #6: Re-book end-of-month (day 29-31) bill reminders.
+  /// FIX Bug #6: Re-book the one-shot bill reminders ([isOneShotReminder]),
+  /// and cancel the reminders of bills that have ended.
   ///
-  /// Android's `DateTimeComponents.dayOfMonthAndTime` cannot repeat for days
-  /// that don't exist in every month, so those bills are scheduled as
-  /// one-shot notifications. Call this after `_processRecurringExpenses`
-  /// completes so that once a scheduled notification has fired (and the
-  /// generator created the corresponding transaction), the next month's
-  /// reminder is queued up.
+  /// One-shot reminders cover a single occurrence. Call this after
+  /// `_processRecurringExpenses` completes so that once a scheduled
+  /// notification has fired (and the generator created the corresponding
+  /// transaction), the next occurrence's reminder is queued up. A bill past
+  /// its end date or out of occurrences still reads `isActive`, so its
+  /// repeating reminder is cancelled here — it used to fire forever.
   ///
   /// Idempotent: if `scheduleBillReminder` sees the same reminder epoch
   /// already stored in SharedPreferences, it no-ops. So calling this on
   /// every recurring-processor run is safe and cheap.
-  Future<void> rescheduleEndOfMonthBillReminders(
+  Future<void> rescheduleOneShotBillReminders(
     List<RecurringExpense> recurringExpenses, {
     String currencySymbol = '\$',
     TimeOfDay reminderTime = _defaultReminderTime,
@@ -341,9 +387,13 @@ class NotificationHelper {
     await initialize();
     for (final recurring in recurringExpenses) {
       try {
-        if (!recurring.isActive) continue;
-        if (recurring.id == null) continue;
-        if (recurring.dayOfMonth < 29) continue; // only end-of-month bills
+        final id = recurring.id;
+        if (id == null) continue;
+        if (!recurring.shouldBeActive) {
+          await cancelBillReminder(id);
+          continue;
+        }
+        if (!isOneShotReminder(recurring)) continue;
         await scheduleBillReminder(
           recurring,
           currencySymbol: currencySymbol,

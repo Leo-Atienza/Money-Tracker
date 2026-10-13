@@ -17,6 +17,10 @@ void main() {
 
   late Map<String, String> secureBacking;
   late TestDefaultBinaryMessenger messenger;
+  // Keys whose reads fail like a Keystore error, and every write/delete in
+  // order (for the disable-order test).
+  late Set<String> failingReads;
+  late List<String> ops;
 
   const channel = MethodChannel(
     'plugins.it_nomads.com/flutter_secure_storage',
@@ -24,17 +28,24 @@ void main() {
 
   setUp(() async {
     secureBacking = <String, String>{};
+    failingReads = <String>{};
+    ops = <String>[];
     messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(channel, (call) async {
       switch (call.method) {
         case 'read':
           final args = call.arguments as Map;
-          return secureBacking[args['key'] as String];
+          final key = args['key'] as String;
+          if (failingReads.contains(key)) {
+            throw PlatformException(code: 'Exception', message: 'read failed');
+          }
+          return secureBacking[key];
         case 'write':
           final args = call.arguments as Map;
           final key = args['key'] as String;
           final value = args['value'] as String?;
+          ops.add('write $key=$value');
           if (value == null) {
             secureBacking.remove(key);
           } else {
@@ -43,6 +54,7 @@ void main() {
           return null;
         case 'delete':
           final args = call.arguments as Map;
+          ops.add('delete ${args['key']}');
           secureBacking.remove(args['key'] as String);
           return null;
         case 'readAll':
@@ -73,9 +85,12 @@ void main() {
     expect(await PinSecurityHelper.isPinEnabled(), isTrue);
     expect(await PinSecurityHelper.getPinLength(), equals(4));
 
-    // Hash + salt landed in the secure backing, NOT in legacy prefs.
+    // Hash, salt and length landed in the secure backing as ONE value (the
+    // S22 record), NOT in legacy prefs or separate keys.
     expect(secureBacking.containsKey('app_pin_hash'), isTrue);
-    expect(secureBacking.containsKey('app_pin_salt'), isTrue);
+    expect(secureBacking['app_pin_hash']!.split(r'$'), hasLength(5));
+    expect(secureBacking.containsKey('app_pin_salt'), isFalse);
+    expect(secureBacking.containsKey('pin_length'), isFalse);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('app_pin_hash'), isNull);
     expect(prefs.getString('app_pin_salt'), isNull);
@@ -97,8 +112,9 @@ void main() {
     await PinSecurityHelper.setPin('9027');
 
     final stored = secureBacking['app_pin_hash']!;
-    // Modern format: `pbkdf2_sha256$<iterations>$<base64key>`.
+    // Modern format: `pbkdf2_sha256$<iterations>$<salt>$<key>$<length>`.
     expect(stored.startsWith('pbkdf2_sha256\$100000\$'), isTrue);
+    expect(stored.endsWith('\$4'), isTrue);
     // It must NOT look like the old 64-hex-char SHA-256 digest.
     expect(RegExp(r'^[0-9a-f]{64}$').hasMatch(stored), isFalse);
     // The stored hash is never the plaintext PIN.
@@ -148,8 +164,8 @@ void main() {
 
     final upgraded = secureBacking['app_pin_hash']!;
     expect(upgraded.startsWith('pbkdf2_sha256\$'), isTrue);
-    // A salt is now present (PBKDF2 requires one).
-    expect(secureBacking.containsKey('app_pin_salt'), isTrue);
+    // A salt is now present (PBKDF2 requires one), inside the record.
+    expect(upgraded.split(r'$')[2], isNotEmpty);
 
     expect(await PinSecurityHelper.verifyPin(pin), isTrue);
   });
@@ -202,9 +218,11 @@ void main() {
     // hash as PBKDF2 with a fresh salt (the legacy SHA-256 is gone).
     expect(secureBacking['app_pin_hash'], startsWith('pbkdf2_sha256\$'));
     expect(secureBacking['app_pin_hash'], isNot(equals(legacyHash)));
-    expect(secureBacking['app_pin_salt'], isNot(equals(salt)));
+    expect(secureBacking['app_pin_hash']!.split(r'$')[2],
+        isNot(equals(salt)));
+    expect(secureBacking.containsKey('app_pin_salt'), isFalse);
     expect(secureBacking['pin_enabled'], equals('true'));
-    expect(secureBacking['pin_length'], equals('4'));
+    expect(await PinSecurityHelper.getPinLength(), equals(4));
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('app_pin_hash'), isNull);
@@ -254,5 +272,77 @@ void main() {
     await PinSecurityHelper.verifyPin('4829');
     expect(await PinSecurityHelper.getRemainingAttempts(), equals(5));
     expect(secureBacking.containsKey('pin_failed_attempts'), isFalse);
+  });
+
+  // ---------------------------------------------------------------
+  // S22: fail closed, one-value PIN record, disable order.
+  // ---------------------------------------------------------------
+  test('an unreadable store is not "no PIN": isPinEnabled throws', () async {
+    await PinSecurityHelper.setPin('9027');
+    failingReads.add('pin_enabled');
+
+    await expectLater(
+      PinSecurityHelper.isPinEnabled(),
+      throwsA(isA<PinStorageUnavailableException>()),
+    );
+  });
+
+  test('a PIN that cannot be read is not a wrong PIN: no attempt counted',
+      () async {
+    await PinSecurityHelper.setPin('9027');
+    failingReads.add('app_pin_hash');
+
+    await expectLater(
+      PinSecurityHelper.verifyPin('9027'),
+      throwsA(isA<PinStorageUnavailableException>()),
+    );
+
+    failingReads.clear();
+    expect(await PinSecurityHelper.getRemainingAttempts(), 5);
+    expect(await PinSecurityHelper.verifyPin('9027'), isTrue);
+  });
+
+  test('a pre-S22 PBKDF2 hash with its own salt key verifies, then becomes '
+      'one record', () async {
+    // Build the old layout from a real derivation: record -> v1 hash + salt.
+    await PinSecurityHelper.setPin('482913');
+    final parts = secureBacking['app_pin_hash']!.split(r'$');
+    secureBacking['app_pin_hash'] = '${parts[0]}\$${parts[1]}\$${parts[3]}';
+    secureBacking['app_pin_salt'] = parts[2];
+    secureBacking['pin_length'] = '6';
+    expect(await PinSecurityHelper.getPinLength(), 6);
+
+    expect(await PinSecurityHelper.verifyPin('482913'), isTrue);
+
+    final record = secureBacking['app_pin_hash']!.split(r'$');
+    expect(record, hasLength(5));
+    expect(record[4], '6');
+    expect(secureBacking.containsKey('app_pin_salt'), isFalse);
+    expect(secureBacking.containsKey('pin_length'), isFalse);
+    expect(await PinSecurityHelper.getPinLength(), 6);
+    expect(await PinSecurityHelper.verifyPin('482913'), isTrue);
+    expect(await PinSecurityHelper.verifyPin('482914'), isFalse);
+  });
+
+  test('setPin writes the record before switching the PIN on', () async {
+    await PinSecurityHelper.setPin('9027');
+
+    final record = ops.indexWhere((o) => o.startsWith('write app_pin_hash='));
+    final enabled = ops.indexOf('write pin_enabled=true');
+    expect(record, isNonNegative);
+    expect(enabled, greaterThan(record));
+  });
+
+  test('disablePin switches the PIN off before removing the hash', () async {
+    await PinSecurityHelper.setPin('9027');
+    ops.clear();
+
+    await PinSecurityHelper.disablePin();
+
+    final off = ops.indexOf('write pin_enabled=false');
+    final hashGone = ops.indexOf('delete app_pin_hash');
+    expect(off, isNonNegative);
+    expect(hashGone, greaterThan(off),
+        reason: 'killed in between, a PIN must not stay on with no hash');
   });
 }

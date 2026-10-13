@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widget palette, dark. See values/widget_colors.xml. -->
+<resources>
+    <color name="widget_surface">#FF1F1F1F</color>
+    <color name="widget_on_surface">#FFE6E6E6</color>
+    <color name="widget_on_surface_variant">#FFB0B0B0</color>
+    <color name="widget_button">#FF333333</color>
+    <color name="widget_ripple">#1FE6E6E6</color>
+    <color name="widget_income">#FF66BB6A</color>
+    <color name="widget_expense">#FFEF5350</color>
+    <!-- Purple at night: ink 8.79:1, secondary 5.57:1, arrows 4.78/3.24:1 on
+         the tile; button icons 7.16/4.85:1 on the button. -->
+    <color name="widget_purple_surface">#FF3B2E7A</color>
+    <color name="widget_purple_on_surface">#FFE8DEFF</color>
+    <color name="widget_purple_on_surface_variant">#FFBBB0DC</color>
+    <color name="widget_purple_button">#FF1D1640</color>
+</resources>

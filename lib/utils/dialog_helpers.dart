@@ -1,6 +1,7 @@
 // FIX #9, #16, #50: Comprehensive dialog helpers for confirmations and warnings
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import 'currency_helper.dart';
 import 'haptic_helper.dart';
 
 class DialogHelpers {
@@ -25,7 +26,7 @@ class DialogHelpers {
           children: [
             Icon(Icons.warning, color: appColors.warningOrange),
             SizedBox(width: 12),
-            const Text('Delete Budget?'),
+            Flexible(child: const Text('Delete Budget?')),
           ],
         ),
         content: Column(
@@ -101,7 +102,7 @@ class DialogHelpers {
           children: [
             Icon(Icons.warning, color: appColors.warningOrange),
             SizedBox(width: 12),
-            const Text('Change Currency?'),
+            Flexible(child: const Text('Change Currency?')),
           ],
         ),
         content: Column(
@@ -130,7 +131,11 @@ class DialogHelpers {
                   ),
                   SizedBox(height: 12),
                   const Text('1. Keep amounts as-is (Recommended)'),
-                  const Text('   Example: \$100 becomes ₹100'),
+                  // Was a fixed "$100 becomes ₹100" whatever the pair.
+                  Text(
+                    '   Example: ${CurrencyHelper.getSymbol(oldCurrency)}100 '
+                    'becomes ${CurrencyHelper.getSymbol(newCurrency)}100',
+                  ),
                   SizedBox(height: 8),
                   const Text('2. Clear all data and start fresh'),
                   const Text('   Permanently deletes all transactions'),
@@ -184,7 +189,7 @@ class DialogHelpers {
             children: [
               Icon(Icons.calendar_today, color: appColors.infoBlue),
               SizedBox(width: 12),
-              const Text('Future Date'),
+              Flexible(child: const Text('Future Date')),
             ],
           ),
           content: Column(

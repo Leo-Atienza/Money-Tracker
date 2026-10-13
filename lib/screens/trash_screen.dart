@@ -254,34 +254,25 @@ class _TrashScreenState extends State<TrashScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
+                    // Default-size IconButtons: full 48dp touch targets.
+                    // They were squeezed to 32dp, 8dp apart.
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        SizedBox(
-                          width: 32,
-                          height: 32,
-                          child: IconButton(
-                            icon: const Icon(Icons.restore, size: 20),
-                            onPressed: () => _restoreExpense(item['id'] as int),
-                            tooltip: 'Restore',
-                            padding: EdgeInsets.zero,
-                          ),
+                        IconButton(
+                          icon: const Icon(Icons.restore, size: 20),
+                          onPressed: () => _restoreExpense(item['id'] as int),
+                          tooltip: 'Restore',
                         ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 32,
-                          height: 32,
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.delete_forever,
-                              size: 20,
-                              color: appColors.expenseRed,
-                            ),
-                            onPressed: () =>
-                                _permanentlyDeleteExpense(item['id'] as int),
-                            tooltip: 'Delete permanently',
-                            padding: EdgeInsets.zero,
+                        IconButton(
+                          icon: Icon(
+                            Icons.delete_forever,
+                            size: 20,
+                            color: appColors.expenseRed,
                           ),
+                          onPressed: () =>
+                              _permanentlyDeleteExpense(item['id'] as int),
+                          tooltip: 'Delete permanently',
                         ),
                       ],
                     ),
@@ -354,34 +345,25 @@ class _TrashScreenState extends State<TrashScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
+                    // Default-size IconButtons: full 48dp touch targets.
+                    // They were squeezed to 32dp, 8dp apart.
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        SizedBox(
-                          width: 32,
-                          height: 32,
-                          child: IconButton(
-                            icon: const Icon(Icons.restore, size: 20),
-                            onPressed: () => _restoreIncome(item['id'] as int),
-                            tooltip: 'Restore',
-                            padding: EdgeInsets.zero,
-                          ),
+                        IconButton(
+                          icon: const Icon(Icons.restore, size: 20),
+                          onPressed: () => _restoreIncome(item['id'] as int),
+                          tooltip: 'Restore',
                         ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 32,
-                          height: 32,
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.delete_forever,
-                              size: 20,
-                              color: appColors.expenseRed,
-                            ),
-                            onPressed: () =>
-                                _permanentlyDeleteIncome(item['id'] as int),
-                            tooltip: 'Delete permanently',
-                            padding: EdgeInsets.zero,
+                        IconButton(
+                          icon: Icon(
+                            Icons.delete_forever,
+                            size: 20,
+                            color: appColors.expenseRed,
                           ),
+                          onPressed: () =>
+                              _permanentlyDeleteIncome(item['id'] as int),
+                          tooltip: 'Delete permanently',
                         ),
                       ],
                     ),
@@ -504,7 +486,6 @@ class _TrashScreenState extends State<TrashScreen> {
   Future<void> _showEmptyTrashDialog(BuildContext context) async {
     final appState = context.read<AppState>();
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    final errorColor = Theme.of(context).extension<AppColors>()!.expenseRed;
 
     final totalItems = _deletedExpenses.length + _deletedIncome.length;
 
@@ -543,7 +524,6 @@ class _TrashScreenState extends State<TrashScreen> {
           SnackBar(
             content: Text('Error emptying trash: $e'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: errorColor,
           ),
         );
       }
@@ -577,6 +557,7 @@ class _EmptyTrashConfirmDialogState extends State<_EmptyTrashConfirmDialog> {
     final appColors = theme.extension<AppColors>()!;
 
     return AlertDialog(
+      scrollable: true,
       title: const Text('Empty Trash?'),
       content: Column(
         mainAxisSize: MainAxisSize.min,

@@ -4,7 +4,9 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 import 'dart:async';
+import 'package:file_picker/file_picker.dart';
 import '../utils/backup_helper.dart';
+import '../utils/progress_indicator_helper.dart';
 import '../providers/app_state.dart';
 import '../theme/app_colors.dart';
 import '../theme/luminous_tokens.dart';
@@ -184,8 +186,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(_getFriendlyErrorMessage(e)),
-              backgroundColor:
-                  Theme.of(context).extension<AppColors>()!.expenseRed,
               duration: const Duration(seconds: 4),
             ),
           );
@@ -218,86 +218,11 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   /// "Wrong passphrase" warning.
   Future<String?> _requestRestorePassphrase({required bool isRetry}) async {
     if (!mounted) return null;
-    final controller = TextEditingController();
-    bool obscure = true;
-
-    final result = await showDialog<String>(
+    return showDialog<String>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final dialogTheme = Theme.of(context);
-            final dialogAppColors = dialogTheme.extension<AppColors>()!;
-            return AlertDialog(
-              title: const Text('Restore encrypted backup'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (isRetry)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: dialogAppColors.expenseRed.withAlpha(20),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'Wrong passphrase — try again.',
-                        style: dialogTheme.textTheme.bodySmall?.copyWith(
-                          color: dialogAppColors.expenseRed,
-                        ),
-                      ),
-                    ),
-                  Text(
-                    'Enter the passphrase used when this backup was created.',
-                    style: dialogTheme.textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: controller,
-                    obscureText: obscure,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      labelText: 'Passphrase',
-                      suffixIcon: IconButton(
-                        tooltip: obscure ? 'Show' : 'Hide',
-                        icon: Icon(
-                            obscure ? Icons.visibility_off : Icons.visibility),
-                        onPressed: () => setDialogState(
-                          () => obscure = !obscure,
-                        ),
-                      ),
-                    ),
-                    onSubmitted: (value) {
-                      if (value.isNotEmpty) Navigator.pop(dialogContext, value);
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, null),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    final pw = controller.text;
-                    if (pw.isEmpty) return;
-                    Navigator.pop(dialogContext, pw);
-                  },
-                  child: const Text('Decrypt'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (_) => _RestorePassphraseDialog(isRetry: isRetry),
     );
-
-    controller.dispose();
-    return result;
   }
 
   Future<void> _exportBackup() async {
@@ -325,8 +250,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 
     setState(() => _isExporting = true);
 
-    // FIX: Track if dialog is currently shown to prevent navigation bugs
-    bool dialogShown = false;
+    // Closes the progress dialog by its own route (never a blind pop).
+    VoidCallback? closeProgress;
     String? savedPath;
 
     try {
@@ -340,24 +265,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           // Show loading dialog while creating backup
           if (kDebugMode) debugPrint('Showing loading dialog...');
           if (mounted) {
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => const PopScope(
-                canPop: false,
-                child: AlertDialog(
-                  content: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(width: 20),
-                      Expanded(child: Text('Creating backup...')),
-                    ],
-                  ),
-                ),
-              ),
+            closeProgress = ProgressIndicatorHelper.show(
+              context,
+              message: 'Creating backup...',
             );
-            dialogShown = true;
           }
         },
         onProcessingEnd: () {
@@ -365,10 +276,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           if (kDebugMode) {
             debugPrint('Closing loading dialog for file picker...');
           }
-          if (mounted && dialogShown) {
-            Navigator.of(context, rootNavigator: true).pop();
-            dialogShown = false;
-          }
+          closeProgress?.call();
+          closeProgress = null;
         },
       );
       if (kDebugMode) {
@@ -389,8 +298,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Backup saved successfully!'),
-            backgroundColor:
-                Theme.of(context).extension<AppColors>()!.incomeGreen,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -411,17 +318,13 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       // FIX: Close dialog if shown
       if (kDebugMode) debugPrint('!!! ERROR in _exportBackup: $e');
       if (kDebugMode) debugPrint('Stack trace: $stackTrace');
-      if (mounted && dialogShown) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
+      closeProgress?.call();
       if (mounted) {
         final errorMessage = _getFriendlyErrorMessage(e);
         if (kDebugMode) debugPrint('Showing error to user: $errorMessage');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
-            backgroundColor:
-                Theme.of(context).extension<AppColors>()!.expenseRed,
             duration: const Duration(seconds: 5),
           ),
         );
@@ -438,8 +341,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   }
 
   Future<void> _shareBackup() async {
-    // FIX: Track dialog state for Share operation
-    bool dialogShown = false;
+    // Closes the progress dialog by its own route (never a blind pop).
+    VoidCallback? closeProgress;
 
     // Phase 6.3 — shared backups always travel through third-party
     // apps (mail, drive, messaging), so encryption is mandatory here
@@ -465,39 +368,19 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       await BackupHelper().shareDatabase(
         passphrase: passphrase,
         onProcessingStart: () {
+          // (A 3-minute timeout used to hang off this dialog's future,
+          // which nothing awaited: it threw uncaught and timed nothing.)
           if (mounted) {
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => const PopScope(
-                canPop: false,
-                child: AlertDialog(
-                  content: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(width: 20),
-                      Expanded(child: Text('Creating backup for sharing...')),
-                    ],
-                  ),
-                ),
-              ),
-            ).timeout(
-              const Duration(minutes: 3),
-              onTimeout: () {
-                throw TimeoutException('Share operation timed out');
-              },
+            closeProgress = ProgressIndicatorHelper.show(
+              context,
+              message: 'Creating backup for sharing...',
             );
-            dialogShown = true;
           }
         },
       );
 
-      // FIX: Close dialog if shown
-      if (mounted && dialogShown) {
-        Navigator.of(context, rootNavigator: true).pop();
-        dialogShown = false;
-      }
+      closeProgress?.call();
+      closeProgress = null;
 
       // FIX: Refresh backup list after sharing (now populated in Recent Backups)
       await _loadBackups();
@@ -506,23 +389,16 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Backup created and ready to share!'),
-            backgroundColor:
-                Theme.of(context).extension<AppColors>()!.incomeGreen,
             duration: const Duration(seconds: 3),
           ),
         );
       }
     } catch (e) {
-      // FIX: Close dialog if shown
-      if (mounted && dialogShown) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
+      closeProgress?.call();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_getFriendlyErrorMessage(e)),
-            backgroundColor:
-                Theme.of(context).extension<AppColors>()!.expenseRed,
             duration: const Duration(seconds: 4),
           ),
         );
@@ -611,80 +487,167 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     await _performRestore(sourceFile: backupFile);
   }
 
-  /// FIX: Improved restore flow - file picker FIRST, then confirm (no UX friction if user cancels picker)
+  /// File picker first (cancelling it costs nothing), then the same
+  /// confirmation a Recent Backups tap gets: restoring replaces all current
+  /// data, so picking the wrong file must not be enough to start it.
   Future<void> _restoreBackup() async {
     // FIX: Prevent multiple simultaneous restores
     if (_isRestoring) return;
 
     // NOTE: Android 13+ uses SAF (Storage Access Framework) via FilePicker
     // which handles permissions automatically - no explicit permission needed.
-    // FIX: File picker is shown INSIDE restoreDatabase(), which will return 'cancelled' if user cancels
-    // This eliminates the UX friction of showing a warning dialog before the user even selects a file
-    await _performRestore();
+    final PlatformFile? picked;
+    try {
+      // file_picker 12: static single-pick API, null when cancelled.
+      picked = await FilePicker.pickFile(type: FileType.any);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_getFriendlyErrorMessage(e)),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    if (picked == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Restore cancelled'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    // Android's picker caches the pick and returns that copy's path. A pick
+    // that arrives as a bare content:// URI has no file to restore from.
+    final path = picked.path;
+    if (path == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Could not open that file. Save it to your device and try again.',
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+    await _restoreFromFile(File(path));
   }
 
+  /// How long the restore's file work may hold the screen. The clock starts
+  /// when processing starts, after the pick and the confirmation, and stops
+  /// while the passphrase prompt waits on the user.
+  static const Duration _restoreIoTimeout = Duration(minutes: 3);
+
   /// FIX #1: Centralized restore logic with proper dialog state management
-  Future<void> _performRestore({File? sourceFile}) async {
+  Future<void> _performRestore({required File sourceFile}) async {
     setState(() => _isRestoring = true);
 
-    // FIX #1: Track dialog state to prevent race conditions
-    bool dialogShown = false;
     bool safetyBackupCreated = false;
-    BuildContext? dialogContext;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    DialogRoute<void>? progressRoute;
+    Timer? ioClock;
+
+    // Removes the progress dialog by its own route. Popping whatever was on
+    // top closed the passphrase prompt above it, or the PIN unlock screen
+    // pushed on resume, which then exits the app.
+    void closeProgress() {
+      final route = progressRoute;
+      progressRoute = null;
+      if (route == null || !route.isActive) return;
+      if (route.isCurrent) {
+        navigator.pop();
+      } else {
+        navigator.removeRoute(route);
+      }
+    }
+
+    void stopClock() {
+      ioClock?.cancel();
+      ioClock = null;
+    }
+
+    void startClock() {
+      stopClock();
+      ioClock = Timer(_restoreIoTimeout, () {
+        // The restore cannot be cancelled, so running out of time only gives
+        // the screen back. Its result is still handled when it lands, and
+        // the restore buttons stay disabled until then.
+        closeProgress();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Restore is taking longer than expected. '
+              'It will finish in the background.',
+            ),
+            duration: Duration(seconds: 5),
+          ),
+        );
+      });
+    }
 
     try {
       final appState = context.read<AppState>();
 
-      // FIX #1: Start restore process with timeout protection, pass sourceFile if provided
-      final result = await BackupHelper()
-          .restoreDatabase(
+      final result = await BackupHelper().restoreDatabase(
         closeDatabase: () => appState.closeDatabase(),
         sourceFile: sourceFile,
-        onPassphraseRequest: _requestRestorePassphrase,
+        onPassphraseRequest: ({required bool isRetry}) async {
+          // Time spent on the passphrase prompt is not file work.
+          stopClock();
+          try {
+            return await _requestRestorePassphrase(isRetry: isRetry);
+          } finally {
+            startClock();
+          }
+        },
         onStart: () {
           // FIX #1: Show dialog only when file is selected and processing begins
           if (mounted) {
-            showDialog(
+            final route = DialogRoute<void>(
               context: context,
+              themes: InheritedTheme.capture(
+                from: context,
+                to: navigator.context,
+              ),
               barrierDismissible: false,
-              builder: (context) {
-                dialogContext =
-                    context; // FIX #1: Store context for reliable cleanup
-                return const PopScope(
-                  canPop: false,
-                  child: AlertDialog(
-                    content: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(width: 20),
-                        Expanded(child: Text('Restoring backup...')),
-                      ],
-                    ),
+              builder: (_) => const PopScope(
+                canPop: false,
+                child: AlertDialog(
+                  content: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(width: 20),
+                      Expanded(child: Text('Restoring backup...')),
+                    ],
                   ),
-                );
-              },
+                ),
+              ),
             );
-            dialogShown = true;
+            progressRoute = route;
+            navigator.push(route);
             safetyBackupCreated = true;
+            startClock();
           }
-        },
-      )
-          .timeout(
-        const Duration(minutes: 3),
-        onTimeout: () {
-          throw TimeoutException('Restore operation timed out');
         },
       );
 
-      // FIX #1: Close dialog if it was shown using stored context
-      if (dialogShown && dialogContext != null && dialogContext!.mounted) {
-        Navigator.of(dialogContext!, rootNavigator: true).pop();
-        dialogShown = false;
-        dialogContext = null;
-      }
+      stopClock();
+      closeProgress();
 
-      if (!mounted) return;
+      if (!mounted) {
+        // The timeout gave the screen back and the user left it. The
+        // database still has to be re-opened on what the restore left.
+        if (result != RestoreResult.cancelled) {
+          await appState.reloadAfterRestore();
+        }
+        return;
+      }
 
       switch (result) {
         case RestoreResult.success:
@@ -700,8 +663,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(message),
-                backgroundColor:
-                    Theme.of(context).extension<AppColors>()!.incomeGreen,
                 duration: const Duration(seconds: 4),
               ),
             );
@@ -730,8 +691,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                 content: const Text(
                   'Invalid backup file. Please select a valid database backup.',
                 ),
-                backgroundColor:
-                    Theme.of(context).extension<AppColors>()!.expenseRed,
                 duration: const Duration(seconds: 4),
               ),
             );
@@ -750,8 +709,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   'This backup was created with a newer version of FinanceFlow. '
                   'Please update the app before restoring this backup.',
                 ),
-                backgroundColor:
-                    Theme.of(context).extension<AppColors>()!.expenseRed,
                 duration: const Duration(seconds: 5),
               ),
             );
@@ -767,8 +724,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                 content: const Text(
                   'Backup file not found. It may have been moved or deleted.',
                 ),
-                backgroundColor:
-                    Theme.of(context).extension<AppColors>()!.expenseRed,
                 duration: const Duration(seconds: 4),
               ),
             );
@@ -784,8 +739,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                 content: const Text(
                   'Error restoring backup. Your data is safe. Please try again.',
                 ),
-                backgroundColor:
-                    Theme.of(context).extension<AppColors>()!.expenseRed,
                 duration: const Duration(seconds: 4),
               ),
             );
@@ -793,12 +746,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           break;
       }
     } catch (e) {
-      // FIX #1: Close dialog if shown using stored context - prevents orphaned dialogs
-      if (dialogShown && dialogContext != null && dialogContext!.mounted) {
-        Navigator.of(dialogContext!, rootNavigator: true).pop();
-        dialogShown = false;
-        dialogContext = null;
-      }
+      stopClock();
+      closeProgress();
       if (mounted) {
         final appState = context.read<AppState>();
         await appState
@@ -807,8 +756,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(_getFriendlyErrorMessage(e)),
-              backgroundColor:
-                  Theme.of(context).extension<AppColors>()!.expenseRed,
               duration: const Duration(seconds: 4),
             ),
           );
@@ -816,9 +763,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       }
     } finally {
       // FIX #1: Always clean up dialog and re-enable button
-      if (dialogShown && dialogContext != null && dialogContext!.mounted) {
-        Navigator.of(dialogContext!, rootNavigator: true).pop();
-      }
+      stopClock();
+      closeProgress();
       if (mounted) {
         setState(() => _isRestoring = false);
       }
@@ -913,8 +859,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               content: Text(
                 'Deleted $deleted backup${deleted > 1 ? 's' : ''} successfully',
               ),
-              backgroundColor:
-                  Theme.of(context).extension<AppColors>()!.incomeGreen,
               duration: const Duration(seconds: 2),
             ),
           );
@@ -925,8 +869,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_getFriendlyErrorMessage(e)),
-            backgroundColor:
-                Theme.of(context).extension<AppColors>()!.expenseRed,
             duration: const Duration(seconds: 4),
           ),
         );
@@ -1204,9 +1146,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                                     SnackBar(
                                       content:
                                           Text(_getFriendlyErrorMessage(e)),
-                                      backgroundColor: Theme.of(context)
-                                          .extension<AppColors>()!
-                                          .expenseRed,
                                       duration: const Duration(seconds: 4),
                                     ),
                                   );
@@ -1378,7 +1317,13 @@ class _BackupTile extends StatelessWidget {
           width: isSelected ? 2 : 1,
         ),
       ),
-      child: ListTile(
+      // A transparent Material over the fill gives the ListTile a surface to
+      // paint ink on (Flutter 3.47 asserts on a hidden ripple).
+      child: Material(
+        type: MaterialType.transparency,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
         onTap: onTap, // FIX: Make tile tappable for restore or selection
         leading: isSelectionMode
             ? Checkbox(value: isSelected, onChanged: (_) => onTap())
@@ -1438,6 +1383,7 @@ class _BackupTile extends StatelessWidget {
                   }
                 },
               ),
+      ),
       ),
     );
   }
@@ -1577,6 +1523,99 @@ class _BackupPassphraseDialogState extends State<_BackupPassphraseDialog> {
         TextButton(
           onPressed: _submit,
           child: const Text('Encrypt & Save'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Passphrase prompt for restoring an encrypted backup. Pops with the
+/// passphrase, or `null` on cancel; [isRetry] adds the wrong-passphrase note.
+///
+/// Owns its controller, like [_BackupPassphraseDialog]: the old method-scoped
+/// controller was disposed the moment `showDialog` returned — on every
+/// attempt, retries included — while the closing prompt still used it.
+class _RestorePassphraseDialog extends StatefulWidget {
+  const _RestorePassphraseDialog({required this.isRetry});
+
+  final bool isRetry;
+
+  @override
+  State<_RestorePassphraseDialog> createState() =>
+      _RestorePassphraseDialogState();
+}
+
+class _RestorePassphraseDialogState extends State<_RestorePassphraseDialog> {
+  final _controller = TextEditingController();
+  bool _obscure = true;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final pw = _controller.text;
+    if (pw.isEmpty) return;
+    Navigator.pop(context, pw);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dialogTheme = Theme.of(context);
+    final dialogAppColors = dialogTheme.extension<AppColors>()!;
+    return AlertDialog(
+      scrollable: true,
+      title: const Text('Restore encrypted backup'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (widget.isRetry)
+            Container(
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: dialogAppColors.expenseRed.withAlpha(20),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Wrong passphrase — try again.',
+                style: dialogTheme.textTheme.bodySmall?.copyWith(
+                  color: dialogAppColors.expenseRed,
+                ),
+              ),
+            ),
+          Text(
+            'Enter the passphrase used when this backup was created.',
+            style: dialogTheme.textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _controller,
+            obscureText: _obscure,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: 'Passphrase',
+              suffixIcon: IconButton(
+                tooltip: _obscure ? 'Show' : 'Hide',
+                icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
+                onPressed: () => setState(() => _obscure = !_obscure),
+              ),
+            ),
+            onSubmitted: (_) => _submit(),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: _submit,
+          child: const Text('Decrypt'),
         ),
       ],
     );

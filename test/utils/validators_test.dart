@@ -38,8 +38,8 @@ void main() {
 
     test('returns error when amount exceeds max', () {
       expect(
-        Validators.validateAmount('1000000000'),
-        'Amount is too large (max 999,999,999.99)',
+        Validators.validateAmount('10000000000000'),
+        'Amount is too large',
       );
     });
 
@@ -57,8 +57,8 @@ void main() {
 
     test('returns error for amount just above max', () {
       expect(
-        Validators.validateAmount('1000000000.00'),
-        'Amount is too large (max 999,999,999.99)',
+        Validators.validateAmount('10000000000000.00'),
+        'Amount is too large',
       );
     });
 
@@ -499,8 +499,8 @@ void main() {
 
     test('returns error when amount exceeds max', () {
       expect(
-        Validators.validateBudgetAmount('1000000000'),
-        'Budget is too large (max 999,999,999.99)',
+        Validators.validateBudgetAmount('10000000000000'),
+        'Budget is too large',
       );
     });
 
@@ -873,8 +873,8 @@ void main() {
   // Constants
   // ========================================================================
   group('constants', () {
-    test('maxAmount is 999999999.99', () {
-      expect(Validators.maxAmount, 999999999.99);
+    test('maxAmount is the shared DecimalHelper ceiling', () {
+      expect(Validators.maxAmount, 9999999999999.99);
     });
 
     test('maxDescriptionLength is 200', () {

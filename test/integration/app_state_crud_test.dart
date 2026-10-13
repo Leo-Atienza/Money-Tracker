@@ -1,5 +1,6 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -40,13 +41,21 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() async {
+    // The real Android notifications plugin over the mocked channel, so
+    // reminder cancels on delete run instead of hitting an unset platform.
+    AndroidFlutterLocalNotificationsPlugin.registerWith();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       ..setMockMethodCallHandler(homeWidgetChannel, (_) async => true)
-      ..setMockMethodCallHandler(notifChannel, (_) async => null)
+      ..setMockMethodCallHandler(
+        notifChannel,
+        (call) async => call.method == 'initialize' ? true : null,
+      )
       ..setMockMethodCallHandler(secureChannel, (_) async => null)
+      // A folder of this file's own: deleted-account backups written here
+      // were cleaned up by other test files running in parallel.
       ..setMockMethodCallHandler(
         pathProviderChannel,
-        (_) async => '.dart_tool/test_path_provider',
+        (_) async => '.dart_tool/test_path_provider/app_state_crud',
       );
 
     SharedPreferences.setMockInitialValues(<String, Object>{});
@@ -423,6 +432,22 @@ void main() {
   });
 
   group('addPayment (partial → fully paid)', () {
+    test('a second payment from a STALE copy keeps the first payment',
+        () async {
+      // History's all-time/search tiles hold copies that are not refreshed
+      // after a write. Paying again from one used to write the stale
+      // amountPaid back: $300 then $200 left the bill at $200 paid.
+      final state = await bootstrap();
+      final id = await state.addExpense(makeExpense(state, amount: 1000));
+      final stale = state.expenses.firstWhere((e) => e.id == id);
+
+      await state.addPayment(stale, 300);
+      await state.addPayment(stale, 200); // same stale copy, amountPaid 0
+
+      final after = state.expenses.firstWhere((e) => e.id == id);
+      expect(after.amountPaid, closeTo(500, 0.001));
+    });
+
     test('a payment equal to amount marks the expense paid', () async {
       final state = await bootstrap();
       final id = await state.addExpense(
@@ -650,12 +675,6 @@ void main() {
           isFalse,
         );
       },
-      // delete fires `NotificationHelper.cancelBillReminder` which reaches
-      // `FlutterLocalNotificationsPlatform.instance` — a `late final` static
-      // that throws `LateInitializationError` under `flutter test`. Mocking
-      // the platform interface is tracked alongside the deferred
-      // `notification_settings_screen_test` in TRASH-FILES.md.
-      skip: 'requires flutter_local_notifications platform mocking',
     );
   });
 
@@ -725,8 +744,6 @@ void main() {
           isFalse,
         );
       },
-      // Same platform-mock gap as deleteRecurringExpense above.
-      skip: 'requires flutter_local_notifications platform mocking',
     );
   });
 
@@ -949,14 +966,6 @@ void main() {
 
         expect(state.accounts.any((a) => a.name == 'Trashable'), isTrue);
       },
-      // `deleteAccount` writes a backup JSON file to a path the real
-      // `getApplicationDocumentsDirectory` would resolve at runtime; under
-      // `flutter test` the path_provider mock returns a string path that
-      // ends up sharing handles across parallel test isolates and races
-      // with the orphaned-file cleanup on `restore`. Behaviour is
-      // exercised end-to-end on device.
-      skip: 'path_provider mock races with orphaned-file cleanup under '
-          'parallel flutter_test isolates',
     );
   });
 

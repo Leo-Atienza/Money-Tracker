@@ -539,6 +539,20 @@ void main() {
           expect(e.paymentProgress, closeTo(0.5, 0.01));
         });
 
+        test('handles a ratio with no finite decimal form (1/3 paid)', () {
+          // toDecimal() without a scale threw for 10/30 — the History tile
+          // and the Add Payment dialog broke for most partial payments.
+          final e = Expense(
+            amount: Decimal.parse('30.00'),
+            category: 'Bills',
+            description: 'Test',
+            date: DateTime.utc(2024, 1, 1),
+            accountId: 1,
+            amountPaid: Decimal.parse('10.00'),
+          );
+          expect(e.paymentProgress, closeTo(1 / 3, 0.0001));
+        });
+
         test('returns 1.0 when fully paid', () {
           final e = Expense(
             amount: Decimal.parse('100.00'),

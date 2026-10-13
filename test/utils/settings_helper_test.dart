@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:budget_tracker/utils/settings_helper.dart';
@@ -234,6 +236,79 @@ void main() {
       expect(await SettingsHelper.getCurrencyCode(), 'USD');
       expect(await SettingsHelper.getBillReminders(), true);
       expect(await SettingsHelper.getPaginationLimit(), 50);
+    });
+  });
+
+  // ==========================================================================
+  // Backup round-trip (S22): the real keys, validated one by one
+  // ==========================================================================
+  group('settings in a backup', () {
+    test('every exported setting comes back on restore', () async {
+      await SettingsHelper.setThemeMode('purple');
+      await SettingsHelper.setBillReminders(false);
+      await SettingsHelper.setBudgetAlerts(false);
+      await SettingsHelper.setMonthlySummary(false);
+      await SettingsHelper.setReminderHour(21);
+      await SettingsHelper.setReminderMinute(45);
+      await SettingsHelper.setCsvSeparator('semicolon');
+      await SettingsHelper.setBudgetWarningThreshold(0.9);
+      await SettingsHelper.setShowTransactionColors(true);
+      await SettingsHelper.setTransactionColorIntensity(0.25);
+      await SettingsHelper.setCarryoverEnabled(false);
+      // Through JSON, as a backup file carries it.
+      final exported = jsonDecode(
+        jsonEncode(await SettingsHelper.exportForBackup()),
+      ) as Map<String, dynamic>;
+
+      SharedPreferences.setMockInitialValues({}); // a fresh install
+      expect(await SettingsHelper.restoreFromBackup(exported), 11);
+
+      expect(await SettingsHelper.getThemeMode(), 'purple');
+      expect(await SettingsHelper.getBillReminders(), isFalse);
+      expect(await SettingsHelper.getBudgetAlerts(), isFalse);
+      expect(await SettingsHelper.getMonthlySummary(), isFalse);
+      expect(await SettingsHelper.getReminderHour(), 21);
+      expect(await SettingsHelper.getReminderMinute(), 45);
+      expect(await SettingsHelper.getCsvSeparator(), 'semicolon');
+      expect(await SettingsHelper.getBudgetWarningThreshold(), 0.9);
+      expect(await SettingsHelper.getShowTransactionColors(), isTrue);
+      expect(await SettingsHelper.getTransactionColorIntensity(), 0.25);
+      expect(await SettingsHelper.getCarryoverEnabled(), isFalse);
+    });
+
+    test('a damaged value is skipped, never thrown, and the rest applies',
+        () async {
+      await SettingsHelper.setReminderHour(8);
+
+      final applied = await SettingsHelper.restoreFromBackup({
+        'theme_mode': 'sepia', // unknown
+        'reminder_hour': 'nine', // wrong type
+        'reminder_minute': 75, // out of range
+        'budget_warning_threshold': 1, // JSON int for a double: fine
+        'bill_reminders': false,
+      });
+
+      expect(applied, 2);
+      expect(await SettingsHelper.getThemeMode(), 'system');
+      expect(await SettingsHelper.getReminderHour(), 8);
+      expect(await SettingsHelper.getReminderMinute(), 0);
+      expect(await SettingsHelper.getBudgetWarningThreshold(), 1.0);
+      expect(await SettingsHelper.getBillReminders(), isFalse);
+    });
+
+    test('a pre-S22 camelCase block (defaults only) changes nothing',
+        () async {
+      await SettingsHelper.setThemeMode('dark');
+
+      final applied = await SettingsHelper.restoreFromBackup({
+        'darkMode': false,
+        'currencyCode': 'USD',
+        'billReminders': true,
+        'reminderHour': 9,
+      });
+
+      expect(applied, 0);
+      expect(await SettingsHelper.getThemeMode(), 'dark');
     });
   });
 }

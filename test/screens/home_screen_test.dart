@@ -6,6 +6,7 @@ import 'package:budget_tracker/screens/home_screen.dart';
 import 'package:budget_tracker/theme/app_colors.dart';
 import 'package:budget_tracker/theme/luminous_app_theme.dart';
 import 'package:budget_tracker/utils/date_helper.dart';
+import 'package:budget_tracker/widgets/luminous/glass_panel.dart';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -70,6 +71,7 @@ void main() {
     WidgetTester tester, {
     AppState? appState,
     Size surface = const Size(800, 1600),
+    ThemeData? theme,
   }) async {
     await tester.binding.setSurfaceSize(surface);
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -79,15 +81,51 @@ void main() {
       ChangeNotifierProvider<AppState>.value(
         value: state,
         child: MaterialApp(
-          theme: buildLuminousTheme(
-            brightness: Brightness.light,
-            appColorsExtension: AppColors.fromBrightness(Brightness.light),
-          ),
+          theme: theme ??
+              buildLuminousTheme(
+                brightness: Brightness.light,
+                appColorsExtension: AppColors.fromBrightness(Brightness.light),
+              ),
           home: const HomeScreen(),
         ),
       ),
     );
   }
+
+  GlassPanel balanceCard(WidgetTester tester) => tester.widget<GlassPanel>(
+        find
+            .ancestor(
+              of: find.text('Total Balance'),
+              matching: find.byType(GlassPanel),
+            )
+            .first,
+      );
+
+  testWidgets('Purple paints the balance card violet; neutral keeps a card',
+      (tester) async {
+    // Each case mounts a fresh app: re-theming a live MaterialApp animates
+    // between the two themes, and the first frame still shows the old one.
+    for (final cs in [luminousPurpleScheme(), luminousPurpleDarkScheme()]) {
+      await tester.pumpWidget(const SizedBox());
+      await pumpHarness(
+        tester,
+        theme: buildLuminousTheme(
+          brightness: cs.brightness,
+          appColorsExtension: AppColors.fromBrightness(cs.brightness),
+          colorScheme: cs,
+          tonal: true,
+        ),
+      );
+      await tester.pump();
+      expect(balanceCard(tester).color, cs.primaryContainer);
+    }
+
+    await tester.pumpWidget(const SizedBox());
+    await pumpHarness(tester);
+    await tester.pump();
+    expect(balanceCard(tester).color, isNull,
+        reason: 'Light keeps the plain card GlassPanel draws itself');
+  });
 
   testWidgets('header strip renders "FinanceFlow" brand label',
       (tester) async {
@@ -106,6 +144,23 @@ void main() {
       reason: 'Phase 5 moved the Add entry point to the bottom-nav Add '
           'tab; no FAB should appear on Home.',
     );
+  });
+
+  testWidgets('a failed load says so instead of showing an empty ledger',
+      (tester) async {
+    // An unreadable database key now fails closed. Without this card Home
+    // looked like a fresh, empty install — the kind of screen that gets an
+    // app reinstalled, which would lose the data for real.
+    final state = AppState();
+    await pumpHarness(tester, appState: state);
+    await tester.pump();
+    expect(find.text("Couldn't open your data"), findsNothing);
+
+    state.lastLoadErrorForTesting = StateError('key unavailable');
+    await tester.pump();
+
+    expect(find.text("Couldn't open your data"), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
   });
 
   testWidgets('empty state messaging renders when no expenses',
@@ -171,6 +226,29 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pump(const Duration(milliseconds: 700));
   }
+
+  // S22 (Leo's call): Recent Transactions lists the month's income too. It
+  // listed expenses only, so a month with only income read "No transactions".
+  testWidgets('income shows in Recent Transactions, newest first',
+      (tester) async {
+    final state = await seedHomeState(
+      tester,
+      expenses: [(amount: 25, category: 'Food', description: 'lunch')],
+      incomes: [(amount: 120, category: 'Salary', description: 'pay')],
+    );
+    await pumpHarness(tester, appState: state);
+    await pumpAndDrain(tester);
+
+    expect(find.text('pay'), findsOneWidget);
+    expect(find.text('+\$120.00'), findsOneWidget);
+    expect(find.text('lunch'), findsOneWidget);
+    expect(find.text('No transactions this month'), findsNothing);
+    // Same day: the expense stays first, the income follows it.
+    expect(
+      tester.getTopLeft(find.text('lunch')).dy,
+      lessThan(tester.getTopLeft(find.text('pay')).dy),
+    );
+  });
 
   testWidgets(
     'seeded expenses render in the Recent Transactions list',

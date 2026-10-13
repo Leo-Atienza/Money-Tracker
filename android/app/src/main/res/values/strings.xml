@@ -1,6 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Money Tracker</string>
-    <string name="widget_name">Budget Summary</string>
-    <string name="widget_description">Shows your monthly income, expenses, and balance at a glance.</string>
+
+    <!-- Home-screen widget -->
+    <string name="widget_name">Monthly balance</string>
+    <string name="widget_description">This month\'s balance, income and expenses, with one-tap Add Expense and Add Income.</string>
+    <string name="widget_balance_label">%1$s balance</string>
+    <string name="widget_balance_label_preview">This month\'s balance</string>
+    <string name="widget_amount_preview">$0.00</string>
+    <string name="widget_income">Income</string>
+    <string name="widget_expenses">Expenses</string>
+    <string name="widget_add_expense">Expense</string>
+    <string name="widget_add_income">Income</string>
+    <string name="widget_add_expense_description">Add expense</string>
+    <string name="widget_add_income_description">Add income</string>
 </resources>

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:budget_tracker/database/database_helper.dart';
 import 'package:budget_tracker/models/expense_model.dart';
+import 'package:budget_tracker/models/income_model.dart';
 import 'package:budget_tracker/providers/app_state.dart';
 import 'package:budget_tracker/utils/date_helper.dart';
 
@@ -369,10 +370,10 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  // undoDelete  (distinct from restoreDeletedExpense(deletedId))
+  // undoDeleteTransaction  (distinct from restoreDeletedExpense(deletedId))
   // -------------------------------------------------------------------------
 
-  group('undoDelete', () {
+  group('undoDeleteTransaction', () {
     test('brings the just-deleted row back into the active list', () async {
       final state = await bootstrap();
       final id = await state.addExpense(
@@ -381,16 +382,45 @@ void main() {
       await state.deleteExpense(id);
       expect(state.expenses.any((e) => e.description == 'undo-me'), isFalse);
 
-      await state.undoDelete();
+      await state.undoDeleteTransaction(originalId: id, isIncome: false);
 
       expect(
         state.expenses.any((e) => e.description == 'undo-me'),
         isTrue,
-        reason: 'undoDelete must restore the last-deleted expense',
+        reason: 'undo must restore the just-deleted expense',
       );
       // It must also leave the trash table empty for that row.
       final trash = await state.getDeletedExpenses();
       expect(trash.any((row) => row['description'] == 'undo-me'), isFalse);
+    });
+
+    test('undoing an income restores that income, not an older expense',
+        () async {
+      // The old undoDelete() always restored the newest deleted EXPENSE.
+      final state = await bootstrap();
+      final oldExpense = await state.addExpense(
+        makeExpense(state, description: 'deleted days ago'),
+      );
+      await state.deleteExpense(oldExpense);
+      final incomeId = await state.addIncome(Income(
+        amount: Decimal.parse('2000'),
+        category: 'Salary',
+        description: 'salary',
+        date: DateTime.now(),
+        accountId: state.currentAccountId,
+      ));
+      await state.deleteIncome(incomeId);
+
+      await state.undoDeleteTransaction(originalId: incomeId, isIncome: true);
+
+      expect(state.incomes.any((i) => i.description == 'salary'), isTrue);
+      expect(
+        state.expenses.any((e) => e.description == 'deleted days ago'),
+        isFalse,
+        reason: 'an unrelated trashed expense must stay in the trash',
+      );
+      final incomeTrash = await state.getDeletedIncome();
+      expect(incomeTrash.any((row) => row['description'] == 'salary'), isFalse);
     });
 
     test('no prior deletion → no-op, no throw, list unchanged', () async {
@@ -398,8 +428,8 @@ void main() {
       await state.addExpense(makeExpense(state, description: 'survivor'));
       final before = state.allExpenses.length;
 
-      // restoreLastDeleted is a no-op when the trash is empty.
-      await state.undoDelete();
+      // Nothing in the trash for this id: a no-op.
+      await state.undoDeleteTransaction(originalId: 999999, isIncome: false);
 
       expect(state.allExpenses.length, before);
       expect(
@@ -408,7 +438,7 @@ void main() {
       );
     });
 
-    test('restores the MOST RECENT deletion when several were deleted',
+    test('restores exactly the row it is asked for when several were deleted',
         () async {
       final state = await bootstrap();
       final firstId =
@@ -416,21 +446,22 @@ void main() {
       final secondId =
           await state.addExpense(makeExpense(state, description: 'second'));
 
-      // Delete first, then second — "second" is the most recent deletion.
+      // Delete first, then second. Undoing FIRST's snackbar must bring back
+      // first — not whichever row happens to be the newest deletion.
       await state.deleteExpense(firstId);
       await state.deleteExpense(secondId);
 
-      await state.undoDelete();
+      await state.undoDeleteTransaction(originalId: firstId, isIncome: false);
 
       expect(
-        state.expenses.any((e) => e.description == 'second'),
+        state.expenses.any((e) => e.description == 'first'),
         isTrue,
-        reason: 'the most-recently deleted row (deletedAt DESC) restores first',
+        reason: 'the row the undo was for is restored',
       );
       expect(
-        state.expenses.any((e) => e.description == 'first'),
+        state.expenses.any((e) => e.description == 'second'),
         isFalse,
-        reason: 'the earlier deletion stays in the trash',
+        reason: 'the other deletion stays in the trash',
       );
     });
   });

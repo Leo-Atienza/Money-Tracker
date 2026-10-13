@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/luminous_app_theme.dart';
 import '../providers/app_state.dart';
 import '../models/expense_model.dart';
+import '../models/income_model.dart';
 import '../utils/accessibility_helper.dart';
 import '../utils/haptic_helper.dart';
 import '../utils/date_helper.dart';
@@ -27,13 +28,20 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Optimize: Use Selector to watch only selectedMonthName and expenses list
-    final monthNameAndExpenses =
-        context.select<AppState, (String, List<Expense>)>(
-      (s) => (s.selectedMonthName, s.expenses),
+    // Optimize: Use Selector to watch only the month name and the two lists
+    final (monthName, expenses, incomes, selectedMonth) = context.select<
+        AppState, (String, List<Expense>, List<Income>, DateTime)>(
+      (s) => (s.selectedMonthName, s.expenses, s.incomes, s.selectedMonth),
     );
-    final monthName = monthNameAndExpenses.$1;
-    final expenses = monthNameAndExpenses.$2;
+    // Recent Transactions: the month's expenses and income together, newest
+    // first. It used to list expenses only, so income never showed on Home.
+    final transactions = <Object>[
+      ...expenses,
+      ...incomes.where((i) =>
+          i.date.year == selectedMonth.year &&
+          i.date.month == selectedMonth.month),
+    ]..sort(_newestFirst);
+    final hasLoadError = context.select<AppState, bool>((s) => s.hasLoadError);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -135,6 +143,20 @@ class HomeScreen extends StatelessWidget {
                 },
                 child: CustomScrollView(
                   slivers: [
+                    // The data could not be opened (e.g. the database key
+                    // was unreadable for a moment). Without this the screen
+                    // just showed an empty ledger — the kind of thing that
+                    // gets an app reinstalled, which WOULD lose the data.
+                    if (hasLoadError)
+                      const SliverPadding(
+                        padding: EdgeInsets.fromLTRB(
+                          LuminousTokens.containerPadding,
+                          16,
+                          LuminousTokens.containerPadding,
+                          0,
+                        ),
+                        sliver: SliverToBoxAdapter(child: _LoadErrorCard()),
+                      ),
                     // Month navigation (glass redesign strip)
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(
@@ -275,13 +297,13 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
 
-                    // Expenses list (inside single glass sheet like stitch mock)
-                    expenses.isEmpty
+                    // Transactions list (inside single glass sheet like stitch mock)
+                    transactions.isEmpty
                         ? SliverFillRemaining(
                             hasScrollBody: false,
                             child: Semantics(
                               label:
-                                  'No transactions this month, tap to add your first expense',
+                                  'No transactions this month, tap to add one',
                               button: true,
                               child: GestureDetector(
                                 onTap: () {
@@ -352,7 +374,7 @@ class HomeScreen extends StatelessWidget {
                                   child: Column(
                                     children: [
                                       for (var i = 0;
-                                          i < expenses.length;
+                                          i < transactions.length;
                                           i++) ...[
                                         if (i > 0)
                                           Divider(
@@ -367,8 +389,14 @@ class HomeScreen extends StatelessWidget {
                                                 .colorScheme.outlineVariant
                                                 .withValues(alpha: 0.5),
                                           ),
-                                        _GlassHomeExpenseTile(
-                                            expense: expenses[i]),
+                                        switch (transactions[i]) {
+                                          final Expense e =>
+                                            _GlassHomeExpenseTile(expense: e),
+                                          final Income income =>
+                                            _GlassHomeIncomeTile(
+                                                income: income),
+                                          _ => const SizedBox.shrink(),
+                                        },
                                       ],
                                     ],
                                   ),
@@ -398,7 +426,10 @@ class HomeScreen extends StatelessWidget {
       isScrollControlled: true,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Container(
-          height: 350,
+          // Grows by the nav-bar inset and pads it, so a 3-button bar never
+          // covers the last row of months.
+          height: 350 + MediaQuery.paddingOf(context).bottom,
+          padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -446,6 +477,7 @@ class HomeScreen extends StatelessWidget {
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
+                          tooltip: 'Close',
                           onPressed: () => Navigator.pop(context),
                         ),
                       ],
@@ -595,6 +627,9 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final appColors = theme.extension<AppColors>()!;
+    // Purple paints this card violet; the neutral themes keep a plain card.
+    final hero = theme.extension<LuminousHeroColors>() ??
+        LuminousHeroColors.plain(theme.colorScheme);
     final (
       totalIncome,
       totalSpent,
@@ -637,6 +672,8 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
     return ScaleTransition(
       scale: _scaleAnimation,
       child: GlassPanel(
+        color: hero.fill,
+        borderColor: hero.border,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -652,7 +689,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                   Text(
                     'Total Balance',
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                      color: hero.inkVariant,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -664,8 +701,11 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                       prefix: totalBalance < 0 ? '-$currency' : currency,
                       compact: totalBalance.abs() > 100000,
                       decimalPlaces: totalBalance.abs() > 100000 ? 1 : 2,
-                      style: theme.textTheme.displayLarge
-                          ?.copyWith(fontSize: 34, height: 41 / 34),
+                      style: theme.textTheme.displayLarge?.copyWith(
+                        fontSize: 34,
+                        height: 41 / 34,
+                        color: hero.ink,
+                      ),
                     ),
                   ),
                   // Where the number came from. Only shown when something
@@ -677,6 +717,7 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                         amount: carryover,
                         signedLabel: carryoverSigned,
                         previousMonth: previousMonth,
+                        ink: hero.inkVariant,
                       ),
                     ),
                   ],
@@ -713,10 +754,20 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                                 color: appColors.incomeGreen,
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                'Income',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
+                              // Shrinks rather than overflowing the tile on a
+                              // narrow phone with large text.
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'Income',
+                                    style:
+                                        theme.textTheme.bodyMedium?.copyWith(
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
@@ -757,10 +808,20 @@ class _FinancialSummaryCardState extends State<_FinancialSummaryCard>
                                 color: appColors.expenseRed,
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                'Expenses',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
+                              // Shrinks rather than overflowing the tile on a
+                              // narrow phone with large text.
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'Expenses',
+                                    style:
+                                        theme.textTheme.bodyMedium?.copyWith(
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
@@ -802,10 +863,14 @@ class _CarryoverLine extends StatelessWidget {
   final String signedLabel;
   final String previousMonth;
 
+  /// The card's secondary ink (violet-tonal on Purple's card).
+  final Color ink;
+
   const _CarryoverLine({
     required this.amount,
     required this.signedLabel,
     required this.previousMonth,
+    required this.ink,
   });
 
   @override
@@ -813,16 +878,14 @@ class _CarryoverLine extends StatelessWidget {
     final theme = Theme.of(context);
     final appColors = theme.extension<AppColors>()!;
     final tint = amount < 0 ? appColors.expenseRed : appColors.incomeGreen;
-    final secondary = theme.textTheme.bodyMedium?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-    );
+    final secondary = theme.textTheme.bodyMedium?.copyWith(color: ink);
 
     return Row(
       children: [
         Icon(
           Icons.subdirectory_arrow_right_rounded,
           size: LuminousTokens.iconSm,
-          color: theme.colorScheme.onSurfaceVariant,
+          color: ink,
         ),
         const SizedBox(width: 6),
         Expanded(
@@ -845,6 +908,109 @@ class _CarryoverLine extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Newest first; on the same day expenses stay ahead of income, then the
+/// newest row wins (a total order, so the list never shuffles on rebuild).
+int _newestFirst(Object a, Object b) {
+  DateTime dateOf(Object t) => t is Expense ? t.date : (t as Income).date;
+  int idOf(Object t) => (t is Expense ? t.id : (t as Income).id) ?? 0;
+  final byDate = dateOf(b).compareTo(dateOf(a));
+  if (byDate != 0) return byDate;
+  final byKind = (a is Expense ? 0 : 1) - (b is Expense ? 0 : 1);
+  if (byKind != 0) return byKind;
+  return idOf(b).compareTo(idOf(a));
+}
+
+class _GlassHomeIncomeTile extends StatelessWidget {
+  final Income income;
+
+  const _GlassHomeIncomeTile({required this.income});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
+    final appState = context.read<AppState>();
+
+    final category = appState.categories
+        .where((c) => c.name == income.category && c.type == 'income')
+        .firstOrNull;
+
+    return Semantics(
+      label:
+          '${income.description}, ${income.category}, ${appState.formatWithCurrency(income.amount)}, income',
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              PremiumPageRoute(
+                page: AddTransactionScreen(
+                  initialType: TransactionType.income,
+                  income: income,
+                ),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Row(
+              children: [
+                CategoryTile(
+                  categoryName: income.category,
+                  categoryType: 'income',
+                  color: category?.color,
+                  icon: category?.icon,
+                  size: 48,
+                  borderRadius: 24,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        income.description.isEmpty
+                            ? '${income.category} income'
+                            : income.description,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        [
+                          income.category,
+                          DateHelper.getRelativeTime(income.date),
+                        ].where((e) => e.isNotEmpty).join(' • '),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '+${appState.formatWithCurrency(income.amount)}',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: appColors.incomeGreen,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1160,20 +1326,46 @@ class _QuickAddBar extends StatelessWidget {
                   padding: const EdgeInsets.only(right: 8),
                   child: Semantics(
                     label:
-                        '${template.name}, ${appState.formatWithCurrency(template.amount, decimalDigits: 0)}, ${isIncome ? 'income' : 'expense'}',
+                        '${template.name}, ${appState.formatWithCurrency(template.amount, decimalDigits: _amountDigits(template.amount))}, ${isIncome ? 'income' : 'expense'}',
                     button: true,
                     child: InkWell(
                       onTap: () async {
-                        await appState.useTemplate(template);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                        final messenger = ScaffoldMessenger.of(context);
+                        final persist =
+                            MediaQuery.accessibleNavigationOf(context);
+                        final int? id;
+                        try {
+                          id = await appState.useTemplate(template);
+                        } catch (e) {
+                          messenger.showSnackBar(
                             SnackBar(
-                              content: Text('${template.name} added!'),
+                              content: Text('Could not add ${template.name}'),
                               behavior: SnackBarBehavior.floating,
-                              duration: const Duration(seconds: 2),
                             ),
                           );
+                          return;
                         }
+                        // Null: a second tap while the first is still saving.
+                        if (id == null) return;
+                        final addedId = id;
+                        // One tap saves a real transaction, so make it easy
+                        // to take back.
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text('${template.name} added'),
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(seconds: 4),
+                            action: SnackBarAction(
+                              label: 'Undo',
+                              onPressed: () => isIncome
+                                  ? appState.deleteIncome(addedId)
+                                  : appState.deleteExpense(addedId),
+                            ),
+                            // Time out like before Flutter 3.38, except
+                            // under TalkBack.
+                            persist: persist,
+                          ),
+                        );
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1205,7 +1397,7 @@ class _QuickAddBar extends StatelessWidget {
                             const SizedBox(width: 8),
                             Text(
                               appState.formatWithCurrency(template.amount,
-                                  decimalDigits: 0),
+                                  decimalDigits: _amountDigits(template.amount)),
                               style: TextStyle(
                                 fontSize: 13,
                                 color: isIncome
@@ -1224,6 +1416,87 @@ class _QuickAddBar extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Whole amounts print without cents ("$1,200"); anything else keeps them —
+/// rounding a $15.99 template to "$16" misstated what one tap would save.
+int _amountDigits(double amount) =>
+    amount == amount.roundToDouble() ? 0 : 2;
+
+/// Shown on Home when [AppState.hasLoadError]: the data could not be opened.
+class _LoadErrorCard extends StatefulWidget {
+  const _LoadErrorCard();
+
+  @override
+  State<_LoadErrorCard> createState() => _LoadErrorCardState();
+}
+
+class _LoadErrorCardState extends State<_LoadErrorCard> {
+  bool _retrying = false;
+
+  Future<void> _retry() async {
+    setState(() => _retrying = true);
+    await context.read<AppState>().retryLoadData();
+    if (mounted) setState(() => _retrying = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Semantics(
+      liveRegion: true,
+      container: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: cs.errorContainer,
+          borderRadius: BorderRadius.circular(LuminousTokens.radiusMd),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.error_outline, color: cs.onErrorContainer),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      "Couldn't open your data",
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: cs.onErrorContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Nothing has been deleted — your transactions are still on '
+                'this phone. Try again, or restart the phone if this keeps '
+                'happening. Please do not uninstall the app.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: cs.onErrorContainer,
+                ),
+              ),
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton(
+                  onPressed: _retrying ? null : _retry,
+                  style: TextButton.styleFrom(
+                    foregroundColor: cs.onErrorContainer,
+                    minimumSize: const Size(48, 48),
+                  ),
+                  child: Text(_retrying ? 'Trying…' : 'Try again'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

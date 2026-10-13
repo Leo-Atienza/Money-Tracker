@@ -1,10 +1,11 @@
 import 'clock.dart';
 import 'currency_helper.dart';
+import 'decimal_helper.dart';
 
 /// Comprehensive validation utilities for the app
 class Validators {
-  // Maximum allowed amount to prevent UI issues
-  static const double maxAmount = 999999999.99;
+  // Maximum allowed amount (see DecimalHelper.maxSafeValue)
+  static const double maxAmount = DecimalHelper.maxSafeValue;
 
   // Maximum text lengths (must match database schema constraints)
   static const int maxDescriptionLength = 200;
@@ -32,7 +33,7 @@ class Validators {
     }
 
     if (parsed > maxAmount) {
-      return 'Amount is too large (max 999,999,999.99)';
+      return 'Amount is too large';
     }
 
     return null;
@@ -163,7 +164,7 @@ class Validators {
     }
 
     if (parsed > maxAmount) {
-      return 'Budget is too large (max 999,999,999.99)';
+      return 'Budget is too large';
     }
 
     return null;

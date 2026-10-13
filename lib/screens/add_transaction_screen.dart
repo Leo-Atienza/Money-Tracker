@@ -269,7 +269,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (!mounted) return;
 
     final appState = context.read<AppState>();
-    final appColors = Theme.of(context).extension<AppColors>()!;
     final amount = CurrencyHelper.parseDecimal(_amountController.text);
     if (amount == null) return; // Validator should have caught this.
 
@@ -298,7 +297,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               content: Text(
                 'Please select a valid ${_isExpense ? "expense" : "income"} category.',
               ),
-              backgroundColor: appColors.expenseRed,
             ),
           );
         }
@@ -380,19 +378,21 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 label: 'Switch to $monthName',
                 onPressed: () => appState.goToMonth(_selectedDate),
               ),
+              // Since Flutter 3.38 a SnackBar with an action never times out
+              // on its own; it sat over the Save button indefinitely. Time it
+              // out again, except for TalkBack users who need the time.
+              persist: MediaQuery.accessibleNavigationOf(context),
               behavior: SnackBarBehavior.floating,
               duration: const Duration(seconds: 5),
             )
           : SnackBar(
               content: Row(
                 children: [
-                  // Same ink as the text on this green: white measures
-                  // 2.36:1 against incomeGreen in dark mode.
+                  // The SnackBar's own ink (SnackBars are plain inverse
+                  // surface now; the green fill was under 4.5:1).
                   Icon(
                     Icons.check_circle,
-                    color: ColorContrastHelper.getContrastingTextColor(
-                      appColors.incomeGreen,
-                    ),
+                    color: Theme.of(context).colorScheme.onInverseSurface,
                   ),
                   const SizedBox(width: 12),
                   Text(
@@ -400,7 +400,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   ),
                 ],
               ),
-              backgroundColor: appColors.incomeGreen,
               duration: const Duration(seconds: 2),
               behavior: SnackBarBehavior.floating,
             );
@@ -416,7 +415,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error saving: $e'),
-            backgroundColor: appColors.expenseRed,
           ),
         );
       }
@@ -657,10 +655,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     if (confirmed != true || !mounted) return;
     final appState = context.read<AppState>();
-    if (_isExpense && widget.expense?.id != null) {
-      await appState.deleteExpense(widget.expense!.id!);
-    } else if (!_isExpense && widget.income?.id != null) {
-      await appState.deleteIncome(widget.income!.id!);
+    final deletedId = _isExpense ? widget.expense?.id : widget.income?.id;
+    final isIncome = !_isExpense;
+    if (deletedId == null) return;
+    if (isIncome) {
+      await appState.deleteIncome(deletedId);
+    } else {
+      await appState.deleteExpense(deletedId);
     }
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -672,8 +673,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             '${_isExpense ? "Expense" : "Income"} moved to trash'),
         action: SnackBarAction(
           label: 'Undo',
-          onPressed: () => appState.undoDelete(),
+          onPressed: () => appState.undoDeleteTransaction(
+            originalId: deletedId,
+            isIncome: isIncome,
+          ),
         ),
+        // Time out like before Flutter 3.38, except under TalkBack.
+        persist: MediaQuery.accessibleNavigationOf(context),
       ),
     );
   }
@@ -708,7 +714,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   Future<void> _markFullyPaid() async {
     if (!_isExpense || widget.expense == null) return;
-    final appColors = Theme.of(context).extension<AppColors>()!;
     setState(() => _isSaving = true);
     try {
       final amount = CurrencyHelper.parseDecimal(_amountController.text) ??
@@ -725,7 +730,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: const Text('Marked as fully paid'),
-          backgroundColor: appColors.incomeGreen,
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
         ),
@@ -735,7 +739,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
-          backgroundColor: appColors.expenseRed,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -750,6 +753,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        scrollable: true,
         title: const Text('Create Category'),
         content: Form(
           key: formKey,
@@ -825,6 +829,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        scrollable: true,
         title: const Text('Create Tag'),
         content: Form(
           key: formKey,
@@ -1060,53 +1065,66 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ),
           ],
         ),
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              LuminousTokens.containerPadding,
-              LuminousTokens.basePx,
-              LuminousTokens.containerPadding,
-              LuminousTokens.basePx,
-            ),
-            child: ElevatedButton(
-              onPressed: _isSaving ? null : _save,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _isExpense
-                    ? theme.colorScheme.primary
-                    : appColors.incomeGreen,
-                // The income variant used a hardcoded Colors.white, which fails
-                // WCAG AA on incomeGreen in BOTH themes — measured 4.12:1 in
-                // light and 2.36:1 in dark against the 4.5:1 floor for body
-                // text. Ask the contrast helper instead of guessing: it returns
-                // black here, giving 5.10:1 light / 8.88:1 dark.
-                foregroundColor: _saveLabelColor(theme, appColors),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                elevation: 0,
+        // The same 1px hairline the shell's NavigationBar carries, so the form
+        // scrolling under this bar reads as passing an edge instead of a card
+        // that was cut off above the button.
+        bottomNavigationBar: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
               ),
-              child: _isSaving
-                  ? SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          _saveLabelColor(theme, appColors),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                LuminousTokens.containerPadding,
+                LuminousTokens.basePx,
+                LuminousTokens.containerPadding,
+                LuminousTokens.basePx,
+              ),
+              child: ElevatedButton(
+                onPressed: _isSaving ? null : _save,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _isExpense
+                      ? theme.colorScheme.primary
+                      : appColors.incomeGreen,
+                  // The income variant used a hardcoded Colors.white, which
+                  // fails WCAG AA on incomeGreen in BOTH themes — measured
+                  // 4.12:1 in light and 2.36:1 in dark against the 4.5:1 floor
+                  // for body text. Ask the contrast helper instead of
+                  // guessing: it returns black here, giving 5.10:1 light /
+                  // 8.88:1 dark.
+                  foregroundColor: _saveLabelColor(theme, appColors),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
+                ),
+                child: _isSaving
+                    ? SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            _saveLabelColor(theme, appColors),
+                          ),
+                        ),
+                      )
+                    : Text(
+                        saveLabel,
+                        // The textTheme bakes in color: onSurface, which would
+                        // be invisible on this onSurface-filled button. Track
+                        // the button's foregroundColor instead.
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: _saveLabelColor(theme, appColors),
                         ),
                       ),
-                    )
-                  : Text(
-                      saveLabel,
-                      // The textTheme bakes in color: onSurface, which would be
-                      // invisible on this onSurface-filled button. Track the
-                      // button's foregroundColor instead.
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: _saveLabelColor(theme, appColors),
-                      ),
-                    ),
+              ),
             ),
           ),
         ),
@@ -1142,20 +1160,37 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          TextFormField(
+          // The field's spoken name: TalkBack read only "0.00, edit box"
+          // (the AMOUNT caption above is a separate, unlinked Text).
+          Semantics(
+            label: 'Amount',
+            child: TextFormField(
             controller: _amountController,
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [CurrencyHelper.decimalInputFormatter()],
             style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w300),
             decoration: InputDecoration(
-              prefixText: currency,
-              prefixStyle:
-                  const TextStyle(fontSize: 32, fontWeight: FontWeight.w300),
+              // A prefix icon rather than prefixText: prefixText is hidden
+              // until the field is focused or filled, so the empty field
+              // read "0.00" with no currency at all.
+              prefixIcon: Padding(
+                padding: const EdgeInsetsDirectional.only(start: 16, end: 4),
+                child: Text(
+                  currency,
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w300,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              prefixIconConstraints: const BoxConstraints(),
               hintText: '0.00',
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
+              // Keep a real inset: with zero padding the theme's focus
+              // outline ran straight through the currency symbol.
+              contentPadding:
+                  const EdgeInsetsDirectional.fromSTEB(0, 12, 16, 12),
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
@@ -1164,11 +1199,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               final parsed = CurrencyHelper.parseDecimal(value);
               if (parsed == null) return 'Please enter a valid number';
               if (parsed <= 0) return 'Amount must be greater than 0';
-              if (parsed > 999999999.99) {
-                return 'Amount cannot exceed 999,999,999.99';
+              if (parsed > Validators.maxAmount) {
+                return 'Amount is too large';
               }
               return null;
             },
+          ),
           ),
         ],
       ),

@@ -124,6 +124,20 @@ void main() {
     },
   );
 
+  // S22 (a11y): TalkBack read the amount field as just "0.00, edit box";
+  // the AMOUNT caption above it is a separate Text.
+  testWidgets('the amount field has a spoken name', (tester) async {
+    final handle = tester.ensureSemantics();
+    final state = AppState();
+    await pumpHarness(tester, state: state);
+    await tester.pumpAndSettle();
+
+    final node = tester.getSemantics(find.bySemanticsLabel(RegExp('Amount')));
+    expect(node.label, contains('Amount'));
+    expect(node, isSemantics(isTextField: true));
+    handle.dispose();
+  });
+
   testWidgets(
     'type toggle preserves amount + description controllers (R15)',
     (tester) async {

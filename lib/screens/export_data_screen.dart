@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 import 'dart:io';
 import 'package:decimal/decimal.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -9,6 +10,7 @@ import '../providers/app_state.dart';
 import '../theme/app_colors.dart';
 import '../theme/luminous_tokens.dart';
 import '../utils/csv_exporter.dart';
+import '../utils/date_helper.dart';
 import '../utils/pdf_exporter.dart';
 import '../utils/haptic_helper.dart';
 import '../widgets/luminous/glass_panel.dart';
@@ -416,7 +418,6 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
     try {
       final appState = context.read<AppState>();
-      final appColors = Theme.of(context).extension<AppColors>()!;
 
       final DateTimeRange? dateFilter = _getDateRange();
 
@@ -425,21 +426,13 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
       final filteredExpenses = dateFilter != null
           ? allExpenses
-              .where(
-                (e) =>
-                    !e.date.isBefore(dateFilter.start) &&
-                    !e.date.isAfter(dateFilter.end),
-              )
+              .where((e) => isInExportRange(e.date, dateFilter))
               .toList()
           : allExpenses;
 
       final filteredIncome = dateFilter != null
           ? allIncome
-              .where(
-                (i) =>
-                    !i.date.isBefore(dateFilter.start) &&
-                    !i.date.isAfter(dateFilter.end),
-              )
+              .where((i) => isInExportRange(i.date, dateFilter))
               .toList()
           : allIncome;
 
@@ -477,27 +470,28 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               '${filteredExpenses.length + filteredIncome.length} transactions exported';
       }
 
-      await SharePlus.instance.share(
-        ShareParams(files: [XFile(file.path)], subject: 'FinanceFlow Export'),
-      );
+      try {
+        await SharePlus.instance.share(
+          ShareParams(files: [XFile(file.path)], subject: 'FinanceFlow Export'),
+        );
+      } finally {
+        await _deleteExport(file);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(exportMessage),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: appColors.incomeGreen,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        final appColors = Theme.of(context).extension<AppColors>()!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Export failed: $e'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: appColors.expenseRed,
           ),
         );
       }
@@ -526,7 +520,6 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
     try {
       final appState = context.read<AppState>();
-      final appColors = Theme.of(context).extension<AppColors>()!;
 
       final DateTimeRange? dateFilter = _getDateRange();
 
@@ -535,23 +528,18 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
       final filteredExpenses = dateFilter != null
           ? allExpenses
-              .where(
-                (e) =>
-                    !e.date.isBefore(dateFilter.start) &&
-                    !e.date.isAfter(dateFilter.end),
-              )
+              .where((e) => isInExportRange(e.date, dateFilter))
               .toList()
           : allExpenses;
 
       final filteredIncome = dateFilter != null
           ? allIncome
-              .where(
-                (i) =>
-                    !i.date.isBefore(dateFilter.start) &&
-                    !i.date.isAfter(dateFilter.end),
-              )
+              .where((i) => isInExportRange(i.date, dateFilter))
               .toList()
           : allIncome;
+
+      // The range end is exclusive; the report prints its last day.
+      final lastDay = dateFilter?.end.subtract(const Duration(days: 1));
 
       File file;
       String exportMessage;
@@ -564,7 +552,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
             currencyCode: appState.currencyCode,
             title: 'Expense Report',
             startDate: dateFilter?.start,
-            endDate: dateFilter?.end,
+            endDate: lastDay,
           );
           exportMessage =
               'PDF report created with ${filteredExpenses.length} expenses';
@@ -576,14 +564,26 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
             currencyCode: appState.currencyCode,
             title: 'Income Report',
             startDate: dateFilter?.start,
-            endDate: dateFilter?.end,
+            endDate: lastDay,
           );
           exportMessage =
               'PDF report created with ${filteredIncome.length} income records';
           break;
         default:
-          final budgets = appState.currentMonthBudgets;
-          final monthName = DateFormat.yMMMM().format(appState.selectedMonth);
+          // Title, period and budgets follow the exported range. They used to
+          // come from the month selected on Home, so the default All Time
+          // export read "Monthly Financial Summary — <month>" over all-time
+          // totals, with every budget "Over".
+          final heading = summaryHeadingFor(dateFilter);
+          // Budgets are monthly: only a one-month export is measured against
+          // them, and then against that month's own budgets.
+          final month = heading.singleMonth ? dateFilter!.start : null;
+          final budgets = appState.budgets
+              .where((b) =>
+                  month != null &&
+                  b.month.year == month.year &&
+                  b.month.month == month.month)
+              .toList();
 
           // L23: fold the money in Decimal space so these totals match the CSV
           // export of the same month exactly, and derive the balance from the
@@ -603,7 +603,8 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
             budgets: budgets,
             currencySymbol: appState.currency,
             currencyCode: appState.currencyCode,
-            monthName: monthName,
+            title: heading.title,
+            monthName: heading.period,
             totalIncome: incomeDecimal.toDouble(),
             totalExpenses: expenseDecimal.toDouble(),
             balance: (incomeDecimal - expenseDecimal).toDouble(),
@@ -612,30 +613,31 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               'PDF summary created with ${filteredExpenses.length + filteredIncome.length} transactions';
       }
 
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path)],
-          subject: 'FinanceFlow PDF Report',
-        ),
-      );
+      try {
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(file.path)],
+            subject: 'FinanceFlow PDF Report',
+          ),
+        );
+      } finally {
+        await _deleteExport(file);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(exportMessage),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: appColors.incomeGreen,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        final appColors = Theme.of(context).extension<AppColors>()!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('PDF export failed: $e'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: appColors.expenseRed,
           ),
         );
       }
@@ -646,45 +648,102 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
     }
   }
 
-  DateTimeRange? _getDateRange() {
-    final now = DateTime.now();
+  DateTimeRange? _getDateRange() => exportRangeFor(
+        _dateRange,
+        today: DateHelper.today(),
+        customStart: _customStartDate,
+        customEnd: _customEndDate,
+      );
 
-    switch (_dateRange) {
-      case 'this_month':
-        return DateTimeRange(
-          start: DateTime(now.year, now.month, 1),
-          end: DateTime(now.year, now.month + 1, 0, 23, 59, 59),
-        );
-      case 'last_month':
-        final lastMonth = DateTime(now.year, now.month - 1, 1);
-        return DateTimeRange(
-          start: lastMonth,
-          end: DateTime(lastMonth.year, lastMonth.month + 1, 0, 23, 59, 59),
-        );
-      case 'this_year':
-        return DateTimeRange(
-          start: DateTime(now.year, 1, 1),
-          end: DateTime(now.year, 12, 31, 23, 59, 59),
-        );
-      case 'custom':
-        if (_customStartDate != null && _customEndDate != null) {
-          return DateTimeRange(
-            start: _customStartDate!,
-            end: DateTime(
-              _customEndDate!.year,
-              _customEndDate!.month,
-              _customEndDate!.day,
-              23,
-              59,
-              59,
-            ),
-          );
-        }
-        return null;
-      default:
-        return null; // all_time
+  /// Removes an export once it has been shared. share_plus copies the file
+  /// into its own cache folder before the share sheet opens, so ours is not
+  /// needed afterwards — exports used to pile up in app storage for good.
+  Future<void> _deleteExport(File file) async {
+    try {
+      await file.delete();
+    } on FileSystemException catch (e) {
+      // Best effort: anything left sits in the OS-managed temp directory.
+      if (kDebugMode) debugPrint('Could not delete export ${file.path}: $e');
     }
   }
+}
+
+/// The export window for a date-range choice as half-open UTC bounds
+/// `[start, end)`, or null for all time.
+///
+/// Transaction dates are stored as UTC midnight, so the bounds are UTC
+/// midnights too. Local-time bounds shifted both edges by the UTC offset:
+/// west of UTC, "This month" dropped everything dated the 1st and took in
+/// next month's 1st. [today] supplies the user's calendar month and year.
+@visibleForTesting
+DateTimeRange? exportRangeFor(
+  String choice, {
+  required DateTime today,
+  DateTime? customStart,
+  DateTime? customEnd,
+}) {
+  switch (choice) {
+    case 'this_month':
+      return DateTimeRange(
+        start: DateTime.utc(today.year, today.month),
+        end: DateTime.utc(today.year, today.month + 1),
+      );
+    case 'last_month':
+      return DateTimeRange(
+        start: DateTime.utc(today.year, today.month - 1),
+        end: DateTime.utc(today.year, today.month),
+      );
+    case 'this_year':
+      return DateTimeRange(
+        start: DateTime.utc(today.year),
+        end: DateTime.utc(today.year + 1),
+      );
+    case 'custom':
+      if (customStart == null || customEnd == null) return null;
+      // Both picked days count: the end bound is the day after the last one.
+      return DateTimeRange(
+        start: DateHelper.normalize(customStart),
+        end: DateHelper.addDays(customEnd, 1),
+      );
+    default:
+      return null; // all_time
+  }
+}
+
+/// Whether a transaction dated [date] falls inside [range] from
+/// [exportRangeFor].
+@visibleForTesting
+bool isInExportRange(DateTime date, DateTimeRange range) {
+  final day = DateHelper.normalize(date);
+  return !day.isBefore(range.start) && day.isBefore(range.end);
+}
+
+/// Title and period line for the combined PDF summary of [range] (null =
+/// all time), and whether [range] is exactly one calendar month — the only
+/// case where monthly budgets apply.
+@visibleForTesting
+({String title, String period, bool singleMonth}) summaryHeadingFor(
+  DateTimeRange? range,
+) {
+  if (range == null) {
+    return (title: 'Financial Summary', period: 'All time', singleMonth: false);
+  }
+  final start = range.start;
+  if (start.day == 1 &&
+      range.end == DateTime.utc(start.year, start.month + 1)) {
+    return (
+      title: 'Monthly Financial Summary',
+      period: DateFormat.yMMMM().format(start),
+      singleMonth: true,
+    );
+  }
+  final day = DateFormat.yMMMd();
+  final lastDay = range.end.subtract(const Duration(days: 1));
+  return (
+    title: 'Financial Summary',
+    period: '${day.format(start)} - ${day.format(lastDay)}',
+    singleMonth: false,
+  );
 }
 
 class _SectionHeader extends StatelessWidget {

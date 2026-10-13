@@ -113,6 +113,28 @@ void main() {
       expect(out, isNot(contains('€99.00')));
     });
 
+    // June audit M4: DB errors echoed their bound values verbatim.
+    test('drops the bound values sqflite errors echo', () {
+      const input = "DatabaseException(CHECK constraint failed) sql 'INSERT "
+          "INTO expenses (amount, description) VALUES (?, ?)' "
+          'args [1234.56, Dinner with Jane [birthday]] '
+          '{details: {database: {id: 5}}}';
+      final out = CrashLog.redactPii(input);
+      expect(out, contains("sql 'INSERT INTO expenses"));
+      expect(out, contains('args [redacted] {details'));
+      expect(out, isNot(contains('1234.56')));
+      expect(out, isNot(contains('Jane')));
+    });
+
+    test('drops bound values at the end of a line too', () {
+      final out = CrashLog.redactPii(
+          "sql 'SELECT * FROM income WHERE id = ?' args [42]\n#0 main");
+      expect(
+        out,
+        "sql 'SELECT * FROM income WHERE id = ?' args [redacted]\n#0 main",
+      );
+    });
+
     test('masks credit card-shaped digit runs', () {
       const input = 'Bad description: card 4111-1111-1111-1111 was rejected';
       final out = CrashLog.redactPii(input);

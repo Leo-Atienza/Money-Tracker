@@ -2,33 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
-/// Premium animation utilities for a polished app experience
-class PremiumAnimations {
-  /// Standard duration for micro-interactions
-  static const Duration microDuration = Duration(milliseconds: 150);
-
-  /// Standard duration for transitions
-  static const Duration shortDuration = Duration(milliseconds: 200);
-
-  /// Standard duration for page transitions
-  static const Duration mediumDuration = Duration(milliseconds: 300);
-
-  /// Standard duration for complex animations
-  static const Duration longDuration = Duration(milliseconds: 500);
-
-  /// Standard curve for enter animations
-  static const Curve enterCurve = Curves.easeOutCubic;
-
-  /// Standard curve for exit animations
-  static const Curve exitCurve = Curves.easeInCubic;
-
-  /// Spring curve for bouncy animations
-  static const Curve springCurve = Curves.elasticOut;
-
-  /// Smooth curve for most animations
-  static const Curve smoothCurve = Curves.easeInOutCubic;
-}
-
 /// Animated counter that smoothly transitions between values
 class AnimatedCounter extends StatefulWidget {
   final double value;
@@ -492,33 +465,5 @@ class _BounceAnimationState extends State<BounceAnimation>
   @override
   Widget build(BuildContext context) {
     return ScaleTransition(scale: _animation, child: widget.child);
-  }
-}
-
-/// Animated progress bar with smooth transitions
-
-/// Pulsing dot indicator for loading states
-
-/// Smooth theme transition wrapper
-
-/// Extension methods for easy navigation with transitions
-extension NavigatorExtensions on NavigatorState {
-  Future<T?> pushPremium<T>(
-    Widget page, {
-    SlideDirection direction = SlideDirection.right,
-  }) {
-    return push<T>(PremiumPageRoute<T>(page: page, direction: direction));
-  }
-}
-
-/// Extension for BuildContext to easily navigate
-extension ContextNavigatorExtensions on BuildContext {
-  Future<T?> pushPremium<T>(
-    Widget page, {
-    SlideDirection direction = SlideDirection.right,
-  }) {
-    return Navigator.of(
-      this,
-    ).push<T>(PremiumPageRoute<T>(page: page, direction: direction));
   }
 }

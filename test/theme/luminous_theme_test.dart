@@ -5,22 +5,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// The Purple appearance is a hand-built `ColorScheme`, so nothing but these
-/// assertions keeps its ink readable. They cover every ink role on every
-/// surface role the theme actually paints, the two places the chrome tints
-/// itself with `primary` (nav indicator, list-tile icon well), and — because
-/// `AppColors` is shared with the neutral light scheme — that lavender
-/// surfaces do not make the money colours harder to read than they already
-/// are on the plain light theme.
+/// The Purple appearance is a pair of hand-built `ColorScheme`s (lavender by
+/// day, violet at night), so nothing but these assertions keeps its ink
+/// readable. They cover every ink role on every surface role the theme
+/// actually paints, the places the chrome tints itself (nav pill, list-tile
+/// icon well, the violet balance card), and — because `AppColors` is shared
+/// with the neutral schemes — that violet surfaces do not make the money
+/// colours harder to read than they already are on plain Light and Dark.
 void main() {
   group('themeModeFor', () {
-    test('light and purple both pin ThemeMode.light', () {
+    test('light pins ThemeMode.light', () {
       expect(themeModeFor('light'), ThemeMode.light);
-      expect(themeModeFor('purple'), ThemeMode.light);
     });
 
     test('dark pins ThemeMode.dark', () {
       expect(themeModeFor('dark'), ThemeMode.dark);
+    });
+
+    test('purple follows the phone, like system', () {
+      expect(themeModeFor('purple'), ThemeMode.system);
     });
 
     test('system and anything unrecognised follow the OS', () {
@@ -30,8 +33,137 @@ void main() {
     });
   });
 
-  group('luminousPurpleScheme', () {
-    final cs = luminousPurpleScheme();
+  schemeSuite('luminousPurpleScheme', luminousPurpleScheme(),
+      neutral: luminousLightScheme());
+  schemeSuite('luminousPurpleDarkScheme', luminousPurpleDarkScheme(),
+      neutral: luminousDarkScheme());
+
+  for (final cs in [luminousPurpleScheme(), luminousPurpleDarkScheme()]) {
+    group('buildLuminousTheme, tonal Purple (${cs.brightness.name})', () {
+      final theme = buildLuminousTheme(
+        brightness: cs.brightness,
+        appColorsExtension: AppColors.fromBrightness(cs.brightness),
+        colorScheme: cs,
+        tonal: true,
+      );
+      final hero = theme.extension<LuminousHeroColors>()!;
+      final status = AppColors.fromBrightness(cs.brightness);
+
+      test('paints the scheme with the matching status-bar style', () {
+        final dark = cs.brightness == Brightness.dark;
+        expect(theme.brightness, cs.brightness);
+        expect(theme.colorScheme.primary, cs.primary);
+        expect(theme.scaffoldBackgroundColor, cs.surface);
+        expect(theme.appBarTheme.backgroundColor, cs.surface);
+        expect(
+          theme.appBarTheme.systemOverlayStyle,
+          dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+        );
+      });
+
+      test('keeps the single typeface and the semantic colour extension', () {
+        expect(theme.textTheme.bodyMedium?.fontFamily, 'HankenGrotesk');
+        expect(theme.textTheme.labelSmall?.fontFamily, 'HankenGrotesk');
+        expect(theme.extension<AppColors>(), isNotNull);
+      });
+
+      test('the nav pill is primaryContainer with its own ink', () {
+        final nav = theme.navigationBarTheme;
+        expect(nav.indicatorColor, cs.primaryContainer);
+        final selected = nav.iconTheme!.resolve({WidgetState.selected})!;
+        expect(selected.color, cs.onPrimaryContainer);
+        expect(
+          ColorContrastHelper.contrastRatio(
+              selected.color!, cs.primaryContainer),
+          greaterThanOrEqualTo(ColorContrastHelper.minContrastLargeText),
+        );
+      });
+
+      test('the balance card is violet and its text clears 4.5:1', () {
+        expect(hero.fill, cs.primaryContainer);
+        for (final ink in {'ink': hero.ink, 'inkVariant': hero.inkVariant}
+            .entries) {
+          final ratio = ColorContrastHelper.contrastRatio(ink.value, hero.fill!);
+          expect(
+            ratio,
+            greaterThanOrEqualTo(ColorContrastHelper.minContrastNormalText),
+            reason: '${ink.key}: ${ratio.toStringAsFixed(2)}:1',
+          );
+        }
+      });
+
+      test('a carried-over amount, either sign, clears 3:1 on the card', () {
+        // _CarryoverLine prints the signed amount in income green or, when
+        // negative, expense red, straight on the balance card.
+        for (final c in {
+          'incomeGreen': status.incomeGreen,
+          'expenseRed': status.expenseRed,
+        }.entries) {
+          final ratio = ColorContrastHelper.contrastRatio(c.value, hero.fill!);
+          expect(
+            ratio,
+            greaterThanOrEqualTo(ColorContrastHelper.minContrastLargeText),
+            reason: '${c.key}: ${ratio.toStringAsFixed(2)}:1',
+          );
+        }
+      });
+
+      test('refuses a scheme whose brightness disagrees', () {
+        final other = cs.brightness == Brightness.dark
+            ? Brightness.light
+            : Brightness.dark;
+        expect(
+          () => buildLuminousTheme(
+            brightness: other,
+            appColorsExtension: AppColors.fromBrightness(other),
+            colorScheme: cs,
+          ),
+          throwsAssertionError,
+        );
+      });
+    });
+  }
+
+  group('buildLuminousTheme without overrides', () {
+    final light = buildLuminousTheme(
+      brightness: Brightness.light,
+      appColorsExtension: AppColors.fromBrightness(Brightness.light),
+    );
+    final dark = buildLuminousTheme(
+      brightness: Brightness.dark,
+      appColorsExtension: AppColors.fromBrightness(Brightness.dark),
+    );
+
+    test('the neutral schemes are unchanged', () {
+      expect(light.colorScheme.primary, luminousLightScheme().primary);
+      expect(light.colorScheme.surface, luminousLightScheme().surface);
+      expect(dark.colorScheme.primary, luminousDarkScheme().primary);
+      expect(dark.colorScheme.surface, luminousDarkScheme().surface);
+    });
+
+    test('the balance card stays a plain card and the pill a primary wash',
+        () {
+      for (final (theme, alpha) in [(light, 0.14), (dark, 0.30)]) {
+        final cs = theme.colorScheme;
+        final hero = theme.extension<LuminousHeroColors>()!;
+        expect(hero.fill, isNull);
+        expect(hero.border, isNull);
+        expect(hero.ink, cs.onSurface);
+        expect(hero.inkVariant, cs.onSurfaceVariant);
+        expect(theme.navigationBarTheme.indicatorColor,
+            cs.primary.withValues(alpha: alpha));
+      }
+    });
+  });
+}
+
+/// Contrast floors for a hand-built Purple scheme, checked against the
+/// neutral scheme of the same brightness ([neutral]) where the semantic
+/// colours are shared.
+void schemeSuite(String name, ColorScheme cs, {required ColorScheme neutral}) {
+  final dark = cs.brightness == Brightness.dark;
+
+  group(name, () {
     final surfaces = <String, Color>{
       'surface': cs.surface,
       'surfaceContainerLowest': cs.surfaceContainerLowest,
@@ -41,8 +173,8 @@ void main() {
       'surfaceContainerHighest': cs.surfaceContainerHighest,
     };
 
-    test('is a light-brightness scheme', () {
-      expect(cs.brightness, Brightness.light);
+    test('matches the neutral scheme it stands in for', () {
+      expect(cs.brightness, neutral.brightness);
     });
 
     test('text ink clears 4.5:1 on every surface role', () {
@@ -113,17 +245,12 @@ void main() {
       }
     });
 
-    test('primary still reads as an icon on its own tints', () {
-      // navigationBarTheme paints the indicator as primary at 14% over the
-      // surface; GlassListTile paints its icon well as primary at 12% over the
-      // card. Color.lerp(bg, fg, a) is exactly what compositing fg at alpha a
-      // over bg produces.
-      final indicator = Color.lerp(cs.surface, cs.primary, 0.14)!;
-      final iconWell = Color.lerp(cs.surfaceContainer, cs.primary, 0.12)!;
-      expect(
-        ColorContrastHelper.contrastRatio(cs.primary, indicator),
-        greaterThanOrEqualTo(ColorContrastHelper.minContrastLargeText),
-      );
+    test('primary still reads as an icon in a list-tile well', () {
+      // GlassListTile paints its icon well as primary at 12% (18% at night)
+      // over the card. Color.lerp(bg, fg, a) is exactly what compositing fg
+      // at alpha a over bg produces.
+      final card = dark ? cs.surfaceContainerHigh : cs.surfaceContainer;
+      final iconWell = Color.lerp(card, cs.primary, dark ? 0.18 : 0.12)!;
       expect(
         ColorContrastHelper.contrastRatio(cs.primary, iconWell),
         greaterThanOrEqualTo(ColorContrastHelper.minContrastLargeText),
@@ -131,24 +258,23 @@ void main() {
     });
 
     test('the card is visibly distinct from the page', () {
-      // A card that matches the page is the failure glass hid for a while;
-      // the neutral light scheme keeps ~1.11:1 between the two, so hold the
-      // lavender pair to the same.
+      // A card that matches the page is the failure glass hid for a while.
+      // GlassPanel fills with surfaceContainer by day and surfaceContainerHigh
+      // at night; the neutral schemes keep at least ~1.11:1 there.
+      final card = dark ? cs.surfaceContainerHigh : cs.surfaceContainer;
       expect(
-        ColorContrastHelper.contrastRatio(cs.surfaceContainer, cs.surface),
+        ColorContrastHelper.contrastRatio(card, cs.surface),
         greaterThanOrEqualTo(1.1),
       );
     });
 
-    test('money colours keep the floor they have on the neutral light scheme',
-        () {
-      // AppColors is the light set for both appearances, so the only way
-      // Purple can regress an amount's legibility is through its surfaces.
-      // Hold each colour to within 10% of the ratio it gets on the matching
-      // neutral light role, and to the 3:1 large/bold-text floor on the
+    test('money colours keep the floor they have on the neutral scheme', () {
+      // AppColors is the same set for both appearances of a brightness, so
+      // the only way Purple can regress an amount's legibility is through its
+      // surfaces. Hold each colour to within 10% of the ratio it gets on the
+      // matching neutral role, and to the 3:1 large/bold-text floor on the
       // roles amounts actually render on.
-      final status = AppColors.fromBrightness(Brightness.light);
-      final light = luminousLightScheme();
+      final status = AppColors.fromBrightness(cs.brightness);
       final colours = <String, Color>{
         'incomeGreen': status.incomeGreen,
         'expenseRed': status.expenseRed,
@@ -156,34 +282,34 @@ void main() {
         'warningOrange': status.warningOrange,
       };
       final roles = <String, (Color, Color)>{
-        'surface': (light.surface, cs.surface),
+        'surface': (neutral.surface, cs.surface),
         'surfaceContainerLow': (
-          light.surfaceContainerLow,
+          neutral.surfaceContainerLow,
           cs.surfaceContainerLow
         ),
-        'surfaceContainer': (light.surfaceContainer, cs.surfaceContainer),
+        'surfaceContainer': (neutral.surfaceContainer, cs.surfaceContainer),
+        'surfaceContainerHigh': (
+          neutral.surfaceContainerHigh,
+          cs.surfaceContainerHigh
+        ),
         'surfaceContainerHighest': (
-          light.surfaceContainerHighest,
+          neutral.surfaceContainerHighest,
           cs.surfaceContainerHighest
         ),
       };
       for (final c in colours.entries) {
         for (final r in roles.entries) {
-          final onLight = ColorContrastHelper.contrastRatio(c.value, r.value.$1);
+          final onNeutral =
+              ColorContrastHelper.contrastRatio(c.value, r.value.$1);
           final onPurple =
               ColorContrastHelper.contrastRatio(c.value, r.value.$2);
           expect(
             onPurple,
-            greaterThanOrEqualTo(onLight * 0.9),
-            reason: '${c.key} on ${r.key}: light ${onLight.toStringAsFixed(2)}'
-                ' vs purple ${onPurple.toStringAsFixed(2)}',
+            greaterThanOrEqualTo(onNeutral * 0.9),
+            reason: '${c.key} on ${r.key}: neutral '
+                '${onNeutral.toStringAsFixed(2)} vs purple '
+                '${onPurple.toStringAsFixed(2)}',
           );
-        }
-      }
-      // All four clear the 3:1 floor on every surface an amount, tag or tier
-      // renders on - in Light and in Purple.
-      for (final c in colours.entries) {
-        for (final r in roles.entries) {
           for (final surface in [r.value.$1, r.value.$2]) {
             expect(
               ColorContrastHelper.contrastRatio(c.value, surface),
@@ -193,54 +319,6 @@ void main() {
           }
         }
       }
-    });
-  });
-
-  group('buildLuminousTheme with the purple scheme', () {
-    final purple = buildLuminousTheme(
-      brightness: Brightness.light,
-      appColorsExtension: AppColors.fromBrightness(Brightness.light),
-      colorScheme: luminousPurpleScheme(),
-    );
-
-    test('paints the lavender scheme with light-brightness status bar', () {
-      expect(purple.brightness, Brightness.light);
-      expect(purple.colorScheme.primary, luminousPurpleScheme().primary);
-      expect(purple.scaffoldBackgroundColor, luminousPurpleScheme().surface);
-      expect(purple.appBarTheme.backgroundColor, luminousPurpleScheme().surface);
-      expect(purple.appBarTheme.systemOverlayStyle, SystemUiOverlayStyle.dark);
-    });
-
-    test('keeps the single typeface and the semantic colour extension', () {
-      expect(purple.textTheme.bodyMedium?.fontFamily, 'HankenGrotesk');
-      expect(purple.textTheme.labelSmall?.fontFamily, 'HankenGrotesk');
-      expect(purple.extension<AppColors>(), isNotNull);
-    });
-
-    test('refuses a scheme whose brightness disagrees', () {
-      expect(
-        () => buildLuminousTheme(
-          brightness: Brightness.dark,
-          appColorsExtension: AppColors.fromBrightness(Brightness.dark),
-          colorScheme: luminousPurpleScheme(),
-        ),
-        throwsAssertionError,
-      );
-    });
-
-    test('without an override the neutral schemes are unchanged', () {
-      final light = buildLuminousTheme(
-        brightness: Brightness.light,
-        appColorsExtension: AppColors.fromBrightness(Brightness.light),
-      );
-      final dark = buildLuminousTheme(
-        brightness: Brightness.dark,
-        appColorsExtension: AppColors.fromBrightness(Brightness.dark),
-      );
-      expect(light.colorScheme.primary, luminousLightScheme().primary);
-      expect(light.colorScheme.surface, luminousLightScheme().surface);
-      expect(dark.colorScheme.primary, luminousDarkScheme().primary);
-      expect(dark.colorScheme.surface, luminousDarkScheme().surface);
     });
   });
 }

@@ -106,6 +106,9 @@ class _CategoryList extends StatelessWidget {
           GlassPanel(
             padding: EdgeInsets.zero,
             child: ListView.builder(
+              // Explicit: with no padding a ListView pads itself with the
+              // status-bar inset, an empty band at the top of the panel.
+              padding: EdgeInsets.zero,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: expenseCategories.length,
@@ -167,6 +170,7 @@ class _CategoryList extends StatelessWidget {
           GlassPanel(
             padding: EdgeInsets.zero,
             child: ListView.builder(
+              padding: EdgeInsets.zero,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: incomeCategories.length,
@@ -440,6 +444,9 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
   String? _selectedColor;
   String? _selectedIcon;
   bool _isSaving = false;
+  // Shown under the name field. A SnackBar sat behind this dialog's scrim,
+  // so a refused save looked like a dead Save button.
+  String? _error;
 
   @override
   void initState() {
@@ -476,6 +483,9 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
     final isEditing = widget.categoryId != null;
 
     return AlertDialog(
+      // With the keyboard up the content outgrew the space left (22px on a
+      // 411x914dp phone once an error showed); it scrolls instead.
+      scrollable: true,
       backgroundColor: theme.colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
@@ -492,9 +502,14 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
             controller: _nameController,
             autofocus: true,
             textCapitalization: TextCapitalization.words,
+            onChanged: (_) {
+              if (_error != null) setState(() => _error = null);
+            },
             decoration: InputDecoration(
               labelText: 'Category Name',
               hintText: 'e.g., Coffee, Pets, Gaming',
+              errorText: _error,
+              errorMaxLines: 3,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -740,6 +755,21 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
       return;
     }
 
+    // Names are unique per type, ignoring case. A rename onto another
+    // category's name cascaded into its transactions and left two "Food"s
+    // (AppState.addCategory checks this; updateCategory does not).
+    final lowerName = newName.toLowerCase();
+    final nameTaken = context.read<AppState>().categories.any(
+          (c) =>
+              c.type == _selectedType &&
+              c.id != widget.categoryId &&
+              c.name.toLowerCase() == lowerName,
+        );
+    if (nameTaken) {
+      _showError('A category with this name already exists');
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     try {
@@ -780,14 +810,7 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
   }
 
   void _showError(String message) {
-    final appColors = Theme.of(context).extension<AppColors>()!;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: appColors.expenseRed,
-      ),
-    );
+    setState(() => _error = message);
   }
 }
 
@@ -858,6 +881,8 @@ class _IconPicker extends StatelessWidget {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.6,
       ),
+      // Clear of the nav bar: a 3-button bar covered the last row.
+      padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -1301,9 +1326,19 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
 
     try {
       final appState = context.read<AppState>();
-      final appColors = Theme.of(context).extension<AppColors>()!;
 
-      switch (_selectedAction) {
+      // With no transactions the dialog shows no delete-or-move choice and
+      // no destination picker, so there is nothing to choose: delete the
+      // category. Falling into 'move' stopped at "Please select a category"
+      // with no way to pick one.
+      final action =
+          widget.existingTransactionCount == 0 ? 'unused' : _selectedAction;
+
+      switch (action) {
+        case 'unused':
+          await appState.deleteCategory(widget.categoryId);
+          break;
+
         case 'delete':
           // FIX #3: Use atomic delete operation to prevent data inconsistency
           // Both transactions AND category are deleted in single database transaction
@@ -1343,7 +1378,6 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: const Text('Please select a category'),
-                    backgroundColor: appColors.expenseRed,
                   ),
                 );
               }
@@ -1367,9 +1401,9 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              _selectedAction == 'delete'
+              action == 'delete'
                   ? 'Category and ${widget.existingTransactionCount} transaction${widget.existingTransactionCount > 1 ? 's' : ''} deleted'
-                  : _selectedAction == 'move'
+                  : action == 'move'
                       ? 'Category deleted and transactions moved to $_selectedMoveToCategory'
                       : 'Category deleted',
             ),
@@ -1382,7 +1416,6 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error deleting category: $e'),
-            backgroundColor: Theme.of(context).extension<AppColors>()!.expenseRed,
           ),
         );
       }

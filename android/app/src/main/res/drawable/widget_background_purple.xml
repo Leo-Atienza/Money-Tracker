@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Purple's violet widget surface before Android 12. drawable-v31 uses the
+     launcher's radius. The colour has a night variant, so the launcher
+     resolves day/night itself. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/widget_purple_surface" />
+    <corners android:radius="16dp" />
+</shape>

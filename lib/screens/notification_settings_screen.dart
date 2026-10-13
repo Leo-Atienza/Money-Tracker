@@ -96,6 +96,10 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                   );
                 },
               ),
+              // Since Flutter 3.38 a SnackBar with an action never times out
+              // on its own, and the messenger carries it onto every later
+              // screen. Time it out again, except under TalkBack.
+              persist: MediaQuery.accessibleNavigationOf(context),
             ),
           );
         }
@@ -354,12 +358,9 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                           }
                         } catch (e) {
                           if (context.mounted) {
-                            final errorAppColors =
-                                Theme.of(context).extension<AppColors>()!;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('Failed to send notification: $e'),
-                                backgroundColor: errorAppColors.expenseRed,
                                 duration: const Duration(seconds: 3),
                               ),
                             );

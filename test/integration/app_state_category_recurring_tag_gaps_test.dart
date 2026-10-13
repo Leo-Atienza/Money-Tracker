@@ -180,6 +180,34 @@ void main() {
           reason: 'rename must back-propagate to existing income rows');
     });
 
+    // S22: the rename reached recurring_income on disk, but the in-memory
+    // list kept the old name until the next full load.
+    test('rename back-propagates to recurring incomes', () async {
+      final state = await bootstrap();
+      final original =
+          state.categories.firstWhere((c) => c.type == 'income');
+      await state.addRecurringIncome(
+        RecurringIncome(
+          description: 'monthly pay',
+          amount: Decimal.parse('2000'),
+          category: original.name,
+          accountId: state.currentAccountId,
+          dayOfMonth: 1,
+          frequency: RecurringFrequency.monthly,
+        ),
+      );
+
+      final renamed = original.copyWith(name: '${original.name}-RI');
+      await state.updateCategory(renamed, oldName: original.name);
+
+      expect(
+        state.recurringIncomes
+            .firstWhere((r) => r.description == 'monthly pay')
+            .category,
+        '${original.name}-RI',
+      );
+    });
+
     test('rename back-propagates to budgets', () async {
       final state = await bootstrap();
       final original =

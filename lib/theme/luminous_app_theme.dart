@@ -134,20 +134,22 @@ ColorScheme luminousDarkScheme() {
   );
 }
 
-// Purple (S20). A third, user-chosen appearance that sits beside Light and
-// Dark instead of modifying them: lavender surfaces, one violet for the
-// chrome, and a violet-cast ink in place of pure black so the page reads as
-// a single material. It is a light-brightness theme that never follows the
-// OS, so the status bar, shadow strength and every `brightness == dark`
-// branch in the screens take the light path.
+// Purple (S20, given a dark sibling in S22). A third, user-chosen appearance
+// that sits beside Light and Dark instead of modifying them: lavender
+// surfaces, one violet for the chrome, and a violet-cast ink in place of pure
+// black so the page reads as a single material. Like the neutral pair it
+// follows the phone: this scheme by day, [luminousPurpleDarkScheme] when the
+// system is dark. `buildLuminousTheme(tonal: true)` adds the one place the
+// violet leaves the chrome: the Home balance card and the nav pill sit on
+// `primaryContainer`.
 //
 // Colour still means something here. Income / expense / warning / info stay
-// the light-set semantic colours from `AppColors`, and category identity
-// colours are untouched — the violet is chrome, not status. Contrast is not
-// eyeballed: `test/theme/luminous_theme_test.dart` asserts every ink role
-// clears 4.5:1 on every surface role, that `primary` still reads as an icon on
-// its own tints (nav indicator, list-tile well), and that the semantic colours
-// keep the floor they have on the neutral light scheme.
+// the semantic colours from `AppColors` for the brightness, and category
+// identity colours are untouched — the violet is chrome, not status. Contrast
+// is not eyeballed: `test/theme/luminous_theme_test.dart` asserts every ink
+// role clears 4.5:1 on every surface role, that `primary` still reads as an
+// icon on its own tints (nav indicator, list-tile well), and that the
+// semantic colours keep the floor they have on the neutral schemes.
 ColorScheme luminousPurpleScheme() {
   return const ColorScheme(
     brightness: Brightness.light,
@@ -185,21 +187,123 @@ ColorScheme luminousPurpleScheme() {
   );
 }
 
+// Purple at night: violet-cast near-black surfaces, a light violet for the
+// chrome. `primaryContainer` is deep enough that expense red still clears
+// 3:1 on it, because the Home balance card sits on it and a negative
+// carry-over prints in red.
+ColorScheme luminousPurpleDarkScheme() {
+  return const ColorScheme(
+    brightness: Brightness.dark,
+    primary: Color(0xFFCDBEFF),
+    onPrimary: Color(0xFF2F1D6F),
+    primaryContainer: Color(0xFF3B2E7A),
+    onPrimaryContainer: Color(0xFFE8DEFF),
+    secondary: Color(0xFFCAC2DE),
+    onSecondary: Color(0xFF322C44),
+    secondaryContainer: Color(0xFF48425C),
+    onSecondaryContainer: Color(0xFFE7E0F8),
+    tertiary: Color(0xFFCAC2DE),
+    onTertiary: Color(0xFF322C44),
+    tertiaryContainer: Color(0xFF48425C),
+    onTertiaryContainer: Color(0xFFE7E0F8),
+    error: Color(0xFFFFB4AB),
+    onError: Color(0xFF690005),
+    errorContainer: Color(0xFF93000A),
+    onErrorContainer: Color(0xFFFFDAD6),
+    surface: Color(0xFF131118),
+    onSurface: Color(0xFFE8E2F2),
+    surfaceContainerHighest: Color(0xFF35313C),
+    surfaceContainerHigh: Color(0xFF2A2631),
+    surfaceContainer: Color(0xFF1F1C26),
+    surfaceContainerLow: Color(0xFF1A1720),
+    surfaceContainerLowest: Color(0xFF0D0B11),
+    onSurfaceVariant: Color(0xFFC9C1D8),
+    outline: Color(0xFF958EA6),
+    outlineVariant: Color(0xFF49445A),
+    shadow: Color(0xFF000000),
+    scrim: Color(0xFF000000),
+    inverseSurface: Color(0xFFE8E2F2),
+    onInverseSurface: Color(0xFF312D3B),
+    inversePrimary: Color(0xFF5B44A6),
+  );
+}
+
 /// Maps the persisted `theme_mode` string (see `SettingsHelper`) to what
-/// `MaterialApp.themeMode` needs. `'purple'` is a fixed light-brightness
-/// appearance, so it rides the `theme` slot under [ThemeMode.light] — see the
-/// `colorScheme` parameter of [buildLuminousTheme]. Anything unrecognised (a
-/// value written by a newer build, a hand-edited pref) degrades to following
-/// the OS rather than throwing.
+/// `MaterialApp.themeMode` needs. `'purple'` follows the phone like
+/// `'system'` does; `main.dart` swaps the Purple pair into the `theme` and
+/// `darkTheme` slots. Anything unrecognised (a value written by a newer
+/// build, a hand-edited pref) degrades to following the OS rather than
+/// throwing.
 ThemeMode themeModeFor(String mode) {
   switch (mode) {
     case 'light':
-    case 'purple':
       return ThemeMode.light;
     case 'dark':
       return ThemeMode.dark;
     default:
       return ThemeMode.system;
+  }
+}
+
+/// Colours of the Home balance card. The neutral themes paint it like every
+/// other card (null [fill] and [border] keep `GlassPanel`'s own); Purple
+/// paints it on `primaryContainer` (see `buildLuminousTheme(tonal: true)`).
+@immutable
+class LuminousHeroColors extends ThemeExtension<LuminousHeroColors> {
+  const LuminousHeroColors({
+    this.fill,
+    this.border,
+    required this.ink,
+    required this.inkVariant,
+  });
+
+  /// The neutral card: GlassPanel's fill and border, the scheme's inks.
+  LuminousHeroColors.plain(ColorScheme cs)
+      : this(ink: cs.onSurface, inkVariant: cs.onSurfaceVariant);
+
+  /// Purple's violet card. Secondary text is the card's own ink at 74%, not
+  /// a grey, so it stays tonal on the violet.
+  LuminousHeroColors.tonal(ColorScheme cs)
+      : this(
+          fill: cs.primaryContainer,
+          border: cs.primaryContainer,
+          ink: cs.onPrimaryContainer,
+          inkVariant: Color.lerp(
+            cs.primaryContainer,
+            cs.onPrimaryContainer,
+            0.74,
+          )!,
+        );
+
+  final Color? fill;
+  final Color? border;
+  final Color ink;
+  final Color inkVariant;
+
+  @override
+  LuminousHeroColors copyWith({
+    Color? fill,
+    Color? border,
+    Color? ink,
+    Color? inkVariant,
+  }) {
+    return LuminousHeroColors(
+      fill: fill ?? this.fill,
+      border: border ?? this.border,
+      ink: ink ?? this.ink,
+      inkVariant: inkVariant ?? this.inkVariant,
+    );
+  }
+
+  @override
+  LuminousHeroColors lerp(LuminousHeroColors? other, double t) {
+    if (other is! LuminousHeroColors) return this;
+    return LuminousHeroColors(
+      fill: Color.lerp(fill, other.fill, t),
+      border: Color.lerp(border, other.border, t),
+      ink: Color.lerp(ink, other.ink, t)!,
+      inkVariant: Color.lerp(inkVariant, other.inkVariant, t)!,
+    );
   }
 }
 
@@ -211,6 +315,9 @@ ThemeData buildLuminousTheme({
   // everything else in here (status-bar icons, shadow strength, and the
   // `brightness == dark` branches in the screens) keys off [brightness].
   ColorScheme? colorScheme,
+  // Purple's treatment (option 1b, S22): the nav pill and the Home balance
+  // card sit on primaryContainer instead of a primary wash / a plain card.
+  bool tonal = false,
 }) {
   assert(
     colorScheme == null || colorScheme.brightness == brightness,
@@ -276,13 +383,18 @@ ThemeData buildLuminousTheme({
       elevation: 0,
       // De-glass: a soft primary-tinted pill with a green selected icon/label
       // (the default seeded indicator was blue secondaryContainer, which put a
-      // low-contrast white icon on a pale blue pill).
-      indicatorColor: cs.primary.withValues(alpha: isDark ? 0.30 : 0.14),
+      // low-contrast white icon on a pale blue pill). Tonal: a solid violet
+      // container pill with its own ink.
+      indicatorColor: tonal
+          ? cs.primaryContainer
+          : cs.primary.withValues(alpha: isDark ? 0.30 : 0.14),
       iconTheme: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
         return IconThemeData(
           size: 26,
-          color: selected ? cs.primary : cs.onSurfaceVariant,
+          color: selected
+              ? (tonal ? cs.onPrimaryContainer : cs.primary)
+              : cs.onSurfaceVariant,
         );
       }),
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
@@ -303,6 +415,9 @@ ThemeData buildLuminousTheme({
       contentTextStyle:
           textTheme.bodyMedium?.copyWith(color: cs.onInverseSurface),
     ),
-    extensions: [appColorsExtension],
+    extensions: [
+      appColorsExtension,
+      tonal ? LuminousHeroColors.tonal(cs) : LuminousHeroColors.plain(cs),
+    ],
   );
 }

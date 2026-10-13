@@ -13,20 +13,29 @@ class GlassPanel extends StatelessWidget {
   final double borderRadius;
   final List<BoxShadow>? boxShadow;
 
+  /// Overrides the container-role fill and the hairline border (Purple's
+  /// violet balance card, see `LuminousHeroColors`).
+  final Color? color;
+  final Color? borderColor;
+
   const GlassPanel({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(LuminousTokens.glassPadding),
     this.borderRadius = LuminousTokens.radiusCard,
     this.boxShadow,
+    this.color,
+    this.borderColor,
   });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final isDark = cs.brightness == Brightness.dark;
-    final fill = isDark ? cs.surfaceContainerHigh : cs.surfaceContainer;
-    final borderCol = cs.outlineVariant.withValues(alpha: isDark ? 0.4 : 0.6);
+    final fill =
+        color ?? (isDark ? cs.surfaceContainerHigh : cs.surfaceContainer);
+    final borderCol = borderColor ??
+        cs.outlineVariant.withValues(alpha: isDark ? 0.4 : 0.6);
 
     return DecoratedBox(
       decoration: BoxDecoration(

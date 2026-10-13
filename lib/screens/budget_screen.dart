@@ -37,46 +37,59 @@ class BudgetScreen extends StatelessWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          GlassTopAppBar(
-            title: 'Budgets',
-            actions: [
-              AccessibilityHelper.semanticIconButton(
-                icon: Icons.chevron_left,
-                label: 'Previous month',
-                onPressed: appState.goToPreviousMonth,
-              ),
-              Semantics(
-                label:
-                    'Current month: $selectedMonthName. Tap to select month, long press for today.',
-                button: true,
-                child: GestureDetector(
-                  onTap: () => _showMonthPicker(context, appState, theme),
-                  onLongPress: () => context.read<AppState>().goToToday(),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      selectedMonthName,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: theme.colorScheme.onSurface,
+          const GlassTopAppBar(title: 'Budgets'),
+          // The month navigator gets its own row, as on Home: in the app
+          // bar's actions it squeezed the title to "Bu…" on a narrow phone
+          // with large text.
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: LuminousTokens.containerPadding,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AccessibilityHelper.semanticIconButton(
+                  icon: Icons.chevron_left,
+                  label: 'Previous month',
+                  onPressed: appState.goToPreviousMonth,
+                ),
+                Flexible(
+                  child: Semantics(
+                    label:
+                        'Current month: $selectedMonthName. Tap to select month, long press for today.',
+                    button: true,
+                    child: GestureDetector(
+                      onTap: () => _showMonthPicker(context, appState, theme),
+                      onLongPress: () => context.read<AppState>().goToToday(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          selectedMonthName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              AccessibilityHelper.semanticIconButton(
-                icon: Icons.chevron_right,
-                label: 'Next month',
-                onPressed: appState.goToNextMonth,
-              ),
-            ],
+                AccessibilityHelper.semanticIconButton(
+                  icon: Icons.chevron_right,
+                  label: 'Next month',
+                  onPressed: appState.goToNextMonth,
+                ),
+              ],
+            ),
           ),
           Expanded(
             child: CustomScrollView(
@@ -137,7 +150,10 @@ class BudgetScreen extends StatelessWidget {
       isScrollControlled: true,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Container(
-          height: 350,
+          // Grows by the nav-bar inset and pads it, so a 3-button bar never
+          // covers the last row of months.
+          height: 350 + MediaQuery.paddingOf(context).bottom,
+          padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
             borderRadius: const BorderRadius.vertical(
@@ -153,6 +169,7 @@ class BudgetScreen extends StatelessWidget {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.chevron_left),
+                      tooltip: 'Previous year',
                       onPressed: () {
                         setModalState(() => displayYear--);
                       },
@@ -167,6 +184,7 @@ class BudgetScreen extends StatelessWidget {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.chevron_right),
+                          tooltip: 'Next year',
                           onPressed: () {
                             setModalState(() => displayYear++);
                           },
@@ -180,6 +198,7 @@ class BudgetScreen extends StatelessWidget {
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
+                          tooltip: 'Close',
                           onPressed: () => Navigator.pop(context),
                         ),
                       ],
@@ -457,7 +476,7 @@ class _MonthlySummaryCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Total Available: $currency${appState.formatAmount(totalIncome + carryover, decimalDigits: 0)}',
+                      'Total Available: ${appState.formatWithCurrency(totalIncome + carryover, decimalDigits: 0)}',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -585,7 +604,7 @@ class _MonthlySummaryCard extends StatelessWidget {
               Flexible(
                 flex: 2,
                 child: Text(
-                  '${projectedBalance >= 0 ? '+' : ''}$currency${appState.formatAmount(projectedBalance, decimalDigits: 0)}',
+                  '${projectedBalance >= 0 ? '+' : ''}${appState.formatWithCurrency(projectedBalance, decimalDigits: 0)}',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -663,32 +682,24 @@ class _MonthlySummaryCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  InkWell(
-                    onTap: () => _showSetOverallBudgetDialog(
+                  // 48dp targets with spoken labels (they were 24dp
+                  // InkWells TalkBack announced as unlabeled buttons).
+                  AccessibilityHelper.semanticIconButton(
+                    icon: Icons.edit_outlined,
+                    label: 'Edit monthly budget',
+                    onPressed: () => _showSetOverallBudgetDialog(
                       context,
                       appState.overallMonthlyBudget,
                     ),
-                    borderRadius: BorderRadius.circular(4),
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.edit_outlined,
-                        size: 16,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
-                  InkWell(
-                    onTap: () => _confirmRemoveOverallBudget(context),
-                    borderRadius: BorderRadius.circular(4),
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.close,
-                        size: 16,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                  AccessibilityHelper.semanticIconButton(
+                    icon: Icons.close,
+                    label: 'Remove monthly budget',
+                    onPressed: () => _confirmRemoveOverallBudget(context),
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -919,7 +930,14 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
             top: Radius.circular(20),
           ),
         ),
-        padding: const EdgeInsets.all(20),
+        // The nav-bar inset (0 while the keyboard is up, which already
+        // lifts the sheet): Save sat under a 3-button bar.
+        padding: EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          20 + MediaQuery.paddingOf(context).bottom,
+        ),
         child: Form(
           key: _formKey,
           child: Column(
@@ -1042,12 +1060,10 @@ class _SetOverallBudgetDialogState extends State<_SetOverallBudgetDialog> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        final appColors = Theme.of(context).extension<AppColors>()!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to save budget: $e'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: appColors.expenseRed,
           ),
         );
       }
@@ -1459,6 +1475,9 @@ class _BudgetList extends StatelessWidget {
                 await appState.undoBudgetDeletion();
               },
             ),
+            // Since Flutter 3.38 a SnackBar with an action never times out
+            // on its own. Time it out again, except under TalkBack.
+            persist: MediaQuery.accessibleNavigationOf(context),
             duration: const Duration(seconds: 4),
             behavior: SnackBarBehavior.floating,
           ),
@@ -1520,7 +1539,14 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
             top: Radius.circular(20),
           ),
         ),
-        padding: const EdgeInsets.all(20),
+        // The nav-bar inset (0 while the keyboard is up, which already
+        // lifts the sheet): Save sat under a 3-button bar.
+        padding: EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          20 + MediaQuery.paddingOf(context).bottom,
+        ),
         child: Form(
           key: _formKey,
           child: Column(
@@ -1646,12 +1672,10 @@ class _AddBudgetDialogState extends State<_AddBudgetDialog> {
   }
 
   void _showError(String message) {
-    final appColors = Theme.of(context).extension<AppColors>()!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: appColors.expenseRed,
       ),
     );
   }

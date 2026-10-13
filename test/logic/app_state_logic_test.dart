@@ -532,11 +532,12 @@ void main() {
   // DatabaseConstants
   // ======================================================================
   group('DatabaseConstants', () {
-    test('database version is 19 (Phase 4)', () {
+    test('database version is 20 (S22)', () {
       // Phase 4 bumped the schema to v19 — trash-table FKs, v4 cascades,
       // junction triggers, and monthly_balances month-key normalization.
-      // See DatabaseHelper._migrateToV19.
-      expect(DatabaseConstants.databaseVersion, 19);
+      // S22 bumped it to v20: one budget per category per month.
+      // See DatabaseHelper._migrateToV19 / _migrateToV20.
+      expect(DatabaseConstants.databaseVersion, 20);
     });
 
     test('database name is correct', () {

@@ -106,8 +106,14 @@ class DatabaseHelper {
       return _database!;
     } catch (e) {
       if (kDebugMode) debugPrint('Database initialization failed: $e');
-      _initCompleter!.completeError(e);
+      final completer = _initCompleter!;
       _initCompleter = null; // Reset so retry is possible
+      // Concurrent waiters still get the error. With none, the completer's
+      // future must not surface it again as an unhandled async error: this
+      // caller rethrows it, and an open that fails (an unreadable key) is an
+      // expected path that ends in the load-error card.
+      completer.future.ignore();
+      completer.completeError(e);
       rethrow;
     }
   }
@@ -138,16 +144,16 @@ class DatabaseHelper {
   // check skips the row (and increments the relevant skipped counter so the
   // UI can show "N rows skipped").
 
-  /// Amount must be finite, non-NaN, in [0, 1e10). Currency precision means
-  /// $10B is far beyond any sane personal budget — rejecting it catches the
-  /// "json overflow injection" case where a hand-edited backup tries to
-  /// poison aggregates with `1e308`.
+  /// Amount must be finite, non-NaN, in [0, DecimalHelper.maxSafeValue]: the
+  /// largest amount the app itself accepts. Rejecting more catches the "json
+  /// overflow injection" case where a hand-edited backup tries to poison
+  /// aggregates with `1e308`.
   static bool _isValidAmount(dynamic raw) {
     final v = (raw is num) ? raw.toDouble() : null;
     if (v == null) return false;
     if (v.isNaN || v.isInfinite) return false;
     if (v < 0) return false;
-    if (v >= 1e10) return false;
+    if (v > DecimalHelper.maxSafeValue) return false;
     return true;
   }
 
@@ -198,9 +204,11 @@ class DatabaseHelper {
     );
 
     // Phase 6.1: resolve the at-rest encryption passphrase. Null on the FFI
-    // test runner / desktop, or when no key can be durably persisted, in which
-    // case [openAppDatabase] opens a plaintext database exactly as before.
-    final password = await _resolveEncryptionPassword();
+    // test runner / desktop, or when a not-yet-encrypted database has no
+    // durable key this launch, in which case [openAppDatabase] opens it
+    // plaintext exactly as before. Throws for an encrypted database whose key
+    // cannot be read (see [_resolveEncryptionPassword]).
+    final password = await _resolveEncryptionPassword(dbPath);
 
     return await openAppDatabase(
       dbPath: dbPath,
@@ -222,13 +230,18 @@ class DatabaseHelper {
   ///
   /// Returns null on every path that must stay plaintext: the integration
   /// test runner (which sets [databaseNameOverride]), any non-mobile platform
-  /// (no SQLCipher plugin — the FFI factory drives those), or a Keystore
-  /// failure where no durable key could be obtained ([DbEncryption.getOrCreateKey]
-  /// swallows its own errors and returns null).
-  Future<String?> _resolveEncryptionPassword() async {
+  /// (no SQLCipher plugin — the FFI factory drives those), or a database at
+  /// [dbPath] that is not encrypted yet and has no durable key this launch.
+  ///
+  /// When [dbPath] is already encrypted and its key cannot be read (Keystore
+  /// error, or the key is gone), [DbEncryption.getOrCreateKey] throws
+  /// [DatabaseKeyUnavailableException] instead of minting a key that could
+  /// never open it. The open then fails without touching the file,
+  /// `AppState.loadData` records the error, and the next resume retries.
+  Future<String?> _resolveEncryptionPassword(String dbPath) async {
     if (databaseNameOverride != null) return null;
     if (!cipherPlatform) return null;
-    return DbEncryption.getOrCreateKey();
+    return DbEncryption.getOrCreateKey(dbPath: dbPath);
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -491,6 +504,8 @@ class DatabaseHelper {
     // Performance indexes for budgets (month/category queries)
     await db.execute('CREATE INDEX idx_budgets_account_month ON budgets(account_id, month)');
     await db.execute('CREATE INDEX idx_budgets_category ON budgets(account_id, category)');
+    // One budget per category per month (v20, see _migrateToV20).
+    await db.execute(_budgetsUniqueIndexSql);
 
     // Performance indexes for recurring transactions (active status queries)
     await db.execute('CREATE INDEX idx_recurring_expenses_active ON recurring_expenses(account_id, isActive)');
@@ -765,6 +780,73 @@ class DatabaseHelper {
     if (oldVersion < 19) {
       await _migrateToV19(db);
     }
+
+    if (oldVersion < 20) {
+      await _migrateToV20(db);
+    }
+  }
+
+  static const String _budgetsUniqueIndexSql =
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_budgets_account_category_month '
+      'ON budgets(account_id, category, month)';
+
+  /// S22 migration to schema v20: one budget per category per month.
+  ///
+  /// Moving a category's transactions into another (delete-and-move, or a
+  /// rename onto an existing name) retargeted its budgets blindly, so the
+  /// target could end up with two budgets for the same month. `setBudget`
+  /// then edited only the first and the Budgets screen listed both. The move
+  /// now merges (see [_moveBudgets]); this pass collapses what earlier builds
+  /// left, keeping the row `setBudget` was editing (the lowest id, the same
+  /// rule as the v18 tag dedupe), and the index stops it recurring.
+  /// Months are first normalised to `YYYY-MM-01` (what Budget.toMap writes)
+  /// so an older full-timestamp row cannot dodge the index.
+  static Future<void> _migrateToV20(Database db) async {
+    await db.transaction((txn) async {
+      await txn.execute('''
+        UPDATE budgets SET month = substr(month, 1, 7) || '-01'
+        WHERE month != substr(month, 1, 7) || '-01'
+      ''');
+      await txn.execute('''
+        DELETE FROM budgets
+        WHERE id NOT IN (
+          SELECT MIN(id) FROM budgets GROUP BY account_id, category, month
+        )
+      ''');
+      await txn.execute(_budgetsUniqueIndexSql);
+    });
+  }
+
+  /// Moves category [from]'s budgets onto [to] inside [txn]. In a month where
+  /// both have one, [from]'s amount joins [to]'s (the month's total budget is
+  /// unchanged) instead of leaving [to] with two budgets that month.
+  static Future<void> _moveBudgets(
+    Transaction txn,
+    int accountId,
+    String from,
+    String to,
+  ) async {
+    if (from == to) return;
+    await txn.rawUpdate('''
+      UPDATE budgets SET amount = ROUND(amount + (
+        SELECT SUM(src.amount) FROM budgets src
+        WHERE src.account_id = budgets.account_id
+          AND src.category = ? AND src.month = budgets.month
+      ), 2)
+      WHERE account_id = ? AND category = ? AND month IN (
+        SELECT month FROM budgets WHERE account_id = ? AND category = ?
+      )
+    ''', [from, accountId, to, accountId, from]);
+    await txn.rawDelete('''
+      DELETE FROM budgets
+      WHERE account_id = ? AND category = ? AND month IN (
+        SELECT month FROM budgets WHERE account_id = ? AND category = ?
+      )
+    ''', [accountId, from, accountId, to]);
+    await txn.rawUpdate(
+      'UPDATE budgets SET category = ? WHERE account_id = ? AND category = ?',
+      [to, accountId, from],
+    );
   }
 
   /// Phase 4 migration to schema v19. Bundles:
@@ -827,6 +909,20 @@ class DatabaseHelper {
     try {
       await db.transaction((txn) async {
         await txn.execute('PRAGMA defer_foreign_keys = ON');
+        // Rows whose account no longer exists (pre-cascade builds left them
+        // when an account was deleted) can never be shown or restored. Copied
+        // into the FK-checked rebuilds below they fail the deferred check at
+        // commit, and the upgrade then failed on every launch.
+        for (final table in const [
+          'deleted_expenses',
+          'deleted_income',
+          'income',
+          'quick_templates',
+        ]) {
+          await txn.execute(
+            'DELETE FROM $table WHERE account_id NOT IN (SELECT id FROM accounts)',
+          );
+        }
         // 4.2: trash tables. Both `deleted_expenses` and `deleted_income`
         // get FK + CASCADE on `account_id`. `deleted_accounts` intentionally
         // skipped — that table is the soft-delete pool for accounts and
@@ -1558,9 +1654,15 @@ class DatabaseHelper {
             .map((row) => row['data'] as String)
             .toSet();
 
+        // deleteAccount writes the backup BEFORE it inserts the row that
+        // registers it, and this sweep runs in the background without the
+        // AppState write mutex, so a fresh unregistered file may simply not be
+        // registered yet. Only one untouched for an hour is an orphan.
+        final cutoff = DateTime.now().subtract(const Duration(hours: 1));
         await for (final entity in backupsDir.list()) {
           if (entity is File && !registeredPaths.contains(entity.path)) {
             try {
+              if ((await entity.lastModified()).isAfter(cutoff)) continue;
               await entity.delete();
               cleanedCount++;
               if (kDebugMode) debugPrint('Cleaned orphaned backup: ${entity.path}');
@@ -1600,6 +1702,15 @@ class DatabaseHelper {
       }
     } catch (e) {
       if (kDebugMode) debugPrint('Error sweeping pre-restore backups: $e');
+    }
+
+    // A backup deletes its plaintext export of the encrypted database when it
+    // finishes; reap any that a backup killed mid-way left in the temp dir.
+    try {
+      cleanedCount +=
+          await deleteStalePlaintextExports(await getTemporaryDirectory());
+    } catch (e) {
+      if (kDebugMode) debugPrint('Error sweeping plaintext exports: $e');
     }
 
     return cleanedCount;
@@ -1734,7 +1845,12 @@ class DatabaseHelper {
         final budgetMap = Map<String, dynamic>.from(budget as Map);
         budgetMap.remove('id');
         budgetMap['account_id'] = newId;
-        await txn.insert('budgets', budgetMap);
+        // A backup from before v20 can hold two budgets for one month.
+        await txn.insert(
+          'budgets',
+          budgetMap,
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
       }
 
       // Restore recurring expenses
@@ -1755,15 +1871,16 @@ class DatabaseHelper {
         await txn.insert('recurring_income', recMap);
       }
 
-      // Restore categories (non-default ones)
+      // Restore every category, defaults included. Skipping the defaults
+      // relied on AppState re-seeding them, which it only does when the list
+      // is EMPTY — so an account with even one custom category came back
+      // without Food, Bills or Salary (setBudget('Food') then threw).
       final categories = backupData['categories'] as List<dynamic>? ?? [];
       for (final cat in categories) {
         final catMap = Map<String, dynamic>.from(cat as Map);
-        if (catMap['isDefault'] != 1) {
-          catMap.remove('id');
-          catMap['account_id'] = newId;
-          await txn.insert('categories', catMap);
-        }
+        catMap.remove('id');
+        catMap['account_id'] = newId;
+        await txn.insert('categories', catMap);
       }
 
       // Restore quick templates
@@ -2207,31 +2324,35 @@ class DatabaseHelper {
   }
 
   // Restore last deleted expense for a specific account (for quick undo)
-  Future<void> restoreLastDeleted(int accountId) async {
+  /// Undo for an expense delete that just happened: restores the trash row
+  /// recorded for [originalId] (the expense's id before it was trashed).
+  /// Keyed on the id rather than "newest deleted" so an undo can never bring
+  /// back some other, older row.
+  Future<void> restoreDeletedExpenseByOriginalId(int originalId) async {
     final db = await database;
-    final result = await db.query(
+    final rows = await db.query(
       'deleted_expenses',
-      where: 'account_id = ?',
-      whereArgs: [accountId],
+      columns: ['id'],
+      where: 'original_id = ?',
+      whereArgs: [originalId],
       orderBy: 'deletedAt DESC',
       limit: 1,
     );
+    if (rows.isNotEmpty) await restoreDeletedExpense(rows.first['id'] as int);
+  }
 
-    if (result.isNotEmpty) {
-      final map = result.first;
-      await db.transaction((txn) async {
-        await txn.insert('expenses', {
-          'amount': map['amount'],
-          'category': map['category'],
-          'description': map['description'],
-          'date': map['date'],
-          'account_id': map['account_id'],
-          'amountPaid': map['amountPaid'],
-          'paymentMethod': map['paymentMethod'],
-        });
-        await txn.delete('deleted_expenses', where: 'id = ?', whereArgs: [map['id']]);
-      });
-    }
+  /// Income counterpart of [restoreDeletedExpenseByOriginalId].
+  Future<void> restoreDeletedIncomeByOriginalId(int originalId) async {
+    final db = await database;
+    final rows = await db.query(
+      'deleted_income',
+      columns: ['id'],
+      where: 'original_id = ?',
+      whereArgs: [originalId],
+      orderBy: 'deletedAt DESC',
+      limit: 1,
+    );
+    if (rows.isNotEmpty) await restoreDeletedIncome(rows.first['id'] as int);
   }
 
   // Clear old deleted items (30 days) - call on app startup.
@@ -2284,7 +2405,14 @@ class DatabaseHelper {
 
   Future<int> createBudget(Budget budget) async {
     final db = await database;
-    return await db.insert('budgets', budget.toMap());
+    // One budget per category per month: a second one replaces the first
+    // (the rollover copying a month that held duplicates, an undo landing
+    // on a budget set meanwhile).
+    return await db.insert(
+      'budgets',
+      budget.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   /// CRITICAL FIX: Read budgets with optional month filter and limit
@@ -2313,9 +2441,11 @@ class DatabaseHelper {
       where: whereClause,
       whereArgs: whereArgs,
       orderBy: 'month DESC',
-      // CRITICAL FIX: Add limit to prevent unbounded memory growth
-      // Default to 100 if no limit specified (covers ~8 years of monthly budgets)
-      limit: limit ?? 100,
+      // No default cap. A silent 100-row limit dropped every budget older
+      // than ~10 months for someone with 10 category budgets a month: those
+      // months showed no budgets, and setting one created a duplicate. Budget
+      // rows are tiny; callers that want a window pass [limit].
+      limit: limit,
     );
     return result.map((map) => Budget.fromMap(map)).toList();
   }
@@ -2447,6 +2577,24 @@ class DatabaseHelper {
     return (income: totalIncome, expenses: totalExpenses);
   }
 
+  /// What has actually been paid toward the month's expenses. Home's "Total
+  /// Balance" subtracts this rather than the full expense total — an unpaid
+  /// bill does not reduce the cash on hand until it is paid — so the home
+  /// screen widget needs it to show the same number. Same `YYYY-MM-DD` month
+  /// bounds as [calculateMonthBalance].
+  Future<double> calculateMonthPaid(int accountId, int year, int month) async {
+    final db = await database;
+    final monthDate = DateTime.utc(year, month, 1);
+    final startDate = DateHelper.toDateString(DateHelper.startOfMonth(monthDate));
+    final endDate = DateHelper.toDateString(DateHelper.lastDayOfMonth(monthDate));
+    final result = await db.rawQuery(
+      'SELECT COALESCE(SUM(amountPaid), 0) AS total FROM expenses '
+      'WHERE account_id = ? AND date >= ? AND date <= ?',
+      [accountId, startDate, endDate],
+    );
+    return (result.first['total'] as num?)?.toDouble() ?? 0.0;
+  }
+
   /// Everything the account earned and spent strictly BEFORE the month that
   /// starts on [monthStart]. `income - expenses` of this result is the balance
   /// carried into that month — the whole "leftover money moves to the next
@@ -2520,6 +2668,20 @@ class DatabaseHelper {
         .toList();
   }
 
+  /// Active recurring expenses of every live account — the recurring
+  /// processor posts all accounts' bills, not just the current account's.
+  Future<List<RecurringExpense>> readActiveRecurringExpensesAllAccounts() async {
+    final db = await database;
+    final result = await db.query(
+      'recurring_expenses',
+      where: 'isActive = 1 AND account_id IN (SELECT id FROM accounts)',
+    );
+    return result
+        .map((map) => RecurringExpense.tryFromMap(map))
+        .whereType<RecurringExpense>()
+        .toList();
+  }
+
   Future<int> updateRecurringExpense(RecurringExpense expense) async {
     final db = await database;
     return await db.update(
@@ -2583,17 +2745,16 @@ class DatabaseHelper {
           [newName, accountId, oldName],
         );
 
-        // Update quick templates
+        // Update quick templates — expense templates only: an income template
+        // can share the name (both lists ship an "Other"), and renaming the
+        // expense category must not retarget it.
         await txn.rawUpdate(
-          'UPDATE quick_templates SET category = ? WHERE account_id = ? AND category = ?',
-          [newName, accountId, oldName],
+          'UPDATE quick_templates SET category = ? WHERE account_id = ? AND category = ? AND type = ?',
+          [newName, accountId, oldName, 'expense'],
         );
 
-        // Update budgets
-        await txn.rawUpdate(
-          'UPDATE budgets SET category = ? WHERE account_id = ? AND category = ?',
-          [newName, accountId, oldName],
-        );
+        // Update budgets (merging into any [newName] already has)
+        await _moveBudgets(txn, accountId, oldName, newName);
 
         // Update deleted expenses
         await txn.rawUpdate(
@@ -2654,11 +2815,8 @@ class DatabaseHelper {
           [newCategory, accountId, oldCategory, 'expense'],
         );
 
-        // Update budgets
-        await txn.rawUpdate(
-          'UPDATE budgets SET category = ? WHERE account_id = ? AND category = ?',
-          [newCategory, accountId, oldCategory],
-        );
+        // Update budgets (merging into any [newCategory] already has)
+        await _moveBudgets(txn, accountId, oldCategory, newCategory);
 
         // Update deleted expenses
         await txn.rawUpdate(
@@ -2712,10 +2870,7 @@ class DatabaseHelper {
           'UPDATE quick_templates SET category = ? WHERE account_id = ? AND category = ? AND type = ?',
           [newCategory, accountId, oldCategory, 'expense'],
         );
-        await txn.rawUpdate(
-          'UPDATE budgets SET category = ? WHERE account_id = ? AND category = ?',
-          [newCategory, accountId, oldCategory],
-        );
+        await _moveBudgets(txn, accountId, oldCategory, newCategory);
         await txn.rawUpdate(
           'UPDATE deleted_expenses SET category = ? WHERE account_id = ? AND category = ?',
           [newCategory, accountId, oldCategory],
@@ -3178,6 +3333,20 @@ class DatabaseHelper {
         .toList();
   }
 
+  /// Active recurring income of every live account — see
+  /// [readActiveRecurringExpensesAllAccounts].
+  Future<List<RecurringIncome>> readActiveRecurringIncomeAllAccounts() async {
+    final db = await database;
+    final result = await db.query(
+      'recurring_income',
+      where: 'isActive = 1 AND account_id IN (SELECT id FROM accounts)',
+    );
+    return result
+        .map((map) => RecurringIncome.tryFromMap(map))
+        .whereType<RecurringIncome>()
+        .toList();
+  }
+
   Future<int> updateRecurringIncome(RecurringIncome income) async {
     final db = await database;
     return await db.update(
@@ -3372,7 +3541,12 @@ class DatabaseHelper {
     return sanitized;
   }
 
-  /// Parse search query into tokens, respecting quoted strings
+  /// Parse search query into tokens, respecting double-quoted phrases.
+  /// Runs on the RAW query and only `"` is special, so an apostrophe
+  /// ("McDonald's") or a backslash stays literal text. Each token is escaped
+  /// for LIKE afterwards by [_escapeLikeToken]; tokenizing an already-escaped
+  /// query used to strip the escapes back off, turning `_` and `%` into
+  /// wildcards again.
   /// Examples:
   /// - "Coffee 50" -> ["Coffee", "50"]
   /// - '"Coffee Shop" 20' -> ["Coffee Shop", "20"]
@@ -3381,23 +3555,11 @@ class DatabaseHelper {
     final tokens = <String>[];
     final buffer = StringBuffer();
     bool inQuotes = false;
-    bool escaped = false;
 
     for (var i = 0; i < query.length; i++) {
       final char = query[i];
 
-      if (escaped) {
-        buffer.write(char);
-        escaped = false;
-        continue;
-      }
-
-      if (char == '\\') {
-        escaped = true;
-        continue;
-      }
-
-      if (char == '"' || char == "'") {
+      if (char == '"') {
         inQuotes = !inQuotes;
         continue;
       }
@@ -3421,6 +3583,14 @@ class DatabaseHelper {
     return tokens.where((t) => t.isNotEmpty).toList();
   }
 
+  /// Escapes a search token for `LIKE ? ESCAPE '\'` so every character in it
+  /// matches literally: the escape character itself first, then the `%` and
+  /// `_` wildcards.
+  String _escapeLikeToken(String token) => token
+      .replaceAll(r'\', r'\\')
+      .replaceAll('%', r'\%')
+      .replaceAll('_', r'\_');
+
   /// FIX: Unified search that merges expenses and income chronologically
   /// This prevents timeline fragmentation when paginating
   Future<Map<String, dynamic>> searchTransactionsUnified(
@@ -3435,17 +3605,20 @@ class DatabaseHelper {
   }) async {
     final db = await database;
 
-    // FIX: Sanitize search query
-    final sanitizedQuery = _sanitizeSearchQuery(query.trim());
+    // Tokenize the raw query, capped at 100 chars to bound the LIKE work.
+    // Each token is LIKE-escaped where its pattern is built below.
+    final trimmedQuery = query.trim();
+    final rawQuery = trimmedQuery.length > 100
+        ? trimmedQuery.substring(0, 100)
+        : trimmedQuery;
 
     // CRITICAL FIX: Multi-token search with quoted string support
     // Allows: "Food 50" -> ["Food", "50"] (two tokens)
     // Allows: '"Coffee Shop" 20' -> ["Coffee Shop", "20"] (quoted phrase kept together)
-    final tokens = _parseSearchTokens(sanitizedQuery);
-
-    if (tokens.isEmpty) {
-      return {'expenses': <Expense>[], 'income': <Income>[], 'hasMore': false};
-    }
+    // An empty query adds no term filter: the category and date filters
+    // alone pick the rows, which is how History lists "All time" and a date
+    // range without a search term.
+    final tokens = _parseSearchTokens(rawQuery);
 
     // Build WHERE clause for each token - all must match
     String buildTokenConditions(String prefix) {
@@ -3474,7 +3647,8 @@ class DatabaseHelper {
         conditions.add('$prefix.date <= ?');
       }
 
-      return conditions.join(' AND ');
+      // No term, category or date filter: every row of the account matches.
+      return conditions.isEmpty ? '1' : conditions.join(' AND ');
     }
 
     final expenseConditions = buildTokenConditions('expenses');
@@ -3531,7 +3705,7 @@ class DatabaseHelper {
     // Args for expenses
     args.add(accountId);
     for (final token in tokens) {
-      final pattern = '%$token%';
+      final pattern = '%${_escapeLikeToken(token)}%';
       final isNumeric = double.tryParse(token) != null;
       if (isNumeric) {
         args.addAll([pattern, pattern, pattern]); // description, category, amount
@@ -3553,7 +3727,7 @@ class DatabaseHelper {
     // Args for income
     args.add(accountId);
     for (final token in tokens) {
-      final pattern = '%$token%';
+      final pattern = '%${_escapeLikeToken(token)}%';
       final isNumeric = double.tryParse(token) != null;
       if (isNumeric) {
         args.addAll([pattern, pattern, pattern]);

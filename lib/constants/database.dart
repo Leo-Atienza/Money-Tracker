@@ -7,7 +7,8 @@ class DatabaseConstants {
   // Phase 4: bumped 18 → 19 for the trash-table FKs, v4 cascade rebuilds,
   // junction-cleanup triggers, and monthly_balances month-key normalization.
   // See DatabaseHelper._onUpgrade `if (oldVersion < 19)` block.
-  static const int databaseVersion = 19;
+  // S22: 19 → 20, one budget per category per month (see _migrateToV20).
+  static const int databaseVersion = 20;
 
   // Table names
   static const String tableAccounts = 'accounts';

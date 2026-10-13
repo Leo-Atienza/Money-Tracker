@@ -118,7 +118,7 @@ class RecurringIncomeView extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${appState.currency}${rec.amount.toStringAsFixed(0)}',
+                  appState.formatWithCurrency(rec.amount),
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: rec.isActive
                         ? appColors.incomeGreen
@@ -206,6 +206,9 @@ class RecurringIncomeView extends StatelessWidget {
 
   void _confirmDelete(BuildContext context, int id) {
     final theme = Theme.of(context);
+    // In-flight guard: a double tap on Delete deleted twice and popped twice,
+    // the second pop closing the screen underneath.
+    var deleting = false;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -225,6 +228,8 @@ class RecurringIncomeView extends StatelessWidget {
           ),
           TextButton(
             onPressed: () async {
+              if (deleting) return;
+              deleting = true;
               await context.read<AppState>().deleteRecurringIncome(id);
               if (context.mounted) Navigator.pop(context);
             },
@@ -340,7 +345,8 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.arrow_downward, color: appColors.incomeGreen),
+                  // Income points up, as on Home.
+                  Icon(Icons.arrow_upward, color: appColors.incomeGreen),
                   const SizedBox(width: 12),
                   Text(
                     widget.recurring != null
@@ -373,10 +379,12 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
               // Amount
               TextFormField(
                 controller: _amountController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                ],
+                // Decimal keyboard + the app's shared amount formatter: the old
+                // digits-and-dot filter dropped a typed comma, so "15,49"
+                // saved 1549.
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [CurrencyHelper.decimalInputFormatter()],
                 decoration: InputDecoration(
                   labelText: 'Amount',
                   prefixText: '${appState.currency} ',
@@ -858,12 +866,10 @@ class _AddRecurringIncomeDialogState extends State<_AddRecurringIncomeDialog> {
   }
 
   void _showError(String message) {
-    final appColors = Theme.of(context).extension<AppColors>()!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: appColors.expenseRed,
       ),
     );
   }

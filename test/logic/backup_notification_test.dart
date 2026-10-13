@@ -6,62 +6,6 @@ import 'package:budget_tracker/utils/settings_helper.dart';
 
 void main() {
   // =========================================================================
-  // 1. CSV Field Escaping Logic
-  // =========================================================================
-  //
-  // BackupHelper._escapeCsvField is private, so we recreate the same logic
-  // (RFC 4180: double quotes are escaped by doubling them) and verify it
-  // matches the behavior used by exportCsv.
-  // =========================================================================
-
-  group('CSV field escaping logic (RFC 4180)', () {
-    // Mirrors BackupHelper._escapeCsvField exactly
-    String escapeCsvField(String field) {
-      return field.replaceAll('"', '""');
-    }
-
-    test('plain text passes through unchanged', () {
-      expect(escapeCsvField('Groceries'), 'Groceries');
-    });
-
-    test('field with double quotes doubles them', () {
-      expect(escapeCsvField('Item "A"'), 'Item ""A""');
-    });
-
-    test('field with multiple quotes doubles each', () {
-      expect(escapeCsvField('"Hello" "World"'), '""Hello"" ""World""');
-    });
-
-    test('field with commas is preserved (quoting handled by caller)', () {
-      // _escapeCsvField only escapes quotes; the caller wraps in quotes
-      expect(escapeCsvField('Rice, Beans'), 'Rice, Beans');
-    });
-
-    test('field with newlines is preserved (quoting handled by caller)', () {
-      expect(escapeCsvField('Line1\nLine2'), 'Line1\nLine2');
-    });
-
-    test('empty field returns empty string', () {
-      expect(escapeCsvField(''), '');
-    });
-
-    test('field with quotes AND commas escapes only quotes', () {
-      expect(escapeCsvField('"Total", she said'), '""Total"", she said');
-    });
-
-    test('field with only quotes becomes doubled quotes', () {
-      expect(escapeCsvField('""'), '""""');
-    });
-
-    test('CSV row construction wraps escaped field in quotes', () {
-      // Simulate how exportCsv builds a row: "${_escapeCsvField(field)}"
-      final description = 'Lunch at "Joe\'s Diner", downtown';
-      final escaped = '"${escapeCsvField(description)}"';
-      expect(escaped, '"Lunch at ""Joe\'s Diner"", downtown"');
-    });
-  });
-
-  // =========================================================================
   // 2. BackupHelper.formatFileSize
   // =========================================================================
 
@@ -179,9 +123,9 @@ void main() {
 
   group('DatabaseConstants', () {
     group('database metadata', () {
-      test('database version is 19 (Phase 4)', () {
-        // Phase 4 bumped the schema to v19. See `DatabaseHelper._migrateToV19`.
-        expect(DatabaseConstants.databaseVersion, 19);
+      test('database version is 20 (S22)', () {
+        // S22 bumped the schema to v20. See `DatabaseHelper._migrateToV20`.
+        expect(DatabaseConstants.databaseVersion, 20);
       });
 
       test('database name is non-empty', () {

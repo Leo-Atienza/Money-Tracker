@@ -223,6 +223,8 @@ void main() {
       expect(find.textContaining('USD'), findsWidgets);
       expect(find.textContaining('EUR'), findsWidgets);
       expect(find.textContaining('7'), findsWidgets);
+      // The example uses the real pair (it always said "\$100 becomes ₹100").
+      expect(find.textContaining('\$100 becomes €100'), findsOneWidget);
 
       await tester.tap(find.text('Keep Amounts'));
       await tester.pumpAndSettle();
